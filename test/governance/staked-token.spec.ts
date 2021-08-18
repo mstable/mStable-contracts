@@ -58,7 +58,6 @@ describe("Staked Token", () => {
         }
         const stakedTokenFactory = new StakedToken__factory(stakedTokenLibraryAddresses, sa.default.signer)
         const stakedTokenImpl = await stakedTokenFactory.deploy(
-            sa.questSigner.address,
             nexus.address,
             rewardToken.address,
             rewardToken.address,
@@ -66,7 +65,7 @@ describe("Staked Token", () => {
             ONE_DAY.mul(2),
         )
         const rewardsDistributorAddress = DEAD_ADDRESS
-        const data = stakedTokenImpl.interface.encodeFunctionData("initialize", ["Staked Rewards", "stkRWD", rewardsDistributorAddress])
+        const data = stakedTokenImpl.interface.encodeFunctionData("initialize", ["Staked Rewards", "stkRWD", rewardsDistributorAddress, sa.questSigner.address])
         const stakedTokenProxy = await new AssetProxy__factory(sa.default.signer).deploy(stakedTokenImpl.address, DEAD_ADDRESS, data)
 
         return stakedTokenFactory.attach(stakedTokenProxy.address)
@@ -113,7 +112,7 @@ describe("Staked Token", () => {
             expect(await stakedToken.COOLDOWN_PERCENTAGE_SCALE(), "unstake window").to.eq(cooldown100Percentage)
 
             // eslint-disable-next-line no-underscore-dangle
-            expect(await stakedToken._signer(), "quest signer").to.eq(sa.questSigner.address)
+            expect(await stakedToken.questMaster(), "quest master").to.eq(sa.questSigner.address)
         })
     })
     context("staking and delegating", () => {
@@ -867,6 +866,25 @@ describe("Staked Token", () => {
                     expect(stakerDataAfter.votes, "votes after").to.eq(balanceExpected)
                     expect(stakerDataAfter.stakedBalance, "staked balance after").to.eq(balanceExpected)
                 })
+            })
+        })
+        context("questMaster", () => {
+            beforeEach(async () => {
+                stakedToken = await redeployStakedToken()
+                expect(await stakedToken.questMaster(), "quest master before").to.eq(sa.questSigner.address)
+            })
+            it("should set questMaster by governor", async () => {
+                const tx = await stakedToken.connect(sa.governor.signer).setQuestMaster(sa.dummy1.address);
+                await expect(tx).to.emit(stakedToken, "QuestMaster").withArgs(sa.questSigner.address, sa.dummy1.address);
+                expect(await stakedToken.questMaster(), "quest master after").to.eq(sa.dummy1.address)
+            })
+            it("should set questMaster by quest master", async () => {
+                const tx = await stakedToken.connect(sa.questSigner.signer).setQuestMaster(sa.dummy2.address);
+                await expect(tx).to.emit(stakedToken, "QuestMaster").withArgs(sa.questSigner.address, sa.dummy2.address);
+                expect(await stakedToken.questMaster(), "quest master after").to.eq(sa.dummy2.address)
+            })
+            it("should fail to set quest master by anyone", async () => {
+                await expect(stakedToken.connect(sa.dummy3.signer).setQuestMaster(sa.dummy3.address)).to.revertedWith("Not verified")
             })
         })
 

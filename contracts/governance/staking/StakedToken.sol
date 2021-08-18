@@ -77,7 +77,6 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     ****************************************/
 
     /**
-     * @param _signer Signer address is used to verify completion of quests off chain
      * @param _nexus System nexus
      * @param _rewardsToken Token that is being distributed as a reward. eg MTA
      * @param _stakedToken Core token that is staked and tracked (e.g. MTA)
@@ -85,13 +84,12 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * @param _unstakeWindow Window in which it is possible to withdraw, following the cooldown period
      */
     constructor(
-        address _signer,
         address _nexus,
         address _rewardsToken,
         address _stakedToken,
         uint256 _cooldownSeconds,
         uint256 _unstakeWindow
-    ) GamifiedVotingToken(_signer, _nexus, _rewardsToken) {
+    ) GamifiedVotingToken(_nexus, _rewardsToken) {
         STAKED_TOKEN = IERC20(_stakedToken);
         COOLDOWN_SECONDS = _cooldownSeconds;
         UNSTAKE_WINDOW = _unstakeWindow;
@@ -101,13 +99,15 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * @param _nameArg Token name
      * @param _symbolArg Token symbol
      * @param _rewardsDistributorArg mStable Rewards Distributor
+     * @param _questMaster account that signs user quests as completed
      */
     function initialize(
         string memory _nameArg,
         string memory _symbolArg,
-        address _rewardsDistributorArg
+        address _rewardsDistributorArg,
+        address _questMaster
     ) external initializer {
-        __GamifiedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg);
+        __GamifiedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg, _questMaster);
         safetyData = SafetyData({ collateralisationRatio: 1e18, slashingPercentage: 0 });
     }
 

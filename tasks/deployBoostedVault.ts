@@ -127,7 +127,6 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
         const stakedTokenFactory = new StakedToken__factory(stakedTokenLibraryAddresses, deployer.signer)
         console.log(`Staked contract size ${StakedToken__factory.bytecode.length / 2} bytes`)
         const stakedTokenImpl = await deployContract(stakedTokenFactory, "StakedToken", [
-            taskArgs.questSignerAddress,
             nexusAddress,
             rewardsTokenAddress,
             rewardsTokenAddress,
@@ -135,7 +134,7 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
             ONE_DAY.mul(2),
         ])
 
-        const data = stakedTokenImpl.interface.encodeFunctionData("initialize", [taskArgs.name, taskArgs.symbol, rewardsDistributorAddress])
+        const data = stakedTokenImpl.interface.encodeFunctionData("initialize", [taskArgs.name, taskArgs.symbol, rewardsDistributorAddress, taskArgs.questSignerAddress])
         await deployContract(new AssetProxy__factory(deployer.signer), "AssetProxy", [stakedTokenImpl.address, deployer.address, data])
     })
 

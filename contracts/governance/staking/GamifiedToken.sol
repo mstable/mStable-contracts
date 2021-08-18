@@ -30,8 +30,6 @@ abstract contract GamifiedToken is
     ContextUpgradeable,
     HeadlessStakingRewards
 {
-    /// @notice address that signs user quests have been completed
-    address public immutable _signer;
     /// @notice name of this token (ERC20)
     string public override name;
     /// @notice symbol of this token (ERC20)
@@ -48,8 +46,8 @@ abstract contract GamifiedToken is
     /// @notice Timestamp at which the current season started
     uint32 public seasonEpoch;
 
-    /// @notice A whitelisted questMaster who can add quests
-    address internal _questMaster;
+    /// @notice A whitelisted questMaster who can administer quests including signing user quests are completed.
+    address public questMaster;
 
     event QuestAdded(
         address questMaster,
@@ -62,38 +60,38 @@ abstract contract GamifiedToken is
     event QuestComplete(address indexed user, uint256 indexed id);
     event QuestExpired(uint16 indexed id);
     event QuestSeasonEnded();
+    event QuestMaster(address oldQuestMaster, address newQuestMaster);
 
     /***************************************
                     INIT
     ****************************************/
 
     /**
-     * @param _signerArg Signer address is used to verify completion of quests off chain
      * @param _nexus System nexus
      * @param _rewardsToken Token that is being distributed as a reward. eg MTA
      */
     constructor(
-        address _signerArg,
         address _nexus,
         address _rewardsToken
-    ) HeadlessStakingRewards(_nexus, _rewardsToken) {
-        _signer = _signerArg;
-    }
+    ) HeadlessStakingRewards(_nexus, _rewardsToken) {}
 
     /**
      * @param _nameArg Token name
      * @param _symbolArg Token symbol
      * @param _rewardsDistributorArg mStable Rewards Distributor
+     * @param _questMaster account that can sign user quests as completed
      */
     function __GamifiedToken_init(
         string memory _nameArg,
         string memory _symbolArg,
-        address _rewardsDistributorArg
+        address _rewardsDistributorArg,
+        address _questMaster
     ) internal initializer {
         __Context_init_unchained();
         name = _nameArg;
         symbol = _symbolArg;
         seasonEpoch = SafeCast.toUint32(block.timestamp);
+        questMaster = _questMaster;
         HeadlessStakingRewards._initialize(_rewardsDistributorArg);
     }
 
@@ -106,7 +104,20 @@ abstract contract GamifiedToken is
     }
 
     function _questMasterOrGovernor() internal view {
-        require(_msgSender() == _questMaster || _msgSender() == _governor(), "Not verified");
+        require(_msgSender() == questMaster || _msgSender() == _governor(), "Not verified");
+    }
+
+    /***************************************
+                    Admin
+    ****************************************/
+
+    /**
+     * @dev Sets the quest master that can sign user quests as being completed
+     */
+    function setQuestMaster(address _newQuestMaster) external questMasterOrGovernor() {
+        emit QuestMaster(questMaster, _newQuestMaster);
+
+        questMaster = _newQuestMaster;
     }
 
     /***************************************
@@ -239,7 +250,7 @@ abstract contract GamifiedToken is
             require(_validQuest(_ids[i]), "Err: Invalid Quest");
             require(!hasCompleted(_account, _ids[i]), "Err: Already Completed");
             require(
-                SignatureVerifier.verify(_signer, _account, _ids[i], _signatures[i]),
+                SignatureVerifier.verify(questMaster, _account, _ids[i], _signatures[i]),
                 "Err: Invalid Signature"
             );
 
