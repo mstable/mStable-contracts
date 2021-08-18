@@ -160,8 +160,9 @@ abstract contract GamifiedToken is
         // If the user is in cooldown, their balance is temporarily slashed depending on % of withdrawal
         if (_balance.cooldownMultiplier > 0) {
             // e.g. 1820 * (100 - 60) / 100 = 728
-            balance = (balance * (100 - _balance.cooldownMultiplier)) / 100;
+            balance = (balance * (1e9 - _balance.cooldownMultiplier)) / 1e9;
         }
+        balance = (balance / 1e16) * 1e16;
     }
 
     /**
@@ -190,7 +191,7 @@ abstract contract GamifiedToken is
      */
     function addQuest(
         QuestType _model,
-        uint16 _multiplier,
+        uint8 _multiplier,
         uint32 _expiry
     ) external questMasterOrGovernor {
         GamifiedManager.addQuest(_quests, _model, _multiplier, _expiry);
@@ -289,7 +290,7 @@ abstract contract GamifiedToken is
      * @param _ts WeightedTimestamp of a user
      * @return timeMultiplier Ranging from 20 (0.2x) to 60 (0.6x)
      */
-    function _timeMultiplier(uint32 _ts) internal view returns (uint16 timeMultiplier) {
+    function _timeMultiplier(uint32 _ts) internal view returns (uint8 timeMultiplier) {
         // If the user has no ts yet, they are not in the system
         if (_ts == 0) return 0;
 
@@ -338,7 +339,7 @@ abstract contract GamifiedToken is
         // 2. Set weighted timestamp and enter cooldown
         _balances[_account].timeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
         // e.g. 1e18 / 1e16 = 100, 2e16 / 1e16 = 2, 1e15/1e16 = 0
-        _balances[_account].cooldownMultiplier = SafeCast.toUint16(_percentage / 1e16);
+        _balances[_account].cooldownMultiplier = SafeCast.toUint32(_percentage / 1e9);
 
         // 3. Update scaled balance
         _settleScaledBalance(_account, oldScaledBalance);
@@ -374,7 +375,7 @@ abstract contract GamifiedToken is
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
 
         // 2. Set weighted timestamp, if it changes
-        uint16 newTimeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
+        uint8 newTimeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
         require(newTimeMultiplier != oldBalance.timeMultiplier, "Nothing worth poking here");
         _balances[_account].timeMultiplier = newTimeMultiplier;
 
@@ -433,7 +434,7 @@ abstract contract GamifiedToken is
         _balances[_account].raw = oldBalance.raw + SafeCast.toUint128(_rawAmount);
 
         // 2. Exit cooldown if necessary
-        _balances[_account].cooldownMultiplier = SafeCast.toUint16(_newPercentage / 1e16);
+        _balances[_account].cooldownMultiplier = SafeCast.toUint32(_newPercentage / 1e9);
 
         // 3. Set weighted timestamp
         //  i) For new _account, set up weighted timestamp
@@ -450,7 +451,7 @@ abstract contract GamifiedToken is
         uint32 newWeightedTs = SafeCast.toUint32(block.timestamp - newSecondsHeld);
         _balances[_account].weightedTimestamp = newWeightedTs;
 
-        uint16 timeMultiplier = _timeMultiplier(newWeightedTs);
+        uint8 timeMultiplier = _timeMultiplier(newWeightedTs);
         _balances[_account].timeMultiplier = timeMultiplier;
 
         // 3. Update scaled balance
@@ -478,7 +479,7 @@ abstract contract GamifiedToken is
         }
 
         // 2. Change the cooldown percentage based on size of recent withdrawal
-        _balances[_account].cooldownMultiplier = SafeCast.toUint16(_cooldownPercentage / 1e16);
+        _balances[_account].cooldownMultiplier = SafeCast.toUint32(_cooldownPercentage / 1e9);
 
         // 3. Set back scaled time
         // e.g. stake 10 for 100 seconds, withdraw 5.
@@ -490,7 +491,7 @@ abstract contract GamifiedToken is
         uint32 newWeightedTs = SafeCast.toUint32(block.timestamp - newSecondsHeld);
         _balances[_account].weightedTimestamp = newWeightedTs;
 
-        uint16 timeMultiplier = _timeMultiplier(newWeightedTs);
+        uint8 timeMultiplier = _timeMultiplier(newWeightedTs);
         _balances[_account].timeMultiplier = timeMultiplier;
 
         // 4. Update scaled balance

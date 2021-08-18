@@ -12,11 +12,11 @@ struct Balance {
     /// permanent multiplier applied to an account, awarded for PERMANENT QuestTypes
     uint16 permMultiplier;
     /// multiplier that decays after each "season" (~9 months) by 75%, to avoid multipliers getting out of control
-    uint16 seasonMultiplier;
+    uint8 seasonMultiplier;
     /// multiplier awarded for staking for a long time
-    uint16 timeMultiplier;
+    uint8 timeMultiplier;
     /// shows if a user has entered their cooldown ready for a withdrawal. Can be used to slash voting balance
-    uint16 cooldownMultiplier;
+    uint32 cooldownMultiplier;
 }
 
 /// @notice Quests can either give permanent rewards or only for the season
@@ -35,7 +35,7 @@ struct Quest {
     /// Type of quest rewards
     QuestType model;
     /// Multiplier, from 1 == 1.01x to 100 == 2.00x
-    uint16 multiplier;
+    uint8 multiplier;
     /// Is the current quest valid?
     QuestStatus status;
     /// Expiry date in seconds for the quest

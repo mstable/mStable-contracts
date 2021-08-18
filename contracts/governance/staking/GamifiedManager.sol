@@ -37,7 +37,7 @@ library GamifiedManager {
     function addQuest(
         Quest[] storage _quests,
         QuestType _model,
-        uint16 _multiplier,
+        uint8 _multiplier,
         uint32 _expiry
     ) external {
         require(_expiry > block.timestamp + 1 days, "Quest window too small");
