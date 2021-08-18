@@ -25,7 +25,6 @@
 pragma solidity ^0.8.0;
 
 library SignatureVerifier {
-
     function verify(
         address signer,
         address account,
@@ -38,16 +37,16 @@ library SignatureVerifier {
         return recoverSigner(ethSignedMessageHash, signature) == signer;
     }
 
-    function getMessageHash(address account, uint256 id) public pure returns (bytes32) {
+    function getMessageHash(address account, uint256 id) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(account, id));
     }
 
-    function getEthSignedMessageHash(bytes32 messageHash) public pure returns (bytes32) {
+    function getEthSignedMessageHash(bytes32 messageHash) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
     }
 
     function recoverSigner(bytes32 _ethSignedMessageHash, bytes memory _signature)
-        public
+        internal
         pure
         returns (address)
     {
