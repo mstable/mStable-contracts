@@ -23,7 +23,6 @@ import { getTimestamp, increaseTime } from "@utils/time"
 import { arrayify, solidityKeccak256 } from "ethers/lib/utils"
 import { BigNumberish, Signer } from "ethers"
 import { QuestStatus, QuestType, UserStakingData } from "types/stakedToken"
-import { usdFormatter } from "tasks/utils"
 
 const signUserQuest = async (user: string, questId: BigNumberish, questSigner: Signer): Promise<string> => {
     const messageHash = solidityKeccak256(["address", "uint256"], [user, questId])
@@ -148,16 +147,10 @@ describe("Staked Token", () => {
 
             const stakedTimestamp = await getTimestamp()
 
-            await expect(tx)
-                .to.emit(stakedToken, "Staked")
-                .withArgs(sa.default.address, stakedAmount, ZERO_ADDRESS)
+            await expect(tx).to.emit(stakedToken, "Staked").withArgs(sa.default.address, stakedAmount, ZERO_ADDRESS)
             await expect(tx).to.emit(stakedToken, "DelegateChanged").not
-            await expect(tx)
-                .to.emit(stakedToken, "DelegateVotesChanged")
-                .withArgs(sa.default.address, 0, stakedAmount)
-            await expect(tx)
-                .to.emit(rewardToken, "Transfer")
-                .withArgs(sa.default.address, stakedToken.address, stakedAmount)
+            await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(sa.default.address, 0, stakedAmount)
+            await expect(tx).to.emit(rewardToken, "Transfer").withArgs(sa.default.address, stakedToken.address, stakedAmount)
 
             const afterData = await snapshotUserStakingData(sa.default.address)
 
@@ -180,18 +173,10 @@ describe("Staked Token", () => {
 
             const stakedTimestamp = await getTimestamp()
 
-            await expect(tx)
-                .to.emit(stakedToken, "Staked")
-                .withArgs(sa.default.address, stakedAmount, sa.dummy1.address)
-            await expect(tx)
-                .to.emit(stakedToken, "DelegateChanged")
-                .withArgs(sa.default.address, sa.default.address, sa.dummy1.address)
-            await expect(tx)
-                .to.emit(stakedToken, "DelegateVotesChanged")
-                .withArgs(sa.dummy1.address, 0, stakedAmount)
-            await expect(tx)
-                .to.emit(rewardToken, "Transfer")
-                .withArgs(sa.default.address, stakedToken.address, stakedAmount)
+            await expect(tx).to.emit(stakedToken, "Staked").withArgs(sa.default.address, stakedAmount, sa.dummy1.address)
+            await expect(tx).to.emit(stakedToken, "DelegateChanged").withArgs(sa.default.address, sa.default.address, sa.dummy1.address)
+            await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(sa.dummy1.address, 0, stakedAmount)
+            await expect(tx).to.emit(rewardToken, "Transfer").withArgs(sa.default.address, stakedToken.address, stakedAmount)
 
             const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
             expect(stakerDataAfter.userBalances.raw, "staker raw balance after").to.eq(stakedAmount)
@@ -256,15 +241,9 @@ describe("Staked Token", () => {
             const tx = await stakedToken.delegate(sa.dummy1.address)
 
             // Events from delegate tx
-            await expect(tx)
-                .to.emit(stakedToken, "DelegateChanged")
-                .withArgs(sa.default.address, sa.default.address, sa.dummy1.address)
-            await expect(tx)
-                .to.emit(stakedToken, "DelegateVotesChanged")
-                .withArgs(sa.default.address, stakedAmount, 0)
-            await expect(tx)
-                .to.emit(stakedToken, "DelegateVotesChanged")
-                .withArgs(sa.dummy1.address, 0, stakedAmount)
+            await expect(tx).to.emit(stakedToken, "DelegateChanged").withArgs(sa.default.address, sa.default.address, sa.dummy1.address)
+            await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(sa.default.address, stakedAmount, 0)
+            await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(sa.dummy1.address, 0, stakedAmount)
 
             // Staker
             const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
@@ -292,15 +271,9 @@ describe("Staked Token", () => {
             expect(newDelegateDataBefore.votes).to.equal(0)
 
             const tx = await stakedToken.delegate(sa.dummy2.address)
-            await expect(tx)
-                .to.emit(stakedToken, "DelegateChanged")
-                .withArgs(sa.default.address, sa.dummy1.address, sa.dummy2.address)
-            await expect(tx)
-                .to.emit(stakedToken, "DelegateVotesChanged")
-                .withArgs(sa.dummy1.address, stakedAmount, 0)
-            await expect(tx)
-                .to.emit(stakedToken, "DelegateVotesChanged")
-                .withArgs(sa.dummy2.address, 0, stakedAmount)
+            await expect(tx).to.emit(stakedToken, "DelegateChanged").withArgs(sa.default.address, sa.dummy1.address, sa.dummy2.address)
+            await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(sa.dummy1.address, stakedAmount, 0)
+            await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(sa.dummy2.address, 0, stakedAmount)
 
             const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
             expect(stakerDataAfter.votes).to.equal(0)
@@ -326,15 +299,9 @@ describe("Staked Token", () => {
             const tx = await stakedToken.delegate(sa.default.address)
 
             // Events
-            await expect(tx)
-                .to.emit(stakedToken, "DelegateChanged")
-                .withArgs(sa.default.address, sa.dummy1.address, sa.default.address)
-            await expect(tx)
-                .to.emit(stakedToken, "DelegateVotesChanged")
-                .withArgs(sa.default.address, 0, stakedAmount)
-            await expect(tx)
-                .to.emit(stakedToken, "DelegateVotesChanged")
-                .withArgs(sa.dummy1.address, stakedAmount, 0)
+            await expect(tx).to.emit(stakedToken, "DelegateChanged").withArgs(sa.default.address, sa.dummy1.address, sa.default.address)
+            await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(sa.default.address, 0, stakedAmount)
+            await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(sa.dummy1.address, stakedAmount, 0)
 
             // Staker
             const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
@@ -350,9 +317,7 @@ describe("Staked Token", () => {
         })
         it("by delegate", async () => {
             const tx = await stakedToken.connect(sa.dummy1.signer).delegate(sa.dummy2.address)
-            await expect(tx)
-                .to.emit(stakedToken, "DelegateChanged")
-                .withArgs(sa.dummy1.address, sa.dummy1.address, sa.dummy2.address)
+            await expect(tx).to.emit(stakedToken, "DelegateChanged").withArgs(sa.dummy1.address, sa.dummy1.address, sa.dummy2.address)
         })
         context("should fail", () => {
             it("by delegate", async () => {
@@ -455,9 +420,7 @@ describe("Staked Token", () => {
                 const currentTime = await getTimestamp()
                 const tx = await stakedToken.connect(sa.governor.signer).expireQuest(id)
 
-                await expect(tx)
-                    .to.emit(stakedToken, "QuestExpired")
-                    .withArgs(id)
+                await expect(tx).to.emit(stakedToken, "QuestExpired").withArgs(id)
 
                 const quest = await stakedToken.getQuest(id)
                 expect(quest.status).to.eq(QuestStatus.EXPIRED)
@@ -471,9 +434,7 @@ describe("Staked Token", () => {
                 const currentTime = await getTimestamp()
                 const tx = await stakedToken.connect(sa.governor.signer).expireQuest(id)
 
-                await expect(tx)
-                    .to.emit(stakedToken, "QuestExpired")
-                    .withArgs(id)
+                await expect(tx).to.emit(stakedToken, "QuestExpired").withArgs(id)
 
                 const quest = await stakedToken.getQuest(id)
                 expect(quest.status).to.eq(QuestStatus.EXPIRED)
@@ -554,9 +515,7 @@ describe("Staked Token", () => {
                 const completeQuestTimestamp = await getTimestamp()
 
                 // Check events
-                await expect(tx)
-                    .to.emit(stakedToken, "QuestComplete")
-                    .withArgs(userAddress, seasonQuestId)
+                await expect(tx).to.emit(stakedToken, "QuestComplete").withArgs(userAddress, seasonQuestId)
 
                 // Check data
                 expect(await stakedToken.hasCompleted(userAddress, seasonQuestId), "quest completed after").to.be.true
@@ -585,9 +544,7 @@ describe("Staked Token", () => {
                 const completeQuestTimestamp = await getTimestamp()
 
                 // Check events
-                await expect(tx)
-                    .to.emit(stakedToken, "QuestComplete")
-                    .withArgs(userAddress, permanentQuestId)
+                await expect(tx).to.emit(stakedToken, "QuestComplete").withArgs(userAddress, permanentQuestId)
 
                 // Check data
                 expect(await stakedToken.hasCompleted(userAddress, permanentQuestId), "quest completed after").to.be.true
@@ -619,9 +576,7 @@ describe("Staked Token", () => {
                 const completeQuestTimestamp = await getTimestamp()
 
                 // Check events
-                await expect(tx)
-                    .to.emit(stakedToken, "QuestComplete")
-                    .withArgs(userAddress, permanentQuestId)
+                await expect(tx).to.emit(stakedToken, "QuestComplete").withArgs(userAddress, permanentQuestId)
 
                 // Check data
                 expect(await stakedToken.hasCompleted(userAddress, permanentQuestId), "quest completed after").to.be.true
@@ -957,9 +912,7 @@ describe("Staked Token", () => {
             it("should start cooldown", async () => {
                 const tx = await stakedToken.startCooldown(cooldown100Percentage)
 
-                await expect(tx)
-                    .to.emit(stakedToken, "Cooldown")
-                    .withArgs(sa.default.address, cooldown100Percentage)
+                await expect(tx).to.emit(stakedToken, "Cooldown").withArgs(sa.default.address, cooldown100Percentage)
 
                 const startCooldownTimestamp = await getTimestamp()
                 const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
@@ -1029,9 +982,7 @@ describe("Staked Token", () => {
                     await increaseTime(ONE_DAY)
                     const tx = await stakedToken.endCooldown()
 
-                    await expect(tx)
-                        .to.emit(stakedToken, "CooldownExited")
-                        .withArgs(sa.default.address)
+                    await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
 
                     const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
@@ -1051,9 +1002,7 @@ describe("Staked Token", () => {
                     await increaseTime(ONE_DAY.mul(8))
                     const tx = await stakedToken.endCooldown()
 
-                    await expect(tx)
-                        .to.emit(stakedToken, "CooldownExited")
-                        .withArgs(sa.default.address)
+                    await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
 
                     const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
@@ -1073,9 +1022,7 @@ describe("Staked Token", () => {
                     await increaseTime(ONE_DAY.mul(12))
                     const tx = await stakedToken.endCooldown()
 
-                    await expect(tx)
-                        .to.emit(stakedToken, "CooldownExited")
-                        .withArgs(sa.default.address)
+                    await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
 
                     const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
@@ -1095,9 +1042,7 @@ describe("Staked Token", () => {
                     await increaseTime(ONE_WEEK.mul(14))
                     const tx = await stakedToken.endCooldown()
 
-                    await expect(tx)
-                        .to.emit(stakedToken, "CooldownExited")
-                        .withArgs(sa.default.address)
+                    await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
 
                     const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
@@ -1123,9 +1068,7 @@ describe("Staked Token", () => {
                     await increaseTime(ONE_DAY)
                     const tx = await stakedToken.endCooldown()
 
-                    await expect(tx)
-                        .to.emit(stakedToken, "CooldownExited")
-                        .withArgs(sa.default.address)
+                    await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
 
                     const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
@@ -1145,9 +1088,7 @@ describe("Staked Token", () => {
                     await increaseTime(ONE_DAY.mul(8))
                     const tx = await stakedToken.endCooldown()
 
-                    await expect(tx)
-                        .to.emit(stakedToken, "CooldownExited")
-                        .withArgs(sa.default.address)
+                    await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
 
                     const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
@@ -1167,9 +1108,7 @@ describe("Staked Token", () => {
                     await increaseTime(ONE_DAY.mul(12))
                     const tx = await stakedToken.endCooldown()
 
-                    await expect(tx)
-                        .to.emit(stakedToken, "CooldownExited")
-                        .withArgs(sa.default.address)
+                    await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
 
                     const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
@@ -1216,19 +1155,13 @@ describe("Staked Token", () => {
                 const tx = await stakedToken["stake(uint256,bool)"](secondStakeAmount, true)
                 const secondStakedTimestamp = await getTimestamp()
 
-                await expect(tx)
-                    .to.emit(stakedToken, "Staked")
-                    .withArgs(sa.default.address, secondStakeAmount, ZERO_ADDRESS)
+                await expect(tx).to.emit(stakedToken, "Staked").withArgs(sa.default.address, secondStakeAmount, ZERO_ADDRESS)
                 await expect(tx).to.emit(stakedToken, "DelegateChanged").not
                 await expect(tx)
                     .to.emit(stakedToken, "DelegateVotesChanged")
                     .withArgs(sa.default.address, stakedAmount.div(5), stakedAmount.add(secondStakeAmount))
-                await expect(tx)
-                    .to.emit(rewardToken, "Transfer")
-                    .withArgs(sa.default.address, stakedToken.address, secondStakeAmount)
-                await expect(tx)
-                    .to.emit(stakedToken, "CooldownExited")
-                    .withArgs(sa.default.address)
+                await expect(tx).to.emit(rewardToken, "Transfer").withArgs(sa.default.address, stakedToken.address, secondStakeAmount)
+                await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
 
                 const stakerDataAfter2ndStake = await snapshotUserStakingData(sa.default.address)
                 expect(stakerDataAfter2ndStake.cooldownTimestamp, "cooldown timestamp after 2nd stake").to.eq(0)
@@ -1361,9 +1294,7 @@ describe("Staked Token", () => {
                 const withdrawAmount = simpleToExactAmount(100)
                 const redemptionFee = withdrawAmount.div(10)
                 const tx2 = await stakedToken.withdraw(withdrawAmount, sa.default.address, false, false)
-                await expect(tx2)
-                    .to.emit(stakedToken, "Withdraw")
-                    .withArgs(sa.default.address, sa.default.address, withdrawAmount)
+                await expect(tx2).to.emit(stakedToken, "Withdraw").withArgs(sa.default.address, sa.default.address, withdrawAmount)
 
                 const afterData = await snapshotUserStakingData(sa.default.address)
                 expect(afterData.stakedBalance, "staker staked after").to.eq(0)
@@ -1381,9 +1312,7 @@ describe("Staked Token", () => {
                 // fee = withdraw with fee / 1.1 * 0.1 = withdraw with fee / 11
                 const redemptionFee = stakedAmount.div(11)
                 const tx2 = await stakedToken.withdraw(stakedAmount, sa.default.address, true, true)
-                await expect(tx2)
-                    .to.emit(stakedToken, "Withdraw")
-                    .withArgs(sa.default.address, sa.default.address, stakedAmount)
+                await expect(tx2).to.emit(stakedToken, "Withdraw").withArgs(sa.default.address, sa.default.address, stakedAmount)
 
                 const afterData = await snapshotUserStakingData(sa.default.address)
                 expect(afterData.stakedBalance, "staker stkRWD after").to.eq(0)
@@ -1431,9 +1360,7 @@ describe("Staked Token", () => {
                 const withdrawAmount = simpleToExactAmount(300)
                 const redemptionFee = withdrawAmount.div(10)
                 const tx2 = await stakedToken.withdraw(withdrawAmount, sa.default.address, false, false)
-                await expect(tx2)
-                    .to.emit(stakedToken, "Withdraw")
-                    .withArgs(sa.default.address, sa.default.address, withdrawAmount)
+                await expect(tx2).to.emit(stakedToken, "Withdraw").withArgs(sa.default.address, sa.default.address, withdrawAmount)
 
                 const afterData = await snapshotUserStakingData(sa.default.address)
                 console.log("data before")
@@ -1462,9 +1389,7 @@ describe("Staked Token", () => {
                 // fee = withdraw with fee / 1.1 * 0.1 = withdraw with fee / 11
                 const redemptionFee = cooldownAmount.div(11)
                 const tx2 = await stakedToken.withdraw(cooldownAmount, sa.default.address, true, true)
-                await expect(tx2)
-                    .to.emit(stakedToken, "Withdraw")
-                    .withArgs(sa.default.address, sa.default.address, cooldownAmount)
+                await expect(tx2).to.emit(stakedToken, "Withdraw").withArgs(sa.default.address, sa.default.address, cooldownAmount)
 
                 const afterData = await snapshotUserStakingData(sa.default.address)
                 expect(afterData.stakedBalance, "staker stkRWD after").to.eq(remainingBalance)
