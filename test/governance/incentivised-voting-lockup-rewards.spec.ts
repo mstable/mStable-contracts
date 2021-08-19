@@ -1,3 +1,7 @@
+import { ethers } from "hardhat"
+import { expect } from "chai"
+import { ContractTransaction } from "ethers"
+import { Account } from "types"
 import { getTimestamp, increaseTime, increaseTimeTo } from "@utils/time"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { assertBNClose, assertBNSlightlyGT, assertBNClosePercent } from "@utils/assertions"
@@ -6,15 +10,17 @@ import { ONE_WEEK, ONE_DAY, FIVE_DAYS, fullScale, DEFAULT_DECIMALS } from "@util
 import {
     IncentivisedVotingLockup,
     IncentivisedVotingLockup__factory,
+    InitializableRewardsDistributionRecipient,
+    ImmutableModule,
     Nexus,
     Nexus__factory,
     MockERC20,
     MockERC20__factory,
 } from "types/generated"
-import { ethers } from "hardhat"
-import { expect } from "chai"
-import { ContractTransaction } from "ethers"
-import { Account } from "types"
+import {
+    shouldBehaveLikeDistributionRecipient,
+    IRewardsDistributionRecipientContext,
+} from "../shared/RewardsDistributionRecipient.behaviour"
 
 const goToNextUnixWeekStart = async () => {
     const unixWeekCount = (await getTimestamp()).div(ONE_WEEK)
@@ -28,6 +34,8 @@ const oneWeekInAdvance = async (): Promise<BN> => {
 }
 
 describe("IncentivisedVotingLockupRewards", () => {
+    const ctx: Partial<IRewardsDistributionRecipientContext> = {}
+
     let mAssetMachine: MassetMachine
     let nexus: Nexus
     let rewardsDistributor: Account
@@ -119,6 +127,12 @@ describe("IncentivisedVotingLockupRewards", () => {
 
     before(async () => {
         votingLockup = await redeployRewards()
+        ctx.recipient = votingLockup as unknown as InitializableRewardsDistributionRecipient
+        ctx.module = votingLockup as ImmutableModule
+        ctx.sa = sa
+    })
+    describe("implementing rewardDistributionRecipient and Module", async () => {
+        shouldBehaveLikeDistributionRecipient(ctx as IRewardsDistributionRecipientContext)
     })
 
     describe("constructor & settings", async () => {
@@ -227,32 +241,44 @@ describe("IncentivisedVotingLockupRewards", () => {
         }
         // 2. Approve staking token spending and send the TX
         await stakingToken.connect(sender.signer).approve(votingLockup.address, stakeAmount)
-        const currentTime = await getTimestamp()
-
         const oneWeek = await oneWeekInAdvance()
-        let tx: ContractTransaction
+        let tx: Promise<ContractTransaction>
         let expectedAmount: BN
         let expectedLocktime: BN
         let expectedAction: number
+        const currentTime = await getTimestamp()
+        
+        const floorToWeek = ( t) => Math.trunc(Math.trunc(t / ONE_WEEK.toNumber()) * ONE_WEEK.toNumber())
         if (shouldIncreaseTime) {
-            tx = await votingLockup.connect(sender.signer).increaseLockLength(oneWeek.add(ONE_WEEK))
+            tx = votingLockup.connect(sender.signer).increaseLockLength(oneWeek.add(ONE_WEEK))
             expectedAmount = BN.from(0)
-            expectedLocktime = BN.from(Math.trunc(Math.trunc(oneWeek.add(ONE_WEEK).toNumber() / ONE_WEEK.toNumber()) * ONE_WEEK.toNumber()))
+            expectedLocktime = BN.from(floorToWeek(oneWeek.add(ONE_WEEK).toNumber()));
             expectedAction = 2 // "CREATE_LOCK"
         } else if (increaseAmount) {
-            tx = await votingLockup.connect(sender.signer).increaseLockAmount(stakeAmount)
+            tx = votingLockup.connect(sender.signer).increaseLockAmount(stakeAmount)
             expectedAmount = stakeAmount
             expectedLocktime = oneWeek
             expectedAction = 1 // "INCREASE_LOCK_AMOUNT"
         } else {
-            tx = await votingLockup.connect(sender.signer).createLock(stakeAmount, oneWeek)
+            tx = votingLockup.connect(sender.signer).createLock(stakeAmount, oneWeek)
             expectedAmount = stakeAmount
-            expectedLocktime = BN.from(Math.trunc(Math.trunc(oneWeek.toNumber() / ONE_WEEK.toNumber()) * ONE_WEEK.toNumber()))
+            expectedLocktime = BN.from(floorToWeek(oneWeek.toNumber()));
             expectedAction = 0 // "INCREASE_LOCK_TIME"
         }
-        await expect(tx)
-            .to.emit(votingLockup, "Deposit")
-            .withArgs(sender.address, expectedAmount, expectedLocktime, expectedAction, currentTime.add(1))
+        const receipt = await (await tx).wait();
+        await expect(tx).to.emit(votingLockup, "Deposit")
+        const depositEvent = receipt.events.find((event) => event.event === "Deposit" && event.address === votingLockup.address)
+        expect(depositEvent).to.exist;
+        expect(depositEvent.args.provider, "provider in Deposit event").to.eq(sender.address);
+        expect(depositEvent.args.value, "value in Deposit event").to.eq(expectedAmount);
+        expect(depositEvent.args.locktime, "locktime in Deposit event").to.eq(expectedLocktime);
+        expect(depositEvent.args.action, "action in Deposit event").to.eq(expectedAction);
+        assertBNClose(
+            depositEvent.args.ts,
+            currentTime.add(1),
+            BN.from(10),
+            "ts in Deposit event"
+        )
 
         // 3. Ensure rewards are accrued to the beneficiary
         const afterData = await snapshotStakingData(sender)

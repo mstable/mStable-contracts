@@ -11,6 +11,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { StableMath } from "../shared/StableMath.sol";
 import { Root } from "../shared/Root.sol";
 
+
 /**
  * @title  IncentivisedVotingLockup
  * @author Voting Weight tracking & Decay
@@ -400,7 +401,6 @@ contract IncentivisedVotingLockup is
         if (_value != 0) {
             stakingToken.safeTransferFrom(_addr, address(this), _value);
         }
-
         emit Deposit(_addr, _value, newLocked.end, _action, block.timestamp);
     }
 
@@ -565,7 +565,7 @@ contract IncentivisedVotingLockup is
     ****************************************/
 
     /** @dev Floors a timestamp to the nearest weekly increment */
-    function _floorToWeek(uint256 _t) internal pure returns (uint256) {
+    function _floorToWeek(uint256 _t) internal view returns (uint256) {
         return (_t / WEEK) * WEEK;
     }
 
