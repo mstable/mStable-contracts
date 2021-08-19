@@ -184,27 +184,6 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     }
 
     /**
-     * @dev Allows a staker to compound their rewards IF the Staking token and the Rewards token are the same
-     * for example, with $MTA as both staking token and rewards token. Calls 'claimRewards' on the HeadlessStakingRewards
-     * before executing a stake here
-     */
-    function compoundRewards() external {
-        require(address(STAKED_TOKEN) == address(REWARDS_TOKEN), "Only for same pairs");
-
-        // 1. claim rewards
-        uint256 balBefore = STAKED_TOKEN.balanceOf(address(this));
-        _claimReward(address(this));
-
-        // 2. check claim amount
-        uint256 balAfter = STAKED_TOKEN.balanceOf(address(this));
-        uint256 claimed = balAfter - balBefore;
-        require(claimed > 0, "Must compound something");
-
-        // 3. re-invest
-        _settleStake(claimed, address(0), false);
-    }
-
-    /**
      * @dev Transfers tokens from sender before calling `_settleStake`
      */
     function _transferAndStake(
