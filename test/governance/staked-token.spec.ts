@@ -13,6 +13,7 @@ import {
     PlatformTokenVendorFactory__factory,
     SignatureVerifier__factory,
     StakedToken,
+    StakedTokenWrapper__factory,
     StakedToken__factory,
 } from "types"
 import { assertBNClose, DEAD_ADDRESS } from "index"
@@ -65,7 +66,12 @@ describe("Staked Token", () => {
             ONE_DAY.mul(2),
         )
         const rewardsDistributorAddress = DEAD_ADDRESS
-        const data = stakedTokenImpl.interface.encodeFunctionData("initialize", ["Staked Rewards", "stkRWD", rewardsDistributorAddress, sa.questSigner.address])
+        const data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
+            "Staked Rewards",
+            "stkRWD",
+            rewardsDistributorAddress,
+            sa.questSigner.address,
+        ])
         const stakedTokenProxy = await new AssetProxy__factory(sa.default.signer).deploy(stakedTokenImpl.address, DEAD_ADDRESS, data)
 
         return stakedTokenFactory.attach(stakedTokenProxy.address)
@@ -874,13 +880,13 @@ describe("Staked Token", () => {
                 expect(await stakedToken.questMaster(), "quest master before").to.eq(sa.questSigner.address)
             })
             it("should set questMaster by governor", async () => {
-                const tx = await stakedToken.connect(sa.governor.signer).setQuestMaster(sa.dummy1.address);
-                await expect(tx).to.emit(stakedToken, "QuestMaster").withArgs(sa.questSigner.address, sa.dummy1.address);
+                const tx = await stakedToken.connect(sa.governor.signer).setQuestMaster(sa.dummy1.address)
+                await expect(tx).to.emit(stakedToken, "QuestMaster").withArgs(sa.questSigner.address, sa.dummy1.address)
                 expect(await stakedToken.questMaster(), "quest master after").to.eq(sa.dummy1.address)
             })
             it("should set questMaster by quest master", async () => {
-                const tx = await stakedToken.connect(sa.questSigner.signer).setQuestMaster(sa.dummy2.address);
-                await expect(tx).to.emit(stakedToken, "QuestMaster").withArgs(sa.questSigner.address, sa.dummy2.address);
+                const tx = await stakedToken.connect(sa.questSigner.signer).setQuestMaster(sa.dummy2.address)
+                await expect(tx).to.emit(stakedToken, "QuestMaster").withArgs(sa.questSigner.address, sa.dummy2.address)
                 expect(await stakedToken.questMaster(), "quest master after").to.eq(sa.dummy2.address)
             })
             it("should fail to set quest master by anyone", async () => {
@@ -1428,8 +1434,44 @@ describe("Staked Token", () => {
     })
 
     context("interacting from a smart contract", () => {
-        // Will need to create a sample solidity mock wrapper that has the ability to deposit and withdraw
-        it("should not be possible to stake and withdraw from a smart contract")
+        let stakedTokenWrapper
+        const stakedAmount = simpleToExactAmount(1000)
+        before(async () => {
+            stakedToken = await redeployStakedToken()
+
+            stakedTokenWrapper = await new StakedTokenWrapper__factory(sa.default.signer).deploy(rewardToken.address, stakedToken.address)
+            await rewardToken.transfer(stakedTokenWrapper.address, stakedAmount.mul(2))
+        })
+        it("should not be possible to stake when not whitelisted", async () => {
+            await expect(stakedTokenWrapper["stake(uint256)"](stakedAmount)).to.revertedWith("Not a whitelisted contract")
+        })
+        it("should allow governor to whitelist a contract", async () => {
+            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper not whitelisted before").to.be.false
+            const tx = await stakedToken.connect(sa.governor.signer).whitelistWrapper(stakedTokenWrapper.address)
+            await expect(tx).to.emit(stakedToken, "WrapperWhitelisted").withArgs(stakedTokenWrapper.address)
+            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper whitelisted after").to.be.true
+
+            const tx2 = await stakedTokenWrapper["stake(uint256)"](stakedAmount)
+            await expect(tx2).to.emit(stakedToken, "Staked").withArgs(stakedTokenWrapper.address, stakedAmount, ZERO_ADDRESS)
+        })
+        it("should allow governor to blacklist a contract", async () => {
+            const tx = await stakedToken.connect(sa.governor.signer).whitelistWrapper(stakedTokenWrapper.address)
+            await expect(tx).to.emit(stakedToken, "WrapperWhitelisted").withArgs(stakedTokenWrapper.address)
+            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper whitelisted").to.be.true
+
+            const tx2 = await stakedToken.connect(sa.governor.signer).blackListWrapper(stakedTokenWrapper.address)
+            await expect(tx2).to.emit(stakedToken, "WrapperBlacklisted").withArgs(stakedTokenWrapper.address)
+            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper not whitelisted").to.be.false
+
+            await expect(stakedTokenWrapper["stake(uint256)"](stakedAmount)).to.revertedWith("Not a whitelisted contract")
+        })
+        it("Votes can be delegated to a smart contract", async () => {
+            await rewardToken.connect(sa.default.signer).approve(stakedToken.address, stakedAmount)
+
+            const tx = await stakedToken["stake(uint256,address)"](stakedAmount, stakedTokenWrapper.address)
+
+            await expect(tx).to.emit(stakedToken, "Staked").withArgs(stakedTokenWrapper.address, stakedAmount, stakedTokenWrapper.address)
+        })
     })
 
     context("updating lastAction timestamp", () => {

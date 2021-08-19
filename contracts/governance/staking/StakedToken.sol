@@ -144,7 +144,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         if (_msgSender() != tx.origin) {
             require(
                 whitelistedWrappers[_msgSender()],
-                "Transactions from non-whitelisted smart contracts not allowed"
+                "Not a whitelisted contract"
             );
         }
     }
