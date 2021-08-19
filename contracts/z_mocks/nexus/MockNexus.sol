@@ -39,4 +39,8 @@ contract MockNexus is ModuleKeys {
     function setLiquidator(address _liquidator) external {
         modules[KEY_LIQUIDATOR] = _liquidator;
     }
+
+    function setRecollateraliser(address _recollateraliser) external {
+        modules[KEY_RECOLLATERALISER] = _recollateraliser;
+    }
 }

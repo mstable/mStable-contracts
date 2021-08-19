@@ -34,6 +34,8 @@ export class StandardAccounts {
 
     public mockInterestValidator: Account
 
+    public mockRecollateraliser: Account
+
     public mockMasset: Account
 
     public async initAccounts(signers: Signer[]): Promise<StandardAccounts> {
@@ -56,6 +58,7 @@ export class StandardAccounts {
             this.questSigner,
             this.mockSavingsManager,
             this.mockInterestValidator,
+            this.mockRecollateraliser,
             this.mockMasset,
         ] = this.all
         return this

@@ -2,8 +2,6 @@
 pragma solidity 0.8.6;
 pragma abicoder v2;
 
-import "hardhat/console.sol";
-
 import { IStakedToken } from "./interfaces/IStakedToken.sol";
 import { GamifiedVotingToken } from "./GamifiedVotingToken.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -142,10 +140,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
 
     function _assertNotContract() internal view {
         if (_msgSender() != tx.origin) {
-            require(
-                whitelistedWrappers[_msgSender()],
-                "Not a whitelisted contract"
-            );
+            require(whitelistedWrappers[_msgSender()], "Not a whitelisted contract");
         }
     }
 
@@ -349,8 +344,6 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
                     ((maxWithdrawal - totalWithdraw) * COOLDOWN_PERCENTAGE_SCALE) /
                         (uint256(balance.raw) - totalWithdraw)
                 );
-                console.log("max, total, user");
-                console.log(maxWithdrawal, totalWithdraw, userWithdrawal);
                 stakersCooldowns[_msgSender()].percentage = cooldownPercentage;
             }
 
@@ -445,7 +438,6 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         onlyGovernor
         onlyBeforeRecollateralisation
     {
-        require(safetyData.collateralisationRatio == 1e18, "Process already begun");
         require(_newRate <= 5e17, "Cannot exceed 50%");
 
         safetyData.slashingPercentage = SafeCast.toUint128(_newRate);
