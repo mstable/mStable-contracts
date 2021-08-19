@@ -27,4 +27,13 @@ contract StakedTokenWrapper {
     function stake(uint256 _amount, address _delegatee) external {
         stakedToken.stake(_amount, _delegatee);
     }
+
+    function withdraw(
+        uint256 _amount,
+        address _recipient,
+        bool _amountIncludesFee,
+        bool _exitCooldown
+    ) external {
+        stakedToken.withdraw(_amount, _recipient, _amountIncludesFee, _exitCooldown);
+    }
 }

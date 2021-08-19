@@ -1432,7 +1432,6 @@ describe("Staked Token", () => {
             it("distribute these pendingAdditionalReward with the next notification")
         })
     })
-
     context("interacting from a smart contract", () => {
         let stakedTokenWrapper
         const stakedAmount = simpleToExactAmount(1000)
@@ -1440,10 +1439,7 @@ describe("Staked Token", () => {
             stakedToken = await redeployStakedToken()
 
             stakedTokenWrapper = await new StakedTokenWrapper__factory(sa.default.signer).deploy(rewardToken.address, stakedToken.address)
-            await rewardToken.transfer(stakedTokenWrapper.address, stakedAmount.mul(2))
-        })
-        it("should not be possible to stake when not whitelisted", async () => {
-            await expect(stakedTokenWrapper["stake(uint256)"](stakedAmount)).to.revertedWith("Not a whitelisted contract")
+            await rewardToken.transfer(stakedTokenWrapper.address, stakedAmount.mul(3))
         })
         it("should allow governor to whitelist a contract", async () => {
             expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper not whitelisted before").to.be.false
@@ -1470,7 +1466,30 @@ describe("Staked Token", () => {
 
             const tx = await stakedToken["stake(uint256,address)"](stakedAmount, stakedTokenWrapper.address)
 
-            await expect(tx).to.emit(stakedToken, "Staked").withArgs(stakedTokenWrapper.address, stakedAmount, stakedTokenWrapper.address)
+            await expect(tx).to.emit(stakedToken, "Staked").withArgs(sa.default.address, stakedAmount, stakedTokenWrapper.address)
+        })
+        context("should not", () => {
+            it("be possible to stake when not whitelisted", async () => {
+                await expect(stakedTokenWrapper["stake(uint256)"](stakedAmount)).to.revertedWith("Not a whitelisted contract")
+            })
+            it("be possible to withdraw when not whitelisted", async () => {
+                await stakedToken.connect(sa.governor.signer).whitelistWrapper(stakedTokenWrapper.address)
+                await stakedTokenWrapper["stake(uint256)"](stakedAmount)
+                await stakedToken.connect(sa.governor.signer).blackListWrapper(stakedTokenWrapper.address)
+                const tx = stakedTokenWrapper.withdraw(stakedAmount, sa.default.address, true, true)
+
+                await expect(tx).to.revertedWith("Not a whitelisted contract")
+            })
+            it("allow non governor to whitelist a contract", async () => {
+                const tx = stakedToken.whitelistWrapper(stakedTokenWrapper.address)
+                await expect(tx).to.revertedWith("Only governor can execute")
+            })
+            it("allow non governor to blacklist a contract", async () => {
+                await stakedToken.connect(sa.governor.signer).whitelistWrapper(stakedTokenWrapper.address)
+
+                const tx = stakedToken.blackListWrapper(stakedTokenWrapper.address)
+                await expect(tx).to.revertedWith("Only governor can execute")
+            })
         })
     })
 
