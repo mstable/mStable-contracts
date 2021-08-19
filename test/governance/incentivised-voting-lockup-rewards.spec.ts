@@ -1,6 +1,6 @@
 import { ethers } from "hardhat"
 import { expect } from "chai"
-import { ContractTransaction } from "ethers"
+import { ContractTransaction, Event, ContractReceipt } from "ethers"
 import { Account } from "types"
 import { getTimestamp, increaseTime, increaseTimeTo } from "@utils/time"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
@@ -22,6 +22,8 @@ import {
     IRewardsDistributionRecipientContext,
 } from "../shared/RewardsDistributionRecipient.behaviour"
 
+const EVENTS = { DEPOSIT: "Deposit", WITHDRAW: "Withdraw", REWARD_PAID: "RewardPaid" };
+
 const goToNextUnixWeekStart = async () => {
     const unixWeekCount = (await getTimestamp()).div(ONE_WEEK)
     const nextUnixWeek = unixWeekCount.add(1).mul(ONE_WEEK)
@@ -31,6 +33,33 @@ const goToNextUnixWeekStart = async () => {
 const oneWeekInAdvance = async (): Promise<BN> => {
     const now = await getTimestamp()
     return now.add(ONE_WEEK)
+}
+
+const isContractEvent = (address: string, eventName: string) =>
+    (event: Event) => event.address === address && event.event === eventName;
+
+const findContractEvent = (receipt: ContractReceipt, address: string, eventName: string) =>
+    receipt.events.find(isContractEvent(address, eventName));
+
+interface WithdrawEventArgs {
+    provider: string;
+    value: BN;
+}
+
+const expectWithdrawEvent = async (votingLockup: IncentivisedVotingLockup, tx: Promise<ContractTransaction>, 
+    receipt: ContractReceipt, args: WithdrawEventArgs) => {
+        const currentTime = await getTimestamp()
+        await expect(tx).to.emit(votingLockup, EVENTS.WITHDRAW)
+        const withdrawEvent = findContractEvent(receipt, votingLockup.address, EVENTS.WITHDRAW);
+        expect(withdrawEvent).to.exist;
+        expect(withdrawEvent.args.provider, "provider in Withdraw event").to.eq(args.provider);
+        expect(withdrawEvent.args.value, "value in Withdraw event").to.eq(args.value);
+        assertBNClose(
+            withdrawEvent.args.ts,
+            currentTime.add(1),
+            BN.from(10),
+            "ts in Withdraw event"
+        );
 }
 
 describe("IncentivisedVotingLockupRewards", () => {
@@ -176,8 +205,8 @@ describe("IncentivisedVotingLockupRewards", () => {
             periodIsFinished
                 ? beforeData.periodFinishTime
                 : beforeData.rewardPerTokenStored.eq(0) && beforeData.totalStaticWeight.eq(0)
-                ? beforeData.lastUpdateTime
-                : timeAfter,
+                    ? beforeData.lastUpdateTime
+                    : timeAfter,
         ).eq(afterData.lastUpdateTime)
         //    RewardRate doesnt change
         expect(beforeData.rewardRate).eq(afterData.rewardRate)
@@ -247,8 +276,8 @@ describe("IncentivisedVotingLockupRewards", () => {
         let expectedLocktime: BN
         let expectedAction: number
         const currentTime = await getTimestamp()
-        
-        const floorToWeek = ( t) => Math.trunc(Math.trunc(t / ONE_WEEK.toNumber()) * ONE_WEEK.toNumber())
+
+        const floorToWeek = (t) => Math.trunc(Math.trunc(t / ONE_WEEK.toNumber()) * ONE_WEEK.toNumber())
         if (shouldIncreaseTime) {
             tx = votingLockup.connect(sender.signer).increaseLockLength(oneWeek.add(ONE_WEEK))
             expectedAmount = BN.from(0)
@@ -266,8 +295,8 @@ describe("IncentivisedVotingLockupRewards", () => {
             expectedAction = 0 // "INCREASE_LOCK_TIME"
         }
         const receipt = await (await tx).wait();
-        await expect(tx).to.emit(votingLockup, "Deposit")
-        const depositEvent = receipt.events.find((event) => event.event === "Deposit" && event.address === votingLockup.address)
+        await expect(tx).to.emit(votingLockup, EVENTS.DEPOSIT)
+        const depositEvent = findContractEvent(receipt, votingLockup.address, EVENTS.DEPOSIT);
         expect(depositEvent).to.exist;
         expect(depositEvent.args.provider, "provider in Deposit event").to.eq(sender.address);
         expect(depositEvent.args.value, "value in Deposit event").to.eq(expectedAmount);
@@ -344,9 +373,10 @@ describe("IncentivisedVotingLockupRewards", () => {
         const isExistingStaker = beforeData.userStaticWeight.gt(BN.from(0))
         expect(isExistingStaker).eq(true)
         // 2. Send withdrawal tx
-        const currentTime = await getTimestamp()
-        const tx = await votingLockup.connect(sender.signer).withdraw()
-        await expect(tx).to.emit(votingLockup, "Withdraw").withArgs(sender.address, beforeData.userLocked.amount, currentTime.add(1))
+        const tx = votingLockup.connect(sender.signer).withdraw();
+        const receipt = await (await tx).wait();
+
+        await expectWithdrawEvent(votingLockup, tx, receipt, { provider: sender.address, value: beforeData.userLocked.amount });
 
         // 3. Expect Rewards to accrue to the beneficiary
         //    StakingToken balance of sender
@@ -809,11 +839,11 @@ describe("IncentivisedVotingLockupRewards", () => {
             it("should withdraw all senders stake and send outstanding rewards to the staker", async () => {
                 const beforeData = await snapshotStakingData()
                 const rewardeeBalanceBefore = await stakingToken.balanceOf(sa.default.address)
-                const currentTime = await getTimestamp()
-                const tx = await votingLockup.exit()
+                const tx = votingLockup.exit()
+                const receipt = await (await tx).wait();
 
-                await expect(tx).to.emit(votingLockup, "Withdraw").withArgs(sa.default.address, stakeAmount, currentTime.add(1))
-                await expect(tx).to.emit(votingLockup, "RewardPaid").withArgs(sa.default.address, beforeData.beneficiaryRewardsUnClaimed)
+                await expectWithdrawEvent(votingLockup, tx, receipt, { provider: sa.default.address, value: stakeAmount });
+                await expect(tx).to.emit(votingLockup, EVENTS.REWARD_PAID).withArgs(sa.default.address, beforeData.beneficiaryRewardsUnClaimed)
 
                 const afterData = await snapshotStakingData()
                 // Balance transferred to the rewardee
