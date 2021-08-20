@@ -7,7 +7,6 @@ export interface UserBalances {
     permMultiplier: number
     seasonMultiplier: number
     timeMultiplier: number
-    cooldownMultiplier: number
 }
 
 export interface UserStakingData {
@@ -15,7 +14,7 @@ export interface UserStakingData {
     votes: BN
     earnedRewards: BN
     cooldownTimestamp: BN
-    cooldownPercentage: BN
+    cooldownUnits: BN
     rewardsBalance: BN
     userBalances: UserBalances
 }

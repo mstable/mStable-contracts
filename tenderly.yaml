@@ -1,0 +1,20 @@
+account_id: 7b4c7a8a-d93e-4ada-825c-104794b6abc6
+exports:
+    staked-token:
+        chain_config:
+            berlin_block: 0
+            byzantium_block: 0
+            constantinople_block: 0
+            eip150_block: 0
+            eip150_hash: "0x0000000000000000000000000000000000000000000000000000000000000000"
+            eip155_block: 0
+            eip158_block: 0
+            homestead_block: 0
+            istanbul_block: 0
+            petersburg_block: 0
+        forked_network: ""
+        project_slug: alsco77/mstable
+        protocol: ""
+        rpc_address: 127.0.0.1:8545
+project_slug: mstable
+provider: Hardhat

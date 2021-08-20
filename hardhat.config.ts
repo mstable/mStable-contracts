@@ -25,8 +25,8 @@ export const hardhatConfig = {
             allowUnlimitedContractSize: false,
             initialBaseFeePerGas: 0,
         },
-        localhost: { url: "http://localhost:7545" },
-        // export the NODE_URL environment variable to use remote nodes like Alchemy or Infura. eg
+        local: { url: "http://localhost:8545" },
+        // export the NODE_URL environment variable to use remote nodes like Alchemy or Infura. ge
         // export NODE_URL=https://eth-mainnet.alchemyapi.io/v2/yourApiKey
         ropsten: {
             url: process.env.NODE_URL || "",
@@ -74,8 +74,8 @@ export const hardhatConfig = {
         target: "ethers-v5",
     },
     tenderly: {
-        username: "mStable",
-        project: "mStable-contracts",
+        username: "alsco77",
+        project: "mStable",
     },
 }
 
