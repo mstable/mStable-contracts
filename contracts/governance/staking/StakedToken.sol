@@ -431,7 +431,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * @param _value Units to stake
      **/
     function increaseLockAmount(uint256 _value) external {
-        require(balanceOf(_msgSender) == 0, "Nothing to increase");
+        require(balanceOf(_msgSender()) != 0, "Nothing to increase");
         _transferAndStake(_value, address(0), false);
     }
 
