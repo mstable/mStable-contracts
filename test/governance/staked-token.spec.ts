@@ -1479,11 +1479,11 @@ describe("Staked Token", () => {
                     .withArgs(stakedToken.address, sa.default.address, withdrawAmount.mul(3).div(4))
 
                 const afterData = await snapshotUserStakingData(sa.default.address)
-                expect(afterData.stakedBalance, "staker stkRWD after").to.eq(stakedAmount.sub(withdrawAmount))
-                expect(afterData.votes, "staker votes after").to.eq(stakedAmount.sub(withdrawAmount))
+                expect(afterData.stakedBalance, "staker stkRWD after").to.eq(0)
+                expect(afterData.votes, "staker votes after").to.eq(0)
                 expect(afterData.cooldownTimestamp, "staked cooldown start").to.eq(0)
-                expect(afterData.cooldownUnits, "staked cooldown units").to.eq(0)
-                expect(afterData.userBalances.raw, "staked raw balance after").to.eq(stakedAmount.sub(withdrawAmount))
+                expect(afterData.cooldownUnits, "staked cooldown units").to.eq(stakedAmount.sub(withdrawAmount))
+                expect(afterData.userBalances.raw, "staked raw balance after").to.eq(0)
             })
         })
         context("calc redemption fee", () => {

@@ -252,7 +252,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         // Is the contract post-recollateralisation?
         if (safetyData.collateralisationRatio != 1e18) {
             // 1. If recollateralisation has occured, the contract is finished and we can skip all checks
-            _burnRaw(_msgSender(), _amount, false);
+            _burnRaw(_msgSender(), _amount, false, true);
             // 2. Return a proportionate amount of tokens, based on the collateralisation ratio
             STAKED_TOKEN.safeTransfer(
                 _recipient,
@@ -293,7 +293,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
             bool exitCooldown = _exitCooldown || totalWithdraw == maxWithdrawal;
 
             // 5. Settle the withdrawal by burning the voting tokens
-            _burnRaw(_msgSender(), totalWithdraw, exitCooldown);
+            _burnRaw(_msgSender(), totalWithdraw, exitCooldown, false);
             //      Log any redemption fee to the rewards contract
             _notifyAdditionalReward(totalWithdraw - userWithdrawal);
             //      Finally transfer tokens back to recipient

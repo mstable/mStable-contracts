@@ -486,11 +486,13 @@ abstract contract GamifiedToken is
      * @param _account Address of user
      * @param _rawAmount Raw amount of tokens to remove
      * @param _exitCooldown Exit the cooldown?
+     * @param _finalise Has recollateralisation happened? If so, everything is cooled down
      */
     function _burnRaw(
         address _account,
         uint256 _rawAmount,
-        bool _exitCooldown
+        bool _exitCooldown,
+        bool _finalise
     ) internal virtual updateReward(_account) {
         require(_account != address(0), "ERC20: burn from zero address");
 
@@ -498,7 +500,13 @@ abstract contract GamifiedToken is
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
         CooldownData memory cooldownData = stakersCooldowns[_msgSender()];
         uint256 totalRaw = oldBalance.raw + cooldownData.units;
-        // 1.1 Update
+        // 1.1. If _finalise, move everything to cooldown
+        if (_finalise) {
+            _balances[_account].raw = 0;
+            stakersCooldowns[_account].units = SafeCast.toUint128(totalRaw);
+            cooldownData.units = SafeCast.toUint128(totalRaw);
+        }
+        // 1.2. Update
         require(cooldownData.units >= _rawAmount, "ERC20: burn amount > balance");
         unchecked {
             stakersCooldowns[_account].units -= SafeCast.toUint128(_rawAmount);
