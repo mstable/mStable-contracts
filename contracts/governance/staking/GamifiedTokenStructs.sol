@@ -15,8 +15,6 @@ struct Balance {
     uint16 seasonMultiplier;
     /// multiplier awarded for staking for a long time
     uint16 timeMultiplier;
-    /// shows if a user has entered their cooldown ready for a withdrawal. Can be used to slash voting balance
-    uint16 cooldownMultiplier;
 }
 
 /// @notice Quests can either give permanent rewards or only for the season
@@ -40,4 +38,11 @@ struct Quest {
     QuestStatus status;
     /// Expiry date in seconds for the quest
     uint32 expiry;
+}
+
+struct CooldownData {
+    /// Time at which the relative cooldown began
+    uint128 timestamp;
+    /// Units up for cooldown
+    uint128 units;
 }
