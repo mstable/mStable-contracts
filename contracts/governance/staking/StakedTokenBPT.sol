@@ -5,6 +5,7 @@ pragma abicoder v2;
 import { StakedToken } from "./StakedToken.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IBVault } from "./interfaces/IBVault.sol";
 
 /**
  * @title StakedTokenBPT
@@ -17,8 +18,17 @@ contract StakedTokenBPT is StakedToken {
     /// @notice Balancer token
     IERC20 public immutable BAL;
 
+    /// @notice Balancer token
+    IBVault public immutable balancerVault;
+
+    /// @notice Balancer poolId
+    bytes32 public immutable poolId;
+
     /// @notice Core token that is staked and tracked (e.g. MTA)
     address public balRecipient;
+
+    /// @notice Pending fees in BPT terms
+    uint256 public pendingBPTFees;
 
     event BalClaimed();
     event BalRecipientChanged(address newRecipient);
@@ -39,10 +49,13 @@ contract StakedTokenBPT is StakedToken {
         address _stakedToken,
         uint256 _cooldownSeconds,
         uint256 _unstakeWindow,
-        address[2] memory _bal
+        address[3] memory _bal,
+        bytes32 _poolId
     ) StakedToken(_signer, _nexus, _rewardsToken, _stakedToken, _cooldownSeconds, _unstakeWindow) {
         BAL = IERC20(_bal[0]);
         balRecipient = _bal[1];
+        balancerVault = IBVault(_bal[2]);
+        poolId = _poolId;
     }
 
     /**
@@ -64,8 +77,25 @@ contract StakedTokenBPT is StakedToken {
         emit BalRecipientChanged(_newRecipient);
     }
 
+    /**
+     * @dev
+     */
+    function convertFees() external {
+        require(pendingBPTFees > 1, "Must have something to convert");
+
+        // balancerVault.exitPool(poolId, address(this), address(this), ExitPoolRequest([REWARDS_TOKEN], [], 0, false));
+        uint256 balAfter = REWARDS_TOKEN.balanceOf(address(this));
+        pendingAdditionalReward = balAfter;
+    }
+
+    /**
+     * @dev Called by the child contract to notify of any additional rewards that have accrued.
+     *      Trusts that this is called honestly.
+     * @param _additionalReward Units of additional RewardToken to add at the next notification
+     */
     function _notifyAdditionalReward(uint256 _additionalReward) internal override {
-        // TODO - log the $BPT fees accrued here
-        //      - add a protected fn to convert the $BPT back into $MTA and add to the incentives
+        require(_additionalReward < 1e24, "Cannot notify with more than a million units");
+
+        pendingBPTFees += _additionalReward;
     }
 }
