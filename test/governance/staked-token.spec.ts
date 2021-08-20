@@ -1573,6 +1573,20 @@ describe("Staked Token", () => {
 
             expect(await stakedToken.totalSupply(), "total staked after").to.eq(newBalance)
         })
+        it("fails to increaseLockAmount if the user has no stake", async () => {
+            // Fresh slate, fail
+            await expect(stakedToken.increaseLockAmount(stakedAmount)).to.revertedWith("Nothing to increase")
+
+            // Stake, withdraw, fail
+            await stakedToken.createLock(stakedAmount, ONE_WEEK.mul(12))
+            await stakedToken.startCooldown(stakedAmount)
+            await increaseTime(ONE_DAY.mul(8))
+            await stakedToken.withdraw(stakedAmount, sa.default.address, true, false)
+            const data = await snapshotUserStakingData()
+            expect(data.stakedBalance).eq(BN.from(0))
+            expect(data.cooldownTimestamp).eq(BN.from(0))
+            await expect(stakedToken.increaseLockAmount(stakedAmount)).to.revertedWith("Nothing to increase")
+        })
         it("increase lock length", async () => {
             await stakedToken.createLock(stakedAmount, ONE_WEEK.mul(12))
             const stakedTimestamp = await getTimestamp()
