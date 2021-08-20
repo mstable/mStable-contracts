@@ -694,8 +694,9 @@ describe("Staked Token", () => {
                 timeMultiplier?: number
                 permMultiplier?: number
                 seasonMultiplier?: number
-                reviewTimestamp?: boolean
                 cooldownUnits?: BN
+                reviewTimestamp?: boolean
+                endCooldown?: boolean
             }[] = [
                 { desc: "no multipliers", weeks: 1, completedQuests: [] },
                 {
@@ -747,7 +748,7 @@ describe("Staked Token", () => {
                     cooldownUnits: stakedAmount,
                 },
                 {
-                    desc: "no quests, 11 weeks, out of 100% cooldown not ended",
+                    desc: "no quests, 11 weeks, out of 100% cooldown, not ended",
                     weeks: 11,
                     completedQuests: [],
                     cooldown: {
@@ -757,7 +758,20 @@ describe("Staked Token", () => {
                     timeMultiplier: 0,
                     permMultiplier: 0,
                     seasonMultiplier: 0,
-                    // reviewTimestamp: true,
+                    cooldownUnits: stakedAmount,
+                },
+                {
+                    desc: "no quests, 11 weeks, out of 100% cooldown, ended",
+                    weeks: 11,
+                    completedQuests: [],
+                    cooldown: {
+                        start: 8,
+                        units: stakedAmount,
+                    },
+                    timeMultiplier: 0,
+                    permMultiplier: 0,
+                    seasonMultiplier: 0,
+                    endCooldown: true,
                 },
                 {
                     desc: "no quests, 11 weeks, 100% cooldown ended",
@@ -786,7 +800,7 @@ describe("Staked Token", () => {
                     cooldownUnits: stakedAmount.div(5),
                 },
                 {
-                    desc: "all quests, 23 weeks, after 30% cooldown not ended",
+                    desc: "all quests, 23 weeks, after 30% cooldown, not ended",
                     weeks: 23,
                     completedQuests: [0, 1, 2, 3],
                     cooldown: {
@@ -796,7 +810,20 @@ describe("Staked Token", () => {
                     timeMultiplier: 20,
                     permMultiplier: 34,
                     seasonMultiplier: 13,
-                    // reviewTimestamp: true,
+                    cooldownUnits: stakedAmount.mul(3).div(10),
+                },
+                {
+                    desc: "all quests, 23 weeks, after 30% cooldown, ended",
+                    weeks: 23,
+                    completedQuests: [0, 1, 2, 3],
+                    cooldown: {
+                        start: 19,
+                        units: stakedAmount.mul(3).div(10),
+                    },
+                    timeMultiplier: 20,
+                    permMultiplier: 34,
+                    seasonMultiplier: 13,
+                    endCooldown: true,
                 },
                 {
                     desc: "all quests, 24 weeks, after 20% cooldown ended",
@@ -840,6 +867,9 @@ describe("Staked Token", () => {
 
                     if (run.reviewTimestamp) {
                         await stakedToken.reviewTimestamp(user)
+                    }
+                    if (run.endCooldown) {
+                        await stakedToken.endCooldown()
                     }
 
                     const timeMultiplierExpected = BN.from(run.timeMultiplier || 0)
@@ -1128,7 +1158,9 @@ describe("Staked Token", () => {
                 const stakerDataAfterCooldown = await snapshotUserStakingData(sa.default.address)
                 expect(stakerDataAfterCooldown.cooldownTimestamp, "cooldown timestamp after cooldown").to.eq(cooldownTimestamp)
                 expect(stakerDataAfterCooldown.cooldownUnits, "cooldown units after cooldown").to.eq(cooldownAmount)
-                expect(stakerDataAfterCooldown.userBalances.raw, "staked raw balance after cooldown").to.eq(stakedAmount.sub(cooldownAmount))
+                expect(stakerDataAfterCooldown.userBalances.raw, "staked raw balance after cooldown").to.eq(
+                    stakedAmount.sub(cooldownAmount),
+                )
                 expect(stakerDataAfterCooldown.userBalances.weightedTimestamp, "weighted timestamp after cooldown").to.eq(stakedTimestamp)
                 expect(stakerDataAfterCooldown.userBalances.lastAction, "last action after cooldown").to.eq(cooldownTimestamp)
                 expect(stakerDataAfterCooldown.stakedBalance, "staked after cooldown").to.eq(stakedAmount.div(5))
