@@ -38,8 +38,6 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     uint256 public immutable UNSTAKE_WINDOW;
     /// @notice A week
     uint256 private constant ONE_WEEK = 7 days;
-    /// @notice cooldown percentage scale where 100% = 1e18. 1% = 1e16
-    uint256 public constant COOLDOWN_PERCENTAGE_SCALE = 1e18;
 
     struct SafetyData {
         /// Percentage of collateralisation where 100% = 1e18
@@ -234,6 +232,9 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         //      then reset the timestamp to 0
         bool exitCooldown = _exitCooldown ||
             block.timestamp > (oldCooldown.timestamp + COOLDOWN_SECONDS + UNSTAKE_WINDOW);
+        if (exitCooldown) {
+            emit CooldownExited(_msgSender());
+        }
 
         // 3. Settle the stake by depositing the STAKED_TOKEN and minting voting power
         _mintRaw(_msgSender(), _amount, exitCooldown);
