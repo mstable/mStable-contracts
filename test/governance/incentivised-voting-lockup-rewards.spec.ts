@@ -22,7 +22,7 @@ import {
     IRewardsDistributionRecipientContext,
 } from "../shared/RewardsDistributionRecipient.behaviour"
 
-const EVENTS = { DEPOSIT: "Deposit", WITHDRAW: "Withdraw", REWARD_PAID: "RewardPaid" };
+const EVENTS = { DEPOSIT: "Deposit", WITHDRAW: "Withdraw", REWARD_PAID: "RewardPaid" }
 
 const goToNextUnixWeekStart = async () => {
     const unixWeekCount = (await getTimestamp()).div(ONE_WEEK)
@@ -35,31 +35,29 @@ const oneWeekInAdvance = async (): Promise<BN> => {
     return now.add(ONE_WEEK)
 }
 
-const isContractEvent = (address: string, eventName: string) =>
-    (event: Event) => event.address === address && event.event === eventName;
+const isContractEvent = (address: string, eventName: string) => (event: Event) => event.address === address && event.event === eventName
 
 const findContractEvent = (receipt: ContractReceipt, address: string, eventName: string) =>
-    receipt.events.find(isContractEvent(address, eventName));
+    receipt.events.find(isContractEvent(address, eventName))
 
 interface WithdrawEventArgs {
-    provider: string;
-    value: BN;
+    provider: string
+    value: BN
 }
 
-const expectWithdrawEvent = async (votingLockup: IncentivisedVotingLockup, tx: Promise<ContractTransaction>, 
-    receipt: ContractReceipt, args: WithdrawEventArgs) => {
-        const currentTime = await getTimestamp()
-        await expect(tx).to.emit(votingLockup, EVENTS.WITHDRAW)
-        const withdrawEvent = findContractEvent(receipt, votingLockup.address, EVENTS.WITHDRAW);
-        expect(withdrawEvent).to.exist;
-        expect(withdrawEvent.args.provider, "provider in Withdraw event").to.eq(args.provider);
-        expect(withdrawEvent.args.value, "value in Withdraw event").to.eq(args.value);
-        assertBNClose(
-            withdrawEvent.args.ts,
-            currentTime.add(1),
-            BN.from(10),
-            "ts in Withdraw event"
-        );
+const expectWithdrawEvent = async (
+    votingLockup: IncentivisedVotingLockup,
+    tx: Promise<ContractTransaction>,
+    receipt: ContractReceipt,
+    args: WithdrawEventArgs,
+) => {
+    const currentTime = await getTimestamp()
+    await expect(tx).to.emit(votingLockup, EVENTS.WITHDRAW)
+    const withdrawEvent = findContractEvent(receipt, votingLockup.address, EVENTS.WITHDRAW)
+    expect(withdrawEvent).to.exist
+    expect(withdrawEvent.args.provider, "provider in Withdraw event").to.eq(args.provider)
+    expect(withdrawEvent.args.value, "value in Withdraw event").to.eq(args.value)
+    assertBNClose(withdrawEvent.args.ts, currentTime.add(1), BN.from(10), "ts in Withdraw event")
 }
 
 describe("IncentivisedVotingLockupRewards", () => {
@@ -126,6 +124,12 @@ describe("IncentivisedVotingLockupRewards", () => {
         periodFinishTime: BN
     }
 
+    enum LockAction {
+        CREATE_LOCK,
+        INCREASE_LOCK_AMOUNT,
+        INCREASE_LOCK_TIME,
+    }
+
     const snapshotStakingData = async (sender = sa.default): Promise<StakingData> => {
         const locked = await votingLockup.locked(sender.address)
         const lastPoint = await votingLockup.getLastUserPoint(sender.address)
@@ -160,6 +164,7 @@ describe("IncentivisedVotingLockupRewards", () => {
         ctx.module = votingLockup as ImmutableModule
         ctx.sa = sa
     })
+
     describe("implementing rewardDistributionRecipient and Module", async () => {
         shouldBehaveLikeDistributionRecipient(ctx as IRewardsDistributionRecipientContext)
     })
@@ -168,6 +173,7 @@ describe("IncentivisedVotingLockupRewards", () => {
         before(async () => {
             votingLockup = await redeployRewards()
         })
+
         it("should set all initial state", async () => {
             // Set in constructor
             expect(await votingLockup.nexus(), nexus.address)
@@ -205,8 +211,8 @@ describe("IncentivisedVotingLockupRewards", () => {
             periodIsFinished
                 ? beforeData.periodFinishTime
                 : beforeData.rewardPerTokenStored.eq(0) && beforeData.totalStaticWeight.eq(0)
-                    ? beforeData.lastUpdateTime
-                    : timeAfter,
+                ? beforeData.lastUpdateTime
+                : timeAfter,
         ).eq(afterData.lastUpdateTime)
         //    RewardRate doesnt change
         expect(beforeData.rewardRate).eq(afterData.rewardRate)
@@ -248,72 +254,58 @@ describe("IncentivisedVotingLockupRewards", () => {
     /**
      * @dev Ensures a stake is successful, updates the rewards for the beneficiary and
      * collects the stake
+     * @param lockAction The lock action to perform (CREATE_LOCK, INCREASE_LOCK_AMOUNT, INCREASE_LOCK_TIME)
      * @param stakeAmount Exact units to stake
      * @param sender Sender of the tx
-     * @param confirmExistingStaker Expect the staker to be existing?
-     * @param shouldIncreaseTime Expect the staker to be increase the time?
-     * @param increaseAmount Expect the staker to increase the amount?
      */
-    const expectSuccessfulStake = async (
-        stakeAmount: BN,
-        sender = sa.default,
-        confirmExistingStaker = false,
-        shouldIncreaseTime = false,
-        increaseAmount = false,
-    ): Promise<void> => {
+    const expectSuccessfulStake = async (lockAction: LockAction, stakeAmount: BN, sender = sa.default): Promise<void> => {
         // 1. Get data from the contract
         const beforeData = await snapshotStakingData(sender)
 
         const isExistingStaker = beforeData.userStaticWeight.gt(BN.from(0))
-        if (confirmExistingStaker) {
-            expect(isExistingStaker).eq(true)
-        }
         // 2. Approve staking token spending and send the TX
         await stakingToken.connect(sender.signer).approve(votingLockup.address, stakeAmount)
-        const oneWeek = await oneWeekInAdvance()
+
         let tx: Promise<ContractTransaction>
-        let expectedAmount: BN
         let expectedLocktime: BN
-        let expectedAction: number
-        const currentTime = await getTimestamp()
+        let expectedAmount = stakeAmount
 
         const floorToWeek = (t) => Math.trunc(Math.trunc(t / ONE_WEEK.toNumber()) * ONE_WEEK.toNumber())
-        if (shouldIncreaseTime) {
-            tx = votingLockup.connect(sender.signer).increaseLockLength(oneWeek.add(ONE_WEEK))
-            expectedAmount = BN.from(0)
-            expectedLocktime = BN.from(floorToWeek(oneWeek.add(ONE_WEEK).toNumber()));
-            expectedAction = 2 // "CREATE_LOCK"
-        } else if (increaseAmount) {
-            tx = votingLockup.connect(sender.signer).increaseLockAmount(stakeAmount)
-            expectedAmount = stakeAmount
-            expectedLocktime = oneWeek
-            expectedAction = 1 // "INCREASE_LOCK_AMOUNT"
-        } else {
-            tx = votingLockup.connect(sender.signer).createLock(stakeAmount, oneWeek)
-            expectedAmount = stakeAmount
-            expectedLocktime = BN.from(floorToWeek(oneWeek.toNumber()));
-            expectedAction = 0 // "INCREASE_LOCK_TIME"
+        switch (lockAction) {
+            case LockAction.CREATE_LOCK:
+                tx = votingLockup.connect(sender.signer).createLock(stakeAmount, await oneWeekInAdvance())
+                expectedLocktime = BN.from(floorToWeek((await oneWeekInAdvance()).toNumber()))
+                break
+            case LockAction.INCREASE_LOCK_AMOUNT:
+                expect(isExistingStaker).eq(true)
+                tx = votingLockup.connect(sender.signer).increaseLockAmount(stakeAmount)
+                expectedLocktime = await getTimestamp()
+                break
+            default:
+                // INCREASE_LOCK_TIME
+                tx = votingLockup.connect(sender.signer).increaseLockLength((await oneWeekInAdvance()).add(ONE_WEEK))
+                expectedLocktime = BN.from(floorToWeek((await oneWeekInAdvance()).add(ONE_WEEK).toNumber()))
+                expectedAmount = BN.from(0)
+                break
         }
-        const receipt = await (await tx).wait();
+
+        const receipt = await (await tx).wait()
         await expect(tx).to.emit(votingLockup, EVENTS.DEPOSIT)
-        const depositEvent = findContractEvent(receipt, votingLockup.address, EVENTS.DEPOSIT);
-        expect(depositEvent).to.exist;
-        expect(depositEvent.args.provider, "provider in Deposit event").to.eq(sender.address);
-        expect(depositEvent.args.value, "value in Deposit event").to.eq(expectedAmount);
-        expect(depositEvent.args.locktime, "locktime in Deposit event").to.eq(expectedLocktime);
-        expect(depositEvent.args.action, "action in Deposit event").to.eq(expectedAction);
-        assertBNClose(
-            depositEvent.args.ts,
-            currentTime.add(1),
-            BN.from(10),
-            "ts in Deposit event"
-        )
+        const depositEvent = findContractEvent(receipt, votingLockup.address, EVENTS.DEPOSIT)
+        expect(depositEvent).to.exist
+        expect(depositEvent.args.provider, "provider in Deposit event").to.eq(sender.address)
+        expect(depositEvent.args.value, "value in Deposit event").to.eq(expectedAmount)
+        expect(depositEvent.args.locktime, "locktime in Deposit event").to.eq(expectedLocktime)
+        expect(depositEvent.args.action, "action in Deposit event").to.eq(lockAction)
+        assertBNClose(depositEvent.args.ts, (await getTimestamp()).add(1), BN.from(10), "ts in Deposit event")
 
         // 3. Ensure rewards are accrued to the beneficiary
         const afterData = await snapshotStakingData(sender)
+
         await assertRewardsAssigned(beforeData, afterData, isExistingStaker)
 
         // 4. Expect token transfer
+        const shouldIncreaseTime = lockAction === LockAction.INCREASE_LOCK_TIME
         //    StakingToken balance of sender
         expect(shouldIncreaseTime ? beforeData.senderStakingTokenBalance : beforeData.senderStakingTokenBalance.sub(stakeAmount)).eq(
             afterData.senderStakingTokenBalance,
@@ -373,10 +365,10 @@ describe("IncentivisedVotingLockupRewards", () => {
         const isExistingStaker = beforeData.userStaticWeight.gt(BN.from(0))
         expect(isExistingStaker).eq(true)
         // 2. Send withdrawal tx
-        const tx = votingLockup.connect(sender.signer).withdraw();
-        const receipt = await (await tx).wait();
+        const tx = votingLockup.connect(sender.signer).withdraw()
+        const receipt = await (await tx).wait()
 
-        await expectWithdrawEvent(votingLockup, tx, receipt, { provider: sender.address, value: beforeData.userLocked.amount });
+        await expectWithdrawEvent(votingLockup, tx, receipt, { provider: sender.address, value: beforeData.userLocked.amount })
 
         // 3. Expect Rewards to accrue to the beneficiary
         //    StakingToken balance of sender
@@ -406,7 +398,7 @@ describe("IncentivisedVotingLockupRewards", () => {
                 // Do the stake
                 const rewardRate = await votingLockup.rewardRate()
                 const stakeAmount = simpleToExactAmount(100, DEFAULT_DECIMALS)
-                await expectSuccessfulStake(stakeAmount)
+                await expectSuccessfulStake(LockAction.CREATE_LOCK, stakeAmount)
 
                 await increaseTime(ONE_DAY)
 
@@ -425,8 +417,9 @@ describe("IncentivisedVotingLockupRewards", () => {
             })
             it("should update stakers rewards after consequent stake", async () => {
                 const stakeAmount = simpleToExactAmount(100, DEFAULT_DECIMALS)
+
                 // This checks resulting state after second stake
-                await expectSuccessfulStake(stakeAmount, sa.default, true, true)
+                await expectSuccessfulStake(LockAction.INCREASE_LOCK_TIME, stakeAmount, sa.default)
             })
 
             it("should fail if stake amount is 0", async () => {
@@ -461,13 +454,13 @@ describe("IncentivisedVotingLockupRewards", () => {
 
             await goToNextUnixWeekStart()
             // Do the stake
-            await expectSuccessfulStake(stakeAmount)
+            await expectSuccessfulStake(LockAction.CREATE_LOCK, stakeAmount)
 
             // Wait a day
             await increaseTime(ONE_DAY)
 
             // Do another stake
-            // await expectSuccessfulStake(stakeAmount);
+            // await expectSuccessfulStake(LockAction.CREATE_LOCK,stakeAmount);
             // Get end results
             const afterData = await snapshotStakingData()
             expect(afterData.rewardRate).eq(BN.from(0))
@@ -490,7 +483,7 @@ describe("IncentivisedVotingLockupRewards", () => {
             await increaseTime(FIVE_DAYS)
 
             const stakeAmount = simpleToExactAmount(100, DEFAULT_DECIMALS)
-            await expectSuccessfulStake(stakeAmount)
+            await expectSuccessfulStake(LockAction.CREATE_LOCK, stakeAmount)
 
             // This is the total reward per staked token, since the last update
             const rewardPerToken = await votingLockup.rewardPerToken()
@@ -520,7 +513,7 @@ describe("IncentivisedVotingLockupRewards", () => {
                 await expectSuccesfulFunding(fundAmount1)
 
                 const stakeAmount = simpleToExactAmount(1, DEFAULT_DECIMALS)
-                await expectSuccessfulStake(stakeAmount)
+                await expectSuccessfulStake(LockAction.CREATE_LOCK, stakeAmount)
 
                 await increaseTime(ONE_WEEK.mul(2))
 
@@ -582,13 +575,13 @@ describe("IncentivisedVotingLockupRewards", () => {
 
                 // WEEK 0-1 START
                 await goToNextUnixWeekStart()
-                await expectSuccessfulStake(staker1Stake1)
-                await expectSuccessfulStake(staker3Stake, staker3)
+                await expectSuccessfulStake(LockAction.CREATE_LOCK, staker1Stake1)
+                await expectSuccessfulStake(LockAction.CREATE_LOCK, staker3Stake, staker3)
                 await expectSuccesfulFunding(fundAmount1)
 
                 await increaseTime(ONE_WEEK.div(2).add(1))
 
-                await expectSuccessfulStake(staker2Stake, staker2)
+                await expectSuccessfulStake(LockAction.CREATE_LOCK, staker2Stake, staker2)
 
                 await increaseTime(ONE_WEEK.div(2).add(1))
 
@@ -597,7 +590,7 @@ describe("IncentivisedVotingLockupRewards", () => {
 
                 await votingLockup.eject(staker3.address)
                 await votingLockup.connect(sa.default.signer).withdraw()
-                await expectSuccessfulStake(staker1Stake2, sa.default)
+                await expectSuccessfulStake(LockAction.CREATE_LOCK, staker1Stake2, sa.default)
 
                 await increaseTime(ONE_WEEK)
 
@@ -620,7 +613,7 @@ describe("IncentivisedVotingLockupRewards", () => {
             votingLockup = await redeployRewards()
         })
         it("should stop accruing rewards after the period is over", async () => {
-            await expectSuccessfulStake(simpleToExactAmount(1, DEFAULT_DECIMALS))
+            await expectSuccessfulStake(LockAction.CREATE_LOCK, simpleToExactAmount(1, DEFAULT_DECIMALS))
             await expectSuccesfulFunding(fundAmount1)
 
             await increaseTime(ONE_WEEK.add(1))
@@ -740,7 +733,7 @@ describe("IncentivisedVotingLockupRewards", () => {
 
             before(async () => {
                 votingLockup = await redeployRewards()
-                await expectSuccessfulStake(stakeAmount)
+                await expectSuccessfulStake(LockAction.CREATE_LOCK, stakeAmount)
                 await increaseTime(ONE_WEEK.div(3).mul(2))
                 await expectSuccesfulFunding(fundAmount)
                 await increaseTime(ONE_WEEK.div(3).mul(2))
@@ -786,7 +779,7 @@ describe("IncentivisedVotingLockupRewards", () => {
                 await expectSuccesfulFunding(fundAmount)
                 await stakingToken.connect(rewardsDistributor.signer).transfer(votingLockup.address, fundAmount)
                 await stakingToken.connect(rewardsDistributor.signer).transfer(sa.dummy2.address, stakeAmount)
-                await expectSuccessfulStake(stakeAmount, sa.dummy2)
+                await expectSuccessfulStake(LockAction.CREATE_LOCK, stakeAmount, sa.dummy2)
                 await increaseTime(ONE_WEEK.add(1))
             })
             it("should do nothing for a non-staker", async () => {
@@ -830,7 +823,7 @@ describe("IncentivisedVotingLockupRewards", () => {
                 votingLockup = await redeployRewards()
                 await expectSuccesfulFunding(fundAmount)
                 await stakingToken.connect(rewardsDistributor.signer).transfer(votingLockup.address, fundAmount)
-                await expectSuccessfulStake(stakeAmount)
+                await expectSuccessfulStake(LockAction.CREATE_LOCK, stakeAmount)
                 await increaseTime(ONE_WEEK.add(1))
             })
             it("should fail if the sender has no stake", async () => {
@@ -840,10 +833,12 @@ describe("IncentivisedVotingLockupRewards", () => {
                 const beforeData = await snapshotStakingData()
                 const rewardeeBalanceBefore = await stakingToken.balanceOf(sa.default.address)
                 const tx = votingLockup.exit()
-                const receipt = await (await tx).wait();
+                const receipt = await (await tx).wait()
 
-                await expectWithdrawEvent(votingLockup, tx, receipt, { provider: sa.default.address, value: stakeAmount });
-                await expect(tx).to.emit(votingLockup, EVENTS.REWARD_PAID).withArgs(sa.default.address, beforeData.beneficiaryRewardsUnClaimed)
+                await expectWithdrawEvent(votingLockup, tx, receipt, { provider: sa.default.address, value: stakeAmount })
+                await expect(tx)
+                    .to.emit(votingLockup, EVENTS.REWARD_PAID)
+                    .withArgs(sa.default.address, beforeData.beneficiaryRewardsUnClaimed)
 
                 const afterData = await snapshotStakingData()
                 // Balance transferred to the rewardee
@@ -882,7 +877,7 @@ describe("IncentivisedVotingLockupRewards", () => {
             await expectSuccesfulFunding(fundAmount)
         })
         it("2. should allow stakers to stake and earn rewards", async () => {
-            await expectSuccessfulStake(stakeAmount)
+            await expectSuccessfulStake(LockAction.CREATE_LOCK, stakeAmount)
             await increaseTime(ONE_WEEK.add(1))
         })
         it("3. should credit earnings directly to beneficiary", async () => {
