@@ -2,8 +2,6 @@
 pragma solidity 0.8.6;
 pragma abicoder v2;
 
-import "hardhat/console.sol";
-
 import { IStakedToken } from "./interfaces/IStakedToken.sol";
 import { GamifiedVotingToken } from "./GamifiedVotingToken.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -66,7 +64,6 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     ****************************************/
 
     /**
-     * @param _signer Signer address is used to verify completion of quests off chain
      * @param _nexus System nexus
      * @param _rewardsToken Token that is being distributed as a reward. eg MTA
      * @param _stakedToken Core token that is staked and tracked (e.g. MTA)
@@ -74,13 +71,12 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * @param _unstakeWindow Window in which it is possible to withdraw, following the cooldown period
      */
     constructor(
-        address _signer,
         address _nexus,
         address _rewardsToken,
         address _stakedToken,
         uint256 _cooldownSeconds,
         uint256 _unstakeWindow
-    ) GamifiedVotingToken(_signer, _nexus, _rewardsToken) {
+    ) GamifiedVotingToken(_nexus, _rewardsToken) {
         STAKED_TOKEN = IERC20(_stakedToken);
         COOLDOWN_SECONDS = _cooldownSeconds;
         UNSTAKE_WINDOW = _unstakeWindow;
@@ -90,13 +86,15 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * @param _nameArg Token name
      * @param _symbolArg Token symbol
      * @param _rewardsDistributorArg mStable Rewards Distributor
+     * @param _questMaster account that signs user quests as completed
      */
     function initialize(
         string memory _nameArg,
         string memory _symbolArg,
-        address _rewardsDistributorArg
+        address _rewardsDistributorArg,
+        address _questMaster
     ) external initializer {
-        __GamifiedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg);
+        __GamifiedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg, _questMaster);
         safetyData = SafetyData({ collateralisationRatio: 1e18, slashingPercentage: 0 });
     }
 
@@ -131,10 +129,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
 
     function _assertNotContract() internal view {
         if (_msgSender() != tx.origin) {
-            require(
-                whitelistedWrappers[_msgSender()],
-                "Transactions from non-whitelisted smart contracts not allowed"
-            );
+            require(whitelistedWrappers[_msgSender()], "Not a whitelisted contract");
         }
     }
 
@@ -257,7 +252,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         // Is the contract post-recollateralisation?
         if (safetyData.collateralisationRatio != 1e18) {
             // 1. If recollateralisation has occured, the contract is finished and we can skip all checks
-            _burnRaw(_msgSender(), _amount, false);
+            _burnRaw(_msgSender(), _amount, false, true);
             // 2. Return a proportionate amount of tokens, based on the collateralisation ratio
             STAKED_TOKEN.safeTransfer(
                 _recipient,
@@ -298,7 +293,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
             bool exitCooldown = _exitCooldown || totalWithdraw == maxWithdrawal;
 
             // 5. Settle the withdrawal by burning the voting tokens
-            _burnRaw(_msgSender(), totalWithdraw, exitCooldown);
+            _burnRaw(_msgSender(), totalWithdraw, exitCooldown, false);
             //      Log any redemption fee to the rewards contract
             _notifyAdditionalReward(totalWithdraw - userWithdrawal);
             //      Finally transfer tokens back to recipient
@@ -382,7 +377,6 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         onlyGovernor
         onlyBeforeRecollateralisation
     {
-        require(safetyData.collateralisationRatio == 1e18, "Process already begun");
         require(_newRate <= 5e17, "Cannot exceed 50%");
 
         safetyData.slashingPercentage = SafeCast.toUint128(_newRate);
