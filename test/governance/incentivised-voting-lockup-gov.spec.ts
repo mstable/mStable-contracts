@@ -771,7 +771,7 @@ describe("IncentivisedVotingLockup", () => {
             assertBNClosePercent(aliceRewardsEarned1, simpleToExactAmount("1000", DEFAULT_DECIMALS), "0.01")
             assertBNClosePercent(aliceRewardsEarned2, simpleToExactAmount("1585.788", DEFAULT_DECIMALS), "0.01")
             assertBNClosePercent(bobRewardsEarned, simpleToExactAmount("414.212", DEFAULT_DECIMALS), "0.01")
-            assertBNClosePercent(aliceRewardsEarned2.add(bobRewardsEarned), amount.mul(2), "0.0001")
+            assertBNClosePercent(aliceRewardsEarned2.add(bobRewardsEarned), amount.mul(2), "0.0005")
 
             expect(await mta.balanceOf(alice.address)).eq(aliceBalBefore.add(aliceRewardsEarned2.sub(aliceRewardsEarned1)))
             expect(await mta.balanceOf(bob.address)).eq(bobBalBefore.add(bobRewardsEarned))
