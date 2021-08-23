@@ -1414,7 +1414,7 @@ describe("BoostedDualVault", async () => {
                 const r4 = data.userRewards[4]
                 const r5 = data.userRewards[5]
                 expect(r4.finish).to.be.eq(r5.start)
-                expect(r5.finish).to.be.eq(r5.start.add(1))
+                expect(r5.finish).to.be.lte(r5.start.add(3))
                 expect(r4.rate).to.be.eq(r5.rate)
                 assertBNClosePercent(r4.rate, lockedRewards(data.contractData.rewardRate), "0.001")
 
