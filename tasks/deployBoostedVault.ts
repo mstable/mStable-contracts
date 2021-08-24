@@ -8,10 +8,10 @@ import {
     AssetProxy__factory,
     BoostedVault__factory,
     BoostedDualVault__factory,
-    StakedToken__factory,
     SignatureVerifier__factory,
     GamifiedManager__factory,
     PlatformTokenVendorFactory__factory,
+    StakedTokenMTA__factory,
 } from "../types/generated"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getSignerAccount } from "./utils/signerFactory"
@@ -86,8 +86,8 @@ task("BoostedVault.deploy", "Deploys a BoostedVault")
     )
 
 task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
-    .addParam("questSignerAddress", "Address of account that signs quests", undefined, params.address)
     .addOptionalParam("rewardsToken", "Rewards token address", "MTA", types.string)
+    .addOptionalParam("questMaster", "Address of account that signs completed quests", undefined, params.address)
     .addOptionalParam("name", "Staked Token name", "Voting MTA V2", types.string)
     .addOptionalParam("symbol", "Staked Token symbol", "vMTA", types.string)
     .setAction(async (taskArgs, hre) => {
@@ -97,6 +97,7 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
         const nexusAddress = getChainAddress("Nexus", chain)
         const rewardsDistributorAddress = getChainAddress("RewardsDistributor", chain)
         const rewardsTokenAddress = resolveAddress(taskArgs.rewardsToken, chain)
+        const questMasterAddress = taskArgs.questSignerAddress || getChainAddress("QuestMaster", chain)
 
         let gamifiedManagerAddress = getChainAddress("GamifiedManager", chain)
         if (!gamifiedManagerAddress) {
@@ -124,9 +125,9 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
             "contracts/rewards/staking/PlatformTokenVendorFactory.sol:PlatformTokenVendorFactory": platformTokenVendorFactoryAddress,
             "contracts/governance/staking/deps/SignatureVerifier.sol:SignatureVerifier": signatureVerifierAddress,
         }
-        const stakedTokenFactory = new StakedToken__factory(stakedTokenLibraryAddresses, deployer.signer)
-        console.log(`Staked contract size ${StakedToken__factory.bytecode.length / 2} bytes`)
-        const stakedTokenImpl = await deployContract(stakedTokenFactory, "StakedToken", [
+        const stakedTokenMTAFactory = new StakedTokenMTA__factory(stakedTokenLibraryAddresses, deployer.signer)
+        console.log(`Staked Token MTA contract size ${StakedTokenMTA__factory.bytecode.length / 2} bytes`)
+        const stakedTokenImpl = await deployContract(stakedTokenMTAFactory, "StakedTokenMTA", [
             nexusAddress,
             rewardsTokenAddress,
             rewardsTokenAddress,
@@ -134,7 +135,12 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
             ONE_DAY.mul(2),
         ])
 
-        const data = stakedTokenImpl.interface.encodeFunctionData("initialize", [taskArgs.name, taskArgs.symbol, rewardsDistributorAddress, taskArgs.questSignerAddress])
+        const data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
+            taskArgs.name,
+            taskArgs.symbol,
+            rewardsDistributorAddress,
+            questMasterAddress,
+        ])
         await deployContract(new AssetProxy__factory(deployer.signer), "AssetProxy", [stakedTokenImpl.address, deployer.address, data])
     })
 
