@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax */
 import { BN, simpleToExactAmount } from "@utils/math"
 import { task, types } from "hardhat/config"
-import rewardsFiles from "./balancer-mta-rewards/20210817.json"
+import rewardsFiles from "./balancer-mta-rewards/20210824.json"
 import { usdFormatter } from "./utils"
 
 task("sum-rewards", "Totals the rewards in a disperse json file")
