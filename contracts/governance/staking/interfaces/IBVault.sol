@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-interface IAsset {
-    // solhint-disable-previous-line no-empty-blocks
+struct ExitPoolRequest {
+    address[] assets;
+    uint256[] minAmountsOut;
+    bytes userData;
+    bool toInternalBalance;
 }
 
 interface IBVault {
@@ -13,10 +16,12 @@ interface IBVault {
         ExitPoolRequest memory request
     ) external;
 
-    struct ExitPoolRequest {
-        IAsset[] assets;
-        uint256[] minAmountsOut;
-        bytes userData;
-        bool toInternalBalance;
-    }
+    function getPoolTokens(bytes32 poolId)
+        external
+        view
+        returns (
+            address[] memory tokens,
+            uint256[] memory balances,
+            uint256 lastChangeBlock
+        );
 }
