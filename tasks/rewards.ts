@@ -5,7 +5,7 @@ import { RewardsDistributorEth__factory } from "types/generated/factories/Reward
 import { RewardsDistributor__factory } from "types/generated/factories/RewardsDistributor__factory"
 import { formatUnits } from "ethers/lib/utils"
 import { Liquidator__factory } from "types"
-import rewardsFiles from "./balancer-mta-rewards/20210720.json"
+import rewardsFiles from "./balancer-mta-rewards/20210817.json"
 import { Chain, logTxDetails, usdFormatter } from "./utils"
 import { getAaveTokens, getAlcxTokens, getBlock, getCompTokens } from "./utils/snap-utils"
 import { getSigner } from "./utils/signerFactory"

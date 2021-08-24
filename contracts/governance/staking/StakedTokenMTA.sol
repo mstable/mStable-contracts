@@ -15,7 +15,6 @@ contract StakedTokenMTA is StakedToken {
     using SafeERC20 for IERC20;
 
     /**
-     * @param _signer Signer address is used to verify completion of quests off chain
      * @param _nexus System nexus
      * @param _rewardsToken Token that is being distributed as a reward. eg MTA
      * @param _stakedToken Core token that is staked and tracked (e.g. MTA)
@@ -23,13 +22,12 @@ contract StakedTokenMTA is StakedToken {
      * @param _unstakeWindow Window in which it is possible to withdraw, following the cooldown period
      */
     constructor(
-        address _signer,
         address _nexus,
         address _rewardsToken,
         address _stakedToken,
         uint256 _cooldownSeconds,
         uint256 _unstakeWindow
-    ) StakedToken(_signer, _nexus, _rewardsToken, _stakedToken, _cooldownSeconds, _unstakeWindow) {}
+    ) StakedToken(_nexus, _rewardsToken, _stakedToken, _cooldownSeconds, _unstakeWindow) {}
 
     /**
      * @dev Allows a staker to compound their rewards IF the Staking token and the Rewards token are the same

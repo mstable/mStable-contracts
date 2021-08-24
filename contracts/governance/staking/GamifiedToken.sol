@@ -30,8 +30,6 @@ abstract contract GamifiedToken is
     ContextUpgradeable,
     HeadlessStakingRewards
 {
-    /// @notice address that signs user quests have been completed
-    address public immutable _signer;
     /// @notice name of this token (ERC20)
     string public override name;
     /// @notice symbol of this token (ERC20)
@@ -48,8 +46,11 @@ abstract contract GamifiedToken is
     /// @notice Timestamp at which the current season started
     uint32 public seasonEpoch;
 
-    /// @notice A whitelisted questMaster who can add quests
-    address internal _questMaster;
+    /// @notice A whitelisted questMaster who can administer quests including signing user quests are completed.
+    address public questMaster;
+
+    /// @notice Tracks the cooldowns for all users
+    mapping(address => CooldownData) public stakersCooldowns;
 
     event QuestAdded(
         address questMaster,
@@ -62,38 +63,37 @@ abstract contract GamifiedToken is
     event QuestComplete(address indexed user, uint256 indexed id);
     event QuestExpired(uint16 indexed id);
     event QuestSeasonEnded();
+    event QuestMaster(address oldQuestMaster, address newQuestMaster);
 
     /***************************************
                     INIT
     ****************************************/
 
     /**
-     * @param _signerArg Signer address is used to verify completion of quests off chain
      * @param _nexus System nexus
      * @param _rewardsToken Token that is being distributed as a reward. eg MTA
      */
-    constructor(
-        address _signerArg,
-        address _nexus,
-        address _rewardsToken
-    ) HeadlessStakingRewards(_nexus, _rewardsToken) {
-        _signer = _signerArg;
-    }
+    constructor(address _nexus, address _rewardsToken)
+        HeadlessStakingRewards(_nexus, _rewardsToken)
+    {}
 
     /**
      * @param _nameArg Token name
      * @param _symbolArg Token symbol
      * @param _rewardsDistributorArg mStable Rewards Distributor
+     * @param _questMaster account that can sign user quests as completed
      */
     function __GamifiedToken_init(
         string memory _nameArg,
         string memory _symbolArg,
-        address _rewardsDistributorArg
+        address _rewardsDistributorArg,
+        address _questMaster
     ) internal initializer {
         __Context_init_unchained();
         name = _nameArg;
         symbol = _symbolArg;
         seasonEpoch = SafeCast.toUint32(block.timestamp);
+        questMaster = _questMaster;
         HeadlessStakingRewards._initialize(_rewardsDistributorArg);
     }
 
@@ -106,7 +106,20 @@ abstract contract GamifiedToken is
     }
 
     function _questMasterOrGovernor() internal view {
-        require(_msgSender() == _questMaster || _msgSender() == _governor(), "Not verified");
+        require(_msgSender() == questMaster || _msgSender() == _governor(), "Not verified");
+    }
+
+    /***************************************
+                    Admin
+    ****************************************/
+
+    /**
+     * @dev Sets the quest master that can sign user quests as being completed
+     */
+    function setQuestMaster(address _newQuestMaster) external questMasterOrGovernor() {
+        emit QuestMaster(questMaster, _newQuestMaster);
+
+        questMaster = _newQuestMaster;
     }
 
     /***************************************
@@ -142,8 +155,8 @@ abstract contract GamifiedToken is
      * @dev Simply gets raw balance
      * @return raw balance for user
      */
-    function rawBalanceOf(address _account) public view returns (uint256) {
-        return _balances[_account].raw;
+    function rawBalanceOf(address _account) public view returns (uint256, uint256) {
+        return (_balances[_account].raw, stakersCooldowns[_account].units);
     }
 
     /**
@@ -157,11 +170,6 @@ abstract contract GamifiedToken is
             100;
         // e.g. 1400 * (100 + 30) / 100 = 1820
         balance = (balance * (100 + _balance.timeMultiplier)) / 100;
-        // If the user is in cooldown, their balance is temporarily slashed depending on % of withdrawal
-        if (_balance.cooldownMultiplier > 0) {
-            // e.g. 1820 * (100 - 60) / 100 = 728
-            balance = (balance * (100 - _balance.cooldownMultiplier)) / 100;
-        }
     }
 
     /**
@@ -239,7 +247,7 @@ abstract contract GamifiedToken is
             require(_validQuest(_ids[i]), "Err: Invalid Quest");
             require(!hasCompleted(_account, _ids[i]), "Err: Already Completed");
             require(
-                SignatureVerifier.verify(_signer, _account, _ids[i], _signatures[i]),
+                SignatureVerifier.verify(questMaster, _account, _ids[i], _signatures[i]),
                 "Err: Invalid Signature"
             );
 
@@ -323,24 +331,32 @@ abstract contract GamifiedToken is
      * @dev Entering a cooldown period means a user wishes to withdraw. With this in mind, their balance
      * should be reduced until they have shown more commitment to the system
      * @param _account Address of user that should be cooled
-     * @param _percentage Percentage of total stake to cooldown for, where 100% = 1e18
+     * @param _units Units to cooldown for
      */
-    function _enterCooldownPeriod(address _account, uint256 _percentage)
+    function _enterCooldownPeriod(address _account, uint256 _units)
         internal
         updateReward(_account)
     {
         require(_account != address(0), "Invalid address");
-        require(_percentage > 0 && _percentage <= 1e18, "Must choose between 0 and 100%");
 
         // 1. Get current balance
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
+        CooldownData memory cooldownData = stakersCooldowns[_account];
+        uint128 totalUnits = _balances[_account].raw + cooldownData.units;
+        require(_units > 0 && _units <= totalUnits, "Must choose between 0 and 100%");
 
         // 2. Set weighted timestamp and enter cooldown
         _balances[_account].timeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
         // e.g. 1e18 / 1e16 = 100, 2e16 / 1e16 = 2, 1e15/1e16 = 0
-        _balances[_account].cooldownMultiplier = SafeCast.toUint16(_percentage / 1e16);
+        _balances[_account].raw = totalUnits - SafeCast.toUint128(_units);
 
-        // 3. Update scaled balance
+        // 3. Set cooldown data
+        stakersCooldowns[_account] = CooldownData({
+            timestamp: SafeCast.toUint128(block.timestamp),
+            units: SafeCast.toUint128(_units)
+        });
+
+        // 4. Update scaled balance
         _settleScaledBalance(_account, oldScaledBalance);
     }
 
@@ -356,9 +372,12 @@ abstract contract GamifiedToken is
 
         // 2. Set weighted timestamp and enter cooldown
         _balances[_account].timeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
-        _balances[_account].cooldownMultiplier = 0;
+        _balances[_account].raw += stakersCooldowns[_account].units;
 
-        // 3. Update scaled balance
+        // 3. Set cooldown data
+        stakersCooldowns[_account] = CooldownData(0, 0);
+
+        // 4. Update scaled balance
         _settleScaledBalance(_account, oldScaledBalance);
     }
 
@@ -419,21 +438,26 @@ abstract contract GamifiedToken is
      * Importantly, when a user stakes more, their weightedTimestamp is reduced proportionate to their stake.
      * @param _account Address of user to credit
      * @param _rawAmount Raw amount of tokens staked
-     * @param _newPercentage Set the users cooldown slash
+     * @param _exitCooldown Should we end any cooldown?
      */
     function _mintRaw(
         address _account,
         uint256 _rawAmount,
-        uint256 _newPercentage
+        bool _exitCooldown
     ) internal virtual updateReward(_account) {
         require(_account != address(0), "ERC20: mint to the zero address");
 
         // 1. Get and update current balance
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
+        CooldownData memory cooldownData = stakersCooldowns[_account];
+        uint256 totalRaw = oldBalance.raw + cooldownData.units;
         _balances[_account].raw = oldBalance.raw + SafeCast.toUint128(_rawAmount);
 
         // 2. Exit cooldown if necessary
-        _balances[_account].cooldownMultiplier = SafeCast.toUint16(_newPercentage / 1e16);
+        if (_exitCooldown) {
+            _balances[_account].raw += cooldownData.units;
+            stakersCooldowns[_account] = CooldownData(0, 0);
+        }
 
         // 3. Set weighted timestamp
         //  i) For new _account, set up weighted timestamp
@@ -445,8 +469,8 @@ abstract contract GamifiedToken is
         //  ii) For previous minters, recalculate time held
         //      Calc new weighted timestamp
         uint256 oldWeighredSecondsHeld = (block.timestamp - oldBalance.weightedTimestamp) *
-            oldBalance.raw;
-        uint256 newSecondsHeld = oldWeighredSecondsHeld / (oldBalance.raw + (_rawAmount / 2));
+            totalRaw;
+        uint256 newSecondsHeld = oldWeighredSecondsHeld / (totalRaw + (_rawAmount / 2));
         uint32 newWeightedTs = SafeCast.toUint32(block.timestamp - newSecondsHeld);
         _balances[_account].weightedTimestamp = newWeightedTs;
 
@@ -461,32 +485,46 @@ abstract contract GamifiedToken is
      * @dev Called to burn a given amount of raw tokens.
      * @param _account Address of user
      * @param _rawAmount Raw amount of tokens to remove
-     * @param _cooldownPercentage Set new cooldown percentage
+     * @param _exitCooldown Exit the cooldown?
+     * @param _finalise Has recollateralisation happened? If so, everything is cooled down
      */
     function _burnRaw(
         address _account,
         uint256 _rawAmount,
-        uint128 _cooldownPercentage
+        bool _exitCooldown,
+        bool _finalise
     ) internal virtual updateReward(_account) {
         require(_account != address(0), "ERC20: burn from zero address");
 
         // 1. Get and update current balance
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
-        require(oldBalance.raw >= _rawAmount, "ERC20: burn amount > balance");
+        CooldownData memory cooldownData = stakersCooldowns[_msgSender()];
+        uint256 totalRaw = oldBalance.raw + cooldownData.units;
+        // 1.1. If _finalise, move everything to cooldown
+        if (_finalise) {
+            _balances[_account].raw = 0;
+            stakersCooldowns[_account].units = SafeCast.toUint128(totalRaw);
+            cooldownData.units = SafeCast.toUint128(totalRaw);
+        }
+        // 1.2. Update
+        require(cooldownData.units >= _rawAmount, "ERC20: burn amount > balance");
         unchecked {
-            _balances[_account].raw = oldBalance.raw - SafeCast.toUint128(_rawAmount);
+            stakersCooldowns[_account].units -= SafeCast.toUint128(_rawAmount);
         }
 
-        // 2. Change the cooldown percentage based on size of recent withdrawal
-        _balances[_account].cooldownMultiplier = SafeCast.toUint16(_cooldownPercentage / 1e16);
+        // 2. If we are exiting cooldown, reset the balance
+        if (_exitCooldown) {
+            _balances[_account].raw += stakersCooldowns[_account].units;
+            stakersCooldowns[_account] = CooldownData(0, 0);
+        }
 
         // 3. Set back scaled time
         // e.g. stake 10 for 100 seconds, withdraw 5.
         //      secondsHeld = (100 - 0) * (10 - 1.25) = 875
         uint256 secondsHeld = (block.timestamp - oldBalance.weightedTimestamp) *
-            (oldBalance.raw - (_rawAmount / 4));
+            (totalRaw - (_rawAmount / 4));
         //      newWeightedTs = 875 / 100 = 87.5
-        uint256 newSecondsHeld = secondsHeld / oldBalance.raw;
+        uint256 newSecondsHeld = secondsHeld / totalRaw;
         uint32 newWeightedTs = SafeCast.toUint32(block.timestamp - newSecondsHeld);
         _balances[_account].weightedTimestamp = newWeightedTs;
 

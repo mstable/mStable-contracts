@@ -1,11 +1,11 @@
 import { BigNumber as BN } from "ethers"
-import { ratioScale } from "./constants"
+import { ratioScale, DEFAULT_DECIMALS } from "./constants"
 
 export { BN }
 
 // Converts an unscaled number to scaled number with the specified number of decimals
 // eg convert 3 to 3000000000000000000 with 18 decimals
-export const simpleToExactAmount = (amount: number | string | BN, decimals: number | BN = 18): BN => {
+export const simpleToExactAmount = (amount: number | string | BN, decimals: number | BN = DEFAULT_DECIMALS): BN => {
     // Code is largely lifted from the guts of web3 toWei here:
     // https://github.com/ethjs/ethjs-unit/blob/master/src/index.js
     let amountString = amount.toString()
@@ -63,24 +63,18 @@ export const simpleToExactAmount = (amount: number | string | BN, decimals: numb
 
 // How many mAssets is this bAsset worth using bAsset decimal length
 // eg convert 3679485 with 6 decimals (3.679485) to 3679485000000000000 with 18 decimals
-export const applyDecimals = (inputQuantity: number | string | BN, decimals = 18): BN =>
+export const applyDecimals = (inputQuantity: number | string | BN, decimals = DEFAULT_DECIMALS): BN =>
     BN.from(10)
         .pow(18 - decimals)
         .mul(inputQuantity)
 
-export const percentToWeight = (percent: number | string | BN): BN => {
-    return simpleToExactAmount(percent, 16)
-}
+export const percentToWeight = (percent: number | string | BN): BN => simpleToExactAmount(percent, 16)
 
 // How many bAssets is this mAsset worth
-export const applyRatioMassetToBasset = (input: BN, ratio: BN | string): BN => {
-    return input.mul(ratioScale).div(ratio)
-}
+export const applyRatioMassetToBasset = (input: BN, ratio: BN | string): BN => input.mul(ratioScale).div(ratio)
 
 // How many mAssets is this bAsset worth
-export const applyRatio = (bAssetQ: BN | string | number, ratio: BN | string): BN => {
-    return BN.from(bAssetQ).mul(ratio).div(ratioScale)
-}
+export const applyRatio = (bAssetQ: BN | string | number, ratio: BN | string): BN => BN.from(bAssetQ).mul(ratio).div(ratioScale)
 
 // How many mAssets is this bAsset worth
 export const applyRatioCeil = (bAssetQ: BN | string, ratio: BN | string): BN => {
@@ -96,3 +90,18 @@ export const createMultiple = (decimals: number): BN => {
 
 // Returns the smaller number
 export const minimum = (a: BN, b: BN): BN => (a.lte(b) ? a : b)
+
+// Returns the bigger number
+export const maximum = (a: BN, b: BN): BN => (a.gte(b) ? a : b)
+
+// Returns the square root of a big number, solution taken from https://github.com/ethers-io/ethers.js/issues/1182#issuecomment-744142921
+export const sqrt = (value: BN | number): BN => {
+    const x = BN.from(value)
+    let z = x.add(1).div(2)
+    let y = x
+    while (z.sub(y).isNegative()) {
+        y = z
+        z = x.div(z).add(z).div(2)
+    }
+    return y
+}

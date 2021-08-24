@@ -34,7 +34,6 @@ contract StakedTokenBPT is StakedToken {
     event BalRecipientChanged(address newRecipient);
 
     /**
-     * @param _signer Signer address is used to verify completion of quests off chain
      * @param _nexus System nexus
      * @param _rewardsToken Token that is being distributed as a reward. eg MTA
      * @param _stakedToken Core token that is staked and tracked (e.g. MTA)
@@ -43,7 +42,6 @@ contract StakedTokenBPT is StakedToken {
      * @param _bal Balancer addresses, [0] = $BAL addr, [1] = designated recipient
      */
     constructor(
-        address _signer,
         address _nexus,
         address _rewardsToken,
         address _stakedToken,
@@ -51,7 +49,7 @@ contract StakedTokenBPT is StakedToken {
         uint256 _unstakeWindow,
         address[3] memory _bal,
         bytes32 _poolId
-    ) StakedToken(_signer, _nexus, _rewardsToken, _stakedToken, _cooldownSeconds, _unstakeWindow) {
+    ) StakedToken(_nexus, _rewardsToken, _stakedToken, _cooldownSeconds, _unstakeWindow) {
         BAL = IERC20(_bal[0]);
         balRecipient = _bal[1];
         balancerVault = IBVault(_bal[2]);

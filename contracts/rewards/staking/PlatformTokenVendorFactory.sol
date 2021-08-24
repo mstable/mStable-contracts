@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.6;
 
@@ -17,7 +16,7 @@ library PlatformTokenVendorFactory {
         return true;
     }
 
-     /**
+    /**
      * @notice Deploys a new PlatformTokenVendor contract
      * @param _rewardsToken reward or platform rewards token. eg MTA or WMATIC
      * @return address of the deployed PlatformTokenVendor contract

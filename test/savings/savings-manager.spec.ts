@@ -927,7 +927,7 @@ describe("SavingsManager", async () => {
                 assertBNClose(
                     eventArgs.apy,
                     expectedAPY,
-                    simpleToExactAmount(2, 14), // allow for a 0.02% deviation in the percentage
+                    simpleToExactAmount(3, 14), // allow for a 0.03% deviation in the percentage
                 )
 
                 const balanceAfter = await mUSD.balanceOf(savingsContract.address)
