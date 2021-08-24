@@ -538,7 +538,7 @@ describe("IncentivisedVotingLockup", () => {
              * SETUP
              */
             const MAXTIME = await votingLockup.MAXTIME()
-            const tolerance = "0.03" // 0.03% | 0.00003 | 3e14
+            const tolerance = "0.04" // 0.04% | 0.00004 | 4e14
             const alice = sa.dummy1
             const bob = sa.dummy2
             const amount = simpleToExactAmount(1000, DEFAULT_DECIMALS)
