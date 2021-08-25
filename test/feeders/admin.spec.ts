@@ -494,7 +494,7 @@ describe("Feeder Admin", () => {
                 const currentA = config.a
                 const currentTime = await getTimestamp()
                 const tx = pool.stopRampA()
-                await expect(tx).to.emit(pool, "StopRampA").withArgs(currentA, currentTime.add(1))
+                await expect(tx).to.emit(pool, "StopRampA")
                 config = await details.pool.getConfig()
                 expect(config.a).to.eq(currentA)
 

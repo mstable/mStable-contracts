@@ -246,8 +246,10 @@ abstract contract HeadlessStakingRewards is
         uint256 currentTime = block.timestamp;
 
         // Pay and reset the pendingAdditionalRewards
-        _reward += pendingAdditionalReward;
-        pendingAdditionalReward = 0;
+        if (pendingAdditionalReward > 1) {
+            _reward += (pendingAdditionalReward - 1);
+            pendingAdditionalReward = 1;
+        }
         if (_reward > 0) {
             REWARDS_TOKEN.safeTransfer(rewardTokenVendor, _reward);
         }
