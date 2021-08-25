@@ -44,12 +44,22 @@ contract StakedTokenBPT is StakedToken {
     constructor(
         address _nexus,
         address _rewardsToken,
+        address _questManager,
         address _stakedToken,
         uint256 _cooldownSeconds,
         uint256 _unstakeWindow,
         address[3] memory _bal,
         bytes32 _poolId
-    ) StakedToken(_nexus, _rewardsToken, _stakedToken, _cooldownSeconds, _unstakeWindow) {
+    )
+        StakedToken(
+            _nexus,
+            _rewardsToken,
+            _questManager,
+            _stakedToken,
+            _cooldownSeconds,
+            _unstakeWindow
+        )
+    {
         BAL = IERC20(_bal[0]);
         balRecipient = _bal[1];
         balancerVault = IBVault(_bal[2]);

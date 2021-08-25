@@ -37,15 +37,11 @@ abstract contract GamifiedToken is
     uint8 public constant override decimals = 18;
 
     /// @notice User balance structs containing all data needed to scale balance
-    mapping(address => StakingBalance) internal _balances;
-
+    mapping(address => Balance) internal _balances;
     /// @notice Tracks the cooldowns for all users
     mapping(address => CooldownData) public stakersCooldowns;
-
-    event QuestComplete(address indexed user, uint256 indexed id);
-    event QuestExpired(uint16 indexed id);
-    event QuestSeasonEnded();
-    event QuestMaster(address oldQuestMaster, address newQuestMaster);
+    /// @notice Quest Manager
+    QuestManager public immutable questManager;
 
     /***************************************
                     INIT
@@ -55,9 +51,13 @@ abstract contract GamifiedToken is
      * @param _nexus System nexus
      * @param _rewardsToken Token that is being distributed as a reward. eg MTA
      */
-    constructor(address _nexus, address _rewardsToken)
-        HeadlessStakingRewards(_nexus, _rewardsToken)
-    {}
+    constructor(
+        address _nexus,
+        address _rewardsToken,
+        address _questManager
+    ) HeadlessStakingRewards(_nexus, _rewardsToken) {
+        questManager = QuestManager(_questManager);
+    }
 
     /**
      * @param _nameArg Token name
@@ -76,28 +76,11 @@ abstract contract GamifiedToken is
     }
 
     /**
-     * @dev Checks that _msgSender is either governor or the quest master
+     * @dev Checks that _msgSender is the quest Manager
      */
-    modifier questMasterOrGovernor() {
-        _questMasterOrGovernor();
+    modifier onlyQuestManager() {
+        require(_msgSender() == address(questManager), "Not verified");
         _;
-    }
-
-    function _questMasterOrGovernor() internal view {
-        require(_msgSender() == questMaster || _msgSender() == _governor(), "Not verified");
-    }
-
-    /***************************************
-                    Admin
-    ****************************************/
-
-    /**
-     * @dev Sets the quest master that can sign user quests as being completed
-     */
-    function setQuestMaster(address _newQuestMaster) external questMasterOrGovernor() {
-        emit QuestMaster(questMaster, _newQuestMaster);
-
-        questMaster = _newQuestMaster;
     }
 
     /***************************************
@@ -143,9 +126,7 @@ abstract contract GamifiedToken is
     function _getBalance(Balance memory _balance) internal pure returns (uint256 balance) {
         // e.g. raw = 1000, questMultiplier = 40, timeMultiplier = 30. Cooldown of 60%
         // e.g. 1000 * (100 + 40) / 100 = 1400
-        balance =
-            (_balance.raw * (100 + _balance.permMultiplier + _balance.seasonMultiplier)) /
-            100;
+        balance = (_balance.raw * (100 + _balance.questMultiplier)) / 100;
         // e.g. 1400 * (100 + 30) / 100 = 1820
         balance = (balance * (100 + _balance.timeMultiplier)) / 100;
     }
@@ -157,53 +138,9 @@ abstract contract GamifiedToken is
         return _balances[_account];
     }
 
-    /**
-     * @notice Gets raw quest data
-     */
-    function getQuest(uint256 _id) external view returns (Quest memory) {
-        return _quests[_id];
-    }
-
     /***************************************
                     QUESTS
     ****************************************/
-
-    /**
-     * @dev Called by questMasters to add a new quest to the system with default 'ACTIVE' status
-     * @param _model Type of quest rewards multiplier (does it last forever or just for the season).
-     * @param _multiplier Multiplier, from 1 == 1.01x to 100 == 2.00x
-     * @param _expiry Timestamp at which quest expires. Note that permanent quests should still be given a timestamp.
-     */
-    function addQuest(
-        QuestType _model,
-        uint16 _multiplier,
-        uint32 _expiry
-    ) external questMasterOrGovernor {
-        GamifiedManager.addQuest(_quests, _model, _multiplier, _expiry);
-    }
-
-    /**
-     * @dev Called by questMasters to expire a quest, setting it's status as EXPIRED. After which it can
-     * no longer be completed.
-     * @param _id Quest ID (its position in the array)
-     */
-    function expireQuest(uint16 _id) external questMasterOrGovernor {
-        GamifiedManager.expireQuest(_quests, _id);
-    }
-
-    /**
-     * @dev Called by questMasters to start a new quest season. After this, all current
-     * seasonMultipliers will be reduced at the next user action (or triggered manually).
-     * In order to reduce cost for any keepers, it is suggested to add quests at the start
-     * of a new season to incentivise user actions.
-     * A new season can only begin after 9 months has passed.
-     */
-    function startNewQuestSeason() external questMasterOrGovernor {
-        GamifiedManager.startNewQuestSeason(seasonEpoch, _quests);
-
-        // Have to set storage variable here as it can't be done in the library function
-        seasonEpoch = SafeCast.toUint32(block.timestamp);
-    }
 
     /**
      * @dev Called by anyone to poke the timestamp of a given account. This allows users to
@@ -214,26 +151,38 @@ abstract contract GamifiedToken is
     }
 
     /**
-     * @dev Simply checks if a quest is valid. Quests are valid if their id exists,
-     * they have an ACTIVE status and they have not yet reached their expiry timestamp.
-     * @param _id Position of quest in array
-     * @return bool with validity status
+     * @dev Adds the multiplier awarded from quest completion to a users data, taking the opportunity
+     * to check time multipliers etc.
+     * @param _account Address of user that should be updated
+     * @param _newMultiplier New Quest Multiplier
      */
-    function _validQuest(uint256 _id) internal view returns (bool) {
-        return
-            _id < _quests.length &&
-            _quests[_id].status == QuestStatus.ACTIVE &&
-            block.timestamp < _quests[_id].expiry;
+    function applyQuestMultiplier(address _account, uint16 _newMultiplier)
+        external
+        onlyQuestManager
+    {
+        require(_account != address(0), "Invalid address");
+
+        // 1. Get current balance & update questMultiplier, only if user has a balance
+        Balance memory oldBalance = _balances[_account];
+        uint256 oldScaledBalance = _getBalance(oldBalance);
+        if (oldScaledBalance > 0) {
+            _applyQuestMultiplier(_account, oldBalance, oldScaledBalance, _newMultiplier);
+        }
     }
 
-    /**
-     * @dev Simply checks if a given user has already completed a given quest
-     * @param _account User address
-     * @param _id Position of quest in array
-     * @return bool with completion status
-     */
-    function hasCompleted(address _account, uint256 _id) public view returns (bool) {
-        return _questCompletion[_account][_id];
+    function _applyQuestMultiplier(
+        address _account,
+        Balance memory _oldBalance,
+        uint256 _oldScaledBalance,
+        uint16 _newMultiplier
+    ) internal updateReward(_account) {
+        _balances[_account].questMultiplier = _newMultiplier;
+
+        // 2. Take the opportunity to set weighted timestamp, if it changes
+        _balances[_account].timeMultiplier = _timeMultiplier(_oldBalance.weightedTimestamp);
+
+        // 3. Update scaled balance
+        _settleScaledBalance(_account, _oldScaledBalance);
     }
 
     /**
@@ -340,38 +289,6 @@ abstract contract GamifiedToken is
         uint16 newTimeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
         require(newTimeMultiplier != oldBalance.timeMultiplier, "Nothing worth poking here");
         _balances[_account].timeMultiplier = newTimeMultiplier;
-
-        // 3. Update scaled balance
-        _settleScaledBalance(_account, oldScaledBalance);
-    }
-
-    /**
-     * @dev Adds the multiplier awarded from quest completion to a users data, taking the opportunity
-     * to check time multipliers etc.
-     * @param _account Address of user that should be updated
-     * @param _questsCompleted Quest that has just been completed
-     */
-    function _applyQuestMultiplier(address _account, Quest[] memory _questsCompleted)
-        internal
-        virtual
-        updateReward(_account)
-    {
-        require(_account != address(0), "Invalid address");
-
-        // 1. Get current balance & update questMultiplier
-        (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
-        uint256 len = _questsCompleted.length;
-        for (uint256 i = 0; i < len; i++) {
-            Quest memory quest = _questsCompleted[i];
-            if (quest.model == QuestType.PERMANENT) {
-                _balances[_account].permMultiplier += quest.multiplier;
-            } else {
-                _balances[_account].seasonMultiplier += quest.multiplier;
-            }
-        }
-
-        // 2. Take the opportunity to set weighted timestamp, if it changes
-        _balances[_account].timeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
 
         // 3. Update scaled balance
         _settleScaledBalance(_account, oldScaledBalance);
@@ -499,30 +416,7 @@ abstract contract GamifiedToken is
         oldBalance = _balances[_account];
         oldScaledBalance = _getBalance(oldBalance);
         // Take the opportunity to check for season finish
-        _checkForSeasonFinish(oldBalance, _account);
-    }
-
-    /**
-     * @dev Checks if the season has just finished between now and the users last action.
-     * If it has, we reset the seasonMultiplier. Either way, we update the lastAction for the user.
-     * NOTE - it is important that this is called as a hook before each state change operation
-     * @param _balance Struct containing all users balance information
-     * @param _account Address of user that should be updated
-     */
-    function _checkForSeasonFinish(Balance memory _balance, address _account) private {
-        // If the last action was before current season, then reset the season timing
-        if (_hasFinishedSeason(_balance)) {
-            // Remove 85% of the multiplier gained in this season
-            _balances[_account].seasonMultiplier = (_balance.seasonMultiplier * 15) / 100;
-        }
-        _balances[_account].lastAction = SafeCast.toUint32(block.timestamp);
-    }
-
-    /**
-     * @dev Simple view fn to check if the users last action was before the starting of the current season
-     */
-    function _hasFinishedSeason(Balance memory _balance) internal view returns (bool) {
-        return _balance.lastAction < seasonEpoch;
+        _balances[_account].questMultiplier = questManager.checkForSeasonFinish(_account);
     }
 
     /**
@@ -576,13 +470,12 @@ abstract contract GamifiedToken is
      * @param _account Address of user that has burned
      */
     function _claimRewardHook(address _account) internal override {
-        if (_hasFinishedSeason(_balances[_account])) {
-            // 1. Get current balance & trigger season finish
-            (, uint256 oldScaledBalance) = _prepareOldBalance(_account);
-
-            // 3. Update scaled balance
-            _settleScaledBalance(_account, oldScaledBalance);
-        }
+        // if (_hasFinishedSeason(_balances[_account])) {
+        //     // 1. Get current balance & trigger season finish
+        //     (, uint256 oldScaledBalance) = _prepareOldBalance(_account);
+        //     // 3. Update scaled balance
+        //     _settleScaledBalance(_account, oldScaledBalance);
+        // }
     }
 
     /**

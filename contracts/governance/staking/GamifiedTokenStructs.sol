@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.6;
 
-struct StakingBalance {
+struct Balance {
     /// units of staking token that has been deposited and consequently wrapped
     uint128 raw;
     /// (block.timestamp - weightedTimestamp) represents the seconds a user has had their full raw balance wrapped.
@@ -9,6 +9,8 @@ struct StakingBalance {
     uint32 weightedTimestamp;
     /// multiplier awarded for staking for a long time
     uint16 timeMultiplier;
+    /// multiplier duplicated from QuestManager
+    uint16 questMultiplier;
 }
 
 struct QuestBalance {

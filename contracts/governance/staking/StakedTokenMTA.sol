@@ -24,10 +24,20 @@ contract StakedTokenMTA is StakedToken {
     constructor(
         address _nexus,
         address _rewardsToken,
+        address _questManager,
         address _stakedToken,
         uint256 _cooldownSeconds,
         uint256 _unstakeWindow
-    ) StakedToken(_nexus, _rewardsToken, _stakedToken, _cooldownSeconds, _unstakeWindow) {}
+    )
+        StakedToken(
+            _nexus,
+            _rewardsToken,
+            _questManager,
+            _stakedToken,
+            _cooldownSeconds,
+            _unstakeWindow
+        )
+    {}
 
     /**
      * @dev Allows a staker to compound their rewards IF the Staking token and the Rewards token are the same

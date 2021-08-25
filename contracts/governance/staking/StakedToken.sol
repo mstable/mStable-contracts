@@ -66,6 +66,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     /**
      * @param _nexus System nexus
      * @param _rewardsToken Token that is being distributed as a reward. eg MTA
+     * @param _questManager Centralised manager of quests
      * @param _stakedToken Core token that is staked and tracked (e.g. MTA)
      * @param _cooldownSeconds Seconds a user must wait after she initiates her cooldown before withdrawal is possible
      * @param _unstakeWindow Window in which it is possible to withdraw, following the cooldown period
@@ -73,10 +74,11 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     constructor(
         address _nexus,
         address _rewardsToken,
+        address _questManager,
         address _stakedToken,
         uint256 _cooldownSeconds,
         uint256 _unstakeWindow
-    ) GamifiedVotingToken(_nexus, _rewardsToken) {
+    ) GamifiedVotingToken(_nexus, _rewardsToken, _questManager) {
         STAKED_TOKEN = IERC20(_stakedToken);
         COOLDOWN_SECONDS = _cooldownSeconds;
         UNSTAKE_WINDOW = _unstakeWindow;
@@ -86,15 +88,13 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * @param _nameArg Token name
      * @param _symbolArg Token symbol
      * @param _rewardsDistributorArg mStable Rewards Distributor
-     * @param _questMaster account that signs user quests as completed
      */
     function initialize(
         string memory _nameArg,
         string memory _symbolArg,
-        address _rewardsDistributorArg,
-        address _questMaster
+        address _rewardsDistributorArg
     ) external initializer {
-        __GamifiedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg, _questMaster);
+        __GamifiedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg);
         safetyData = SafetyData({ collateralisationRatio: 1e18, slashingPercentage: 0 });
     }
 
