@@ -47,7 +47,9 @@ abstract contract GamifiedToken is
     uint32 public seasonEpoch;
 
     /// @notice A whitelisted questMaster who can administer quests including signing user quests are completed.
-    address public questMaster;
+    address public questMaster;    
+    // account that can sign a user's quest as being completed.
+    address internal questSigner;
 
     /// @notice Tracks the cooldowns for all users
     mapping(address => CooldownData) public stakersCooldowns;
@@ -64,6 +66,7 @@ abstract contract GamifiedToken is
     event QuestExpired(uint16 indexed id);
     event QuestSeasonEnded();
     event QuestMaster(address oldQuestMaster, address newQuestMaster);
+    event QuestSigner(address oldQuestSigner, address newQuestSigner);
 
     /***************************************
                     INIT
@@ -81,19 +84,22 @@ abstract contract GamifiedToken is
      * @param _nameArg Token name
      * @param _symbolArg Token symbol
      * @param _rewardsDistributorArg mStable Rewards Distributor
-     * @param _questMaster account that can sign user quests as completed
+     * @param _questMaster account that can administor quests. eg add and expire
+     * @param _questSigner account that can sign user quests as completed
      */
     function __GamifiedToken_init(
         string memory _nameArg,
         string memory _symbolArg,
         address _rewardsDistributorArg,
-        address _questMaster
+        address _questMaster,
+        address _questSigner
     ) internal initializer {
         __Context_init_unchained();
         name = _nameArg;
         symbol = _symbolArg;
         seasonEpoch = SafeCast.toUint32(block.timestamp);
         questMaster = _questMaster;
+        questSigner = _questSigner;
         HeadlessStakingRewards._initialize(_rewardsDistributorArg);
     }
 
@@ -114,12 +120,21 @@ abstract contract GamifiedToken is
     ****************************************/
 
     /**
-     * @dev Sets the quest master that can sign user quests as being completed
+     * @dev Sets the quest master that can administoer quests. eg add, expire and start seasons.
      */
     function setQuestMaster(address _newQuestMaster) external questMasterOrGovernor() {
         emit QuestMaster(questMaster, _newQuestMaster);
 
         questMaster = _newQuestMaster;
+    }
+
+    /**
+     * @dev Sets the quest signer that can sign user quests as being completed.
+     */
+    function setQuestSigner(address _newQuestSigner) external onlyGovernor() {
+        emit QuestSigner(questSigner, _newQuestSigner);
+
+        questSigner = _newQuestSigner;
     }
 
     /***************************************
@@ -247,7 +262,7 @@ abstract contract GamifiedToken is
             require(_validQuest(_ids[i]), "Err: Invalid Quest");
             require(!hasCompleted(_account, _ids[i]), "Err: Already Completed");
             require(
-                SignatureVerifier.verify(questMaster, _account, _ids[i], _signatures[i]),
+                SignatureVerifier.verify(questSigner, _account, _ids[i], _signatures[i]),
                 "Err: Invalid Signature"
             );
 

@@ -86,15 +86,17 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * @param _nameArg Token name
      * @param _symbolArg Token symbol
      * @param _rewardsDistributorArg mStable Rewards Distributor
-     * @param _questMaster account that signs user quests as completed
+     * @param _questMaster account that can administor quests. eg add, expire or start a season.
+     * @param _questSigner account that signs user quests as completed
      */
     function initialize(
         string memory _nameArg,
         string memory _symbolArg,
         address _rewardsDistributorArg,
-        address _questMaster
+        address _questMaster,
+        address _questSigner
     ) external initializer {
-        __GamifiedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg, _questMaster);
+        __GamifiedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg, _questMaster, _questSigner);
         safetyData = SafetyData({ collateralisationRatio: 1e18, slashingPercentage: 0 });
     }
 
