@@ -470,12 +470,14 @@ abstract contract GamifiedToken is
      * @param _account Address of user that has burned
      */
     function _claimRewardHook(address _account) internal override {
-        // if (_hasFinishedSeason(_balances[_account])) {
-        //     // 1. Get current balance & trigger season finish
-        //     (, uint256 oldScaledBalance) = _prepareOldBalance(_account);
-        //     // 3. Update scaled balance
-        //     _settleScaledBalance(_account, oldScaledBalance);
-        // }
+        uint16 newMultiplier = questManager.checkForSeasonFinish(_account);
+        if (newMultiplier != _balances[_account].questMultiplier) {
+            // 1. Get current balance & trigger season finish
+            uint256 oldScaledBalance = _getBalance(_balances[_account]);
+            _balances[_account].questMultiplier = newMultiplier;
+            // 3. Update scaled balance
+            _settleScaledBalance(_account, oldScaledBalance);
+        }
     }
 
     /**
