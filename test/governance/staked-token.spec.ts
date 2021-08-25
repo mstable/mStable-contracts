@@ -77,8 +77,11 @@ describe("Staked Token", () => {
             ONE_WEEK,
             ONE_DAY.mul(2),
         )
-        const rewardsDistributorAddress = DEAD_ADDRESS
-        data = stakedTokenImpl.interface.encodeFunctionData("initialize", ["Staked Rewards", "stkRWD", rewardsDistributorAddress])
+        data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
+            "Staked Rewards",
+            "stkRWD",
+            sa.mockRewardsDistributor.address
+        ])
         const stakedTokenProxy = await new AssetProxy__factory(sa.default.signer).deploy(stakedTokenImpl.address, DEAD_ADDRESS, data)
 
         const qMaster = QuestManager__factory.connect(questManagerProxy.address, sa.default.signer)
@@ -125,9 +128,10 @@ describe("Staked Token", () => {
             expect(await stakedToken.name(), "name").to.eq("Staked Rewards")
             expect(await stakedToken.symbol(), "symbol").to.eq("stkRWD")
             expect(await stakedToken.decimals(), "decimals").to.eq(18)
-            expect(await stakedToken.rewardsDistributor(), "rewards distributor").to.eq(DEAD_ADDRESS)
+            expect(await stakedToken.rewardsDistributor(), "rewards distributor").to.eq(sa.mockRewardsDistributor.address)
             expect(await stakedToken.nexus(), "nexus").to.eq(nexus.address)
             expect(await stakedToken.STAKED_TOKEN(), "staked token").to.eq(rewardToken.address)
+            expect(await stakedToken.REWARDS_TOKEN(), "reward token").to.eq(rewardToken.address)
             expect(await stakedToken.COOLDOWN_SECONDS(), "cooldown").to.eq(ONE_WEEK)
             expect(await stakedToken.UNSTAKE_WINDOW(), "unstake window").to.eq(ONE_DAY.mul(2))
             expect(await stakedToken.questManager(), "quest manager").to.eq(questManager.address)
