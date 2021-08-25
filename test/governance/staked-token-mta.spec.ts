@@ -75,6 +75,7 @@ describe("Staked Token MTA rewards", () => {
             "Staked Rewards",
             "stkRWD",
             sa.mockRewardsDistributor.address,
+            sa.questMaster.address,
             sa.questSigner.address,
         ])
         const stakedTokenProxy = await new AssetProxy__factory(sa.default.signer).deploy(stakedTokenImpl.address, DEAD_ADDRESS, data)

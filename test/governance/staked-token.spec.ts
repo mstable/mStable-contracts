@@ -77,11 +77,7 @@ describe("Staked Token", () => {
             ONE_WEEK,
             ONE_DAY.mul(2),
         )
-        data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
-            "Staked Rewards",
-            "stkRWD",
-            sa.mockRewardsDistributor.address
-        ])
+        data = stakedTokenImpl.interface.encodeFunctionData("initialize", ["Staked Rewards", "stkRWD", sa.mockRewardsDistributor.address])
         const stakedTokenProxy = await new AssetProxy__factory(sa.default.signer).deploy(stakedTokenImpl.address, DEAD_ADDRESS, data)
 
         const qMaster = QuestManager__factory.connect(questManagerProxy.address, sa.default.signer)
