@@ -3,10 +3,14 @@ import { BN } from "@utils/math"
 export interface UserBalances {
     raw: BN
     weightedTimestamp: number
+    questMultiplier: number
+    timeMultiplier: number
+}
+
+export interface QuestBalance {
     lastAction: number
     permMultiplier: number
     seasonMultiplier: number
-    timeMultiplier: number
 }
 
 export interface UserStakingData {
@@ -17,6 +21,7 @@ export interface UserStakingData {
     cooldownUnits: BN
     rewardsBalance: BN
     userBalances: UserBalances
+    questBalance: QuestBalance
 }
 
 export enum QuestType {

@@ -52,6 +52,7 @@ contract QuestManager is Initializable, ContextUpgradeable, ImmutableModule {
     event QuestSeasonEnded();
     event QuestMaster(address oldQuestMaster, address newQuestMaster);
     event QuestSigner(address oldQuestSigner, address newQuestSigner);
+    event StakedTokenAdded(address stakedToken);
 
     /**
      * @param _nexus System nexus
@@ -62,10 +63,7 @@ contract QuestManager is Initializable, ContextUpgradeable, ImmutableModule {
      * @param _questMaster account that can sign user quests as completed
      * @param _questSignerArg account that can sign user quests as completed
      */
-    function __QuestManager_init(address _questMaster, address _questSignerArg)
-        external
-        initializer
-    {
+    function initialize(address _questMaster, address _questSignerArg) external initializer {
         seasonEpoch = SafeCast.toUint32(block.timestamp);
         questMaster = _questMaster;
         _questSigner = _questSignerArg;
@@ -104,6 +102,13 @@ contract QuestManager is Initializable, ContextUpgradeable, ImmutableModule {
         return _questCompletion[_account][_id];
     }
 
+    /**
+     * @notice Raw quest balance
+     */
+    function balanceData(address _account) external view returns (QuestBalance memory) {
+        return _balances[_account];
+    }
+
     /***************************************
                     Admin
     ****************************************/
@@ -111,7 +116,7 @@ contract QuestManager is Initializable, ContextUpgradeable, ImmutableModule {
     /**
      * @dev Sets the quest master that can administoer quests. eg add, expire and start seasons.
      */
-    function setQuestMaster(address _newQuestMaster) external questMasterOrGovernor() {
+    function setQuestMaster(address _newQuestMaster) external questMasterOrGovernor {
         emit QuestMaster(questMaster, _newQuestMaster);
 
         questMaster = _newQuestMaster;
@@ -120,10 +125,19 @@ contract QuestManager is Initializable, ContextUpgradeable, ImmutableModule {
     /**
      * @dev Sets the quest signer that can sign user quests as being completed.
      */
-    function setQuestSigner(address _newQuestSigner) external onlyGovernor() {
+    function setQuestSigner(address _newQuestSigner) external onlyGovernor {
         emit QuestSigner(_questSigner, _newQuestSigner);
 
         _questSigner = _newQuestSigner;
+    }
+
+    /**
+     * @dev Adds a new stakedToken
+     */
+    function addStakedToken(address _stakedToken) external onlyGovernor {
+        _stakedTokens.push(_stakedToken);
+
+        emit StakedTokenAdded(_stakedToken);
     }
 
     /***************************************
@@ -231,7 +245,7 @@ contract QuestManager is Initializable, ContextUpgradeable, ImmutableModule {
             require(_validQuest(_ids[i]), "Err: Invalid Quest");
             require(!hasCompleted(_account, _ids[i]), "Err: Already Completed");
             require(
-                SignatureVerifier.verify(questMaster, _account, _ids[i], _signatures[i]),
+                SignatureVerifier.verify(_questSigner, _account, _ids[i], _signatures[i]),
                 "Err: Invalid Signature"
             );
 
