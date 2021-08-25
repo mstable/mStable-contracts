@@ -1,17 +1,30 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.6;
 
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { SignatureVerifier } from "./deps/SignatureVerifier.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "./GamifiedTokenStructs.sol";
 
 /**
- * @title   GamifiedManager
+ * @title   QuestManager
  * @author  mStable
- * @notice  library to reduce the size of the GamifiedToken contract.
+ * @notice  Centralised place to track quest management and completion status
  * @dev     VERSION: 1.0
- *          DATE:    2021-08-11
+ *          DATE:    2021-08-25
  */
-library GamifiedManager {
+contract QuestManager is Initializable, ImmutableModule {
+    /// @notice Tracks the completion of each quest (user => questId => completion)
+    mapping(address => mapping(uint256 => bool)) private _questCompletion;
+
+    /// @notice List of quests, whose ID corresponds to their position in the array (from 0)
+    Quest[] private _quests;
+    /// @notice Timestamp at which the current season started
+    uint32 public seasonEpoch;
+
+    /// @notice A whitelisted questMaster who can administer quests including signing user quests are completed.
+    address public questMaster;
+
     event QuestAdded(
         address questMaster,
         uint256 id,
@@ -23,6 +36,19 @@ library GamifiedManager {
     event QuestComplete(address indexed user, uint256 indexed id);
     event QuestExpired(uint16 indexed id);
     event QuestSeasonEnded();
+
+    /**
+     * @param _nexus System nexus
+     */
+    constructor(address _nexus) ImmutableModule(_nexus) {}
+
+    /**
+     * @param _questMaster account that can sign user quests as completed
+     */
+    function __GamifiedToken_init(address _questMaster) internal initializer {
+        seasonEpoch = SafeCast.toUint32(block.timestamp);
+        questMaster = _questMaster;
+    }
 
     /***************************************
                     QUESTS
@@ -101,5 +127,43 @@ library GamifiedManager {
         }
 
         emit QuestSeasonEnded();
+    }
+
+    /***************************************
+                    USER
+    ****************************************/
+
+    /**
+     * @dev Called by anyone to complete one or more quests for a staker. The user must first collect a signed message
+     * from the whitelisted _signer.
+     * @param _account Account that has completed the quest
+     * @param _ids Quest IDs (its position in the array)
+     * @param _signatures Signature from the verified _signer, containing keccak hash of account & id
+     */
+    function completeQuests(
+        address _account,
+        uint256[] memory _ids,
+        bytes[] calldata _signatures
+    ) external {
+        uint256 len = _ids.length;
+        require(len > 0 && len == _signatures.length, "Invalid args");
+
+        Quest[] memory quests = new Quest[](len);
+        for (uint256 i = 0; i < len; i++) {
+            require(_validQuest(_ids[i]), "Err: Invalid Quest");
+            require(!hasCompleted(_account, _ids[i]), "Err: Already Completed");
+            require(
+                SignatureVerifier.verify(questMaster, _account, _ids[i], _signatures[i]),
+                "Err: Invalid Signature"
+            );
+
+            // store user quest has completed
+            _questCompletion[_account][_ids[i]] = true;
+            quests[i] = _quests[_ids[i]];
+
+            emit QuestComplete(_account, _ids[i]);
+        }
+
+        _applyQuestMultiplier(_account, quests);
     }
 }

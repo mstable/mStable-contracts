@@ -5,9 +5,8 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
 import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ILockedERC20 } from "./interfaces/ILockedERC20.sol";
-import { SignatureVerifier } from "./deps/SignatureVerifier.sol";
 import { HeadlessStakingRewards } from "../../rewards/staking/HeadlessStakingRewards.sol";
-import { GamifiedManager } from "./GamifiedManager.sol";
+import { QuestManager } from "./QuestManager.sol";
 import "./GamifiedTokenStructs.sol";
 
 /**
@@ -38,28 +37,11 @@ abstract contract GamifiedToken is
     uint8 public constant override decimals = 18;
 
     /// @notice User balance structs containing all data needed to scale balance
-    mapping(address => Balance) internal _balances;
-    /// @notice Tracks the completion of each quest (user => questId => completion)
-    mapping(address => mapping(uint256 => bool)) private _questCompletion;
-    /// @notice List of quests, whose ID corresponds to their position in the array (from 0)
-    Quest[] private _quests;
-    /// @notice Timestamp at which the current season started
-    uint32 public seasonEpoch;
-
-    /// @notice A whitelisted questMaster who can administer quests including signing user quests are completed.
-    address public questMaster;
+    mapping(address => StakingBalance) internal _balances;
 
     /// @notice Tracks the cooldowns for all users
     mapping(address => CooldownData) public stakersCooldowns;
 
-    event QuestAdded(
-        address questMaster,
-        uint256 id,
-        QuestType model,
-        uint16 multiplier,
-        QuestStatus status,
-        uint32 expiry
-    );
     event QuestComplete(address indexed user, uint256 indexed id);
     event QuestExpired(uint16 indexed id);
     event QuestSeasonEnded();
@@ -81,19 +63,15 @@ abstract contract GamifiedToken is
      * @param _nameArg Token name
      * @param _symbolArg Token symbol
      * @param _rewardsDistributorArg mStable Rewards Distributor
-     * @param _questMaster account that can sign user quests as completed
      */
     function __GamifiedToken_init(
         string memory _nameArg,
         string memory _symbolArg,
-        address _rewardsDistributorArg,
-        address _questMaster
+        address _rewardsDistributorArg
     ) internal initializer {
         __Context_init_unchained();
         name = _nameArg;
         symbol = _symbolArg;
-        seasonEpoch = SafeCast.toUint32(block.timestamp);
-        questMaster = _questMaster;
         HeadlessStakingRewards._initialize(_rewardsDistributorArg);
     }
 
@@ -225,40 +203,6 @@ abstract contract GamifiedToken is
 
         // Have to set storage variable here as it can't be done in the library function
         seasonEpoch = SafeCast.toUint32(block.timestamp);
-    }
-
-    /**
-     * @dev Called by anyone to complete one or more quests for a staker. The user must first collect a signed message
-     * from the whitelisted _signer.
-     * @param _account Account that has completed the quest
-     * @param _ids Quest IDs (its position in the array)
-     * @param _signatures Signature from the verified _signer, containing keccak hash of account & id
-     */
-    function completeQuests(
-        address _account,
-        uint256[] memory _ids,
-        bytes[] calldata _signatures
-    ) external {
-        uint256 len = _ids.length;
-        require(len > 0 && len == _signatures.length, "Invalid args");
-
-        Quest[] memory quests = new Quest[](len);
-        for (uint256 i = 0; i < len; i++) {
-            require(_validQuest(_ids[i]), "Err: Invalid Quest");
-            require(!hasCompleted(_account, _ids[i]), "Err: Already Completed");
-            require(
-                SignatureVerifier.verify(questMaster, _account, _ids[i], _signatures[i]),
-                "Err: Invalid Signature"
-            );
-
-            // store user quest has completed
-            _questCompletion[_account][_ids[i]] = true;
-            quests[i] = _quests[_ids[i]];
-
-            emit QuestComplete(_account, _ids[i]);
-        }
-
-        _applyQuestMultiplier(_account, quests);
     }
 
     /**
