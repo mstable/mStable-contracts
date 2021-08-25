@@ -79,7 +79,9 @@ contract StakedTokenBPT is StakedToken {
      * @dev Converts fees accrued in BPT into MTA, before depositing to the rewards contract
      */
     function convertFees() external {
-        require(pendingBPTFees > 1, "Must have something to convert");
+        uint256 pendingBPT = pendingBPTFees;
+        require(pendingBPT > 1, "Must have something to convert");
+        pendingBPTFees = 1;
 
         // 1. Sell the BPT
         uint256 stakingBalBefore = STAKED_TOKEN.balanceOf(address(this));
@@ -90,27 +92,28 @@ contract StakedTokenBPT is StakedToken {
         require(tokens[0] == address(REWARDS_TOKEN), "MTA in wrong place");
 
         // 1.1. Calculate minimum output amount, assuming bpt 80/20 gives ~4% max slippage
-        uint256 unitsPerToken = (balances[0] * 12e17) / STAKED_TOKEN.totalSupply();
         uint256[] memory minOut = new uint256[](1);
-        minOut[0] = (pendingBPTFees * unitsPerToken) / 1e18;
         address[] memory exitToken = new address[](1);
-        tokens[0] = address(REWARDS_TOKEN);
+        {
+            uint256 unitsPerToken = (balances[0] * 12e17) / STAKED_TOKEN.totalSupply();
+            minOut[0] = (pendingBPT * unitsPerToken) / 1e18;
+            exitToken[0] = address(REWARDS_TOKEN);
+        }
 
         // 1.2. Exits to here, from here. Assumes token is in position 0
         balancerVault.exitPool(
             poolId,
             address(this),
             payable(address(this)),
-            ExitPoolRequest(exitToken, minOut, bytes(abi.encode(0, pendingBPTFees - 1, 0)), false)
+            ExitPoolRequest(exitToken, minOut, bytes(abi.encode(0, pendingBPT - 1, 0)), false)
         );
 
         // 2. Verify and update state
         uint256 stakingBalAfter = STAKED_TOKEN.balanceOf(address(this));
         require(
-            stakingBalAfter == (stakingBalBefore - pendingBPTFees + 1),
+            stakingBalAfter == (stakingBalBefore - pendingBPT + 1),
             "Must sell correct amount of BPT"
         );
-        pendingBPTFees = 1;
 
         // 3. Inform HeadlessRewards about the new rewards
         uint256 mtaBalAfter = REWARDS_TOKEN.balanceOf(address(this));
