@@ -241,7 +241,7 @@ abstract contract HeadlessStakingRewards is
         onlyRewardsDistributor
         updateReward(address(0))
     {
-        require(_reward < 1e24, "Cannot notify with more than a million units");
+        require(_reward < 1e24, "Notify more than a million units");
 
         uint256 currentTime = block.timestamp;
 
@@ -260,8 +260,8 @@ abstract contract HeadlessStakingRewards is
         }
         // If additional reward to existing period, calc sum
         else {
-            uint256 remaining = globalData.periodFinish - currentTime;
-            uint256 leftover = remaining * globalData.rewardRate;
+            uint256 remainingSeconds = globalData.periodFinish - currentTime;
+            uint256 leftover = remainingSeconds * globalData.rewardRate;
             globalData.rewardRate = SafeCast.toUint96((_reward + leftover) / DURATION);
         }
 

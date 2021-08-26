@@ -6,7 +6,7 @@ import {
     PLiquidator__factory,
     SavingsManager__factory,
     AssetProxy__factory,
-    StakedToken__factory,
+    QuestManager__factory,
 } from "types/generated"
 import { QuestType } from "types/stakedToken"
 import { PmUSD, PUSDC, tokens } from "./utils/tokens"
@@ -149,11 +149,11 @@ task("quest-add", "Adds a quest to the staked token")
             throw Error(`Invalid quest type ${taskArgs.type}. Must be either: seasonal, s, permanent or p.`)
         }
 
-        const stakedTokenAddress = await resolveAddress("StakedToken", chain)
-        const stakedToken = StakedToken__factory.connect(stakedTokenAddress, signer)
+        const questManagerAddress = await resolveAddress("QuestManager", chain)
+        const questManager = QuestManager__factory.connect(questManagerAddress, signer)
         const expiry = Math.floor(Date.now() / 1000)
-        const addQuestData = stakedToken.interface.encodeFunctionData("addQuest", [type, taskArgs.multiplier, expiry])
-        console.log(`Destination ${stakedTokenAddress}, data: ${addQuestData}`)
-        // const tx = await stakedToken.addQuest(type, taskArgs.multiplier, expiry)
+        const addQuestData = questManager.interface.encodeFunctionData("addQuest", [type, taskArgs.multiplier, expiry])
+        console.log(`Destination ${questManagerAddress}, data: ${addQuestData}`)
+        // const tx = await questManager.addQuest(type, taskArgs.multiplier, expiry)
         // await logTxDetails(tx, `Add ${taskArgs.type} quest with ${taskArgs.multiplier} multiplier`)
     })

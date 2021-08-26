@@ -25,9 +25,11 @@ export const contractNames = [
     "FeederInterestValidator",
     "BasketManager", // Legacy mUSD contract
     "SignatureVerifier",
-    "GamifiedManager",
+    "QuestManager",
+    "QuestMaster",
+    "QuestSigner",
     "StakedTokenMTA",
-    "StakedTokenBAL",
+    "StakedTokenBPT",
     "PlatformTokenVendorFactory",
     "AaveIncentivesController",
     "AaveLendingPoolAddressProvider",
@@ -40,7 +42,6 @@ export const contractNames = [
     "UniswapV2-MTA/WETH",
     "MStableYieldSource", // Used for PoolTogether
     "OperationsSigner",
-    "QuestMaster",
     "ENSRegistrarController",
     "ENSResolver",
 ] as const
@@ -187,14 +188,18 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "DelayedProxyAdmin":
                 return "0x2d369F83E9DC764a759a74e87a9Bc542a2BbfdF0"
             case "SignatureVerifier":
-                return "0x271700beDdD8aE625Ba0e9EAA7a124A8025Db8E3"
-            case "GamifiedManager":
-                return "0x15EB58AbCdF1EC498FB9c36944ccf09918e97447"
+                return "0xf09BC7f20182f6ec015cDb20Be8F7650400CDDC3"
+            case "QuestManager":
+                return "0x3F4334c92C4a2B06969ABd0Ec3D24b16fDCa7B92"
             case "StakedTokenMTA":
-                return "0xE32436dFfAA95fB2329479E516A6443d753c032F"
+                return "0xE3c016FAbBe1bd2B36C8486eDa1C34d6367c0695"
+            case "StakedTokenBPT":
+                return "0x4A869C278b7f397734F0dAFd4E5EEE1A1543Cb80"
             case "PlatformTokenVendorFactory":
-                return "0x68BD41C85D5E9df0C3FC972DA145Cb7210E4359F"
+                return "0xd9DBF712e78b343e5cb3272DB74960B5d5aEcE16"
             case "QuestMaster":
+                return "0x04617083205b2fdd18b15bcf60d06674c6e2c1dc"
+            case "QuestSigner":
                 return "0x04617083205b2fdd18b15bcf60d06674c6e2c1dc"
             case "RewardsDistributor":
                 return DEAD_ADDRESS
