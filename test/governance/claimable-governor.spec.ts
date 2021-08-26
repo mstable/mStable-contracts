@@ -33,7 +33,7 @@ describe("ClaimableGovernable", () => {
             await ctx.claimable.connect(newOwner.signer).claimGovernorChange()
             const owner = await ctx.claimable.governor()
 
-            expect(owner === newOwner.address).to.be.true
+            expect(owner === newOwner.address).to.equal(true)
         })
     })
 })

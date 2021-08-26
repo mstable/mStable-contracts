@@ -1,4 +1,5 @@
 import { ethereumAddress } from "@utils/regex"
+import { ethers as hreEthers } from "hardhat"
 import { AssetAddressTypes, Chain, Token, tokens } from "./tokens"
 
 export const contractNames = [
@@ -40,7 +41,7 @@ export const contractNames = [
 export type ContractNames = typeof contractNames[number]
 
 export interface HardhatRuntime {
-    ethers?: any
+    ethers?: typeof hreEthers
     hardhatArguments?: {
         config?: string
     }

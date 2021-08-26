@@ -1,4 +1,3 @@
-/* eslint-disable no-nested-ternary */
 import { StandardAccounts } from "@utils/machines"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { FIVE_DAYS, fullScale, MAX_UINT256, ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
@@ -160,17 +159,11 @@ describe("StakingRewardsWithPlatformToken", async () => {
     ): Promise<void> => {
         const timeAfter = await getTimestamp()
         const periodIsFinished = timeAfter.gt(beforeData.periodFinishTime)
-
+        const lastUpdateTokenTime =
+            beforeData.rewardPerTokenStored.eq(0) && beforeData.totalSupply.eq(0) ? beforeData.lastUpdateTime : timeAfter
         //    LastUpdateTime
-        expect(
-            periodIsFinished
-                ? beforeData.periodFinishTime
-                : beforeData.rewardPerTokenStored.eq(0) && beforeData.totalSupply.eq(0)
-                ? beforeData.lastUpdateTime
-                : timeAfter,
-        ).eq(afterData.lastUpdateTime)
-
-        //    RewardRate doesnt change
+        expect(periodIsFinished ? beforeData.periodFinishTime : lastUpdateTokenTime).eq(afterData.lastUpdateTime)
+        //    RewardRate does not change
         expect(beforeData.rewardRate).eq(afterData.rewardRate)
         expect(beforeData.platformRewardRate).eq(afterData.platformRewardRate)
         //    RewardPerTokenStored goes up

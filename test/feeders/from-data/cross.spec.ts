@@ -35,6 +35,7 @@ const mAssetFees = { swap: simpleToExactAmount(6, 14), redeem: simpleToExactAmou
 const ratio = simpleToExactAmount(1, 8)
 const tolerance = BN.from(20)
 const cv = (n: number | string): BN => BN.from(BigInt(n).toString())
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const getMPReserves = (data: any) =>
     [0, 1, 2, 3, 4, 5]
         .filter((i) => data[`mpAssetReserve${i}`])
@@ -42,6 +43,7 @@ const getMPReserves = (data: any) =>
             ratio,
             vaultBalance: cv(data[`mpAssetReserve${i}`]),
         }))
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const getFPReserves = (data: any) =>
     [data.feederPoolMAssetReserve, data.feederPoolFAssetReserve].map((r) => ({
         ratio,
@@ -154,7 +156,7 @@ describe("Cross swap - One basket many tests", () => {
         let dataBefore: Data
         let count = 0
 
-        for (const testData of integrationData.actions.slice(0, runLongTests ? integrationData.actions.length : maxAction)) {
+        integrationData.actions.slice(0, runLongTests ? integrationData.actions.length : maxAction).forEach((testData) => {
             describe(`Action ${(count += 1)}`, () => {
                 before(async () => {
                     dataBefore = await getData(feederPool, mAsset)
@@ -285,7 +287,7 @@ describe("Cross swap - One basket many tests", () => {
                                     feederPool.getRedeemOutput(mpAssetAddresses[testData.outputIndex], testData.inputQty),
                                 ).to.be.revertedWith("Exceeds weight limits")
                             })
-                        } else if (testData["insufficientLiquidityError"]) {
+                        } else if (testData.insufficientLiquidityError) {
                             it(`throws insufficient liquidity error when redeeming ${testData.inputQty} mAssets for bAsset ${testData.outputIndex}`, async () => {
                                 await expect(
                                     feederPool.redeem(mpAssetAddresses[testData.outputIndex], testData.inputQty, 0, recipient),
@@ -335,6 +337,6 @@ describe("Cross swap - One basket many tests", () => {
                     }
                 })
             })
-        }
+        })
     })
 })

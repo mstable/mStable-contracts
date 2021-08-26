@@ -8,7 +8,6 @@ import {
     FeederPool,
     BoostedVault,
     MockERC20__factory,
-    FeederWrapper,
     MockInitializableToken__factory,
     AssetProxy__factory,
     MockERC20,
@@ -22,7 +21,7 @@ import {
     StakingRewardsWithPlatformToken__factory,
     StakingRewards__factory,
 } from "types/generated"
-import { deployContract, logTxDetails } from "./deploy-utils"
+import { deployContract } from "./deploy-utils"
 import { getChainAddress } from "./networkAddressFactory"
 import { Chain, Token } from "./tokens"
 
@@ -244,26 +243,26 @@ export const deployVault = async (
 //     )
 // }
 
-const approveFeederWrapper = async (
-    sender: Signer,
-    feederWrapper: FeederWrapper,
-    feederPools: FeederPool[],
-    vaults: BoostedVault[],
-): Promise<void> => {
-    // Get tokens to approve
-    const len = feederPools.length
-    // eslint-disable-next-line
-    for (let i = 0; i < len; i++) {
-        const [[{ addr: massetAddr }, { addr: fassetAddr }]] = await feederPools[i].getBassets()
-        const masset = Masset__factory.connect(massetAddr, sender)
-        const [bassets] = await masset.getBassets()
-        const assets = [massetAddr, fassetAddr, ...bassets.map(({ addr }) => addr)]
+// const approveFeederWrapper = async (
+//     sender: Signer,
+//     feederWrapper: FeederWrapper,
+//     feederPools: FeederPool[],
+//     vaults: BoostedVault[],
+// ): Promise<void> => {
+//     // Get tokens to approve
+//     const len = feederPools.length
+//     // eslint-disable-next-line
+//     for (let i = 0; i < len; i++) {
+//         const [[{ addr: massetAddr }, { addr: fassetAddr }]] = await feederPools[i].getBassets()
+//         const masset = Masset__factory.connect(massetAddr, sender)
+//         const [bassets] = await masset.getBassets()
+//         const assets = [massetAddr, fassetAddr, ...bassets.map(({ addr }) => addr)]
 
-        // Make the approval in one tx
-        const approveTx = await feederWrapper["approve(address,address,address[])"](feederPools[i].address, vaults[i].address, assets)
-        await logTxDetails(approveTx, "Approved FeederWrapper tokens")
-    }
-}
+//         // Make the approval in one tx
+//         const approveTx = await feederWrapper["approve(address,address,address[])"](feederPools[i].address, vaults[i].address, assets)
+//         await logTxDetails(approveTx, "Approved FeederWrapper tokens")
+//     }
+// }
 
 // export const deployBoostedFeederPools = async (deployer: Signer, addresses: CommonAddresses, pairs: Pair[]): Promise<void> => {
 //     // 1.    Deploy boostDirector & Libraries

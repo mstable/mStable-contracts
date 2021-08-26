@@ -1,4 +1,4 @@
-/* eslint-disable no-underscore-dangle */
+/* eslint-disable no-underscore-dangle, prefer-destructuring */
 
 import { ethers } from "hardhat"
 import { expect } from "chai"
@@ -71,6 +71,12 @@ interface StakingData {
     contractData: ContractData
 }
 
+async function getUserReward(savingsVault: BoostedVault, beneficiary: Account, i: number) {
+    const userReward = await savingsVault.userRewards(beneficiary.address, i)
+    const [start, finish, rate] = userReward
+    return { start, finish, rate }
+}
+
 describe("BoostedVault", async () => {
     const ctx: Partial<IRewardsDistributionRecipientContext> = {}
 
@@ -137,15 +143,10 @@ describe("BoostedVault", async () => {
     }
 
     const snapshotStakingData = async (sender = sa.default, beneficiary = sa.default): Promise<StakingData> => {
-        const userData = await savingsVault.userData(beneficiary.address)
+        const [rewardPerTokenPaid, rewards, lastAction, rewardCount] = await savingsVault.userData(beneficiary.address)
         const userRewards = []
-        for (let i = 0; i < userData[3].toNumber(); i += 1) {
-            const e = await savingsVault.userRewards(beneficiary.address, i)
-            userRewards.push({
-                start: e[0],
-                finish: e[1],
-                rate: e[2],
-            })
+        for (let i = 0; i < rewardCount.toNumber(); i += 1) {
+            userRewards.push(getUserReward(savingsVault, beneficiary, i))
         }
         return {
             boostBalance: {
@@ -159,13 +160,13 @@ describe("BoostedVault", async () => {
             },
             vMTABalance: await stakingContract.balanceOf(beneficiary.address),
             userData: {
-                rewardPerTokenPaid: userData[0],
-                rewards: userData[1],
-                lastAction: userData[2],
-                rewardCount: userData[3].toNumber(),
+                rewardPerTokenPaid,
+                rewards,
+                lastAction,
+                rewardCount: rewardCount.toNumber(),
                 userClaim: await savingsVault.userClaim(beneficiary.address),
             },
-            userRewards,
+            userRewards: await Promise.all(userRewards),
             contractData: {
                 rewardPerTokenStored: await savingsVault.rewardPerTokenStored(),
                 rewardRate: await savingsVault.rewardRate(),
@@ -227,16 +228,15 @@ describe("BoostedVault", async () => {
         shouldResetRewards = false,
     ): Promise<void> => {
         const timeAfter = await getTimestamp()
-        const periodIsFinished = BN.from(timeAfter).gt(beforeData.contractData.periodFinishTime)
-        //    LastUpdateTime
-        expect(
-            periodIsFinished
-                ? beforeData.contractData.periodFinishTime
-                : beforeData.contractData.rewardPerTokenStored.eq(0) && beforeData.boostBalance.totalSupply.eq(0)
+        const periodIsFinished = timeAfter.gt(beforeData.contractData.periodFinishTime)
+        const lastUpdateTokenTime =
+            beforeData.contractData.rewardPerTokenStored.eq(0) && beforeData.boostBalance.totalSupply.eq(0)
                 ? beforeData.contractData.lastUpdateTime
-                : timeAfter,
-        ).to.be.eq(afterData.contractData.lastUpdateTime)
-        //    RewardRate doesnt change
+                : timeAfter
+        //    LastUpdateTime
+        expect(periodIsFinished ? beforeData.contractData.periodFinishTime : lastUpdateTokenTime).eq(afterData.contractData.lastUpdateTime)
+
+        //    RewardRate does not change
         expect(beforeData.contractData.rewardRate).to.be.eq(afterData.contractData.rewardRate)
         //    RewardPerTokenStored goes up
         expect(afterData.contractData.rewardPerTokenStored).to.be.gte(beforeData.contractData.rewardPerTokenStored)

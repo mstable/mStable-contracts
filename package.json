@@ -20,7 +20,7 @@
     "scripts": {
         "lint": "yarn run lint-ts; yarn run lint-sol",
         "lint:fix": "yarn pretty-quick --pattern '**/*.*(sol|json)' --staged --verbose && yarn pretty-quick --write --staged tasks/**/*.ts test/**/*.ts types/*.ts",
-        "lint-ts": "yarn eslint ./test --ext .ts --fix --quiet",
+        "lint-ts": "yarn eslint tasks/ test/ types/ --ext .ts --fix ",
         "lint-sol": "solhint 'contracts/**/*.sol'",
         "compile-abis": "typechain --target=ethers-v5 --out-dir types/generated \"?(contracts|build)/!(build-info)/**/+([a-zA-Z0-9]).json\"",
         "compile-ts": "npx tsc",

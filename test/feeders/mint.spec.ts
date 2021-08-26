@@ -368,15 +368,15 @@ describe("Feeder - Mint", () => {
                 context("when feeder pool is paused", () => {
                     before(async () => {
                         const { pool } = details
-                        expect(await pool.paused(), "before pause").to.be.false
+                        expect(await pool.paused(), "before pause").to.equal(false)
                         await pool.connect(sa.governor.signer).pause()
-                        expect(await pool.paused(), "after pause").to.be.true
+                        expect(await pool.paused(), "after pause").to.equal(true)
                     })
                     after(async () => {
                         const { pool } = details
-                        expect(await pool.paused(), "before unpause").to.be.true
+                        expect(await pool.paused(), "before unpause").to.equal(true)
                         await pool.connect(sa.governor.signer).unpause()
-                        expect(await pool.paused(), "after unpause").to.be.false
+                        expect(await pool.paused(), "after unpause").to.equal(false)
                     })
                     it("should fail to mint feeder asset", async () => {
                         await assertFailedMint("Unhealthy", details.pool, details.fAsset, simpleToExactAmount(1), "999991742447046384")
@@ -631,15 +631,15 @@ describe("Feeder - Mint", () => {
                 context("when feeder pool is paused", () => {
                     before(async () => {
                         const { pool } = details
-                        expect(await pool.paused(), "before pause").to.be.false
+                        expect(await pool.paused(), "before pause").to.equal(false)
                         await pool.connect(sa.governor.signer).pause()
-                        expect(await pool.paused(), "after pause").to.be.true
+                        expect(await pool.paused(), "after pause").to.equal(true)
                     })
                     after(async () => {
                         const { pool } = details
-                        expect(await pool.paused(), "before unpause").to.be.true
+                        expect(await pool.paused(), "before unpause").to.equal(true)
                         await pool.connect(sa.governor.signer).unpause()
-                        expect(await pool.paused(), "after unpause").to.be.false
+                        expect(await pool.paused(), "after unpause").to.equal(false)
                     })
                     it("should fail to multi mint feeder asset", async () => {
                         await assertFailedMintMulti(

@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 import { assertBNClose } from "@utils/assertions"
 import { DEAD_ADDRESS, fullScale, MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
@@ -32,6 +33,7 @@ const ratio = simpleToExactAmount(1, 8)
 const tolerance = 1
 
 const cv = (n: number | string): BN => BN.from(BigInt(n).toString())
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const getReserves = (data: any) =>
     [0, 1, 2, 3, 4]
         .filter((i) => data[`reserve${i}`])
@@ -59,11 +61,11 @@ describe("Feeder Validator - One basket one test", () => {
     describe("Compute Mint", () => {
         let count = 0
         const testMintData = runLongTests ? mintData : mintData.slice(0, 2)
-        for (const testData of testMintData) {
+        testMintData.forEach((testData) => {
             const reserves = getReserves(testData)
             const localConfig = { ...config, supply: testData.LPTokenSupply }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
-                for (const testMint of testData.mints) {
+                testData.mints.forEach((testMint) => {
                     if (testMint.hardLimitError) {
                         it(`${(count += 1)} throws Max Weight error when minting ${testMint.bAssetQty.toString()} bAssets with index ${
                             testMint.bAssetIndex
@@ -85,35 +87,35 @@ describe("Feeder Validator - One basket one test", () => {
                             expect(mAssetQty).eq(cv(testMint.expectedQty))
                         })
                     }
-                }
+                })
             })
-        }
+        })
     })
     describe("Compute Multi Mint", () => {
         let count = 0
         const testMultiMintData = runLongTests ? mintMultiData : mintMultiData.slice(0, 2)
-        for (const testData of testMultiMintData) {
+        testMultiMintData.forEach((testData) => {
             const reserves = getReserves(testData)
             const localConfig = { ...config, supply: testData.LPTokenSupply }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
-                for (const testMint of testData.mints) {
+                testData.mints.forEach((testMint) => {
                     const qtys = testMint.bAssetQtys.map((b) => cv(b))
                     it(`${(count += 1)} deposit ${qtys} bAssets`, async () => {
                         const mAssetQty = await exposedFeeder.computeMintMulti(reserves, [0, 1], qtys, localConfig)
                         expect(mAssetQty).eq(cv(testMint.expectedQty))
                     })
-                }
+                })
             })
-        }
+        })
     })
     describe("Compute Swap", () => {
         let count = 0
         const testSwapData = runLongTests ? swapData : swapData.slice(0, 2)
-        for (const testData of testSwapData) {
+        testSwapData.forEach((testData) => {
             const reserves = getReserves(testData)
             const localConfig = { ...config, supply: testData.LPTokenSupply }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
-                for (const testSwap of testData.swaps) {
+                testData.swaps.forEach((testSwap) => {
                     if (testSwap.hardLimitError) {
                         it(`${(count += 1)} throws Max Weight error when swapping ${testSwap.inputQty.toString()} ${
                             testSwap.inputIndex
@@ -144,18 +146,18 @@ describe("Feeder Validator - One basket one test", () => {
                             assertBNClose(result.bAssetOutputQuantity, cv(testSwap.outputQty), tolerance)
                         })
                     }
-                }
+                })
             })
-        }
+        })
     })
     describe("Compute Redeem", () => {
         let count = 0
         const testRedeemData = runLongTests ? redeemData : redeemData.slice(0, 2)
-        for (const testData of testRedeemData) {
+        testRedeemData.forEach((testData) => {
             const reserves = getReserves(testData)
             const localConfig = { ...config, supply: testData.LPTokenSupply }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
-                for (const testRedeem of testData.redeems) {
+                testData.redeems.forEach((testRedeem) => {
                     // Deduct swap fee before performing redemption
                     const netInput = cv(testRedeem.mAssetQty).mul(fullScale.sub(redemptionFeeRate)).div(fullScale)
 
@@ -173,18 +175,18 @@ describe("Feeder Validator - One basket one test", () => {
                             assertBNClose(bAssetQty, cv(testRedeem.outputQty), 2)
                         })
                     }
-                }
+                })
             })
-        }
+        })
     })
     describe("Compute Exact Redeem", () => {
         let count = 0
         const testRedeemExactData = runLongTests ? redeemExactData : redeemExactData.slice(0, 2)
-        for (const testData of testRedeemExactData) {
+        testRedeemExactData.forEach((testData) => {
             const reserves = getReserves(testData)
             const localConfig = { ...config, supply: testData.LPTokenSupply }
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
-                for (const testRedeem of testData.redeems) {
+                testData.redeems.forEach((testRedeem) => {
                     // Deduct swap fee after performing redemption
                     const applyFee = (m: BN): BN => m.mul(fullScale).div(fullScale.sub(redemptionFeeRate))
                     const qtys = testRedeem.bAssetQtys.map((b) => cv(b))
@@ -207,15 +209,15 @@ describe("Feeder Validator - One basket one test", () => {
                             assertBNClose(applyFee(mAssetQty), cv(testRedeem.mAssetQty), tolerance)
                         })
                     }
-                }
+                })
             })
-        }
+        })
     })
 
     describe("Compute Redeem Masset", () => {
         let count = 0
         const testRedeemData = runLongTests ? redeemProportionalData : redeemProportionalData.slice(0, 2)
-        for (const testData of testRedeemData) {
+        testRedeemData.forEach((testData) => {
             const reserves = getReserves(testData)
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}`, () => {
                 let feederPool: FeederPool
@@ -285,9 +287,9 @@ describe("Feeder Validator - One basket one test", () => {
                     )
                 })
 
-                for (const testRedeem of testData.redeems) {
+                testData.redeems.forEach((testRedeem) => {
                     const qtys = testRedeem.bAssetQtys.map((b) => cv(b))
-                    if (testRedeem["insufficientLiquidityError"]) {
+                    if ("insufficientLiquidityError" in testRedeem) {
                         it(`${(count += 1)} throws throw insufficient liquidity error when redeeming ${
                             testRedeem.mAssetQty
                         } mAsset`, async () => {
@@ -295,7 +297,7 @@ describe("Feeder Validator - One basket one test", () => {
                                 "VM Exception",
                             )
                         })
-                    } else if (testRedeem["hardLimitError"]) {
+                    } else if ("hardLimitError" in testRedeem) {
                         it(`${(count += 1)} throws Max Weight error when redeeming ${qtys} bAssets`, async () => {
                             await expect(feederPool.redeemProportionately(cv(testRedeem.mAssetQty), qtys, recipient)).to.be.revertedWith(
                                 "Exceeds weight limits",
@@ -307,8 +309,8 @@ describe("Feeder Validator - One basket one test", () => {
                             await feederPool.redeemProportionately(cv(testRedeem.mAssetQty), qtys, recipient)
                         })
                     }
-                }
+                })
             })
-        }
+        })
     })
 })

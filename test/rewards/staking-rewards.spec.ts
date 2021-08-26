@@ -121,15 +121,11 @@ describe("StakingRewards", async () => {
         const timeAfter = await getTimestamp()
         const periodIsFinished = timeAfter.gt(beforeData.periodFinishTime)
 
+        const beforeDataLastUpdateTime =
+            beforeData.rewardPerTokenStored.eq(0) && beforeData.totalSupply.eq(0) ? beforeData.lastUpdateTime : timeAfter
         //    LastUpdateTime
-        expect(
-            periodIsFinished
-                ? beforeData.periodFinishTime
-                : beforeData.rewardPerTokenStored.eq(0) && beforeData.totalSupply.eq(0)
-                ? beforeData.lastUpdateTime
-                : timeAfter,
-        ).eq(afterData.lastUpdateTime)
-        //    RewardRate doesnt change
+        expect(periodIsFinished ? beforeData.periodFinishTime : beforeDataLastUpdateTime).eq(afterData.lastUpdateTime)
+        //    RewardRate does not change
         expect(beforeData.rewardRate).eq(afterData.rewardRate)
         //    RewardPerTokenStored goes up
         expect(afterData.rewardPerTokenStored).gte(beforeData.rewardPerTokenStored)
