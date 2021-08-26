@@ -22,8 +22,7 @@ import "tsconfig-paths/register"
 export const hardhatConfig = {
     networks: {
         hardhat: {
-            allowUnlimitedContractSize: true,
-            initialDate: "2020-01-01",
+            allowUnlimitedContractSize: true
         },
         localhost: { url: "http://localhost:7545" },
         fork: {
