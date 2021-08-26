@@ -16,6 +16,7 @@ import {
     StakedTokenWrapper__factory,
     StakedToken__factory,
     QuestManager,
+    MockEmissionController__factory,
 } from "types"
 import { assertBNClose, DEAD_ADDRESS } from "index"
 import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
@@ -79,12 +80,18 @@ describe("Staked Token", () => {
         )
         data = stakedTokenImpl.interface.encodeFunctionData("initialize", ["Staked Rewards", "stkRWD", sa.mockRewardsDistributor.address])
         const stakedTokenProxy = await new AssetProxy__factory(sa.default.signer).deploy(stakedTokenImpl.address, DEAD_ADDRESS, data)
+        const sToken = stakedTokenFactory.attach(stakedTokenProxy.address)
 
         const qMaster = QuestManager__factory.connect(questManagerProxy.address, sa.default.signer)
         await qMaster.connect(sa.governor.signer).addStakedToken(stakedTokenProxy.address)
 
+        // Test: Add Emission Data
+        const emissionController = await new MockEmissionController__factory(sa.default.signer).deploy()
+        await emissionController.addStakingContract(sToken.address)
+        await emissionController.setPreferences(65793)
+
         return {
-            stakedToken: stakedTokenFactory.attach(stakedTokenProxy.address),
+            stakedToken: sToken,
             questManager: qMaster,
         }
     }
