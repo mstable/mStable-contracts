@@ -20,6 +20,7 @@ import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { expect } from "chai"
 import { getTimestamp, increaseTime } from "@utils/time"
+import { assertBNClose } from "@utils/assertions"
 
 export interface SnapData {
     periodFinish: number
@@ -28,6 +29,7 @@ export interface SnapData {
     rewardPerTokenStored: BN
     rewardPerTokenPaid: BN
     rewards: BN
+    earned: BN
 }
 
 describe("Staked Token MTA rewards", () => {
@@ -91,9 +93,11 @@ describe("Staked Token MTA rewards", () => {
     const snapRewardsData = async (user: string): Promise<SnapData> => {
         const globalData = await stakedToken.globalData()
         const userData = await stakedToken.userData(user)
+        const earned = await stakedToken.earned(user)
         return {
             ...globalData,
             ...userData,
+            earned,
         }
     }
     before("Create test accounts", async () => {
@@ -194,20 +198,22 @@ describe("Staked Token MTA rewards", () => {
                 expect(user1DataAfter.rewardPerTokenStored, "rewardPerTokenStored user 1 after").to.eq(0)
                 expect(user1DataAfter.rewardPerTokenPaid, "rewardPerTokenPaid user 1 after").to.eq(0)
                 expect(user1DataAfter.rewards, "rewards user 1 after").to.eq(0)
+                expect(user1DataAfter.earned, "earned user 1 after").to.eq(0)
             })
             it("distribute second rewards after 6 days", async () => {
                 const user1StakeAmount = simpleToExactAmount(1000)
                 const user2StakeAmount = simpleToExactAmount(2000)
                 await stakedToken.connect(sa.dummy1.signer)["stake(uint256)"](user1StakeAmount)
                 await stakedToken.connect(sa.dummy2.signer)["stake(uint256)"](user2StakeAmount)
+                // distribute first rewards
                 await increaseTime(ONE_DAY)
                 await rewardToken.connect(sa.mockRewardsDistributor.signer).transfer(stakedToken.address, distAmount)
                 await stakedToken.connect(sa.mockRewardsDistributor.signer).notifyRewardAmount(distAmount)
                 const firstDistTimestamp = await getTimestamp()
+                // distribute 2nd rewards
                 await increaseTime(ONE_DAY.mul(6))
                 const secondDistAmount = simpleToExactAmount(15000)
                 await rewardToken.connect(sa.mockRewardsDistributor.signer).transfer(stakedToken.address, secondDistAmount)
-
                 const tx = await stakedToken.connect(sa.mockRewardsDistributor.signer).notifyRewardAmount(secondDistAmount)
 
                 const secondDistTimestamp = await getTimestamp()
@@ -220,7 +226,6 @@ describe("Staked Token MTA rewards", () => {
                 const secondsLeft = firstDistTimestamp.add(ONE_WEEK).sub(secondDistTimestamp)
                 const rewardRate = distAmount.div(ONE_WEEK)
                 const leftover = secondsLeft.mul(rewardRate)
-                console.log(`secondsLeft ${secondsLeft}, rewardRate ${rewardRate}, left over ${leftover.toString()}`)
                 const newStreamAmount = leftover.add(secondDistAmount)
                 expect(dataAfter.rewardRate, "rewardRate after").to.eq(newStreamAmount.div(ONE_WEEK))
                 // expect(dataAfter.rewardPerTokenStored, "rewardPerTokenStored after").to.eq(distAmount.div(ONE_WEEK))
@@ -234,6 +239,50 @@ describe("Staked Token MTA rewards", () => {
                 // expect(user1DataAfter.rewardPerTokenStored, "rewardPerTokenStored user 1 after").to.eq(0)
                 expect(user1DataAfter.rewardPerTokenPaid, "rewardPerTokenPaid user 1 after").to.eq(0)
                 expect(user1DataAfter.rewards, "rewards user 1 after").to.eq(0)
+                const secondsPassed = secondDistTimestamp.sub(firstDistTimestamp)
+                // user 1 earned 10000 * 1000 / (1000 + 2000) * 6 / 7 = 10000 * 6 / 21 = 2,857.1428571429
+                const user1EarnedExpected = distAmount.mul(secondsPassed).div(ONE_WEEK).div(3)
+                assertBNClose(user1DataAfter.earned, user1EarnedExpected, 1000000)
+            })
+            it.only("distribute second rewards after 8 days", async () => {
+                const user1StakeAmount = simpleToExactAmount(1000)
+                const user2StakeAmount = simpleToExactAmount(2000)
+                await stakedToken.connect(sa.dummy1.signer)["stake(uint256)"](user1StakeAmount)
+                await stakedToken.connect(sa.dummy2.signer)["stake(uint256)"](user2StakeAmount)
+                // distribute first rewards
+                await increaseTime(ONE_DAY)
+                await rewardToken.connect(sa.mockRewardsDistributor.signer).transfer(stakedToken.address, distAmount)
+                await stakedToken.connect(sa.mockRewardsDistributor.signer).notifyRewardAmount(distAmount)
+                const firstDistTimestamp = await getTimestamp()
+                // distribute 2nd rewards
+                await increaseTime(ONE_DAY.mul(8))
+                const secondDistAmount = simpleToExactAmount(15000)
+                await rewardToken.connect(sa.mockRewardsDistributor.signer).transfer(stakedToken.address, secondDistAmount)
+                const tx = await stakedToken.connect(sa.mockRewardsDistributor.signer).notifyRewardAmount(secondDistAmount)
+
+                const secondDistTimestamp = await getTimestamp()
+                await expect(tx).to.emit(stakedToken, "RewardAdded").withArgs(secondDistAmount)
+                await expect(tx).to.emit(rewardToken, "Transfer").withArgs(stakedToken.address, rewardsVendorAddress, secondDistAmount)
+
+                const dataAfter = await snapRewardsData(ZERO_ADDRESS)
+                expect(dataAfter.periodFinish, "periodFinish after").to.eq(secondDistTimestamp.add(ONE_WEEK))
+                expect(dataAfter.lastUpdateTime, "lastUpdateTime after").to.eq(secondDistTimestamp)
+                expect(dataAfter.rewardRate, "rewardRate after").to.eq(secondDistAmount.div(ONE_WEEK))
+                // expect(dataAfter.rewardPerTokenStored, "rewardPerTokenStored after").to.eq(distAmount.div(ONE_WEEK))
+                expect(dataAfter.rewardPerTokenPaid, "rewardPerTokenPaid after").to.eq(0)
+                expect(dataAfter.rewards, "rewards after").to.eq(0)
+
+                const user1DataAfter = await snapRewardsData(sa.dummy1.address)
+                expect(user1DataAfter.periodFinish, "periodFinish user 1 after").to.eq(secondDistTimestamp.add(ONE_WEEK))
+                expect(user1DataAfter.lastUpdateTime, "lastUpdateTime user 1 after").to.eq(secondDistTimestamp)
+                expect(user1DataAfter.rewardRate, "rewardRate user 1 after").to.eq(secondDistAmount.div(ONE_WEEK))
+                // expect(user1DataAfter.rewardPerTokenStored, "rewardPerTokenStored user 1 after").to.eq(0)
+                expect(user1DataAfter.rewardPerTokenPaid, "rewardPerTokenPaid user 1 after").to.eq(0)
+                expect(user1DataAfter.rewards, "rewards user 1 after").to.eq(0)
+                const secondsPassed = secondDistTimestamp.sub(firstDistTimestamp)
+                // user 1 earned 10000 * 1000 / (1000 + 2000) * 6 / 7 = 10000 * 6 / 21 = 2,857.1428571429
+                const user1EarnedExpected = distAmount.div(3)
+                assertBNClose(user1DataAfter.earned, user1EarnedExpected, 1000000)
             })
         })
     })
