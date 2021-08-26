@@ -5,6 +5,8 @@ export interface UserBalances {
     weightedTimestamp: number
     questMultiplier: number
     timeMultiplier: number
+    cooldownTimestamp: number
+    cooldownUnits: BN
 }
 
 export interface QuestBalance {
@@ -17,8 +19,6 @@ export interface UserStakingData {
     stakedBalance: BN
     votes: BN
     earnedRewards: BN
-    cooldownTimestamp: BN
-    cooldownUnits: BN
     rewardsBalance: BN
     userBalances: UserBalances
     questBalance: QuestBalance

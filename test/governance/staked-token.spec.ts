@@ -94,7 +94,6 @@ describe("Staked Token", () => {
         const stakedBalance = await stakedToken.balanceOf(user)
         const votes = await stakedToken.getVotes(user)
         const earnedRewards = await stakedToken.earned(user)
-        const [cooldownTimestamp, cooldownUnits] = await stakedToken.stakersCooldowns(user)
         const rewardsBalance = await rewardToken.balanceOf(user)
         const userBalances = await stakedToken.balanceData(user)
         const questBalance = await questManager.balanceData(user)
@@ -103,8 +102,6 @@ describe("Staked Token", () => {
             stakedBalance,
             votes,
             earnedRewards,
-            cooldownTimestamp,
-            cooldownUnits,
             rewardsBalance,
             userBalances,
             questBalance,
@@ -150,17 +147,17 @@ describe("Staked Token", () => {
             expect(stakerDataBefore.questBalance.permMultiplier, "perm multiplier before").to.eq(0)
             expect(stakerDataBefore.questBalance.seasonMultiplier, "season multiplier before").to.eq(0)
             expect(stakerDataBefore.userBalances.timeMultiplier, "time multiplier before").to.eq(0)
-            expect(stakerDataBefore.cooldownUnits, "cooldown multiplier before").to.eq(0)
+            expect(stakerDataBefore.userBalances.cooldownUnits, "cooldown multiplier before").to.eq(0)
             expect(stakerDataBefore.stakedBalance, "staker stkRWD before").to.eq(0)
             expect(stakerDataBefore.rewardsBalance, "staker RWD before").to.eq(startingMintAmount)
             expect(stakerDataBefore.votes, "staker votes before").to.eq(0)
-            expect(stakerDataBefore.cooldownTimestamp, "staker cooldown before").to.eq(0)
+            expect(stakerDataBefore.userBalances.cooldownTimestamp, "staker cooldown before").to.eq(0)
 
             const delegateDataBefore = await snapshotUserStakingData(sa.dummy1.address)
             expect(delegateDataBefore.stakedBalance, "delegate stkRWD before").to.eq(0)
             expect(delegateDataBefore.rewardsBalance, "delegate RWD before").to.eq(0)
             expect(delegateDataBefore.votes, "delegate votes before").to.eq(0)
-            expect(delegateDataBefore.cooldownTimestamp, "delegate cooldown before").to.eq(0)
+            expect(delegateDataBefore.userBalances.cooldownTimestamp, "delegate cooldown before").to.eq(0)
 
             expect(await stakedToken.totalSupply(), "total staked before").to.eq(0)
         })
@@ -176,8 +173,8 @@ describe("Staked Token", () => {
 
             const afterData = await snapshotUserStakingData(sa.default.address)
 
-            expect(afterData.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
-            expect(afterData.cooldownUnits, "cooldown units after").to.eq(0)
+            expect(afterData.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
+            expect(afterData.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
             expect(afterData.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
             expect(afterData.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTimestamp)
             expect(afterData.userBalances.questMultiplier, "quest multiplier").to.eq(0)
@@ -206,7 +203,7 @@ describe("Staked Token", () => {
             expect(stakerDataAfter.questBalance.lastAction, "staker last action after").to.eq(stakedTimestamp)
             expect(stakerDataAfter.stakedBalance, "staker stkRWD after").to.eq(stakedAmount)
             expect(stakerDataAfter.votes, "staker votes after").to.eq(0)
-            expect(stakerDataAfter.cooldownTimestamp, "staker cooldown after").to.eq(0)
+            expect(stakerDataAfter.userBalances.cooldownTimestamp, "staker cooldown after").to.eq(0)
 
             const delegateDataAfter = await snapshotUserStakingData(sa.dummy1.address)
             expect(delegateDataAfter.userBalances.raw, "delegate raw balance after").to.eq(0)
@@ -214,7 +211,7 @@ describe("Staked Token", () => {
             expect(delegateDataAfter.questBalance.lastAction, "delegate last action after").to.eq(0)
             expect(delegateDataAfter.stakedBalance, "delegate stkRWD after").to.eq(0)
             expect(delegateDataAfter.votes, "delegate votes after").to.eq(stakedAmount)
-            expect(delegateDataAfter.cooldownTimestamp, "delegate cooldown after").to.eq(0)
+            expect(delegateDataAfter.userBalances.cooldownTimestamp, "delegate cooldown after").to.eq(0)
 
             expect(await stakedToken.totalSupply(), "total staked after").to.eq(stakedAmount)
         })
@@ -542,8 +539,8 @@ describe("Staked Token", () => {
                 // Check data
                 expect(await questManager.hasCompleted(userAddress, seasonQuestId), "quest completed after").to.be.true
                 const userDataAfter = await snapshotUserStakingData(userAddress)
-                expect(userDataAfter.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
-                expect(userDataAfter.cooldownUnits, "cooldown units after").to.eq(0)
+                expect(userDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
+                expect(userDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
                 expect(userDataAfter.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
                 expect(userDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTime)
                 expect(userDataAfter.questBalance.lastAction, "last action after").to.eq(stakedTime)
@@ -570,8 +567,8 @@ describe("Staked Token", () => {
                 // Check data
                 expect(await questManager.hasCompleted(userAddress, permanentQuestId), "quest completed after").to.be.true
                 const userDataAfter = await snapshotUserStakingData(userAddress)
-                expect(userDataAfter.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
-                expect(userDataAfter.cooldownUnits, "cooldown units after").to.eq(0)
+                expect(userDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
+                expect(userDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
                 expect(userDataAfter.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
                 expect(userDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTime)
                 expect(userDataAfter.questBalance.lastAction, "last action after").to.eq(stakedTime)
@@ -911,7 +908,7 @@ describe("Staked Token", () => {
                     expect(stakerDataAfter.userBalances.timeMultiplier, "timeMultiplier After").to.eq(timeMultiplierExpected)
                     expect(stakerDataAfter.questBalance.permMultiplier, "permMultiplier After").to.eq(permMultiplierExpected)
                     expect(stakerDataAfter.questBalance.seasonMultiplier, "seasonMultiplier After").to.eq(seasonMultiplierExpected)
-                    expect(stakerDataAfter.cooldownUnits, "cooldownUnits After").to.eq(cooldownUnitsExpected)
+                    expect(stakerDataAfter.userBalances.cooldownUnits, "cooldownUnits After").to.eq(cooldownUnitsExpected)
                     expect(stakerDataAfter.userBalances.raw, "raw balance after").to.eq(rawBalanceExpected)
                     expect(stakerDataAfter.votes, "votes after").to.eq(balanceExpected)
                     expect(stakerDataAfter.stakedBalance, "staked balance after").to.eq(balanceExpected)
@@ -1004,8 +1001,8 @@ describe("Staked Token", () => {
 
                 const startCooldownTimestamp = await getTimestamp()
                 const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
-                expect(stakerDataAfter.cooldownTimestamp, "cooldown timestamp after").to.eq(startCooldownTimestamp)
-                expect(stakerDataAfter.cooldownUnits, "cooldown units after").to.eq(stakedAmount)
+                expect(stakerDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(startCooldownTimestamp)
+                expect(stakerDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(stakedAmount)
                 expect(stakerDataAfter.userBalances.raw, "staked raw balance after").to.eq(0)
                 expect(stakerDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTimestamp)
                 expect(stakerDataAfter.questBalance.lastAction, "last action after").to.eq(stakedTimestamp)
@@ -1026,8 +1023,10 @@ describe("Staked Token", () => {
                 const cooldown1stTimestamp = await getTimestamp()
                 const stakerDataAfter1stCooldown = await snapshotUserStakingData(sa.default.address)
 
-                expect(stakerDataAfter1stCooldown.cooldownTimestamp, "cooldown timestamp after 1st").to.eq(cooldown1stTimestamp)
-                expect(stakerDataAfter1stCooldown.cooldownUnits, "cooldown units after 1st").to.eq(firstCooldown)
+                expect(stakerDataAfter1stCooldown.userBalances.cooldownTimestamp, "cooldown timestamp after 1st").to.eq(
+                    cooldown1stTimestamp,
+                )
+                expect(stakerDataAfter1stCooldown.userBalances.cooldownUnits, "cooldown units after 1st").to.eq(firstCooldown)
                 expect(stakerDataAfter1stCooldown.userBalances.raw, "staked raw balance after 1st").to.eq(stakedAmount.sub(firstCooldown))
                 expect(stakerDataAfter1stCooldown.userBalances.weightedTimestamp, "weighted timestamp after 1st").to.eq(stakedTimestamp)
                 expect(stakerDataAfter1stCooldown.questBalance.lastAction, "last action after 1st").to.eq(stakedTimestamp)
@@ -1044,8 +1043,10 @@ describe("Staked Token", () => {
 
                 const cooldown2ndTimestamp = await getTimestamp()
                 const stakerDataAfter2ndCooldown = await snapshotUserStakingData(sa.default.address)
-                expect(stakerDataAfter2ndCooldown.cooldownTimestamp, "cooldown timestamp after 2nd").to.eq(cooldown2ndTimestamp)
-                expect(stakerDataAfter2ndCooldown.cooldownUnits, "cooldown units after 2nd").to.eq(secondCooldown)
+                expect(stakerDataAfter2ndCooldown.userBalances.cooldownTimestamp, "cooldown timestamp after 2nd").to.eq(
+                    cooldown2ndTimestamp,
+                )
+                expect(stakerDataAfter2ndCooldown.userBalances.cooldownUnits, "cooldown units after 2nd").to.eq(secondCooldown)
                 expect(stakerDataAfter2ndCooldown.userBalances.raw, "staked raw balance after 2nd").to.eq(stakedAmount.sub(secondCooldown))
                 expect(stakerDataAfter2ndCooldown.userBalances.weightedTimestamp, "weighted timestamp after 2nd").to.eq(stakedTimestamp)
                 expect(stakerDataAfter2ndCooldown.questBalance.lastAction, "last action after 2nd").to.eq(stakedTimestamp)
@@ -1068,8 +1069,8 @@ describe("Staked Token", () => {
 
                     const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
-                    expect(stakerDataAfter.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
-                    expect(stakerDataAfter.cooldownUnits, "cooldown units after").to.eq(0)
+                    expect(stakerDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
+                    expect(stakerDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
                     expect(stakerDataAfter.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
                     expect(stakerDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTimestamp)
                     expect(stakerDataAfter.questBalance.lastAction, "last action after").to.eq(stakedTimestamp)
@@ -1087,8 +1088,8 @@ describe("Staked Token", () => {
 
                     const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
-                    expect(stakerDataAfter.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
-                    expect(stakerDataAfter.cooldownUnits, "cooldown units after").to.eq(0)
+                    expect(stakerDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
+                    expect(stakerDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
                     expect(stakerDataAfter.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
                     expect(stakerDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTimestamp)
                     expect(stakerDataAfter.questBalance.lastAction, "last action after").to.eq(stakedTimestamp)
@@ -1106,8 +1107,8 @@ describe("Staked Token", () => {
 
                     const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
-                    expect(stakerDataAfter.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
-                    expect(stakerDataAfter.cooldownUnits, "cooldown units after").to.eq(0)
+                    expect(stakerDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
+                    expect(stakerDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
                     expect(stakerDataAfter.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
                     expect(stakerDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTimestamp)
                     expect(stakerDataAfter.questBalance.lastAction, "last action after").to.eq(stakedTimestamp)
@@ -1125,8 +1126,8 @@ describe("Staked Token", () => {
 
                     const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
-                    expect(stakerDataAfter.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
-                    expect(stakerDataAfter.cooldownUnits, "cooldown units after").to.eq(0)
+                    expect(stakerDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
+                    expect(stakerDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
                     expect(stakerDataAfter.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
                     expect(stakerDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTimestamp)
                     expect(stakerDataAfter.questBalance.lastAction, "last action after").to.eq(stakedTimestamp)
@@ -1151,8 +1152,8 @@ describe("Staked Token", () => {
 
                     const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
-                    expect(stakerDataAfter.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
-                    expect(stakerDataAfter.cooldownUnits, "cooldown units after").to.eq(0)
+                    expect(stakerDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
+                    expect(stakerDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
                     expect(stakerDataAfter.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
                     expect(stakerDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTimestamp)
                     expect(stakerDataAfter.questBalance.lastAction, "last action after").to.eq(stakedTimestamp)
@@ -1170,8 +1171,8 @@ describe("Staked Token", () => {
 
                     const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
-                    expect(stakerDataAfter.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
-                    expect(stakerDataAfter.cooldownUnits, "cooldown units after").to.eq(0)
+                    expect(stakerDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
+                    expect(stakerDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
                     expect(stakerDataAfter.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
                     expect(stakerDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTimestamp)
                     expect(stakerDataAfter.questBalance.lastAction, "last action after").to.eq(stakedTimestamp)
@@ -1189,8 +1190,8 @@ describe("Staked Token", () => {
 
                     const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
-                    expect(stakerDataAfter.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
-                    expect(stakerDataAfter.cooldownUnits, "cooldown units after").to.eq(0)
+                    expect(stakerDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
+                    expect(stakerDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
                     expect(stakerDataAfter.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
                     expect(stakerDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTimestamp)
                     expect(stakerDataAfter.questBalance.lastAction, "last action after").to.eq(stakedTimestamp)
@@ -1216,8 +1217,8 @@ describe("Staked Token", () => {
                 const cooldownTimestamp = await getTimestamp()
 
                 const stakerDataAfterCooldown = await snapshotUserStakingData(sa.default.address)
-                expect(stakerDataAfterCooldown.cooldownTimestamp, "cooldown timestamp after cooldown").to.eq(cooldownTimestamp)
-                expect(stakerDataAfterCooldown.cooldownUnits, "cooldown units after cooldown").to.eq(cooldownAmount)
+                expect(stakerDataAfterCooldown.userBalances.cooldownTimestamp, "cooldown timestamp after cooldown").to.eq(cooldownTimestamp)
+                expect(stakerDataAfterCooldown.userBalances.cooldownUnits, "cooldown units after cooldown").to.eq(cooldownAmount)
                 expect(stakerDataAfterCooldown.userBalances.raw, "staked raw balance after cooldown").to.eq(
                     stakedAmount.sub(cooldownAmount),
                 )
@@ -1241,8 +1242,8 @@ describe("Staked Token", () => {
                 await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
 
                 const stakerDataAfter2ndStake = await snapshotUserStakingData(sa.default.address)
-                expect(stakerDataAfter2ndStake.cooldownTimestamp, "cooldown timestamp after 2nd stake").to.eq(0)
-                expect(stakerDataAfter2ndStake.cooldownUnits, "cooldown units after 2nd stake").to.eq(0)
+                expect(stakerDataAfter2ndStake.userBalances.cooldownTimestamp, "cooldown timestamp after 2nd stake").to.eq(0)
+                expect(stakerDataAfter2ndStake.userBalances.cooldownUnits, "cooldown units after 2nd stake").to.eq(0)
                 expect(stakerDataAfter2ndStake.userBalances.raw, "staked raw balance after 2nd stake").to.eq(
                     stakedAmount.add(secondStakeAmount),
                 )
@@ -1265,7 +1266,9 @@ describe("Staked Token", () => {
 
                 const stakerDataAfterCooldown = await snapshotUserStakingData(sa.default.address)
                 const cooldownTime = await getTimestamp()
-                expect(stakerDataAfterCooldown.cooldownTimestamp, "staker cooldown timestamp after cooldown").to.eq(cooldownTime)
+                expect(stakerDataAfterCooldown.userBalances.cooldownTimestamp, "staker cooldown timestamp after cooldown").to.eq(
+                    cooldownTime,
+                )
 
                 await increaseTime(ONE_DAY.mul(5))
 
@@ -1276,10 +1279,10 @@ describe("Staked Token", () => {
                 const secondStakeTimestamp = await getTimestamp()
 
                 const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
-                expect(stakerDataAfter.cooldownTimestamp, "staker cooldown timestamp after 2nd stake").to.eq(
-                    stakerDataAfterCooldown.cooldownTimestamp,
+                expect(stakerDataAfter.userBalances.cooldownTimestamp, "staker cooldown timestamp after 2nd stake").to.eq(
+                    stakerDataAfterCooldown.userBalances.cooldownTimestamp,
                 )
-                expect(stakerDataAfter.cooldownUnits, "staker cooldown units after 2nd stake").to.eq(stakedAmount)
+                expect(stakerDataAfter.userBalances.cooldownUnits, "staker cooldown units after 2nd stake").to.eq(stakedAmount)
                 expect(stakerDataAfter.userBalances.raw, "staked raw balance after 2nd stake").to.eq(secondStakeAmount)
                 expect(stakerDataAfter.stakedBalance, "staker staked after 2nd stake").to.eq(secondStakeAmount)
                 expect(stakerDataAfter.votes, "staker votes after 2nd stake").to.eq(secondStakeAmount)
@@ -1357,8 +1360,8 @@ describe("Staked Token", () => {
                 expect(beforeData.stakedBalance, "staker staked before").to.eq(0)
                 expect(beforeData.votes, "staker votes before").to.eq(0)
                 expect(beforeData.rewardsBalance, "staker rewards before").to.eq(startingMintAmount.sub(stakedAmount))
-                expect(beforeData.cooldownTimestamp, "cooldown timestamp before").to.eq(cooldownTimestamp)
-                expect(beforeData.cooldownUnits, "cooldown units before").to.eq(stakedAmount)
+                expect(beforeData.userBalances.cooldownTimestamp, "cooldown timestamp before").to.eq(cooldownTimestamp)
+                expect(beforeData.userBalances.cooldownUnits, "cooldown units before").to.eq(stakedAmount)
                 // expect(beforeData.userBalances.cooldownMultiplier, "cooldown multiplier before").to.eq(100)
             })
             it("partial withdraw not including fee", async () => {
@@ -1370,9 +1373,11 @@ describe("Staked Token", () => {
                 const afterData = await snapshotUserStakingData(sa.default.address)
                 expect(afterData.stakedBalance, "staker staked after").to.eq(0)
                 expect(afterData.votes, "staker votes after").to.eq(0)
-                expect(afterData.cooldownTimestamp, "cooldown timestamp after").to.eq(beforeData.cooldownTimestamp)
-                expect(afterData.cooldownUnits, "cooldown units after").to.eq(
-                    beforeData.cooldownUnits.sub(withdrawAmount).sub(redemptionFee),
+                expect(afterData.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(
+                    beforeData.userBalances.cooldownTimestamp,
+                )
+                expect(afterData.userBalances.cooldownUnits, "cooldown units after").to.eq(
+                    beforeData.userBalances.cooldownUnits.sub(withdrawAmount).sub(redemptionFee),
                 )
                 // expect(afterData.userBalances.cooldownMultiplier, "cooldown multiplier after").to.eq(100)
                 expect(afterData.userBalances.raw, "staked raw balance after").to.eq(0)
@@ -1391,8 +1396,8 @@ describe("Staked Token", () => {
                 const afterData = await snapshotUserStakingData(sa.default.address)
                 expect(afterData.stakedBalance, "staker stkRWD after").to.eq(0)
                 expect(afterData.votes, "staker votes after").to.eq(0)
-                expect(afterData.cooldownTimestamp, "staked cooldown start after").to.eq(0)
-                expect(afterData.cooldownUnits, "staked cooldown units after").to.eq(0)
+                expect(afterData.userBalances.cooldownTimestamp, "staked cooldown start after").to.eq(0)
+                expect(afterData.userBalances.cooldownUnits, "staked cooldown units after").to.eq(0)
                 expect(afterData.userBalances.raw, "staked raw balance after").to.eq(0)
                 assertBNClose(afterData.rewardsBalance, beforeData.rewardsBalance.add(stakedAmount).sub(redemptionFee), 1)
             })
@@ -1422,8 +1427,8 @@ describe("Staked Token", () => {
                 expect(beforeData.stakedBalance, "staker staked before").to.eq(remainingBalance)
                 expect(beforeData.votes, "staker votes before").to.eq(remainingBalance)
                 expect(beforeData.rewardsBalance, "staker rewards before").to.eq(startingMintAmount.sub(stakedAmount))
-                expect(beforeData.cooldownTimestamp, "cooldown timestamp before").to.eq(cooldownTimestamp)
-                expect(beforeData.cooldownUnits, "cooldown units before").to.eq(cooldownAmount)
+                expect(beforeData.userBalances.cooldownTimestamp, "cooldown timestamp before").to.eq(cooldownTimestamp)
+                expect(beforeData.userBalances.cooldownUnits, "cooldown units before").to.eq(cooldownAmount)
                 // expect(beforeData.userBalances.cooldownMultiplier, "cooldown multiplier before").to.eq(70)
             })
             it("partial withdraw not including fee", async () => {
@@ -1434,12 +1439,16 @@ describe("Staked Token", () => {
 
                 const afterData = await snapshotUserStakingData(sa.default.address)
                 console.log("data before")
-                console.log(beforeData.cooldownUnits.toString(), beforeData.userBalances.raw.toString())
-                console.log(afterData.cooldownUnits.toString(), afterData.userBalances.raw.toString())
+                console.log(beforeData.userBalances.cooldownUnits.toString(), beforeData.userBalances.raw.toString())
+                console.log(afterData.userBalances.cooldownUnits.toString(), afterData.userBalances.raw.toString())
                 expect(afterData.stakedBalance, "staker staked after").to.eq(remainingBalance)
                 expect(afterData.votes, "staker votes after").to.eq(remainingBalance)
-                expect(afterData.cooldownTimestamp, "cooldown timestamp after").to.eq(beforeData.cooldownTimestamp)
-                expect(afterData.cooldownUnits, "cooldown units after").to.eq(cooldownAmount.sub(withdrawAmount).sub(redemptionFee))
+                expect(afterData.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(
+                    beforeData.userBalances.cooldownTimestamp,
+                )
+                expect(afterData.userBalances.cooldownUnits, "cooldown units after").to.eq(
+                    cooldownAmount.sub(withdrawAmount).sub(redemptionFee),
+                )
                 // expect(afterData.userBalances.cooldownMultiplier, "cooldown multiplier after").to.eq(64)
                 // 2000 - 300 - 30 = 1670
                 expect(afterData.userBalances.raw, "staked raw balance after").to.eq(remainingBalance)
@@ -1457,8 +1466,8 @@ describe("Staked Token", () => {
                 const afterData = await snapshotUserStakingData(sa.default.address)
                 expect(afterData.stakedBalance, "staker stkRWD after").to.eq(remainingBalance)
                 expect(afterData.votes, "staker votes after").to.eq(remainingBalance)
-                expect(afterData.cooldownTimestamp, "staked cooldown start after").to.eq(0)
-                expect(afterData.cooldownUnits, "staked cooldown units after").to.eq(0)
+                expect(afterData.userBalances.cooldownTimestamp, "staked cooldown start after").to.eq(0)
+                expect(afterData.userBalances.cooldownUnits, "staked cooldown units after").to.eq(0)
                 expect(afterData.userBalances.raw, "staked raw balance after").to.eq(remainingBalance)
                 assertBNClose(afterData.rewardsBalance, beforeData.rewardsBalance.add(cooldownAmount).sub(redemptionFee), 1)
             })
@@ -1486,8 +1495,8 @@ describe("Staked Token", () => {
                 const afterData = await snapshotUserStakingData(sa.default.address)
                 expect(afterData.stakedBalance, "staker stkRWD after").to.eq(0)
                 expect(afterData.votes, "staker votes after").to.eq(0)
-                expect(afterData.cooldownTimestamp, "staked cooldown start after").to.eq(0)
-                expect(afterData.cooldownUnits, "staked cooldown units after").to.eq(0)
+                expect(afterData.userBalances.cooldownTimestamp, "staked cooldown start after").to.eq(0)
+                expect(afterData.userBalances.cooldownUnits, "staked cooldown units after").to.eq(0)
                 expect(afterData.userBalances.raw, "staked raw balance after").to.eq(0)
             })
             it("should withdraw all excl. fee and get 75% of rewards", async () => {
@@ -1500,8 +1509,8 @@ describe("Staked Token", () => {
                 const afterData = await snapshotUserStakingData(sa.default.address)
                 expect(afterData.stakedBalance, "staker stkRWD after").to.eq(0)
                 expect(afterData.votes, "staker votes after").to.eq(0)
-                expect(afterData.cooldownTimestamp, "staked cooldown start").to.eq(0)
-                expect(afterData.cooldownUnits, "staked cooldown units").to.eq(0)
+                expect(afterData.userBalances.cooldownTimestamp, "staked cooldown start").to.eq(0)
+                expect(afterData.userBalances.cooldownUnits, "staked cooldown units").to.eq(0)
                 expect(afterData.userBalances.raw, "staked raw balance after").to.eq(0)
             })
             it("should partial withdraw and get 75% of rewards", async () => {
@@ -1515,8 +1524,8 @@ describe("Staked Token", () => {
                 const afterData = await snapshotUserStakingData(sa.default.address)
                 expect(afterData.stakedBalance, "staker stkRWD after").to.eq(0)
                 expect(afterData.votes, "staker votes after").to.eq(0)
-                expect(afterData.cooldownTimestamp, "staked cooldown start").to.eq(0)
-                expect(afterData.cooldownUnits, "staked cooldown units").to.eq(stakedAmount.sub(withdrawAmount))
+                expect(afterData.userBalances.cooldownTimestamp, "staked cooldown start").to.eq(0)
+                expect(afterData.userBalances.cooldownUnits, "staked cooldown units").to.eq(stakedAmount.sub(withdrawAmount))
                 expect(afterData.userBalances.raw, "staked raw balance after").to.eq(0)
             })
         })
@@ -1565,8 +1574,8 @@ describe("Staked Token", () => {
 
             const afterData = await snapshotUserStakingData(sa.default.address)
 
-            expect(afterData.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
-            expect(afterData.cooldownUnits, "cooldown units after").to.eq(0)
+            expect(afterData.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
+            expect(afterData.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
             expect(afterData.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
             expect(afterData.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTimestamp)
             expect(afterData.questBalance.lastAction, "last action after").to.eq(stakedTimestamp)
@@ -1593,8 +1602,8 @@ describe("Staked Token", () => {
 
             const afterData = await snapshotUserStakingData(sa.default.address)
 
-            expect(afterData.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
-            expect(afterData.cooldownUnits, "cooldown units after").to.eq(0)
+            expect(afterData.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
+            expect(afterData.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
             expect(afterData.userBalances.raw, "staked raw balance after").to.eq(newBalance)
             // expect(afterData.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(increaseTimestamp)
             expect(afterData.questBalance.lastAction, "last action after").to.eq(stakeTimestamp)
@@ -1617,7 +1626,7 @@ describe("Staked Token", () => {
             await stakedToken.withdraw(stakedAmount, sa.default.address, true, false)
             const data = await snapshotUserStakingData()
             expect(data.stakedBalance).eq(BN.from(0))
-            expect(data.cooldownTimestamp).eq(BN.from(0))
+            expect(data.userBalances.cooldownTimestamp).eq(BN.from(0))
             await expect(stakedToken.increaseLockAmount(stakedAmount)).to.revertedWith("Nothing to increase")
         })
         it("increase lock length", async () => {
@@ -1629,8 +1638,8 @@ describe("Staked Token", () => {
 
             const afterData = await snapshotUserStakingData(sa.default.address)
 
-            expect(afterData.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
-            expect(afterData.cooldownUnits, "cooldown units after").to.eq(0)
+            expect(afterData.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
+            expect(afterData.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
             expect(afterData.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
             expect(afterData.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTimestamp)
             expect(afterData.questBalance.lastAction, "last action after").to.eq(stakedTimestamp)
@@ -1653,8 +1662,8 @@ describe("Staked Token", () => {
 
             const startCooldownTimestamp = await getTimestamp()
             const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
-            expect(stakerDataAfter.cooldownTimestamp, "cooldown timestamp after").to.eq(startCooldownTimestamp)
-            expect(stakerDataAfter.cooldownUnits, "cooldown units after").to.eq(stakedAmount)
+            expect(stakerDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(startCooldownTimestamp)
+            expect(stakerDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(stakedAmount)
             expect(stakerDataAfter.userBalances.raw, "staked raw balance after").to.eq(0)
             expect(stakerDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakeTimestamp)
             expect(stakerDataAfter.questBalance.lastAction, "last action after").to.eq(stakeTimestamp)
@@ -1683,8 +1692,8 @@ describe("Staked Token", () => {
             const afterData = await snapshotUserStakingData(sa.default.address)
             expect(afterData.stakedBalance, "staker stkRWD after").to.eq(0)
             expect(afterData.votes, "staker votes after").to.eq(0)
-            expect(afterData.cooldownTimestamp, "staked cooldown start").to.eq(0)
-            expect(afterData.cooldownUnits, "staked cooldown units").to.eq(0)
+            expect(afterData.userBalances.cooldownTimestamp, "staked cooldown start").to.eq(0)
+            expect(afterData.userBalances.cooldownUnits, "staked cooldown units").to.eq(0)
             expect(afterData.userBalances.raw, "staked raw balance after").to.eq(0)
             // TODO expect(afterData.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(withdrawTimestamp)
             expect(afterData.questBalance.lastAction, "last action after").to.eq(stakedTimestamp)
