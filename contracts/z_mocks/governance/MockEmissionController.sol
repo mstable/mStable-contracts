@@ -3,6 +3,7 @@ pragma solidity 0.8.6;
 
 import { IGovernanceHook } from "../../governance/staking/interfaces/IGovernanceHook.sol";
 import { GamifiedVotingToken } from "../../governance/staking/GamifiedVotingToken.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract MockEmissionController is IGovernanceHook {
     struct Dial {
@@ -24,6 +25,7 @@ contract MockEmissionController is IGovernanceHook {
     // user => preferences
     // uint256 is 256 slots to store dial information. We can store the array positions of a users preferences in a single slot
     mapping(address => uint256) public preferenceBitmaps;
+    bool init;
 
     mapping(address => bool) public stakingContracts;
     address[] public stakingContractsArr;
@@ -42,6 +44,10 @@ contract MockEmissionController is IGovernanceHook {
 
     function addStakingContract(address _stakingContract) external {
         require(!stakingContracts[_stakingContract], "Already whitelisted");
+        require(
+            IERC20(_stakingContract).totalSupply() == 0 || !init,
+            "Cannot add existing contract while users have preferences"
+        );
         stakingContractsArr.push(_stakingContract);
         stakingContracts[_stakingContract] = true;
     }
@@ -63,8 +69,12 @@ contract MockEmissionController is IGovernanceHook {
 
     // SITUATION 1: Stake, wait, set preferences
     // SITUATION 2: Set preferences, stake
+    // SITUATION 3: NEW STAKING TOKEN. NOTE - this new staking token MUST be added to this contract
+    // before any users have a balance. Otherwise, they can get a balance, and have existing preferences,
+    // and it will never be added here. Require totalSupply of staking
 
     function setPreferences(uint256 _bitmap) external {
+        if (!init) init = true;
         // 1. Get voting power sum from stakingContracts
         uint256 len = stakingContractsArr.length;
         uint256 votingPower = 0;
