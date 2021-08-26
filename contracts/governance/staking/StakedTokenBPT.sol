@@ -18,7 +18,7 @@ contract StakedTokenBPT is StakedToken {
     /// @notice Balancer token
     IERC20 public immutable BAL;
 
-    /// @notice Balancer token
+    /// @notice Balancer vault
     IBVault public immutable balancerVault;
 
     /// @notice Balancer poolId
@@ -39,7 +39,8 @@ contract StakedTokenBPT is StakedToken {
      * @param _stakedToken Core token that is staked and tracked (e.g. MTA)
      * @param _cooldownSeconds Seconds a user must wait after she initiates her cooldown before withdrawal is possible
      * @param _unstakeWindow Window in which it is possible to withdraw, following the cooldown period
-     * @param _bal Balancer addresses, [0] = $BAL addr, [1] = designated recipient
+     * @param _bal Balancer addresses, [0] = $BAL addr, [1] = designated recipient, [2] = BAL vault
+     * @param _poolId Balancer Pool identifier
      */
     constructor(
         address _nexus,

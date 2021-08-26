@@ -193,6 +193,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x3F4334c92C4a2B06969ABd0Ec3D24b16fDCa7B92"
             case "StakedTokenMTA":
                 return "0xE3c016FAbBe1bd2B36C8486eDa1C34d6367c0695"
+            case "StakedTokenBPT":
+                return "0x4A869C278b7f397734F0dAFd4E5EEE1A1543Cb80"
             case "PlatformTokenVendorFactory":
                 return "0xd9DBF712e78b343e5cb3272DB74960B5d5aEcE16"
             case "QuestMaster":

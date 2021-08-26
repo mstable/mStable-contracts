@@ -3,6 +3,7 @@ import "tsconfig-paths/register"
 import { task, types } from "hardhat/config"
 import { DEAD_ADDRESS, ONE_DAY, ONE_WEEK } from "@utils/constants"
 
+import { formatBytes32String } from "ethers/lib/utils"
 import { params } from "./taskUtils"
 import {
     AssetProxy__factory,
@@ -12,6 +13,7 @@ import {
     PlatformTokenVendorFactory__factory,
     StakedTokenMTA__factory,
     QuestManager__factory,
+    StakedTokenBPT__factory,
 } from "../types/generated"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getSignerAccount } from "./utils/signerFactory"
@@ -86,7 +88,9 @@ task("BoostedVault.deploy", "Deploys a BoostedVault")
     )
 
 task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
-    .addOptionalParam("rewardsToken", "Rewards token address", "MTA", types.string)
+    .addOptionalParam("rewardsToken", "Rewards token address. eg MTA or RMTA for Ropsten", "MTA", types.string)
+    .addOptionalParam("stakedToken", "Staked token address. eg MTA, BAL, RMTA", "MTA", types.string)
+    .addOptionalParam("balPoolId", "Balancer Pool Id", "0001", types.string)
     .addOptionalParam("questMaster", "Address of account that administrates quests", undefined, params.address)
     .addOptionalParam("questSigner", "Address of account that signs completed quests", undefined, params.address)
     .addOptionalParam("name", "Staked Token name", "Voting MTA V2", types.string)
@@ -98,6 +102,7 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
         const nexusAddress = getChainAddress("Nexus", chain)
         const rewardsDistributorAddress = getChainAddress("RewardsDistributor", chain)
         const rewardsTokenAddress = resolveAddress(taskArgs.rewardsToken, chain)
+        const stakedTokenAddress = resolveAddress(taskArgs.stakedToken, chain)
         const questMasterAddress = taskArgs.questMasterAddress || getChainAddress("QuestMaster", chain)
         const questSignerAddress = taskArgs.questSignerAddress || getChainAddress("QuestSigner", chain)
 
@@ -138,16 +143,32 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
         const stakedTokenLibraryAddresses = {
             "contracts/rewards/staking/PlatformTokenVendorFactory.sol:PlatformTokenVendorFactory": platformTokenVendorFactoryAddress,
         }
-        const stakedTokenMTAFactory = new StakedTokenMTA__factory(stakedTokenLibraryAddresses, deployer.signer)
-        console.log(`Staked Token MTA contract size ${StakedTokenMTA__factory.bytecode.length / 2} bytes`)
-        const stakedTokenImpl = await deployContract(stakedTokenMTAFactory, "StakedTokenMTA", [
-            nexusAddress,
-            rewardsTokenAddress,
-            questManagerAddress,
-            rewardsTokenAddress,
-            ONE_WEEK,
-            ONE_DAY.mul(2),
-        ])
+        let stakedTokenImpl
+        if (stakedTokenAddress === rewardsTokenAddress) {
+            stakedTokenImpl = await deployContract(
+                new StakedTokenMTA__factory(stakedTokenLibraryAddresses, deployer.signer),
+                "StakedTokenMTA",
+                [nexusAddress, rewardsTokenAddress, questManagerAddress, rewardsTokenAddress, ONE_WEEK, ONE_DAY.mul(2)],
+            )
+        } else {
+            const balPoolIdStr = taskArgs.balPoolId || "1"
+            const balPoolId = formatBytes32String(balPoolIdStr)
+
+            stakedTokenImpl = await deployContract(
+                new StakedTokenBPT__factory(stakedTokenLibraryAddresses, deployer.signer),
+                "StakedTokenBPT",
+                [
+                    nexusAddress,
+                    rewardsTokenAddress,
+                    questManagerAddress,
+                    stakedTokenAddress,
+                    ONE_WEEK,
+                    ONE_DAY.mul(2),
+                    [DEAD_ADDRESS, DEAD_ADDRESS, DEAD_ADDRESS],
+                    balPoolId,
+                ],
+            )
+        }
 
         const data = stakedTokenImpl.interface.encodeFunctionData("initialize", [taskArgs.name, taskArgs.symbol, rewardsDistributorAddress])
         await deployContract(new AssetProxy__factory(deployer.signer), "AssetProxy", [stakedTokenImpl.address, deployer.address, data])
