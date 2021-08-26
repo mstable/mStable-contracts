@@ -89,6 +89,7 @@ describe("Staked Token", () => {
         const emissionController = await new MockEmissionController__factory(sa.default.signer).deploy()
         await emissionController.addStakingContract(sToken.address)
         await emissionController.setPreferences(65793)
+        await sToken.connect(sa.governor.signer).setGovernanceHook(emissionController.address)
 
         return {
             stakedToken: sToken,
