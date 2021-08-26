@@ -6,11 +6,11 @@ import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { MockNexus__factory } from "types/generated/factories/MockNexus__factory"
 import {
     AssetProxy__factory,
-    GamifiedManager__factory,
     MockERC20,
     MockERC20__factory,
     MockNexus,
     PlatformTokenVendorFactory__factory,
+    QuestManager__factory,
     SignatureVerifier__factory,
     StakedToken,
     StakedTokenMTA__factory,
@@ -56,28 +56,27 @@ describe("Staked Token MTA rewards", () => {
         await Promise.all(transferPromises)
 
         const signatureVerifier = await new SignatureVerifier__factory(sa.default.signer).deploy()
-        const gamifiedManager = await new GamifiedManager__factory(sa.default.signer).deploy()
+        const questManagerLibraryAddresses = {
+            "contracts/governance/staking/deps/SignatureVerifier.sol:SignatureVerifier": signatureVerifier.address,
+        }
+        const questManagerImpl = await new QuestManager__factory(questManagerLibraryAddresses, sa.default.signer).deploy(nexus.address)
+        let data = questManagerImpl.interface.encodeFunctionData("initialize", [sa.questMaster.address, sa.questSigner.address])
+        const questManagerProxy = await new AssetProxy__factory(sa.default.signer).deploy(questManagerImpl.address, DEAD_ADDRESS, data)
+
         const platformTokenVendorFactory = await new PlatformTokenVendorFactory__factory(sa.default.signer).deploy()
         const stakedTokenLibraryAddresses = {
-            "contracts/governance/staking/GamifiedManager.sol:GamifiedManager": gamifiedManager.address,
             "contracts/rewards/staking/PlatformTokenVendorFactory.sol:PlatformTokenVendorFactory": platformTokenVendorFactory.address,
-            "contracts/governance/staking/deps/SignatureVerifier.sol:SignatureVerifier": signatureVerifier.address,
         }
         const stakedTokenFactory = new StakedTokenMTA__factory(stakedTokenLibraryAddresses, sa.default.signer)
         const stakedTokenImpl = await stakedTokenFactory.deploy(
             nexus.address,
             rewardToken.address,
+            questManagerProxy.address,
             rewardToken.address,
             ONE_WEEK,
             ONE_DAY.mul(2),
         )
-        const data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
-            "Staked Rewards",
-            "stkRWD",
-            sa.mockRewardsDistributor.address,
-            sa.questMaster.address,
-            sa.questSigner.address,
-        ])
+        data = stakedTokenImpl.interface.encodeFunctionData("initialize", ["Staked Rewards", "stkRWD", sa.mockRewardsDistributor.address])
         const stakedTokenProxy = await new AssetProxy__factory(sa.default.signer).deploy(stakedTokenImpl.address, DEAD_ADDRESS, data)
         stakedToken = stakedTokenFactory.attach(stakedTokenProxy.address)
 
@@ -115,8 +114,6 @@ describe("Staked Token MTA rewards", () => {
             expect(await stakedToken.STAKED_TOKEN(), "staked token").to.eq(rewardToken.address)
             expect(await stakedToken.REWARDS_TOKEN(), "reward token").to.eq(rewardToken.address)
             expect(await stakedToken.DURATION(), "duration").to.eq(ONE_WEEK)
-            // eslint-disable-next-line no-underscore-dangle
-            expect(await stakedToken.questMaster(), "quest master").to.eq(sa.questSigner.address)
             const globalData = await stakedToken.globalData()
             expect(globalData.periodFinish, "periodFinish").to.eq(0)
             expect(globalData.lastUpdateTime, "lastUpdateTime").to.eq(0)
