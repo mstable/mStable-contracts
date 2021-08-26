@@ -201,11 +201,11 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
 
         // 2. Deal with cooldown
         //      If a user is currently in a cooldown period, re-calculate their cooldown timestamp
-        CooldownData memory oldCooldown = stakersCooldowns[_msgSender()];
+        Balance memory oldBalance = _balances[_msgSender()];
         //      If we have missed the unstake window, or the user has chosen to exit the cooldown,
         //      then reset the timestamp to 0
         bool exitCooldown = _exitCooldown ||
-            block.timestamp > (oldCooldown.timestamp + COOLDOWN_SECONDS + UNSTAKE_WINDOW);
+            block.timestamp > (oldBalance.cooldownTimestamp + COOLDOWN_SECONDS + UNSTAKE_WINDOW);
         if (exitCooldown) {
             emit CooldownExited(_msgSender());
         }
@@ -261,13 +261,14 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
             emit Withdraw(_msgSender(), _recipient, _amount);
         } else {
             // 1. If no recollateralisation has occured, the user must be within their UNSTAKE_WINDOW period in order to withdraw
-            CooldownData memory cooldown = stakersCooldowns[_msgSender()];
+            Balance memory oldBalance = _balances[_msgSender()];
             require(
-                block.timestamp > cooldown.timestamp + COOLDOWN_SECONDS,
+                block.timestamp > oldBalance.cooldownTimestamp + COOLDOWN_SECONDS,
                 "INSUFFICIENT_COOLDOWN"
             );
             require(
-                block.timestamp - (cooldown.timestamp + COOLDOWN_SECONDS) <= UNSTAKE_WINDOW,
+                block.timestamp - (oldBalance.cooldownTimestamp + COOLDOWN_SECONDS) <=
+                    UNSTAKE_WINDOW,
                 "UNSTAKE_WINDOW_FINISHED"
             );
 
@@ -285,7 +286,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
             uint256 userWithdrawal = (totalWithdraw * 1e18) / (1e18 + feeRate);
 
             //      Check for percentage withdrawal
-            uint256 maxWithdrawal = cooldown.units;
+            uint256 maxWithdrawal = oldBalance.cooldownUnits;
             require(totalWithdraw <= maxWithdrawal, "Exceeds max withdrawal");
 
             // 4. Exit cooldown if the user has specified, or if they have withdrawn everything
@@ -319,7 +320,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * withdraw transaction.
      **/
     function endCooldown() external {
-        require(stakersCooldowns[_msgSender()].timestamp != 0, "No cooldown");
+        require(_balances[_msgSender()].cooldownTimestamp != 0, "No cooldown");
 
         _exitCooldownPeriod(_msgSender());
 
@@ -445,14 +446,14 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
     function exit() external virtual {
         // Since there is no immediate exit here, this can be called twice
         // If there is no cooldown, or the cooldown has passed the unstake window, enter cooldown
-        uint128 ts = stakersCooldowns[_msgSender()].timestamp;
+        uint128 ts = _balances[_msgSender()].cooldownTimestamp;
         if (ts == 0 || block.timestamp > ts + COOLDOWN_SECONDS + UNSTAKE_WINDOW) {
             (uint256 raw, uint256 cooldownUnits) = rawBalanceOf(_msgSender());
             _startCooldown(raw + cooldownUnits);
         }
         // Else withdraw all available
         else {
-            _withdraw(stakersCooldowns[_msgSender()].units, _msgSender(), true, false);
+            _withdraw(_balances[_msgSender()].cooldownUnits, _msgSender(), true, false);
         }
     }
 

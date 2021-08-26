@@ -3,7 +3,7 @@ pragma solidity 0.8.6;
 
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { SafeCastExtended } from "../../shared/SafeCastExtended.sol";
 import { ILockedERC20 } from "./interfaces/ILockedERC20.sol";
 import { HeadlessStakingRewards } from "../../rewards/staking/HeadlessStakingRewards.sol";
 import { QuestManager } from "./QuestManager.sol";
@@ -38,8 +38,6 @@ abstract contract GamifiedToken is
 
     /// @notice User balance structs containing all data needed to scale balance
     mapping(address => Balance) internal _balances;
-    /// @notice Tracks the cooldowns for all users
-    mapping(address => CooldownData) public stakersCooldowns;
     /// @notice Quest Manager
     QuestManager public immutable questManager;
 
@@ -117,7 +115,7 @@ abstract contract GamifiedToken is
      * @return raw balance for user
      */
     function rawBalanceOf(address _account) public view returns (uint256, uint256) {
-        return (_balances[_account].raw, stakersCooldowns[_account].units);
+        return (_balances[_account].raw, _balances[_account].cooldownUnits);
     }
 
     /**
@@ -156,7 +154,7 @@ abstract contract GamifiedToken is
      * @param _account Address of user that should be updated
      * @param _newMultiplier New Quest Multiplier
      */
-    function applyQuestMultiplier(address _account, uint16 _newMultiplier)
+    function applyQuestMultiplier(address _account, uint8 _newMultiplier)
         external
         onlyQuestManager
     {
@@ -170,27 +168,12 @@ abstract contract GamifiedToken is
         }
     }
 
-    function _applyQuestMultiplier(
-        address _account,
-        Balance memory _oldBalance,
-        uint256 _oldScaledBalance,
-        uint16 _newMultiplier
-    ) internal updateReward(_account) {
-        _balances[_account].questMultiplier = _newMultiplier;
-
-        // 2. Take the opportunity to set weighted timestamp, if it changes
-        _balances[_account].timeMultiplier = _timeMultiplier(_oldBalance.weightedTimestamp);
-
-        // 3. Update scaled balance
-        _settleScaledBalance(_account, _oldScaledBalance);
-    }
-
     /**
      * @dev Gets the multiplier awarded for a given weightedTimestamp
      * @param _ts WeightedTimestamp of a user
      * @return timeMultiplier Ranging from 20 (0.2x) to 60 (0.6x)
      */
-    function _timeMultiplier(uint32 _ts) internal view returns (uint16 timeMultiplier) {
+    function _timeMultiplier(uint32 _ts) internal view returns (uint8 timeMultiplier) {
         // If the user has no ts yet, they are not in the system
         if (_ts == 0) return 0;
 
@@ -221,6 +204,28 @@ abstract contract GamifiedToken is
     ****************************************/
 
     /**
+     * @dev Adds the multiplier awarded from quest completion to a users data, taking the opportunity
+     * to check time multiplier.
+     * @param _account Address of user that should be updated
+     * @param _newMultiplier New Quest Multiplier
+     */
+    function _applyQuestMultiplier(
+        address _account,
+        Balance memory _oldBalance,
+        uint256 _oldScaledBalance,
+        uint8 _newMultiplier
+    ) internal updateReward(_account) {
+        // 1. Set the questMultiplier
+        _balances[_account].questMultiplier = _newMultiplier;
+
+        // 2. Take the opportunity to set weighted timestamp, if it changes
+        _balances[_account].timeMultiplier = _timeMultiplier(_oldBalance.weightedTimestamp);
+
+        // 3. Update scaled balance
+        _settleScaledBalance(_account, _oldScaledBalance);
+    }
+
+    /**
      * @dev Entering a cooldown period means a user wishes to withdraw. With this in mind, their balance
      * should be reduced until they have shown more commitment to the system
      * @param _account Address of user that should be cooled
@@ -234,20 +239,17 @@ abstract contract GamifiedToken is
 
         // 1. Get current balance
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
-        CooldownData memory cooldownData = stakersCooldowns[_account];
-        uint128 totalUnits = _balances[_account].raw + cooldownData.units;
+        uint88 totalUnits = oldBalance.raw + oldBalance.cooldownUnits;
         require(_units > 0 && _units <= totalUnits, "Must choose between 0 and 100%");
 
         // 2. Set weighted timestamp and enter cooldown
         _balances[_account].timeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
         // e.g. 1e18 / 1e16 = 100, 2e16 / 1e16 = 2, 1e15/1e16 = 0
-        _balances[_account].raw = totalUnits - SafeCast.toUint128(_units);
+        _balances[_account].raw = totalUnits - SafeCastExtended.toUint88(_units);
 
         // 3. Set cooldown data
-        stakersCooldowns[_account] = CooldownData({
-            timestamp: SafeCast.toUint128(block.timestamp),
-            units: SafeCast.toUint128(_units)
-        });
+        _balances[_account].cooldownTimestamp = SafeCastExtended.toUint32(block.timestamp);
+        _balances[_account].cooldownUnits = SafeCastExtended.toUint88(_units);
 
         // 4. Update scaled balance
         _settleScaledBalance(_account, oldScaledBalance);
@@ -263,12 +265,13 @@ abstract contract GamifiedToken is
         // 1. Get current balance
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
 
-        // 2. Set weighted timestamp and enter cooldown
+        // 2. Set weighted timestamp and exit cooldown
         _balances[_account].timeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
-        _balances[_account].raw += stakersCooldowns[_account].units;
+        _balances[_account].raw += oldBalance.cooldownUnits;
 
         // 3. Set cooldown data
-        stakersCooldowns[_account] = CooldownData(0, 0);
+        _balances[_account].cooldownTimestamp = 0;
+        _balances[_account].cooldownUnits = 0;
 
         // 4. Update scaled balance
         _settleScaledBalance(_account, oldScaledBalance);
@@ -286,7 +289,7 @@ abstract contract GamifiedToken is
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
 
         // 2. Set weighted timestamp, if it changes
-        uint16 newTimeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
+        uint8 newTimeMultiplier = _timeMultiplier(oldBalance.weightedTimestamp);
         require(newTimeMultiplier != oldBalance.timeMultiplier, "Nothing worth poking here");
         _balances[_account].timeMultiplier = newTimeMultiplier;
 
@@ -310,20 +313,20 @@ abstract contract GamifiedToken is
 
         // 1. Get and update current balance
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
-        CooldownData memory cooldownData = stakersCooldowns[_account];
-        uint256 totalRaw = oldBalance.raw + cooldownData.units;
-        _balances[_account].raw = oldBalance.raw + SafeCast.toUint128(_rawAmount);
+        uint88 totalRaw = oldBalance.raw + oldBalance.cooldownUnits;
+        _balances[_account].raw = oldBalance.raw + SafeCastExtended.toUint88(_rawAmount);
 
         // 2. Exit cooldown if necessary
         if (_exitCooldown) {
-            _balances[_account].raw += cooldownData.units;
-            stakersCooldowns[_account] = CooldownData(0, 0);
+            _balances[_account].raw += oldBalance.cooldownUnits;
+            _balances[_account].cooldownTimestamp = 0;
+            _balances[_account].cooldownUnits = 0;
         }
 
         // 3. Set weighted timestamp
         //  i) For new _account, set up weighted timestamp
         if (oldBalance.weightedTimestamp == 0) {
-            _balances[_account].weightedTimestamp = SafeCast.toUint32(block.timestamp);
+            _balances[_account].weightedTimestamp = SafeCastExtended.toUint32(block.timestamp);
             _mintScaled(_account, _getBalance(_balances[_account]));
             return;
         }
@@ -332,10 +335,10 @@ abstract contract GamifiedToken is
         uint256 oldWeighredSecondsHeld = (block.timestamp - oldBalance.weightedTimestamp) *
             totalRaw;
         uint256 newSecondsHeld = oldWeighredSecondsHeld / (totalRaw + (_rawAmount / 2));
-        uint32 newWeightedTs = SafeCast.toUint32(block.timestamp - newSecondsHeld);
+        uint32 newWeightedTs = SafeCastExtended.toUint32(block.timestamp - newSecondsHeld);
         _balances[_account].weightedTimestamp = newWeightedTs;
 
-        uint16 timeMultiplier = _timeMultiplier(newWeightedTs);
+        uint8 timeMultiplier = _timeMultiplier(newWeightedTs);
         _balances[_account].timeMultiplier = timeMultiplier;
 
         // 3. Update scaled balance
@@ -359,24 +362,24 @@ abstract contract GamifiedToken is
 
         // 1. Get and update current balance
         (Balance memory oldBalance, uint256 oldScaledBalance) = _prepareOldBalance(_account);
-        CooldownData memory cooldownData = stakersCooldowns[_msgSender()];
-        uint256 totalRaw = oldBalance.raw + cooldownData.units;
+        uint256 totalRaw = oldBalance.raw + oldBalance.cooldownUnits;
         // 1.1. If _finalise, move everything to cooldown
         if (_finalise) {
             _balances[_account].raw = 0;
-            stakersCooldowns[_account].units = SafeCast.toUint128(totalRaw);
-            cooldownData.units = SafeCast.toUint128(totalRaw);
+            _balances[_account].cooldownUnits = SafeCastExtended.toUint88(totalRaw);
+            oldBalance.cooldownUnits = SafeCastExtended.toUint88(totalRaw);
         }
         // 1.2. Update
-        require(cooldownData.units >= _rawAmount, "ERC20: burn amount > balance");
+        require(oldBalance.cooldownUnits >= _rawAmount, "ERC20: burn amount > balance");
         unchecked {
-            stakersCooldowns[_account].units -= SafeCast.toUint128(_rawAmount);
+            _balances[_account].cooldownUnits -= SafeCastExtended.toUint88(_rawAmount);
         }
 
         // 2. If we are exiting cooldown, reset the balance
         if (_exitCooldown) {
-            _balances[_account].raw += stakersCooldowns[_account].units;
-            stakersCooldowns[_account] = CooldownData(0, 0);
+            _balances[_account].raw += _balances[_account].cooldownUnits;
+            _balances[_account].cooldownTimestamp = 0;
+            _balances[_account].cooldownUnits = 0;
         }
 
         // 3. Set back scaled time
@@ -386,10 +389,10 @@ abstract contract GamifiedToken is
             (totalRaw - (_rawAmount / 4));
         //      newWeightedTs = 875 / 100 = 87.5
         uint256 newSecondsHeld = secondsHeld / totalRaw;
-        uint32 newWeightedTs = SafeCast.toUint32(block.timestamp - newSecondsHeld);
+        uint32 newWeightedTs = SafeCastExtended.toUint32(block.timestamp - newSecondsHeld);
         _balances[_account].weightedTimestamp = newWeightedTs;
 
-        uint16 timeMultiplier = _timeMultiplier(newWeightedTs);
+        uint8 timeMultiplier = _timeMultiplier(newWeightedTs);
         _balances[_account].timeMultiplier = timeMultiplier;
 
         // 4. Update scaled balance
@@ -470,7 +473,7 @@ abstract contract GamifiedToken is
      * @param _account Address of user that has burned
      */
     function _claimRewardHook(address _account) internal override {
-        uint16 newMultiplier = questManager.checkForSeasonFinish(_account);
+        uint8 newMultiplier = questManager.checkForSeasonFinish(_account);
         if (newMultiplier != _balances[_account].questMultiplier) {
             // 1. Get current balance & trigger season finish
             uint256 oldScaledBalance = _getBalance(_balances[_account]);

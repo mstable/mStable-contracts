@@ -9,7 +9,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "./GamifiedTokenStructs.sol";
 
 interface IStakedToken {
-    function applyQuestMultiplier(address _account, uint16 _newMultiplier) external;
+    function applyQuestMultiplier(address _account, uint8 _newMultiplier) external;
 }
 
 /**
@@ -152,7 +152,7 @@ contract QuestManager is Initializable, ContextUpgradeable, ImmutableModule {
      */
     function addQuest(
         QuestType _model,
-        uint16 _multiplier,
+        uint8 _multiplier,
         uint32 _expiry
     ) external questMasterOrGovernor {
         require(_expiry > block.timestamp + 1 days, "Quest window too small");
@@ -239,7 +239,7 @@ contract QuestManager is Initializable, ContextUpgradeable, ImmutableModule {
         uint256 len = _ids.length;
         require(len > 0 && len == _signatures.length, "Invalid args");
 
-        uint16 questMultiplier = checkForSeasonFinish(_account);
+        uint8 questMultiplier = checkForSeasonFinish(_account);
 
         for (uint256 i = 0; i < len; i++) {
             require(_validQuest(_ids[i]), "Err: Invalid Quest");
@@ -249,8 +249,10 @@ contract QuestManager is Initializable, ContextUpgradeable, ImmutableModule {
                 "Err: Invalid Signature"
             );
 
-            // store user quest has completed
+            // Store user quest has completed
             _questCompletion[_account][_ids[i]] = true;
+
+            // Update multiplier
             Quest memory quest = _quests[_ids[i]];
             if (quest.model == QuestType.PERMANENT) {
                 _balances[_account].permMultiplier += quest.multiplier;
@@ -287,7 +289,7 @@ contract QuestManager is Initializable, ContextUpgradeable, ImmutableModule {
      * NOTE - it is important that this is called as a hook before each state change operation
      * @param _account Address of user that should be updated
      */
-    function checkForSeasonFinish(address _account) public returns (uint16 newQuestMultiplier) {
+    function checkForSeasonFinish(address _account) public returns (uint8 newQuestMultiplier) {
         QuestBalance storage balance = _balances[_account];
         // If the last action was before current season, then reset the season timing
         if (_hasFinishedSeason(balance.lastAction)) {
