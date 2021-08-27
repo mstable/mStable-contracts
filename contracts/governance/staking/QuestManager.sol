@@ -47,7 +47,8 @@ contract QuestManager is Initializable, ContextUpgradeable, ImmutableModule {
         QuestStatus status,
         uint32 expiry
     );
-    event QuestComplete(address indexed user, uint256 indexed id);
+    event QuestCompleteQuests(address indexed user, uint256[] ids);
+    event QuestCompleteUsers(uint256 indexed questId, address[] accounts);
     event QuestExpired(uint16 indexed id);
     event QuestSeasonEnded();
     event QuestMaster(address oldQuestMaster, address newQuestMaster);
@@ -229,24 +230,25 @@ contract QuestManager is Initializable, ContextUpgradeable, ImmutableModule {
      * from the whitelisted _signer.
      * @param _account Account that has completed the quest
      * @param _ids Quest IDs (its position in the array)
-     * @param _signatures Signature from the verified _signer, containing keccak hash of account & id
+     * @param _signature Signature from the verified _questSigner, containing keccak hash of account & ids
      */
-    function completeQuests(
+    function completeUserQuests(
         address _account,
         uint256[] memory _ids,
-        bytes[] calldata _signatures
+        bytes calldata _signature
     ) external {
         uint256 len = _ids.length;
-        require(len > 0 && len == _signatures.length, "Invalid args");
+        require(len > 0, "No quest ids");
 
         uint8 questMultiplier = checkForSeasonFinish(_account);
 
+        // For each quest
         for (uint256 i = 0; i < len; i++) {
             require(_validQuest(_ids[i]), "Err: Invalid Quest");
             require(!hasCompleted(_account, _ids[i]), "Err: Already Completed");
             require(
-                SignatureVerifier.verify(_questSigner, _account, _ids[i], _signatures[i]),
-                "Err: Invalid Signature"
+                SignatureVerifier.verify(_questSigner, _account, _ids, _signature),
+                "Invalid Quest Signer Signature"
             );
 
             // Store user quest has completed
@@ -261,13 +263,70 @@ contract QuestManager is Initializable, ContextUpgradeable, ImmutableModule {
             }
             questMultiplier += quest.multiplier;
 
-            emit QuestComplete(_account, _ids[i]);
+            // Store the last time the balances was updated
+            _balances[_account].lastAction = SafeCast.toUint32(block.timestamp);
+
         }
 
         uint256 len2 = _stakedTokens.length;
         for (uint256 i = 0; i < len2; i++) {
             IStakedToken(_stakedTokens[i]).applyQuestMultiplier(_account, questMultiplier);
         }
+
+        emit QuestCompleteQuests(_account, _ids);
+    }
+
+    /**
+     * @dev Called by anyone to complete one or more accounts for a quest. The user must first collect a signed message
+     * from the whitelisted _questMaster.
+     * @param _questId Quest ID (its position in the array)
+     * @param _accounts Accounts that has completed the quest
+     * @param _signature Signature from the verified _questMaster, containing keccak hash of id and accounts
+     */
+    function completeQuestUsers(
+        uint256 _questId,
+        address[] memory _accounts,
+        bytes calldata _signature
+    ) external {
+        require(_validQuest(_questId), "Invalid Quest ID");
+        uint256 len = _accounts.length;
+        require(len > 0, "No accounts");
+        require(
+            SignatureVerifier.verify(_questSigner, _questId, _accounts, _signature),
+            "Invalid Quest Signer Signature"
+        );
+
+        Quest memory quest = _quests[_questId];
+
+        // For each user account
+        for (uint256 i = 0; i < len; i++) {
+            require(!hasCompleted(_accounts[i], _questId), "Quest already completed");
+
+            // store user quest has completed
+            _questCompletion[_accounts[i]][_questId] = true;
+
+            // _applyQuestMultiplier(_accounts[i], quests);
+            uint8 questMultiplier = checkForSeasonFinish(_accounts[i]);
+
+            // Update multiplier
+            if (quest.model == QuestType.PERMANENT) {
+                _balances[_accounts[i]].permMultiplier += quest.multiplier;
+            } else {
+                _balances[_accounts[i]].seasonMultiplier += quest.multiplier;
+            }
+            questMultiplier += quest.multiplier;
+
+            // Store the last time the balances was updated
+            _balances[_accounts[i]].lastAction = SafeCast.toUint32(block.timestamp);
+
+            uint256 len2 = _stakedTokens.length;
+            for (uint256 i = 0; i < len2; i++) {
+                IStakedToken(_stakedTokens[i]).applyQuestMultiplier(_accounts[i], questMultiplier);
+            }
+
+        }
+        
+        emit QuestCompleteUsers(_questId, _accounts);
     }
 
     /**
