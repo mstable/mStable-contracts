@@ -28,17 +28,32 @@ library SignatureVerifier {
     function verify(
         address signer,
         address account,
-        uint256 id,
-        bytes memory signature
-    ) public pure returns (bool) {
-        bytes32 messageHash = getMessageHash(account, id);
+        uint256[] calldata ids,
+        bytes calldata signature
+    ) external pure returns (bool) {
+        bytes32 messageHash = getMessageHash(account, ids);
         bytes32 ethSignedMessageHash = getEthSignedMessageHash(messageHash);
 
         return recoverSigner(ethSignedMessageHash, signature) == signer;
     }
 
-    function getMessageHash(address account, uint256 id) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(account, id));
+    function verify(
+        address signer,
+        uint256 id,
+        address[] calldata accounts,
+        bytes calldata signature
+    ) external pure returns (bool) {
+        bytes32 messageHash = getMessageHash(id, accounts);
+        bytes32 ethSignedMessageHash = getEthSignedMessageHash(messageHash);
+
+        return recoverSigner(ethSignedMessageHash, signature) == signer;
+    }
+
+    function getMessageHash(address account, uint256[] memory ids) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(account, ids));
+    }
+    function getMessageHash(uint256 id, address[] memory accounts) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(id, accounts));
     }
 
     function getEthSignedMessageHash(bytes32 messageHash) internal pure returns (bytes32) {
