@@ -546,8 +546,6 @@ describe("Staked Token", () => {
                 const signature = await signUserQuests(userAddress, [seasonQuestId], sa.questSigner.signer)
                 const tx = await questManager.connect(sa.default.signer).completeUserQuests(userAddress, [seasonQuestId], signature)
 
-                const completeQuestTimestamp = await getTimestamp()
-
                 // Check events
                 await expect(tx).to.emit(questManager, "QuestCompleteQuests").withArgs(userAddress, [seasonQuestId])
 
@@ -558,7 +556,7 @@ describe("Staked Token", () => {
                 expect(userDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
                 expect(userDataAfter.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
                 expect(userDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTime)
-                expect(userDataAfter.questBalance.lastAction, "last action after").to.eq(completeQuestTimestamp)
+                expect(userDataAfter.questBalance.lastAction, "last action after").to.eq(stakedTime)
                 expect(userDataAfter.questBalance.permMultiplier, "perm multiplier after").to.eq(0)
                 expect(userDataAfter.questBalance.seasonMultiplier, "season multiplier after").to.eq(seasonMultiplier)
                 expect(userDataAfter.userBalances.timeMultiplier, "time multiplier after").to.eq(0)
@@ -574,11 +572,8 @@ describe("Staked Token", () => {
                 const signature = await signUserQuests(userAddress, [permanentQuestId], sa.questSigner.signer)
                 const tx = await questManager.connect(sa.questSigner.signer).completeUserQuests(userAddress, [permanentQuestId], signature)
 
-                const completeQuestTimestamp = await getTimestamp()
-
                 // Check events
                 await expect(tx).to.emit(questManager, "QuestCompleteQuests").withArgs(userAddress, [permanentQuestId])
-
                 // Check data
                 expect(await questManager.hasCompleted(userAddress, permanentQuestId), "quest completed after").to.be.true
                 const userDataAfter = await snapshotUserStakingData(userAddress)
@@ -586,7 +581,7 @@ describe("Staked Token", () => {
                 expect(userDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
                 expect(userDataAfter.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
                 expect(userDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTime)
-                expect(userDataAfter.questBalance.lastAction, "last action after").to.eq(completeQuestTimestamp)
+                expect(userDataAfter.questBalance.lastAction, "last action after").to.eq(stakedTime)
                 expect(userDataAfter.questBalance.permMultiplier, "perm multiplier after").to.eq(permanentMultiplier)
                 expect(userDataAfter.questBalance.seasonMultiplier, "season multiplier after").to.eq(0)
                 expect(userDataAfter.userBalances.timeMultiplier, "time multiplier after").to.eq(0)

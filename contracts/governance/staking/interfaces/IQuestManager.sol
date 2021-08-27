@@ -12,8 +12,8 @@ interface IQuestManager {
         QuestStatus status,
         uint32 expiry
     );
-    event QuestCompleteUsers(uint256 indexed id, address[] indexed users);
-    event QuestCompleteQuests(address indexed user, uint256[] indexed ids);
+    event QuestCompleteQuests(address indexed user, uint256[] ids);
+    event QuestCompleteUsers(uint256 indexed questId, address[] accounts);
     event QuestExpired(uint16 indexed id);
     event QuestMaster(address oldQuestMaster, address newQuestMaster);
     event QuestSeasonEnded();
