@@ -244,7 +244,7 @@ describe("Staked Token MTA rewards", () => {
                 const user1EarnedExpected = distAmount.mul(secondsPassed).div(ONE_WEEK).div(3)
                 assertBNClose(user1DataAfter.earned, user1EarnedExpected, 1000000)
             })
-            it.only("distribute second rewards after 8 days", async () => {
+            it("distribute second rewards after 8 days", async () => {
                 const user1StakeAmount = simpleToExactAmount(1000)
                 const user2StakeAmount = simpleToExactAmount(2000)
                 await stakedToken.connect(sa.dummy1.signer)["stake(uint256)"](user1StakeAmount)
