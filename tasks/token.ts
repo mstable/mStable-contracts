@@ -1,10 +1,10 @@
 import { subtask, task, types } from "hardhat/config"
-import { ERC20__factory } from "types/generated"
+import { ERC20__factory, MockERC20__factory } from "types/generated"
 import { simpleToExactAmount } from "@utils/math"
 import { formatUnits } from "ethers/lib/utils"
 import { MAX_INT128 } from "@utils/constants"
 import { getSigner } from "./utils/signerFactory"
-import { logTxDetails } from "./utils/deploy-utils"
+import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getChain, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
 
 subtask("token-approve", "Approve address or contract to spend (transferFrom) an amount of tokens from the signer's account")
@@ -169,6 +169,25 @@ subtask("token-balance", "Logs the token balance of an owner")
         console.log(`Balance of ${ownerAddress} is ${formatUnits(amount, assetToken.decimals)} ${taskArgs.token}`)
     })
 task("token-balance").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})
+
+subtask("token-deploy", "Deploys a new mock ERC20 token")
+    .addParam("name", "Token name", undefined, types.string)
+    .addParam("symbol", "Token symbol", undefined, types.string)
+    .addOptionalParam("decimals", "Token decimal places", 18, types.int)
+    .addOptionalParam("recipient", "Initial mint recipient", undefined, types.string)
+    .addOptionalParam("supply", "Initial mint amount", 1000000, types.int)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const { name, symbol, decimals, supply } = taskArgs
+        const signer = await getSigner(hre)
+        const signerAddress = await signer.getAddress()
+        const recipient = taskArgs.recipient || signerAddress
+
+        await deployContract(new MockERC20__factory(signer), `Token ${name} (${symbol})`, [name, symbol, decimals, recipient, supply])
+    })
+task("token-deploy").setAction(async (_, __, runSuper) => {
     await runSuper()
 })
 

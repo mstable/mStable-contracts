@@ -262,10 +262,6 @@ contract QuestManager is Initializable, ContextUpgradeable, ImmutableModule {
                 _balances[_account].seasonMultiplier += quest.multiplier;
             }
             questMultiplier += quest.multiplier;
-
-            // Store the last time the balances was updated
-            _balances[_account].lastAction = SafeCast.toUint32(block.timestamp);
-
         }
 
         uint256 len2 = _stakedTokens.length;
@@ -315,9 +311,6 @@ contract QuestManager is Initializable, ContextUpgradeable, ImmutableModule {
                 _balances[_accounts[i]].seasonMultiplier += quest.multiplier;
             }
             questMultiplier += quest.multiplier;
-
-            // Store the last time the balances was updated
-            _balances[_accounts[i]].lastAction = SafeCast.toUint32(block.timestamp);
 
             uint256 len2 = _stakedTokens.length;
             for (uint256 i = 0; i < len2; i++) {
