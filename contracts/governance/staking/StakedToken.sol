@@ -8,7 +8,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Root } from "../../shared/Root.sol";
-import "./GamifiedTokenStructs.sol";
+import "./deps/GamifiedTokenStructs.sol";
 
 /**
  * @title StakedToken
@@ -25,7 +25,7 @@ import "./GamifiedTokenStructs.sol";
  * @dev Only whitelisted contracts can communicate with this contract, in order to avoid having tokenised wrappers that
  * could potentially circumvent our unstaking procedure.
  **/
-contract StakedToken is IStakedToken, GamifiedVotingToken {
+contract StakedToken is GamifiedVotingToken {
     using SafeERC20 for IERC20;
 
     /// @notice Core token that is staked and tracked (e.g. MTA)
@@ -142,7 +142,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * boosts their voting power.
      * @param _amount Units of STAKED_TOKEN to stake
      */
-    function stake(uint256 _amount) external override {
+    function stake(uint256 _amount) external {
         _transferAndStake(_amount, address(0), false);
     }
 
@@ -163,7 +163,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * @param _amount Units of STAKED_TOKEN to stake
      * @param _delegatee Address of the user to whom the sender would like to delegate their voting power
      */
-    function stake(uint256 _amount, address _delegatee) external override {
+    function stake(uint256 _amount, address _delegatee) external {
         _transferAndStake(_amount, _delegatee, false);
     }
 
@@ -229,7 +229,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         address _recipient,
         bool _amountIncludesFee,
         bool _exitCooldown
-    ) external override {
+    ) external {
         _withdraw(_amount, _recipient, _amountIncludesFee, _exitCooldown);
     }
 
@@ -310,7 +310,7 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
      * If a user already has a cooldown period, then it will reset to the current block timestamp, so use wisely.
      * @param _units Units of stake to cooldown for
      **/
-    function startCooldown(uint256 _units) external override {
+    function startCooldown(uint256 _units) external {
         _startCooldown(_units);
     }
 
@@ -486,5 +486,5 @@ contract StakedToken is IStakedToken, GamifiedVotingToken {
         }
     }
 
-    uint256[47] private __gap;
+    uint256[48] private __gap;
 }

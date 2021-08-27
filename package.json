@@ -18,7 +18,6 @@
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "scripts": {
-        "prettify": "",
         "lint": "yarn run lint-ts; yarn run lint-sol",
         "lint:fix": "yarn pretty-quick --pattern '**/*.*(sol|json)' --staged --verbose && yarn pretty-quick --staged --write tasks/**/*.ts test/**/*.ts types/*.ts",
         "lint-ts": "yarn eslint ./test --ext .ts --fix --quiet",

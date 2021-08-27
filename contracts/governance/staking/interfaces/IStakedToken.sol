@@ -1,13 +1,67 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.6;
 
-import "../GamifiedTokenStructs.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../deps/GamifiedTokenStructs.sol";
 
 interface IStakedToken {
-    /** USER */
+    // GETTERS
+    function COOLDOWN_SECONDS() external view returns (uint256);
+
+    function UNSTAKE_WINDOW() external view returns (uint256);
+
+    function STAKED_TOKEN() external view returns (IERC20);
+
+    function getRewardToken() external view returns (address);
+
+    function pendingAdditionalReward() external view returns (uint256);
+
+    function whitelistedWrappers(address) external view returns (bool);
+
+    function balanceData(address _account) external view returns (Balance memory);
+
+    function balanceOf(address _account) external view returns (uint256);
+
+    function rawBalanceOf(address _account) external view returns (uint256, uint256);
+
+    function calcRedemptionFeeRate(uint32 _weightedTimestamp)
+        external
+        view
+        returns (uint256 _feeRate);
+
+    function safetyData()
+        external
+        view
+        returns (uint128 collateralisationRatio, uint128 slashingPercentage);
+
+    function delegates(address account) external view returns (address);
+
+    function getPastTotalSupply(uint256 blockNumber) external view returns (uint256);
+
+    function getPastVotes(address account, uint256 blockNumber) external view returns (uint256);
+
+    function getVotes(address account) external view returns (uint256);
+
+    // HOOKS/PERMISSIONED
+    function applyQuestMultiplier(address _account, uint8 _newMultiplier) external;
+
+    // ADMIN
+    function whitelistWrapper(address _wrapper) external;
+
+    function blackListWrapper(address _wrapper) external;
+
+    function changeSlashingPercentage(uint256 _newRate) external;
+
+    function emergencyRecollateralisation() external;
+
+    function setGovernanceHook(address _newHook) external;
+
+    // USER
     function stake(uint256 _amount) external;
 
     function stake(uint256 _amount, address _delegatee) external;
+
+    function stake(uint256 _amount, bool _exitCooldown) external;
 
     function withdraw(
         uint256 _amount,
@@ -16,35 +70,24 @@ interface IStakedToken {
         bool _exitCooldown
     ) external;
 
-    function startCooldown(uint256 _percentage) external;
+    function delegate(address delegatee) external;
 
-    // TODO - these can't be added to the base interface unless used with `super.delegate()`
-    // function delegate(address delegatee) external;
-    // function completeQuest(
-    //     address _account,
-    //     uint256 _id,
-    //     bytes calldata _signature
-    // ) external;
-    // function reviewTimestamp(address _account) external;
-    // function claimReward(address _to) external;
-    // function claimReward() external;
+    function startCooldown(uint256 _units) external;
 
-    /** VIEWS */
-    // function getVotes(address account) external view returns (uint256);
-    // function getPastVotes(address account, uint256 blockNumber) external view returns (uint256);
-    // function getPastTotalSupply(uint256 blockNumber) external view returns (uint256);
-    // function balanceData(address _account) external view returns (Balance memory);
-    // function getQuest(uint256 _id) external view returns (Quest memory);
-    // function getQuestCompletion(address _account, uint256 _id) external view returns (bool);
+    function endCooldown() external;
 
-    /** ADMIN */
-    // function setGovernanceHook(address _newHook) external;
-    // function addQuest(
-    //     QuestType _model,
-    //     uint16 _multiplier,
-    //     uint32 _expiry
-    // ) external;
-    // function expireQuest(uint16 _id) external;
-    // function startNewQuestSeason() external;
-    // function notifyRewardAmount(uint256 _reward) external;
+    function reviewTimestamp(address _account) external;
+
+    function claimReward() external;
+
+    function claimReward(address _to) external;
+
+    // Backwards compatibility
+    function createLock(uint256 _value, uint256) external;
+
+    function exit() external;
+
+    function increaseLockAmount(uint256 _value) external;
+
+    function increaseLockLength(uint256) external;
 }

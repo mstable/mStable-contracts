@@ -7,7 +7,7 @@ import { SafeCastExtended } from "../../shared/SafeCastExtended.sol";
 import { ILockedERC20 } from "./interfaces/ILockedERC20.sol";
 import { HeadlessStakingRewards } from "../../rewards/staking/HeadlessStakingRewards.sol";
 import { QuestManager } from "./QuestManager.sol";
-import "./GamifiedTokenStructs.sol";
+import "./deps/GamifiedTokenStructs.sol";
 
 /**
  * @title GamifiedToken
@@ -492,5 +492,5 @@ abstract contract GamifiedToken is
         uint256 _amount
     ) internal virtual {}
 
-    uint256[43] private __gap;
+    uint256[45] private __gap;
 }
