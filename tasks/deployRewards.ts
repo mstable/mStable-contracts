@@ -7,17 +7,18 @@ import { formatBytes32String } from "ethers/lib/utils"
 import { params } from "./taskUtils"
 import {
     AssetProxy__factory,
-    BoostedVault__factory,
     BoostedDualVault__factory,
     SignatureVerifier__factory,
     PlatformTokenVendorFactory__factory,
     StakedTokenMTA__factory,
     QuestManager__factory,
     StakedTokenBPT__factory,
+    BoostDirector__factory,
 } from "../types/generated"
-import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
-import { getSignerAccount } from "./utils/signerFactory"
+import { getChain, getChainAddress, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
+import { getSignerAccount, getSigner } from "./utils/signerFactory"
 import { deployContract } from "./utils/deploy-utils"
+import { deployVault, VaultData } from "./utils/feederUtils"
 
 task("getBytecode-BoostedDualVault").setAction(async () => {
     const size = BoostedDualVault__factory.bytecode.length / 2 / 1000
@@ -28,68 +29,46 @@ task("getBytecode-BoostedDualVault").setAction(async () => {
     }
 })
 
-task("BoostedVault.deploy", "Deploys a BoostedVault")
-    .addParam("nexus", "Nexus address", undefined, params.address, false)
-    .addParam("proxyAdmin", "ProxyAdmin address", undefined, params.address, false)
-    .addParam("rewardsDistributor", "RewardsDistributor address", undefined, params.address, false)
-    .addParam("stakingToken", "Staking token address", undefined, params.address, false)
-    .addParam("rewardsToken", "Rewards token address", undefined, params.address, false)
+task("BoostDirector.deploy", "Deploys a new BoostDirector")
+    .addOptionalParam("stakingToken", "Symbol of the staking token", "MTA", types.string)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const nexusAddress = getChainAddress("Nexus", chain)
+        const stakingToken = resolveToken(taskArgs.stakingToken, chain)
+
+        await deployContract(new BoostDirector__factory(signer), "BoostDirector", [nexusAddress, stakingToken.address])
+    })
+
+task("Vault.deploy", "Deploys a vault contract")
+    .addParam("boosted", "True if a mainnet boosted vault", true, types.boolean)
     .addParam("vaultName", "Vault name", undefined, types.string, false)
     .addParam("vaultSymbol", "Vault symbol", undefined, types.string, false)
-    .addParam("boostCoefficient", "Boost coefficient", undefined, types.string, false)
+    .addOptionalParam("stakingToken", "Symbol of staking token. eg MTA, BAL, RMTA", "MTA", types.string)
+    .addOptionalParam("rewardsToken", "Symbol of rewards token. eg MTA or RMTA for Ropsten", "MTA", types.string)
     .addParam("priceCoefficient", "Price coefficient", undefined, types.string, false)
-    .setAction(
-        async (
-            {
-                boostCoefficient,
-                nexus,
-                priceCoefficient,
-                proxyAdmin,
-                rewardsDistributor,
-                rewardsToken,
-                vaultName,
-                vaultSymbol,
-                stakingToken,
-            }: {
-                boostCoefficient: string
-                nexus: string
-                priceCoefficient: string
-                proxyAdmin: string
-                rewardsDistributor: string
-                rewardsToken: string
-                vaultName: string
-                vaultSymbol: string
-                stakingToken: string
-            },
-            { ethers },
-        ) => {
-            const [deployer] = await ethers.getSigners()
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
 
-            const implementation = await new BoostedVault__factory(deployer).deploy(
-                nexus,
-                stakingToken,
-                DEAD_ADDRESS,
-                priceCoefficient,
-                boostCoefficient,
-                rewardsToken,
-            )
-            const receipt = await implementation.deployTransaction.wait()
-            console.log(`Deployed Vault Implementation to ${implementation.address}. gas used ${receipt.gasUsed}`)
+        const vaultData: VaultData = {
+            boosted: taskArgs.boosted,
+            name: taskArgs.vaultName,
+            symbol: taskArgs.vaultSymbol,
+            priceCoeff: taskArgs.priceCoefficient,
+            stakingToken: resolveAddress(taskArgs.stakingToken, chain),
+            rewardToken: resolveAddress(taskArgs.rewardsToken, chain),
+        }
 
-            const data = implementation.interface.encodeFunctionData("initialize", [rewardsDistributor, vaultName, vaultSymbol])
-
-            const assetProxy = await new AssetProxy__factory(deployer).deploy(implementation.address, proxyAdmin, data)
-            const assetProxyDeployReceipt = await assetProxy.deployTransaction.wait()
-
-            await new BoostedVault__factory(deployer).attach(assetProxy.address)
-
-            console.log(`Deployed Vault Proxy to ${assetProxy.address}. gas used ${assetProxyDeployReceipt.gasUsed}`)
-        },
-    )
+        await deployVault(signer, vaultData, chain)
+    })
 
 task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
-    .addOptionalParam("rewardsToken", "Rewards token address. eg MTA or RMTA for Ropsten", "MTA", types.string)
-    .addOptionalParam("stakedToken", "Staked token address. eg MTA, BAL, RMTA", "MTA", types.string)
+    .addOptionalParam("rewardsToken", "Symbol of rewards token. eg MTA or RMTA for Ropsten", "MTA", types.string)
+    .addOptionalParam("stakedToken", "Symbol of staked token. eg MTA, BAL, RMTA", "MTA", types.string)
     .addOptionalParam("balPoolId", "Balancer Pool Id", "0001", types.string)
     .addOptionalParam("questMaster", "Address of account that administrates quests", undefined, params.address)
     .addOptionalParam("questSigner", "Address of account that signs completed quests", undefined, params.address)
