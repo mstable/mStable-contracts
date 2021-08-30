@@ -1,7 +1,7 @@
 import config from "./hardhat.config"
 
 import "./tasks/deployIntegration"
-import "./tasks/deployBoostedVault"
+import "./tasks/deployRewards"
 import "./tasks/deployMbtc"
 import "./tasks/deployFeeders"
 import "./tasks/deployMV3"
