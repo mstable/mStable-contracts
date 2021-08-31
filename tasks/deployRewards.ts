@@ -14,10 +14,11 @@ import {
     QuestManager__factory,
     StakedTokenBPT__factory,
     BoostDirectorV2__factory,
+    BoostDirectorV2,
 } from "../types/generated"
 import { getChain, getChainAddress, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
 import { getSignerAccount, getSigner } from "./utils/signerFactory"
-import { deployContract } from "./utils/deploy-utils"
+import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { deployVault, VaultData } from "./utils/feederUtils"
 
 task("getBytecode-BoostedDualVault").setAction(async () => {
@@ -39,7 +40,21 @@ task("BoostDirector.deploy", "Deploys a new BoostDirector")
         const nexusAddress = getChainAddress("Nexus", chain)
         const stakingToken = resolveToken(taskArgs.stakingToken, chain)
 
-        await deployContract(new BoostDirectorV2__factory(signer), "BoostDirector", [nexusAddress, stakingToken.address])
+        const boostDirector: BoostDirectorV2 = await deployContract(new BoostDirectorV2__factory(signer), "BoostDirector", [
+            nexusAddress,
+            stakingToken.address,
+        ])
+
+        const tx = await boostDirector.initialize([
+            resolveAddress("mUSD", chain, "vault"),
+            resolveAddress("mBTC", chain, "vault"),
+            resolveAddress("GUSD", chain, "vault"),
+            resolveAddress("BUSD", chain, "vault"),
+            resolveAddress("HBTC", chain, "vault"),
+            resolveAddress("TBTC", chain, "vault"),
+            resolveAddress("alUSD", chain, "vault"),
+        ])
+        await logTxDetails(tx, "initialize BoostDirector")
     })
 
 task("Vault.deploy", "Deploys a vault contract")

@@ -52,7 +52,7 @@ task("LegacyVault.deploy", "Deploys a vault contract")
             {
                 underlyingTokenSymbol: "mBTC",
                 stakingTokenType: "savings",
-                priceCoeff: btcPriceCoeff,
+                priceCoeff: btcPriceCoeff.div(10),
             },
             {
                 underlyingTokenSymbol: "GUSD",
@@ -80,6 +80,7 @@ task("LegacyVault.deploy", "Deploys a vault contract")
             {
                 underlyingTokenSymbol: "mUSD",
                 stakingTokenType: "savings",
+                priceCoeff: simpleToExactAmount(1, 17),
             },
         ]
 
@@ -149,5 +150,7 @@ task("LegacyVault.deploy", "Deploys a vault contract")
             }
         }
     })
+
+// TODO post upgrade verification tasks
 
 export {}

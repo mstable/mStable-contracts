@@ -912,8 +912,8 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
 
     // Vars for use in the boost calculations
     uint256 private constant MIN_DEPOSIT = 1e18;
-    uint256 private constant MAX_VMTA = 300000e18;
-    uint256 private constant MAX_BOOST = 4e18;
+    uint256 private constant MAX_VMTA = 400000e18;
+    uint256 private constant MAX_BOOST = 3e18;
     uint256 private constant MIN_BOOST = 1e18;
     uint256 private constant FLOOR = 95e16;
     uint256 public immutable boostCoeff; // scaled by 10
