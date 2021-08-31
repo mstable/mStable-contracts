@@ -13,7 +13,7 @@ import {
     StakedTokenMTA__factory,
     QuestManager__factory,
     StakedTokenBPT__factory,
-    BoostDirector__factory,
+    BoostDirectorV2__factory,
 } from "../types/generated"
 import { getChain, getChainAddress, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
 import { getSignerAccount, getSigner } from "./utils/signerFactory"
@@ -39,7 +39,7 @@ task("BoostDirector.deploy", "Deploys a new BoostDirector")
         const nexusAddress = getChainAddress("Nexus", chain)
         const stakingToken = resolveToken(taskArgs.stakingToken, chain)
 
-        await deployContract(new BoostDirector__factory(signer), "BoostDirector", [nexusAddress, stakingToken.address])
+        await deployContract(new BoostDirectorV2__factory(signer), "BoostDirector", [nexusAddress, stakingToken.address])
     })
 
 task("Vault.deploy", "Deploys a vault contract")
