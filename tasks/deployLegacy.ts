@@ -138,6 +138,8 @@ task("LegacyVault.deploy", "Deploys a vault contract")
                 console.log(`boostDirector: ${await proxy.boostDirector()}`)
                 console.log(`priceCoeff: ${formatUnits(await proxy.priceCoeff())}`)
                 console.log(`rewardToken: ${await proxy.getRewardToken()}`)
+                console.log(`user balance ${await proxy.balanceOf("0x8d0f5678557192e23d1da1c689e40f25c063eaa5")}`)
+                console.log(`user raw balance ${await proxy.rawBalanceOf("0x8d0f5678557192e23d1da1c689e40f25c063eaa5")}`)
                 if (vault.underlyingTokenSymbol === "alUSD") {
                     console.log(`platformToken: ${await proxy.getPlatformToken()}`)
                 }
