@@ -1,5 +1,5 @@
-on: ["push", "pull_request"]
-name: Test
+on: ["pull_request"]
+name: Test-Feeders
 jobs:
     build:
         runs-on: ubuntu-latest
@@ -21,4 +21,4 @@ jobs:
                       ${{ runner.os }}-yarn-
             - run: yarn
             - run: yarn compile
-            - run: yarn test
+            - run: yarn test:file ./test/savings/*.spec.ts
