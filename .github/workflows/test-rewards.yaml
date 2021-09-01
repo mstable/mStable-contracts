@@ -1,5 +1,5 @@
 on: ["pull_request"]
-name: Test-Feeders
+name: Test-Rewards
 jobs:
     build:
         runs-on: ubuntu-latest
