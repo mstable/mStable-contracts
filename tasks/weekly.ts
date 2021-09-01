@@ -13,17 +13,17 @@ task("distribute-mta-mainnet", "Distributes MTA rewards on Mainnet")
         const rewardSymbol = MTA.symbol
         const ownerTokenType: AssetAddressTypes = "vault"
         const vaultsOrPools: Array<Token | ContractNames> = [MTA, "UniswapV2-MTA/WETH", mUSD, mBTC, alUSD, BUSD, GUSD, HBTC, TBTC]
-        const mtaAmounts = [40000, 5000, 21986.43, 8308.77, 29423.32, 22380.43, 41145.28, 15100.95, 13130.82]
+        const mtaAmounts = [40000, 5000, 16732.99, 7333.41, 11283.58, 20318.86, 25470.03, 28926.78, 10266.35]
         const vaultNames = [
-            "Staking V1 rewards",
+            "Staking V1 rewards   ",
             "MTA / WETH Uniswap v2",
-            "imUSD Vault",
-            "imBTC Vault",
-            "alUSD Feeder Pool",
-            "BUSD Feeder Pool",
-            "GUSD Feeder Pool",
-            "HBTC Feeder Pool",
-            "TBTC Feeder Pool",
+            "imUSD Vault          ",
+            "imBTC Vault          ",
+            "alUSD Feeder Pool    ",
+            "BUSD Feeder Pool     ",
+            "GUSD Feeder Pool     ",
+            "HBTC Feeder Pool     ",
+            "TBTC Feeder Pool     ",
         ]
 
         // Create a comma separated list of token symbols and amounts
@@ -66,9 +66,12 @@ task("distribute-mta-mainnet", "Distributes MTA rewards on Mainnet")
         }
 
         console.log(`\nDiscord announcement`)
+        let total = 0
         vaultNames.forEach((name, i) => {
-            console.log(`- ${name} ${mtaAmounts[i]} MTA`)
+            total += mtaAmounts[i]
+            console.log(`- ${name} ${mtaAmounts[i].toLocaleString().padStart(10)} MTA`)
         })
+        console.log(`TOTAL rewards on ETH L1 ${total.toLocaleString()} MTA`)
     })
 
 task("distribute-mta-polygon", "Distributes MTA and Matic rewards on Polygon")
