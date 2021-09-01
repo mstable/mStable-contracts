@@ -83,10 +83,15 @@ describe("Staked Token", () => {
             rewardToken.address,
             ONE_WEEK,
             ONE_DAY.mul(2),
+            false,
         )
-        data = stakedTokenImpl.interface.encodeFunctionData("initialize", ["Staked Rewards", "stkRWD", sa.mockRewardsDistributor.address])
+        data = stakedTokenImpl.interface.encodeFunctionData("__StakedToken_init", [
+            "Staked Rewards",
+            "stkRWD",
+            sa.mockRewardsDistributor.address,
+        ])
         const stakedTokenProxy = await new AssetProxy__factory(sa.default.signer).deploy(stakedTokenImpl.address, DEAD_ADDRESS, data)
-        const sToken = stakedTokenFactory.attach(stakedTokenProxy.address)
+        const sToken = stakedTokenFactory.attach(stakedTokenProxy.address) as StakedToken
 
         const qMaster = QuestManager__factory.connect(questManagerProxy.address, sa.default.signer)
         await qMaster.connect(sa.governor.signer).addStakedToken(stakedTokenProxy.address)
@@ -109,6 +114,7 @@ describe("Staked Token", () => {
         const earnedRewards = await stakedToken.earned(user)
         const rewardsBalance = await rewardToken.balanceOf(user)
         const userBalances = await stakedToken.balanceData(user)
+        const userPriceCoeff = await stakedToken.userPriceCoeff(user)
         const questBalance = await questManager.balanceData(user)
 
         return {
@@ -117,6 +123,7 @@ describe("Staked Token", () => {
             earnedRewards,
             rewardsBalance,
             userBalances,
+            userPriceCoeff,
             questBalance,
         }
     }

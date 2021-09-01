@@ -57,8 +57,9 @@ abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
     constructor(
         address _nexus,
         address _rewardsToken,
-        address _questManager
-    ) GamifiedToken(_nexus, _rewardsToken, _questManager) {}
+        address _questManager,
+        bool _hasPriceCoeff
+    ) GamifiedToken(_nexus, _rewardsToken, _questManager, _hasPriceCoeff) {}
 
     function __GamifiedVotingToken_init() internal initializer {}
 

@@ -40,6 +40,7 @@ contract StakedTokenBPT is StakedToken {
     /// @notice Time of last priceCoefficient upgrade
     uint32 public lastPriceUpdateTime;
 
+    event KeeperUpdated(address newKeeper);
     event BalClaimed();
     event BalRecipientChanged(address newRecipient);
     event PriceCoefficientUpdated(uint16 newPriceCoeff);
@@ -73,7 +74,8 @@ contract StakedTokenBPT is StakedToken {
             _questManager,
             _stakedToken,
             _cooldownSeconds,
-            _unstakeWindow
+            _unstakeWindow,
+            true
         )
     {
         BAL = IERC20(_bal[0]);
@@ -189,6 +191,22 @@ contract StakedTokenBPT is StakedToken {
                     PRICE
     ****************************************/
 
+    /**
+     * @dev Sets the keeper that is responsible for fetching new price coefficients
+     */
+    function setKeeper(address _newKeeper) external onlyGovernor {
+        keeper = _newKeeper;
+
+        emit KeeperUpdated(_newKeeper);
+    }
+
+    /**
+     * @dev Fetches most recent priceCoeff from the balancer pool.
+     * PriceCoeff = units of MTA per BPT, scaled to 1:1 = 10000
+     * Assuming an 80/20 BPT, it is possible to calculate
+     * PriceCoeff (p) = balanceOfMTA in pool (b) / bpt supply (s) / 0.8
+     * p = b * 1.25 / s
+     */
     function fetchPriceCoefficient() external governorOrKeeper {
         require(
             block.timestamp > lastPriceUpdateTime + 14 days,
@@ -200,7 +218,7 @@ contract StakedTokenBPT is StakedToken {
         );
         require(tokens[0] == address(REWARDS_TOKEN), "MTA in wrong place");
 
-        // 1.1. Calculate units of MTA per BPT
+        // Calculate units of MTA per BPT
         // e.g. 800e18 * 125e16 / 1000e18 = 1e18
         // e.g. 1280e18 * 125e16 / 1000e18 = 16e17
         uint256 unitsPerToken = (balances[0] * 125e16) / STAKED_TOKEN.totalSupply();
@@ -211,15 +229,20 @@ contract StakedTokenBPT is StakedToken {
         uint16 diff = newPriceCoeff > oldPriceCoeff
             ? newPriceCoeff - oldPriceCoeff
             : oldPriceCoeff - newPriceCoeff;
+
         require(diff > 500, "Must be > 5% diff");
         require(newPriceCoeff > 4000 && newPriceCoeff < 22000, "Out of bounds");
+
         priceCoefficient = newPriceCoeff;
         lastPriceUpdateTime = SafeCastExtended.toUint32(block.timestamp);
 
         emit PriceCoefficientUpdated(newPriceCoeff);
     }
 
-    function _getPriceCoeff() internal override returns (uint32) {
+    /**
+     * @dev Get the current priceCoeff
+     */
+    function _getPriceCoeff() internal view override returns (uint16) {
         return priceCoefficient;
     }
 }

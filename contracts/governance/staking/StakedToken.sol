@@ -25,7 +25,7 @@ import "./deps/GamifiedTokenStructs.sol";
  * @dev Only whitelisted contracts can communicate with this contract, in order to avoid having tokenised wrappers that
  * could potentially circumvent our unstaking procedure.
  **/
-abstract contract StakedToken is GamifiedVotingToken {
+contract StakedToken is GamifiedVotingToken {
     using SafeERC20 for IERC20;
 
     /// @notice Core token that is staked and tracked (e.g. MTA)
@@ -77,8 +77,9 @@ abstract contract StakedToken is GamifiedVotingToken {
         address _questManager,
         address _stakedToken,
         uint256 _cooldownSeconds,
-        uint256 _unstakeWindow
-    ) GamifiedVotingToken(_nexus, _rewardsToken, _questManager) {
+        uint256 _unstakeWindow,
+        bool _hasPriceCoeff
+    ) GamifiedVotingToken(_nexus, _rewardsToken, _questManager, _hasPriceCoeff) {
         STAKED_TOKEN = IERC20(_stakedToken);
         COOLDOWN_SECONDS = _cooldownSeconds;
         UNSTAKE_WINDOW = _unstakeWindow;
@@ -93,7 +94,7 @@ abstract contract StakedToken is GamifiedVotingToken {
         string memory _nameArg,
         string memory _symbolArg,
         address _rewardsDistributorArg
-    ) internal initializer {
+    ) public initializer {
         __GamifiedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg);
         safetyData = SafetyData({ collateralisationRatio: 1e18, slashingPercentage: 0 });
     }
