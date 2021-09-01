@@ -1,5 +1,5 @@
 on: ["pull_request"]
-name: Test-Shared
+name: Test-Peripheral
 jobs:
     build:
         runs-on: ubuntu-latest

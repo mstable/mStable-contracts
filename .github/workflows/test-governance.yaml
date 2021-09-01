@@ -1,5 +1,5 @@
 on: ["pull_request"]
-name: Test-Feeders
+name: Test-Governance
 jobs:
     build:
         runs-on: ubuntu-latest
