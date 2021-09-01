@@ -38,8 +38,12 @@ abstract contract GamifiedToken is
 
     /// @notice User balance structs containing all data needed to scale balance
     mapping(address => Balance) internal _balances;
+    /// @notice Most recent price coefficients per user
+    mapping(address => uint16) internal _userPriceCoeff;
     /// @notice Quest Manager
     QuestManager public immutable questManager;
+    /// @notice Has variable price
+    bool public immutable hasPriceCoeff;
 
     /***************************************
                     INIT
@@ -52,9 +56,11 @@ abstract contract GamifiedToken is
     constructor(
         address _nexus,
         address _rewardsToken,
-        address _questManager
+        address _questManager,
+        bool _hasPriceCoeff
     ) HeadlessStakingRewards(_nexus, _rewardsToken) {
         questManager = QuestManager(_questManager);
+        hasPriceCoeff = _hasPriceCoeff;
     }
 
     /**
@@ -197,6 +203,10 @@ abstract contract GamifiedToken is
             // > 24 months = 1.6x
             return 60;
         }
+    }
+
+    function _getPriceCoeff() internal virtual returns (uint32) {
+        return 10000;
     }
 
     /***************************************
