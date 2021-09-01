@@ -77,8 +77,9 @@ contract StakedToken is GamifiedVotingToken {
         address _questManager,
         address _stakedToken,
         uint256 _cooldownSeconds,
-        uint256 _unstakeWindow
-    ) GamifiedVotingToken(_nexus, _rewardsToken, _questManager) {
+        uint256 _unstakeWindow,
+        bool _hasPriceCoeff
+    ) GamifiedVotingToken(_nexus, _rewardsToken, _questManager, _hasPriceCoeff) {
         STAKED_TOKEN = IERC20(_stakedToken);
         COOLDOWN_SECONDS = _cooldownSeconds;
         UNSTAKE_WINDOW = _unstakeWindow;
@@ -89,11 +90,11 @@ contract StakedToken is GamifiedVotingToken {
      * @param _symbolArg Token symbol
      * @param _rewardsDistributorArg mStable Rewards Distributor
      */
-    function initialize(
+    function __StakedToken_init(
         string memory _nameArg,
         string memory _symbolArg,
         address _rewardsDistributorArg
-    ) external initializer {
+    ) public initializer {
         __GamifiedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg);
         safetyData = SafetyData({ collateralisationRatio: 1e18, slashingPercentage: 0 });
     }

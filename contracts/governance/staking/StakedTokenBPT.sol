@@ -3,6 +3,7 @@ pragma solidity 0.8.6;
 pragma abicoder v2;
 
 import { StakedToken } from "./StakedToken.sol";
+import { SafeCastExtended } from "../../shared/SafeCastExtended.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IBVault, ExitPoolRequest } from "./interfaces/IBVault.sol";
@@ -27,11 +28,26 @@ contract StakedTokenBPT is StakedToken {
     /// @notice Core token that is staked and tracked (e.g. MTA)
     address public balRecipient;
 
+    /// @notice Keeper
+    address public keeper;
+
     /// @notice Pending fees in BPT terms
     uint256 public pendingBPTFees;
 
+    /// @notice Most recent PriceCoefficient
+    uint16 public priceCoefficient;
+
+    /// @notice Time of last priceCoefficient upgrade
+    uint32 public lastPriceUpdateTime;
+
+    event KeeperUpdated(address newKeeper);
     event BalClaimed();
     event BalRecipientChanged(address newRecipient);
+    event PriceCoefficientUpdated(uint16 newPriceCoeff);
+
+    /***************************************
+                    INIT
+    ****************************************/
 
     /**
      * @param _nexus System nexus
@@ -39,7 +55,7 @@ contract StakedTokenBPT is StakedToken {
      * @param _stakedToken Core token that is staked and tracked (e.g. MTA)
      * @param _cooldownSeconds Seconds a user must wait after she initiates her cooldown before withdrawal is possible
      * @param _unstakeWindow Window in which it is possible to withdraw, following the cooldown period
-     * @param _bal Balancer addresses, [0] = $BAL addr, [1] = designated recipient, [2] = BAL vault
+     * @param _bal Balancer addresses, [0] = $BAL addr, [1] = BAL vault
      * @param _poolId Balancer Pool identifier
      */
     constructor(
@@ -49,7 +65,7 @@ contract StakedTokenBPT is StakedToken {
         address _stakedToken,
         uint256 _cooldownSeconds,
         uint256 _unstakeWindow,
-        address[3] memory _bal,
+        address[2] memory _bal,
         bytes32 _poolId
     )
         StakedToken(
@@ -58,14 +74,39 @@ contract StakedTokenBPT is StakedToken {
             _questManager,
             _stakedToken,
             _cooldownSeconds,
-            _unstakeWindow
+            _unstakeWindow,
+            true
         )
     {
         BAL = IERC20(_bal[0]);
-        balRecipient = _bal[1];
-        balancerVault = IBVault(_bal[2]);
+        balancerVault = IBVault(_bal[1]);
         poolId = _poolId;
     }
+
+    /**
+     * @param _nameArg Token name
+     * @param _symbolArg Token symbol
+     * @param _rewardsDistributorArg mStable Rewards Distributor
+     */
+    function initialize(
+        string memory _nameArg,
+        string memory _symbolArg,
+        address _rewardsDistributorArg,
+        address[1] memory _bal
+    ) internal initializer {
+        __StakedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg);
+        balRecipient = _bal[0];
+        priceCoefficient = 10000;
+    }
+
+    modifier governorOrKeeper() {
+        require(_msgSender() == _governor() || _msgSender() == keeper, "Gov or keeper");
+        _;
+    }
+
+    /***************************************
+                BAL incentives
+    ****************************************/
 
     /**
      * @dev Claims any $BAL tokens present on this address as part of any potential liquidity mining program
@@ -85,6 +126,10 @@ contract StakedTokenBPT is StakedToken {
 
         emit BalRecipientChanged(_newRecipient);
     }
+
+    /***************************************
+                    FEES
+    ****************************************/
 
     /**
      * @dev Converts fees accrued in BPT into MTA, before depositing to the rewards contract
@@ -140,5 +185,64 @@ contract StakedTokenBPT is StakedToken {
         require(_additionalReward < 1e24, "Cannot notify with more than a million units");
 
         pendingBPTFees += _additionalReward;
+    }
+
+    /***************************************
+                    PRICE
+    ****************************************/
+
+    /**
+     * @dev Sets the keeper that is responsible for fetching new price coefficients
+     */
+    function setKeeper(address _newKeeper) external onlyGovernor {
+        keeper = _newKeeper;
+
+        emit KeeperUpdated(_newKeeper);
+    }
+
+    /**
+     * @dev Fetches most recent priceCoeff from the balancer pool.
+     * PriceCoeff = units of MTA per BPT, scaled to 1:1 = 10000
+     * Assuming an 80/20 BPT, it is possible to calculate
+     * PriceCoeff (p) = balanceOfMTA in pool (b) / bpt supply (s) / 0.8
+     * p = b * 1.25 / s
+     */
+    function fetchPriceCoefficient() external governorOrKeeper {
+        require(
+            block.timestamp > lastPriceUpdateTime + 14 days,
+            "Maximum one update per 14 days allowed"
+        );
+
+        (address[] memory tokens, uint256[] memory balances, ) = balancerVault.getPoolTokens(
+            poolId
+        );
+        require(tokens[0] == address(REWARDS_TOKEN), "MTA in wrong place");
+
+        // Calculate units of MTA per BPT
+        // e.g. 800e18 * 125e16 / 1000e18 = 1e18
+        // e.g. 1280e18 * 125e16 / 1000e18 = 16e17
+        uint256 unitsPerToken = (balances[0] * 125e16) / STAKED_TOKEN.totalSupply();
+        // e.g. 1e18 / 1e14 = 10000
+        // e.g. 16e17 / 1e14 = 16000
+        uint16 newPriceCoeff = SafeCastExtended.toUint16(unitsPerToken / 1e14);
+        uint16 oldPriceCoeff = priceCoefficient;
+        uint16 diff = newPriceCoeff > oldPriceCoeff
+            ? newPriceCoeff - oldPriceCoeff
+            : oldPriceCoeff - newPriceCoeff;
+
+        require(diff > 500, "Must be > 5% diff");
+        require(newPriceCoeff > 4000 && newPriceCoeff < 22000, "Out of bounds");
+
+        priceCoefficient = newPriceCoeff;
+        lastPriceUpdateTime = SafeCastExtended.toUint32(block.timestamp);
+
+        emit PriceCoefficientUpdated(newPriceCoeff);
+    }
+
+    /**
+     * @dev Get the current priceCoeff
+     */
+    function _getPriceCoeff() internal view override returns (uint16) {
+        return priceCoefficient;
     }
 }

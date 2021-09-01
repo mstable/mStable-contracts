@@ -38,8 +38,12 @@ abstract contract GamifiedToken is
 
     /// @notice User balance structs containing all data needed to scale balance
     mapping(address => Balance) internal _balances;
+    /// @notice Most recent price coefficients per user
+    mapping(address => uint16) internal _userPriceCoeff;
     /// @notice Quest Manager
     QuestManager public immutable questManager;
+    /// @notice Has variable price
+    bool public immutable hasPriceCoeff;
 
     /***************************************
                     INIT
@@ -52,9 +56,11 @@ abstract contract GamifiedToken is
     constructor(
         address _nexus,
         address _rewardsToken,
-        address _questManager
+        address _questManager,
+        bool _hasPriceCoeff
     ) HeadlessStakingRewards(_nexus, _rewardsToken) {
         questManager = QuestManager(_questManager);
+        hasPriceCoeff = _hasPriceCoeff;
     }
 
     /**
@@ -107,7 +113,7 @@ abstract contract GamifiedToken is
         override(HeadlessStakingRewards, ILockedERC20)
         returns (uint256)
     {
-        return _getBalance(_balances[_account]);
+        return _getBalance(_account, _balances[_account]);
     }
 
     /**
@@ -121,12 +127,21 @@ abstract contract GamifiedToken is
     /**
      * @dev Scales the balance of a given user by applying multipliers
      */
-    function _getBalance(Balance memory _balance) internal pure returns (uint256 balance) {
+    function _getBalance(address _account, Balance memory _balance)
+        internal
+        view
+        returns (uint256 balance)
+    {
         // e.g. raw = 1000, questMultiplier = 40, timeMultiplier = 30. Cooldown of 60%
         // e.g. 1000 * (100 + 40) / 100 = 1400
         balance = (_balance.raw * (100 + _balance.questMultiplier)) / 100;
         // e.g. 1400 * (100 + 30) / 100 = 1820
         balance = (balance * (100 + _balance.timeMultiplier)) / 100;
+
+        if (hasPriceCoeff) {
+            // e.g. 1820 * 16000 / 10000 = 2912
+            balance = (balance * _userPriceCoeff[_account]) / 10000;
+        }
     }
 
     /**
@@ -134,6 +149,13 @@ abstract contract GamifiedToken is
      */
     function balanceData(address _account) external view returns (Balance memory) {
         return _balances[_account];
+    }
+
+    /**
+     * @notice Raw staked balance without any multipliers
+     */
+    function userPriceCoeff(address _account) external view returns (uint16) {
+        return _userPriceCoeff[_account];
     }
 
     /***************************************
@@ -162,7 +184,7 @@ abstract contract GamifiedToken is
 
         // 1. Get current balance & update questMultiplier, only if user has a balance
         Balance memory oldBalance = _balances[_account];
-        uint256 oldScaledBalance = _getBalance(oldBalance);
+        uint256 oldScaledBalance = _getBalance(_account, oldBalance);
         if (oldScaledBalance > 0) {
             _applyQuestMultiplier(_account, oldBalance, oldScaledBalance, _newMultiplier);
         }
@@ -197,6 +219,10 @@ abstract contract GamifiedToken is
             // > 24 months = 1.6x
             return 60;
         }
+    }
+
+    function _getPriceCoeff() internal virtual returns (uint16) {
+        return 10000;
     }
 
     /***************************************
@@ -327,7 +353,7 @@ abstract contract GamifiedToken is
         //  i) For new _account, set up weighted timestamp
         if (oldBalance.weightedTimestamp == 0) {
             _balances[_account].weightedTimestamp = SafeCastExtended.toUint32(block.timestamp);
-            _mintScaled(_account, _getBalance(_balances[_account]));
+            _mintScaled(_account, _getBalance(_account, _balances[_account]));
             return;
         }
         //  ii) For previous minters, recalculate time held
@@ -417,9 +443,12 @@ abstract contract GamifiedToken is
     {
         // Get the old balance
         oldBalance = _balances[_account];
-        oldScaledBalance = _getBalance(oldBalance);
+        oldScaledBalance = _getBalance(_account, oldBalance);
         // Take the opportunity to check for season finish
         _balances[_account].questMultiplier = questManager.checkForSeasonFinish(_account);
+        if (hasPriceCoeff) {
+            _userPriceCoeff[_account] = _getPriceCoeff();
+        }
     }
 
     /**
@@ -431,7 +460,7 @@ abstract contract GamifiedToken is
      * @param _oldScaledBalance Previous scaled balance of the user
      */
     function _settleScaledBalance(address _account, uint256 _oldScaledBalance) private {
-        uint256 newScaledBalance = _getBalance(_balances[_account]);
+        uint256 newScaledBalance = _getBalance(_account, _balances[_account]);
         if (newScaledBalance > _oldScaledBalance) {
             _mintScaled(_account, newScaledBalance - _oldScaledBalance);
         }
@@ -474,10 +503,16 @@ abstract contract GamifiedToken is
      */
     function _claimRewardHook(address _account) internal override {
         uint8 newMultiplier = questManager.checkForSeasonFinish(_account);
-        if (newMultiplier != _balances[_account].questMultiplier) {
+        bool priceCoeffChanged = hasPriceCoeff
+            ? _getPriceCoeff() != _userPriceCoeff[_account]
+            : false;
+        if (newMultiplier != _balances[_account].questMultiplier || priceCoeffChanged) {
             // 1. Get current balance & trigger season finish
-            uint256 oldScaledBalance = _getBalance(_balances[_account]);
+            uint256 oldScaledBalance = _getBalance(_account, _balances[_account]);
             _balances[_account].questMultiplier = newMultiplier;
+            if (priceCoeffChanged) {
+                _userPriceCoeff[_account] = _getPriceCoeff();
+            }
             // 3. Update scaled balance
             _settleScaledBalance(_account, oldScaledBalance);
         }
