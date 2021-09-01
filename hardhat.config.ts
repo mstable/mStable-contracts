@@ -5,6 +5,7 @@ import "@typechain/hardhat"
 import "hardhat-gas-reporter"
 import "solidity-coverage"
 import "hardhat-abi-exporter"
+import "@nomiclabs/hardhat-etherscan"
 
 import "ts-node/register"
 import "tsconfig-paths/register"
@@ -106,6 +107,9 @@ export const hardhatConfig = {
     tenderly: {
         username: "alsco77",
         project: "mStable",
+    },
+    etherscan: {
+        apiKey: process.env.ETHERSCAN_KEY,
     },
 }
 

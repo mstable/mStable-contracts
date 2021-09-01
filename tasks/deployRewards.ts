@@ -55,6 +55,11 @@ task("BoostDirector.deploy", "Deploys a new BoostDirector")
             resolveAddress("alUSD", chain, "vault"),
         ])
         await logTxDetails(tx, "initialize BoostDirector")
+
+        await hre.run("verify:verify", {
+            address: boostDirector.address,
+            constructorArguments: [nexusAddress, stakingToken.address],
+        })
     })
 
 task("Vault.deploy", "Deploys a vault contract")
@@ -89,6 +94,8 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
     .addOptionalParam("questSigner", "Address of account that signs completed quests", undefined, params.address)
     .addOptionalParam("name", "Staked Token name", "Voting MTA V2", types.string)
     .addOptionalParam("symbol", "Staked Token symbol", "vMTA", types.string)
+    .addOptionalParam("cooldown", "Number of seconds for the cooldown period", ONE_WEEK.mul(3).toNumber(), types.int)
+    .addOptionalParam("unstakeWindow", "Number of seconds for the unstake window", ONE_WEEK.toNumber(), types.int)
     .setAction(async (taskArgs, hre) => {
         const deployer = await getSignerAccount(hre, taskArgs.speed)
         const chain = getChain(hre)
@@ -104,6 +111,12 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
         if (!signatureVerifierAddress) {
             const signatureVerifier = await deployContract(new SignatureVerifier__factory(deployer.signer), "SignatureVerifier")
             signatureVerifierAddress = signatureVerifier.address
+
+            await hre.run("verify:verify", {
+                address: signatureVerifierAddress,
+                contract: "SignatureVerifier",
+                constructorArguments: [],
+            })
         }
 
         let questManagerAddress = getChainAddress("QuestManager", chain)
@@ -117,12 +130,25 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
                 [nexusAddress],
             )
             const data = questManagerImpl.interface.encodeFunctionData("initialize", [questMasterAddress, questSignerAddress])
-            const questManagerProxy = await deployContract(new AssetProxy__factory(deployer.signer), "AssetProxy", [
-                questManagerImpl.address,
-                deployer.address,
-                data,
-            ])
+
+            await hre.run("verify:verify", {
+                address: questManagerImpl.address,
+                contract: "contracts/governance/staking/QuestManager.sol:QuestManager",
+                constructorArguments: [nexusAddress],
+                libraries: {
+                    SignatureVerifier: signatureVerifierAddress,
+                },
+            })
+
+            const constructorArguments = [questManagerImpl.address, deployer.address, data]
+            const questManagerProxy = await deployContract(new AssetProxy__factory(deployer.signer), "AssetProxy", constructorArguments)
             questManagerAddress = questManagerProxy.address
+
+            await hre.run("verify:verify", {
+                address: questManagerAddress,
+                contract: "contracts/upgradability/Proxies.sol:AssetProxy",
+                constructorArguments,
+            })
         }
 
         let platformTokenVendorFactoryAddress = getChainAddress("PlatformTokenVendorFactory", chain)
@@ -132,6 +158,11 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
                 "PlatformTokenVendorFactory",
             )
             platformTokenVendorFactoryAddress = platformTokenVendorFactory.address
+
+            await hre.run("verify:verify", {
+                address: platformTokenVendorFactoryAddress,
+                constructorArguments: [],
+            })
         }
 
         const stakedTokenLibraryAddresses = {
@@ -139,33 +170,70 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
         }
         let stakedTokenImpl
         if (stakedTokenAddress === rewardsTokenAddress) {
+            const constructorArguments = [
+                nexusAddress,
+                rewardsTokenAddress,
+                questManagerAddress,
+                rewardsTokenAddress,
+                taskArgs.cooldown,
+                taskArgs.unstakeWindow,
+            ]
+
             stakedTokenImpl = await deployContract(
                 new StakedTokenMTA__factory(stakedTokenLibraryAddresses, deployer.signer),
                 "StakedTokenMTA",
-                [nexusAddress, rewardsTokenAddress, questManagerAddress, rewardsTokenAddress, ONE_WEEK, ONE_DAY.mul(2)],
+                constructorArguments,
             )
+
+            await hre.run("verify:verify", {
+                address: stakedTokenImpl.address,
+                constructorArguments,
+                libraries: {
+                    PlatformTokenVendorFactory: platformTokenVendorFactoryAddress,
+                },
+            })
         } else {
             const balPoolIdStr = taskArgs.balPoolId || "1"
             const balPoolId = formatBytes32String(balPoolIdStr)
 
+            const constructorArguments = [
+                nexusAddress,
+                rewardsTokenAddress,
+                questManagerAddress,
+                stakedTokenAddress,
+                taskArgs.cooldown,
+                taskArgs.unstakeWindow,
+                [DEAD_ADDRESS, DEAD_ADDRESS, DEAD_ADDRESS],
+                balPoolId,
+            ]
+
             stakedTokenImpl = await deployContract(
                 new StakedTokenBPT__factory(stakedTokenLibraryAddresses, deployer.signer),
                 "StakedTokenBPT",
-                [
-                    nexusAddress,
-                    rewardsTokenAddress,
-                    questManagerAddress,
-                    stakedTokenAddress,
-                    ONE_WEEK,
-                    ONE_DAY.mul(2),
-                    [DEAD_ADDRESS, DEAD_ADDRESS, DEAD_ADDRESS],
-                    balPoolId,
-                ],
+                constructorArguments,
             )
+
+            await hre.run("verify:verify", {
+                address: stakedTokenImpl.address,
+                constructorArguments,
+                libraries: {
+                    PlatformTokenVendorFactory: platformTokenVendorFactoryAddress,
+                },
+            })
         }
 
         const data = stakedTokenImpl.interface.encodeFunctionData("initialize", [taskArgs.name, taskArgs.symbol, rewardsDistributorAddress])
-        await deployContract(new AssetProxy__factory(deployer.signer), "AssetProxy", [stakedTokenImpl.address, deployer.address, data])
+        const proxy = await deployContract(new AssetProxy__factory(deployer.signer), "AssetProxy", [
+            stakedTokenImpl.address,
+            deployer.address,
+            data,
+        ])
+
+        await hre.run("verify:verify", {
+            address: proxy.address,
+            contract: "contracts/upgradability/Proxies.sol:AssetProxy",
+            constructorArguments: [stakedTokenImpl.address, deployer.address, data],
+        })
     })
 
 export {}

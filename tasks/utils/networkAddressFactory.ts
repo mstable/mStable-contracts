@@ -188,15 +188,15 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "DelayedProxyAdmin":
                 return "0x2d369F83E9DC764a759a74e87a9Bc542a2BbfdF0"
             case "SignatureVerifier":
-                return "0xf09BC7f20182f6ec015cDb20Be8F7650400CDDC3"
+                return "0x9004C92712CDb4809BCe1f82bC5AF4C06C965666"
             case "QuestManager":
-                return "0x3F4334c92C4a2B06969ABd0Ec3D24b16fDCa7B92"
+                return "0x7afCFB9e83C72Aa6AC31C13b91aFB54b63e19D32"
             case "StakedTokenMTA":
-                return "0xE3c016FAbBe1bd2B36C8486eDa1C34d6367c0695"
+                return "0xb69CBb4DC3b3bE4db5F15B8813bD6a6cA03C726e"
             case "StakedTokenBPT":
                 return "0x4A869C278b7f397734F0dAFd4E5EEE1A1543Cb80"
             case "PlatformTokenVendorFactory":
-                return "0xd9DBF712e78b343e5cb3272DB74960B5d5aEcE16"
+                return "0x4E4075f4c51a5d35Bfa8cfC8eFf9eF7Ef197782B"
             case "QuestMaster":
                 return "0x04617083205b2fdd18b15bcf60d06674c6e2c1dc"
             case "QuestSigner":
@@ -293,7 +293,7 @@ export const resolveToken = (symbol: string, chain = Chain.mainnet, tokenType: A
 
     // If a token Symbol
     const token = tokens.find((t) => t.symbol === symbol && t.chain === chain)
-    if (!token) throw Error(`Can not fine token symbol ${symbol} on chain ${chain}`)
+    if (!token) throw Error(`Can not find token symbol ${symbol} on chain ${chain}`)
     if (!token[tokenType]) throw Error(`Can not find token type "${tokenType}" for ${symbol} on chain ${chain}`)
 
     console.log(`Resolved token symbol ${symbol} and type "${tokenType}" to address ${token[tokenType]}`)
