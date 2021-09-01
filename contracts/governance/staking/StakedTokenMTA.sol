@@ -35,9 +35,18 @@ contract StakedTokenMTA is StakedToken {
             _questManager,
             _stakedToken,
             _cooldownSeconds,
-            _unstakeWindow
+            _unstakeWindow,
+            false
         )
     {}
+
+    function initialize(
+        string memory _nameArg,
+        string memory _symbolArg,
+        address _rewardsDistributorArg
+    ) external initializer {
+        __StakedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg);
+    }
 
     /**
      * @dev Allows a staker to compound their rewards IF the Staking token and the Rewards token are the same
