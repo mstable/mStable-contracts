@@ -8,17 +8,105 @@ import { BN, simpleToExactAmount } from "@utils/math"
 import { DelayedProxyAdmin__factory } from "types"
 import { Contract } from "@ethersproject/contracts"
 import { ONE_DAY } from "@utils/constants"
-import { formatUnits } from "ethers/lib/utils"
+import { expect } from "chai"
+import { BigNumberish, Signer } from "ethers"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getSigner } from "./utils/signerFactory"
-import { logTxDetails } from "./utils"
+import { Chain, logTxDetails } from "./utils"
 
+interface UserBalance {
+    user: string
+    balance: BigNumberish
+}
 interface VaultData {
     underlyingTokenSymbol: string
     stakingTokenType: "savings" | "feederPool"
     priceCoeff?: BN
     platformToken?: string
+    name: string
+    symbol: string
+    userBal: UserBalance
 }
+
+const boostCoeff = 48
+const btcPriceCoeff = simpleToExactAmount(48000)
+const vaults: VaultData[] = [
+    {
+        underlyingTokenSymbol: "mBTC",
+        stakingTokenType: "savings",
+        priceCoeff: btcPriceCoeff.div(10),
+        name: "imBTC Vault",
+        symbol: "v-imBTC",
+        userBal: {
+            user: "0x285B10c73de847Ee35BCB5Cd86f17D55Ff936476",
+            balance: simpleToExactAmount(768),
+        },
+    },
+    {
+        underlyingTokenSymbol: "GUSD",
+        stakingTokenType: "feederPool",
+        name: "mUSD/GUSD fPool Vault",
+        symbol: "v-fPmUSD/GUSD",
+        userBal: {
+            user: "0xf794CF2d946BC6eE6eD905F47db211EBd451Aa5F",
+            balance: simpleToExactAmount(1500000),
+        },
+    },
+    {
+        underlyingTokenSymbol: "BUSD",
+        stakingTokenType: "feederPool",
+        name: "mUSD/BUSD fPool Vault",
+        symbol: "v-fPmUSD/BUSD",
+        userBal: {
+            user: "0xc09111f9d094d07fc013fd45c4081510ca4275cf",
+            balance: simpleToExactAmount(1400000),
+        },
+    },
+    {
+        underlyingTokenSymbol: "alUSD",
+        stakingTokenType: "feederPool",
+        name: "mUSD/alUSD fPool Vault",
+        symbol: "v-fPmUSD/alUSD",
+        platformToken: "ALCX",
+        userBal: {
+            user: "0x97020c9ec66e0f59231918b1d2f167a66026aff2",
+            balance: simpleToExactAmount(1200000),
+        },
+    },
+    {
+        underlyingTokenSymbol: "HBTC",
+        stakingTokenType: "feederPool",
+        priceCoeff: btcPriceCoeff,
+        name: "mBTC/HBTC fPool Vault",
+        symbol: "v-fPmBTC/HBTC",
+        userBal: {
+            user: "0x8d0f5678557192e23d1da1c689e40f25c063eaa5",
+            balance: simpleToExactAmount(2.4),
+        },
+    },
+    {
+        underlyingTokenSymbol: "TBTC",
+        stakingTokenType: "feederPool",
+        priceCoeff: btcPriceCoeff,
+        name: "mBTC/TBTC fPool Vault",
+        symbol: "v-fPmBTC/TBTC",
+        userBal: {
+            user: "0x6f500bb95ee1cf1a92e45f7697fabb2d477087af",
+            balance: simpleToExactAmount(2.2),
+        },
+    },
+    {
+        underlyingTokenSymbol: "mUSD",
+        stakingTokenType: "savings",
+        priceCoeff: simpleToExactAmount(1, 17),
+        name: "imUSD Vault",
+        symbol: "v-imUSD",
+        userBal: {
+            user: "0x7606ccf1c5f2a908423eb8dd2fa5d82a12255700",
+            balance: simpleToExactAmount(68000),
+        },
+    },
+]
 
 task("LegacyVault.deploy", "Deploys a vault contract")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
@@ -41,48 +129,10 @@ task("LegacyVault.deploy", "Deploys a vault contract")
         }
         const governor = hre.ethers.provider.getSigner(governorAddress)
 
-        const boostCoeff = 48
-        const btcPriceCoeff = simpleToExactAmount(48000)
         const nexusAddress = getChainAddress("Nexus", chain)
         const boostDirectorAddress = getChainAddress("BoostDirector", chain)
         const rewardTokenAddress = resolveAddress("MTA", chain)
         const delayedProxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)
-
-        const vaults: VaultData[] = [
-            {
-                underlyingTokenSymbol: "mBTC",
-                stakingTokenType: "savings",
-                priceCoeff: btcPriceCoeff.div(10),
-            },
-            {
-                underlyingTokenSymbol: "GUSD",
-                stakingTokenType: "feederPool",
-            },
-            {
-                underlyingTokenSymbol: "BUSD",
-                stakingTokenType: "feederPool",
-            },
-            {
-                underlyingTokenSymbol: "alUSD",
-                stakingTokenType: "feederPool",
-                platformToken: "ALCX",
-            },
-            {
-                underlyingTokenSymbol: "HBTC",
-                stakingTokenType: "feederPool",
-                priceCoeff: btcPriceCoeff,
-            },
-            {
-                underlyingTokenSymbol: "TBTC",
-                stakingTokenType: "feederPool",
-                priceCoeff: btcPriceCoeff,
-            },
-            {
-                underlyingTokenSymbol: "mUSD",
-                stakingTokenType: "savings",
-                priceCoeff: simpleToExactAmount(1, 17),
-            },
-        ]
 
         for (const vault of vaults) {
             const stakingTokenAddress = resolveAddress(vault.underlyingTokenSymbol, chain, vault.stakingTokenType)
@@ -130,27 +180,55 @@ task("LegacyVault.deploy", "Deploys a vault contract")
 
                 const tx2 = await proxyAdmin.acceptUpgradeRequest(vaultProxyAddress)
                 await logTxDetails(tx2, "acceptUpgradeRequest")
-
-                const proxy = await vaultFactory.attach(vaultProxyAddress).connect(signer)
-                console.log(`Name: ${await proxy.name()}`)
-                console.log(`Symbol: ${await proxy.symbol()}`)
-                console.log(`Total Supply: ${formatUnits(await proxy.totalSupply())}`)
-                console.log(`Nexus: ${await proxy.nexus()}`)
-                console.log(`boostDirector: ${await proxy.boostDirector()}`)
-                console.log(`priceCoeff: ${formatUnits(await proxy.priceCoeff())}`)
-                console.log(`rewardToken: ${await proxy.getRewardToken()}`)
-                console.log(`user balance ${await proxy.balanceOf("0x8d0f5678557192e23d1da1c689e40f25c063eaa5")}`)
-                console.log(`user raw balance ${await proxy.rawBalanceOf("0x8d0f5678557192e23d1da1c689e40f25c063eaa5")}`)
-                if (vault.underlyingTokenSymbol === "alUSD") {
-                    console.log(`platformToken: ${await proxy.getPlatformToken()}`)
-                }
             } else {
                 console.log(`Delayed Proxy Admin contract ${delayedProxyAdminAddress}`)
                 console.log(`proposeUpgrade tx args: proxy ${vaultProxyAddress}, impl ${vaultImpl.address}`)
             }
         }
+
+        await vaultVerification(hre, signer, chain)
     })
 
-// TODO post upgrade verification tasks
+task("LegacyVault.check", "Checks the vaults post upgrade")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        await vaultVerification(hre, signer, chain)
+    })
+
+// Post upgrade verification tasks
+const vaultVerification = async (hre, signer: Signer, chain: Chain) => {
+    const nexusAddress = getChainAddress("Nexus", chain)
+    const boostDirectorAddress = getChainAddress("BoostDirector", chain)
+    const rewardTokenAddress = resolveAddress("MTA", chain)
+
+    for (const vault of vaults) {
+        const vaultProxyAddress = resolveAddress(vault.underlyingTokenSymbol, chain, "vault")
+        const contractName = vault.platformToken ? "BoostedDualVault" : "BoostedSavingsVault"
+        const vaultFactory = await hre.ethers.getContractFactory(
+            `contracts/legacy/v-${vault.underlyingTokenSymbol}.sol:${contractName}`,
+            signer,
+        )
+        const proxy = await vaultFactory.attach(vaultProxyAddress)
+
+        expect(await proxy.name(), `${vault.underlyingTokenSymbol} vault name`).to.eq(vault.name)
+        expect(await proxy.symbol(), `${vault.underlyingTokenSymbol} symbol name`).to.eq(vault.symbol)
+        expect(await proxy.nexus(), `${vault.underlyingTokenSymbol} vault nexus`).to.eq(nexusAddress)
+        expect(await proxy.boostDirector(), `${vault.underlyingTokenSymbol} vault boost director`).to.eq(boostDirectorAddress)
+        expect(await proxy.getRewardToken(), `${vault.underlyingTokenSymbol} vault reward token`).to.eq(rewardTokenAddress)
+        expect(await proxy.priceCoeff(), `${vault.underlyingTokenSymbol} vault priceCoeff`).to.eq(
+            vault.priceCoeff ? vault.priceCoeff : simpleToExactAmount(1),
+        )
+        if (vault.underlyingTokenSymbol === "alUSD") {
+            expect(await proxy.getPlatformToken(), `${vault.underlyingTokenSymbol} vault platform token`).to.eq(
+                resolveAddress(vault.platformToken, chain),
+            )
+        }
+        expect(await proxy.balanceOf(vault.userBal.user), `${vault.underlyingTokenSymbol} vault user balance`).to.gt(vault.userBal.balance)
+        expect(await proxy.totalSupply(), `${vault.underlyingTokenSymbol} vault total supply`).to.gt(0)
+    }
+}
 
 export {}
