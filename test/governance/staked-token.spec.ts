@@ -23,7 +23,7 @@ import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { expect } from "chai"
 import { getTimestamp, increaseTime } from "@utils/time"
-import { arrayify, solidityKeccak256 } from "ethers/lib/utils"
+import { arrayify, formatBytes32String, solidityKeccak256 } from "ethers/lib/utils"
 import { BigNumberish, Signer } from "ethers"
 import { QuestStatus, QuestType, UserStakingData } from "types/stakedToken"
 
@@ -86,8 +86,8 @@ describe("Staked Token", () => {
             false,
         )
         data = stakedTokenImpl.interface.encodeFunctionData("__StakedToken_init", [
-            "Staked Rewards",
-            "stkRWD",
+            formatBytes32String("Staked Rewards"),
+            formatBytes32String("stkRWD"),
             sa.mockRewardsDistributor.address,
         ])
         const stakedTokenProxy = await new AssetProxy__factory(sa.default.signer).deploy(stakedTokenImpl.address, DEAD_ADDRESS, data)

@@ -92,11 +92,11 @@ abstract contract GamifiedToken is
     ****************************************/
 
     function name() public view override returns (string memory) {
-        return bytes32ToStr(_name);
+        return bytes32ToString(_name);
     }
 
     function symbol() public view override returns (string memory) {
-        return bytes32ToStr(_symbol);
+        return bytes32ToString(_symbol);
     }
 
     /**
@@ -539,15 +539,13 @@ abstract contract GamifiedToken is
                     Utils
     ****************************************/
 
-    /**
-     * @dev Util function to convert bytes32 to a string.
-     * The contract size is too big if name and symbol are strings
-     * so they are initialized as bytes32 and then converted for
-     * the `name` and `symbol` functions.
-     */
-    function bytes32ToStr(bytes32 _bytes32) internal pure returns (string memory) {
-        bytes memory bytesArray = new bytes(32);
-        for (uint256 i; i < 32; i++) {
+    function bytes32ToString(bytes32 _bytes32) internal pure returns (string memory) {
+        uint256 i = 0;
+        while(i < 32 && _bytes32[i] != 0) {
+            i++;
+        }
+        bytes memory bytesArray = new bytes(i);
+        for (i = 0; i < 32 && _bytes32[i] != 0; i++) {
             bytesArray[i] = _bytes32[i];
         }
         return string(bytesArray);
