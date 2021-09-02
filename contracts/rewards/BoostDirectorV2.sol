@@ -22,6 +22,8 @@ contract BoostDirectorV2 is IBoostDirector, ImmutableModule {
     event StakedTokenAdded(address token);
     event StakedTokenRemoved(address token);
 
+    event BalanceDivisorChanged(uint256 newDivisor);
+
     // Read the vMTA balance from here
     IERC20[] public stakedTokenContracts;
 
@@ -31,14 +33,17 @@ contract BoostDirectorV2 is IBoostDirector, ImmutableModule {
     mapping(address => uint8) public _vaults;
     // uint128 packed with up to 16 uint8's. Each uint is a vault ID
     mapping(address => uint128) public _directedBitmap;
+    // Divisor for voting powers to make more reasonable in vault
+    uint256 private balanceDivisor;
 
     /***************************************
-                      ADMIN
+                    ADMIN
     ****************************************/
 
     // Simple constructor
     constructor(address _nexus, address _stakingContract) ImmutableModule(_nexus) {
         stakedTokenContracts.push(IERC20(_stakingContract));
+        balanceDivisor = 12;
     }
 
     /**
@@ -79,6 +84,18 @@ contract BoostDirectorV2 is IBoostDirector, ImmutableModule {
     }
 
     /**
+     * @dev Sets the divisor, by which all balances will be scaled down
+     */
+    function setBalanceDivisor(uint256 _newDivisor) external onlyGovernor {
+        require(_newDivisor != balanceDivisor, "No change in divisor");
+        require(_newDivisor < 15, "Divisor too large");
+
+        balanceDivisor = _newDivisor;
+
+        emit BalanceDivisorChanged(_newDivisor);
+    }
+
+    /**
      * @dev Whitelist vaults - only callable by governance. Whitelists vaults, unless they
      * have already been whitelisted
      */
@@ -113,9 +130,9 @@ contract BoostDirectorV2 is IBoostDirector, ImmutableModule {
      * If the user has not directed to this vault, or there are less than 3 directed,
      * then add this to the list
      * @param _user     Address of the user for which to get balance
-     * @return Directed balance
+     * @return bal      Directed balance
      */
-    function getBalance(address _user) external override returns (uint256) {
+    function getBalance(address _user) external override returns (uint256 bal) {
         // Get vault details
         uint8 id = _vaults[msg.sender];
         // If vault has not been whitelisted, just return zero
@@ -124,13 +141,11 @@ contract BoostDirectorV2 is IBoostDirector, ImmutableModule {
         // Get existing bitmap and balance
         uint128 bitmap = _directedBitmap[_user];
         uint256 len = stakedTokenContracts.length;
-        uint256 bal = 0;
         for (uint256 i = 0; i < len; i++) {
             bal += stakedTokenContracts[i].balanceOf(_user);
         }
 
-        // TODO - modify bal to work better with boost calcs
-        bal /= 8;
+        bal /= balanceDivisor;
 
         (bool isWhitelisted, uint8 count, ) = _indexExists(bitmap, id);
 
@@ -184,7 +199,7 @@ contract BoostDirectorV2 is IBoostDirector, ImmutableModule {
         uint128 _bitmap,
         uint8 _pos,
         uint8 _id
-    ) internal returns (uint128 newMap) {
+    ) internal pure returns (uint128 newMap) {
         // bitmap          = ... 00000000 00000000 00000011 00001010
         // pos = 1, id = 1 = 00000001
         // step            = ... 00000000 00000000 00000001 00000000
@@ -206,7 +221,7 @@ contract BoostDirectorV2 is IBoostDirector, ImmutableModule {
      */
     function _indexExists(uint128 _bitmap, uint8 _target)
         internal
-        view
+        pure
         returns (
             bool isWhitelisted,
             uint8 count,
