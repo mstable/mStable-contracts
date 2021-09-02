@@ -95,11 +95,11 @@ describe("BoostedDualVault", async () => {
     let stakingContract: MockStakingContract
     let boostDirector: BoostDirector
 
-    const maxVMTA = simpleToExactAmount(400000, 18)
+    const maxVMTA = simpleToExactAmount(600000, 18)
     const maxBoost = simpleToExactAmount(3, 18)
     const minBoost = simpleToExactAmount(1, 18)
-    const floor = simpleToExactAmount(95, 16)
-    const coeff = BN.from(45)
+    const floor = simpleToExactAmount(98, 16)
+    const coeff = BN.from(9)
     const priceCoeff = simpleToExactAmount(1, 17)
     const lockupPeriod = ONE_WEEK.mul(26)
 
@@ -112,7 +112,7 @@ describe("BoostedDualVault", async () => {
         if (scaledBalance.lt(simpleToExactAmount(1, 18))) return minBoost
 
         let denom = parseFloat(utils.formatUnits(scaledBalance))
-        denom **= 0.875
+        denom **= 0.75
         const flooredMTA = vMTA.gt(maxVMTA) ? maxVMTA : vMTA
         let rhs = floor.add(flooredMTA.mul(coeff).div(10).mul(fullScale).div(simpleToExactAmount(denom)))
         rhs = rhs.gt(minBoost) ? rhs : minBoost

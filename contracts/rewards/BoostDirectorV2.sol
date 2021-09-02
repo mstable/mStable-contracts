@@ -127,7 +127,7 @@ contract BoostDirectorV2 is IBoostDirector, ImmutableModule {
 
     /**
      * @dev Gets the balance of a user that has been directed to the caller (a vault).
-     * If the user has not directed to this vault, or there are less than 3 directed,
+     * If the user has not directed to this vault, or there are less than 6 directed,
      * then add this to the list
      * @param _user     Address of the user for which to get balance
      * @return bal      Directed balance
@@ -151,13 +151,13 @@ contract BoostDirectorV2 is IBoostDirector, ImmutableModule {
 
         if (isWhitelisted) return bal;
 
-        if (count < 3) {
+        if (count < 6) {
             _directedBitmap[_user] = _direct(bitmap, count, id);
             emit Directed(_user, msg.sender);
             return bal;
         }
 
-        if (count >= 3) return 0;
+        if (count >= 6) return 0;
     }
 
     /**
@@ -179,7 +179,7 @@ contract BoostDirectorV2 is IBoostDirector, ImmutableModule {
 
         uint128 bitmap = _directedBitmap[msg.sender];
         (bool isWhitelisted, uint8 count, uint8 pos) = _indexExists(bitmap, idOld);
-        require(isWhitelisted && count >= 3, "No need to replace old");
+        require(isWhitelisted && count >= 6, "No need to replace old");
 
         _directedBitmap[msg.sender] = _direct(bitmap, pos, idNew);
 
@@ -205,7 +205,7 @@ contract BoostDirectorV2 is IBoostDirector, ImmutableModule {
         // step            = ... 00000000 00000000 00000001 00000000
         uint8 id;
         uint128 step;
-        for (uint8 i = 0; i < 3; i++) {
+        for (uint8 i = 0; i < 6; i++) {
             unchecked {
                 // id is either the one that is passed, or existing
                 id = _pos == i ? _id : uint8(_bitmap >> (i * 8));
@@ -228,12 +228,12 @@ contract BoostDirectorV2 is IBoostDirector, ImmutableModule {
             uint8 pos
         )
     {
-        // bitmap   = ... 00000000 00000000 00000011 00001010 // positions 1 and 2 have ids 10 and 3 respectively
+        // bitmap   = ... 00000000 00000000 00000011 00001010 // positions 1 and 2 have ids 10 and 6 respectively
         // e.g.
         // i = 1: bitmap moves 8 bits to the right
-        // bitmap   = ... 00000000 00000000 00000000 00000011 // reading uint8 should return 3
+        // bitmap   = ... 00000000 00000000 00000000 00000011 // reading uint8 should return 6
         uint8 id;
-        for (uint8 i = 0; i < 3; i++) {
+        for (uint8 i = 0; i < 6; i++) {
             unchecked {
                 id = uint8(_bitmap >> (i * 8));
             }
