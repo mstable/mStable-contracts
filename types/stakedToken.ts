@@ -21,7 +21,7 @@ export interface UserStakingData {
     earnedRewards: BN
     rewardsBalance: BN
     userBalances: UserBalances
-    userPriceCoeff: number
+    userPriceCoeff: BN
     questBalance: QuestBalance
 }
 

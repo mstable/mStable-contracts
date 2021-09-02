@@ -21,6 +21,7 @@ import { BN, simpleToExactAmount } from "@utils/math"
 import { expect } from "chai"
 import { getTimestamp, increaseTime } from "@utils/time"
 import { assertBNClose } from "@utils/assertions"
+import { formatBytes32String } from "ethers/lib/utils"
 
 export interface SnapData {
     periodFinish: number
@@ -78,7 +79,11 @@ describe("Staked Token MTA rewards", () => {
             ONE_WEEK,
             ONE_DAY.mul(2),
         )
-        data = stakedTokenImpl.interface.encodeFunctionData("initialize", ["Staked Rewards", "stkRWD", sa.mockRewardsDistributor.address])
+        data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
+            formatBytes32String("Staked Rewards"),
+            formatBytes32String("stkRWD"),
+            sa.mockRewardsDistributor.address,
+        ])
         const stakedTokenProxy = await new AssetProxy__factory(sa.default.signer).deploy(stakedTokenImpl.address, DEAD_ADDRESS, data)
         stakedToken = stakedTokenFactory.attach(stakedTokenProxy.address)
 
