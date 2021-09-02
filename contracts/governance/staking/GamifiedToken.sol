@@ -30,9 +30,9 @@ abstract contract GamifiedToken is
     HeadlessStakingRewards
 {
     /// @notice name of this token (ERC20)
-    string public override name;
+    bytes32 private _name;
     /// @notice symbol of this token (ERC20)
-    string public override symbol;
+    bytes32 private _symbol;
     /// @notice number of decimals of this token (ERC20)
     uint8 public constant override decimals = 18;
 
@@ -69,13 +69,13 @@ abstract contract GamifiedToken is
      * @param _rewardsDistributorArg mStable Rewards Distributor
      */
     function __GamifiedToken_init(
-        string memory _nameArg,
-        string memory _symbolArg,
+        bytes32 _nameArg,
+        bytes32 _symbolArg,
         address _rewardsDistributorArg
     ) internal initializer {
         __Context_init_unchained();
-        name = _nameArg;
-        symbol = _symbolArg;
+        _name = _nameArg;
+        _symbol = _symbolArg;
         HeadlessStakingRewards._initialize(_rewardsDistributorArg);
     }
 
@@ -90,6 +90,14 @@ abstract contract GamifiedToken is
     /***************************************
                     VIEWS
     ****************************************/
+
+    function name() public view override returns (string memory) {
+        return bytes32ToStr(_name);
+    }
+
+    function symbol() public view override returns (string memory) {
+        return bytes32ToStr(_symbol);
+    }
 
     /**
      * @dev Total sum of all scaled balances
@@ -526,6 +534,24 @@ abstract contract GamifiedToken is
         address _to,
         uint256 _amount
     ) internal virtual {}
+
+    /***************************************
+                    Utils
+    ****************************************/
+
+    /**
+     * @dev Util function to convert bytes32 to a string.
+     * The contract size is too big if name and symbol are strings
+     * so they are initialized as bytes32 and then converted for
+     * the `name` and `symbol` functions.
+     */
+    function bytes32ToStr(bytes32 _bytes32) internal pure returns (string memory) {
+        bytes memory bytesArray = new bytes(32);
+        for (uint256 i; i < 32; i++) {
+            bytesArray[i] = _bytes32[i];
+        }
+        return string(bytesArray);
+    }
 
     uint256[45] private __gap;
 }

@@ -35,8 +35,8 @@ contract MockStakedTokenWithPrice is StakedToken {
     {}
 
     function initialize(
-        string memory _nameArg,
-        string memory _symbolArg,
+        bytes32 _nameArg,
+        bytes32 _symbolArg,
         address _rewardsDistributorArg
     ) external initializer {
         __StakedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg);

@@ -89,8 +89,8 @@ contract StakedTokenBPT is StakedToken {
      * @param _balRecipient contract that can redistribute the $BAL
      */
     function initialize(
-        string memory _nameArg,
-        string memory _symbolArg,
+        bytes32 _nameArg,
+        bytes32 _symbolArg,
         address _rewardsDistributorArg,
         address _balRecipient
     ) external initializer {
