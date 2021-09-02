@@ -144,9 +144,10 @@ task("LegacyVault.deploy", "Deploys a vault contract")
             )
             const priceCoeff = vault.priceCoeff ? vault.priceCoeff : simpleToExactAmount(1)
             let vaultImpl: Contract
+            let constructorArguments: any[]
             if (vault.platformToken) {
                 const platformTokenAddress = resolveAddress(vault.platformToken, chain)
-                vaultImpl = await vaultFactory.deploy(
+                constructorArguments = [
                     nexusAddress,
                     stakingTokenAddress,
                     boostDirectorAddress,
@@ -154,23 +155,18 @@ task("LegacyVault.deploy", "Deploys a vault contract")
                     boostCoeff,
                     rewardTokenAddress,
                     platformTokenAddress,
-                )
+                ]
+                vaultImpl = await vaultFactory.deploy(...constructorArguments)
             } else {
-                vaultImpl = await vaultFactory.deploy(
-                    nexusAddress,
-                    stakingTokenAddress,
-                    boostDirectorAddress,
-                    priceCoeff,
-                    boostCoeff,
-                    rewardTokenAddress,
-                )
+                constructorArguments = [nexusAddress, stakingTokenAddress, boostDirectorAddress, priceCoeff, boostCoeff, rewardTokenAddress]
+                vaultImpl = await vaultFactory.deploy(...constructorArguments)
             }
 
             if (hre.network.name === "hardhat") {
                 const proxyAdmin = DelayedProxyAdmin__factory.connect(delayedProxyAdminAddress, governor)
-                // the contracts have already been initialised so don't need to call it again
+                // the contracts have already been initialized so don't need to call it again
                 const tx = await proxyAdmin.proposeUpgrade(vaultProxyAddress, vaultImpl.address, "0x")
-                await logTxDetails(tx, "proposeUpgrade")
+                await logTxDetails(tx, `${vault.underlyingTokenSymbol} proposeUpgrade`)
                 // increaseTime fails with "You probably tried to import the "hardhat" module from your config or a file imported from it."
                 // await increaseTime(ONE_WEEK)
 
@@ -179,10 +175,14 @@ task("LegacyVault.deploy", "Deploys a vault contract")
                 await hre.ethers.provider.send("evm_mine", [])
 
                 const tx2 = await proxyAdmin.acceptUpgradeRequest(vaultProxyAddress)
-                await logTxDetails(tx2, "acceptUpgradeRequest")
+                await logTxDetails(tx2, `${vault.underlyingTokenSymbol} acceptUpgradeRequest`)
             } else {
+                await hre.run("verify:verify", {
+                    address: vaultImpl.address,
+                    constructorArguments,
+                })
                 console.log(`Delayed Proxy Admin contract ${delayedProxyAdminAddress}`)
-                console.log(`proposeUpgrade tx args: proxy ${vaultProxyAddress}, impl ${vaultImpl.address}`)
+                console.log(`${vault.underlyingTokenSymbol} proposeUpgrade tx args: proxy ${vaultProxyAddress}, impl ${vaultImpl.address}`)
             }
         }
 
@@ -212,6 +212,8 @@ const vaultVerification = async (hre, signer: Signer, chain: Chain) => {
             signer,
         )
         const proxy = await vaultFactory.attach(vaultProxyAddress)
+
+        console.log(`About to verify the ${vault.underlyingTokenSymbol} vault`)
 
         expect(await proxy.name(), `${vault.underlyingTokenSymbol} vault name`).to.eq(vault.name)
         expect(await proxy.symbol(), `${vault.underlyingTokenSymbol} symbol name`).to.eq(vault.symbol)

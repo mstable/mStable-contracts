@@ -372,6 +372,22 @@ export const cyMUSD: Token = {
     quantityFormatter: "USD",
 }
 
+export const BAL: Token = {
+    symbol: "BAL",
+    address: "0xba100000625a3754423978a60c9317c58a424e3d",
+    chain: Chain.mainnet,
+    decimals: 18,
+    quantityFormatter: "USD",
+}
+
+export const RBAL: Token = {
+    symbol: "RBAL",
+    address: "0x0Aa94D9Db9dA74Bb86A437E28EE4ecf22365843E",
+    chain: Chain.ropsten,
+    decimals: 18,
+    quantityFormatter: "USD",
+}
+
 export const tokens = [
     MTA,
     PMTA,
@@ -398,4 +414,6 @@ export const tokens = [
     PDAI,
     PWMATIC,
     RmUSD,
+    BAL,
+    RBAL,
 ]

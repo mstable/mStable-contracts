@@ -31,6 +31,8 @@ export const contractNames = [
     "StakedTokenMTA",
     "StakedTokenBPT",
     "PlatformTokenVendorFactory",
+    "BalancerVault",
+    "BalancerRecipient",
     "AaveIncentivesController",
     "AaveLendingPoolAddressProvider",
     "AlchemixStakingPool",
@@ -99,6 +101,14 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x7C1fD068CE739A4687BEe9F69e5FD2275C7372d4"
             case "FeederInterestValidator":
                 return "0xf1049aeD858C4eAd6df1de4dbE63EF607CfF3262"
+            case "QuestMaster":
+                return "0x3dd46846eed8D147841AE162C8425c08BD8E1b41"
+            case "QuestSigner":
+                return "0xfe99964d9677d7dfb66c5ca609b64f710d2808b8"
+            case "BalancerVault":
+                return "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
+            case "BalancerRecipient":
+                return DEAD_ADDRESS
             case "BasketManager":
                 return "0x66126B4aA2a1C07536Ef8E5e8bD4EfDA1FdEA96D"
             case "AaveIncentivesController":
@@ -187,16 +197,22 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xeD04Cd19f50F893792357eA53A549E23Baf3F6cB"
             case "DelayedProxyAdmin":
                 return "0x2d369F83E9DC764a759a74e87a9Bc542a2BbfdF0"
+            case "BoostDirector":
+                return "0x8D084F66e8594C91461E4E0B85433feFf1CA8AA9"
             case "SignatureVerifier":
-                return "0x9004C92712CDb4809BCe1f82bC5AF4C06C965666"
+                return "0x3Bf48139e7C714ADA37C97Cd29e0F04D9673494a"
             case "QuestManager":
-                return "0x7afCFB9e83C72Aa6AC31C13b91aFB54b63e19D32"
+                return "0x3e8aa84E846EEb89392E99d44cD51acA668ae7BA"
             case "StakedTokenMTA":
-                return "0xb69CBb4DC3b3bE4db5F15B8813bD6a6cA03C726e"
-            case "StakedTokenBPT":
-                return "0x4A869C278b7f397734F0dAFd4E5EEE1A1543Cb80"
+                return "0xf98c297368c3e341f7f6dC9eCE8D3A33CBE62B6A"
+            // case "StakedTokenBPT":
+            //     return "0x4A869C278b7f397734F0dAFd4E5EEE1A1543Cb80"
             case "PlatformTokenVendorFactory":
-                return "0x4E4075f4c51a5d35Bfa8cfC8eFf9eF7Ef197782B"
+                return "0x91fdDea51aD5A4e050c2A34e209284344206aF8e"
+            case "BalancerVault":
+                return DEAD_ADDRESS
+            case "BalancerRecipient":
+                return DEAD_ADDRESS
             case "QuestMaster":
                 return "0x04617083205b2fdd18b15bcf60d06674c6e2c1dc"
             case "QuestSigner":
