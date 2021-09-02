@@ -3,6 +3,7 @@ import "tsconfig-paths/register"
 import { task, types } from "hardhat/config"
 import { ONE_WEEK } from "@utils/constants"
 
+import { Contract } from "@ethersproject/contracts"
 import { formatBytes32String } from "ethers/lib/utils"
 import { params } from "./taskUtils"
 import {
@@ -168,10 +169,11 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
         const stakedTokenLibraryAddresses = {
             "contracts/rewards/staking/PlatformTokenVendorFactory.sol:PlatformTokenVendorFactory": platformTokenVendorFactoryAddress,
         }
-        let stakedTokenImpl
+        let constructorArguments: any[]
+        let stakedTokenImpl: Contract
         let data: string
         if (stakedTokenAddress === rewardsTokenAddress) {
-            const constructorArguments = [
+            constructorArguments = [
                 nexusAddress,
                 rewardsTokenAddress,
                 questManagerAddress,
@@ -185,15 +187,11 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
                 "StakedTokenMTA",
                 constructorArguments,
             )
-            data = stakedTokenImpl.interface.encodeFunctionData("initialize", [taskArgs.name, taskArgs.symbol, rewardsDistributorAddress])
-
-            await verifyEtherscan(hre, {
-                address: stakedTokenImpl.address,
-                constructorArguments,
-                libraries: {
-                    PlatformTokenVendorFactory: platformTokenVendorFactoryAddress,
-                },
-            })
+            data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
+                formatBytes32String(taskArgs.name),
+                formatBytes32String(taskArgs.symbol),
+                rewardsDistributorAddress,
+            ])
         } else {
             const balPoolIdStr = taskArgs.balPoolId || "1"
             const balPoolId = formatBytes32String(balPoolIdStr)
@@ -201,7 +199,7 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
             const balancerVaultAddress = resolveAddress("BalancerVault", chain)
             const balancerRecipientAddress = resolveAddress("BalancerRecipient", chain)
 
-            const constructorArguments = [
+            constructorArguments = [
                 nexusAddress,
                 rewardsTokenAddress,
                 questManagerAddress,
@@ -219,21 +217,22 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
                 "StakedTokenBPT",
                 constructorArguments,
             )
+
             data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
-                taskArgs.name,
-                taskArgs.symbol,
+                formatBytes32String(taskArgs.name),
+                formatBytes32String(taskArgs.symbol),
                 rewardsDistributorAddress,
                 balancerRecipientAddress,
             ])
-
-            await verifyEtherscan(hre, {
-                address: stakedTokenImpl.address,
-                constructorArguments,
-                libraries: {
-                    PlatformTokenVendorFactory: platformTokenVendorFactoryAddress,
-                },
-            })
         }
+
+        await verifyEtherscan(hre, {
+            address: stakedTokenImpl.address,
+            constructorArguments,
+            libraries: {
+                PlatformTokenVendorFactory: platformTokenVendorFactoryAddress,
+            },
+        })
 
         const proxy = await deployContract(new AssetProxy__factory(deployer.signer), "AssetProxy", [
             stakedTokenImpl.address,
