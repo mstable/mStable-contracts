@@ -39,7 +39,7 @@ abstract contract GamifiedToken is
     /// @notice User balance structs containing all data needed to scale balance
     mapping(address => Balance) internal _balances;
     /// @notice Most recent price coefficients per user
-    mapping(address => uint16) internal _userPriceCoeff;
+    mapping(address => uint256) internal _userPriceCoeff;
     /// @notice Quest Manager
     QuestManager public immutable questManager;
     /// @notice Has variable price
@@ -154,7 +154,7 @@ abstract contract GamifiedToken is
     /**
      * @notice Raw staked balance without any multipliers
      */
-    function userPriceCoeff(address _account) external view returns (uint16) {
+    function userPriceCoeff(address _account) external view returns (uint256) {
         return _userPriceCoeff[_account];
     }
 
@@ -221,7 +221,7 @@ abstract contract GamifiedToken is
         }
     }
 
-    function _getPriceCoeff() internal virtual returns (uint16) {
+    function _getPriceCoeff() internal virtual returns (uint256) {
         return 10000;
     }
 
@@ -447,7 +447,7 @@ abstract contract GamifiedToken is
         // Take the opportunity to check for season finish
         _balances[_account].questMultiplier = questManager.checkForSeasonFinish(_account);
         if (hasPriceCoeff) {
-            _userPriceCoeff[_account] = _getPriceCoeff();
+            _userPriceCoeff[_account] = SafeCastExtended.toUint16(_getPriceCoeff());
         }
     }
 
@@ -511,7 +511,7 @@ abstract contract GamifiedToken is
             uint256 oldScaledBalance = _getBalance(_account, _balances[_account]);
             _balances[_account].questMultiplier = newMultiplier;
             if (priceCoeffChanged) {
-                _userPriceCoeff[_account] = _getPriceCoeff();
+                _userPriceCoeff[_account] = SafeCastExtended.toUint16(_getPriceCoeff());
             }
             // 3. Update scaled balance
             _settleScaledBalance(_account, oldScaledBalance);
