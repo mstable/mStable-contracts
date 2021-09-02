@@ -25,7 +25,7 @@ contract StakedTokenBPT is StakedToken {
     /// @notice Balancer poolId
     bytes32 public immutable poolId;
 
-    /// @notice Core token that is staked and tracked (e.g. MTA)
+    /// @notice contract that can redistribute the $BAL
     address public balRecipient;
 
     /// @notice Keeper
@@ -87,15 +87,16 @@ contract StakedTokenBPT is StakedToken {
      * @param _nameArg Token name
      * @param _symbolArg Token symbol
      * @param _rewardsDistributorArg mStable Rewards Distributor
+     * @param _balRecipient contract that can redistribute the $BAL
      */
     function initialize(
         string memory _nameArg,
         string memory _symbolArg,
         address _rewardsDistributorArg,
-        address[1] memory _bal
+        address _balRecipient
     ) internal initializer {
         __StakedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg);
-        balRecipient = _bal[0];
+        balRecipient = _balRecipient;
         priceCoefficient = 10000;
     }
 

@@ -38,7 +38,7 @@ const signQuestUsers = async (questId: BigNumberish, users: string[], questSigne
     return signature
 }
 
-describe("Staked Token", () => {
+describe("Staked Token BPT", () => {
     let sa: StandardAccounts
     let deployTime: BN
 

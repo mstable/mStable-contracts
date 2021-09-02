@@ -1,7 +1,7 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
 import { task, types } from "hardhat/config"
-import { DEAD_ADDRESS, ONE_DAY, ONE_WEEK } from "@utils/constants"
+import { ONE_WEEK } from "@utils/constants"
 
 import { formatBytes32String } from "ethers/lib/utils"
 import { params } from "./taskUtils"
@@ -20,6 +20,7 @@ import { getChain, getChainAddress, resolveAddress, resolveToken } from "./utils
 import { getSignerAccount, getSigner } from "./utils/signerFactory"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { deployVault, VaultData } from "./utils/feederUtils"
+import { verifyEtherscan } from "./utils/etherscan"
 
 task("getBytecode-BoostedDualVault").setAction(async () => {
     const size = BoostedDualVault__factory.bytecode.length / 2 / 1000
@@ -88,7 +89,7 @@ task("Vault.deploy", "Deploys a vault contract")
 
 task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
     .addOptionalParam("rewardsToken", "Symbol of rewards token. eg MTA or RMTA for Ropsten", "MTA", types.string)
-    .addOptionalParam("stakedToken", "Symbol of staked token. eg MTA, BAL, RMTA", "MTA", types.string)
+    .addOptionalParam("stakedToken", "Symbol of staked token. eg MTA, BAL, RMTA, RBAL", "MTA", types.string)
     .addOptionalParam("balPoolId", "Balancer Pool Id", "0001", types.string)
     .addOptionalParam("questMaster", "Address of account that administrates quests", undefined, params.address)
     .addOptionalParam("questSigner", "Address of account that signs completed quests", undefined, params.address)
@@ -112,10 +113,9 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
             const signatureVerifier = await deployContract(new SignatureVerifier__factory(deployer.signer), "SignatureVerifier")
             signatureVerifierAddress = signatureVerifier.address
 
-            await hre.run("verify:verify", {
+            await verifyEtherscan(hre, {
                 address: signatureVerifierAddress,
-                contract: "SignatureVerifier",
-                constructorArguments: [],
+                contract: "contracts/governance/staking/deps/SignatureVerifier.sol:SignatureVerifier",
             })
         }
 
@@ -131,7 +131,7 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
             )
             const data = questManagerImpl.interface.encodeFunctionData("initialize", [questMasterAddress, questSignerAddress])
 
-            await hre.run("verify:verify", {
+            await verifyEtherscan(hre, {
                 address: questManagerImpl.address,
                 contract: "contracts/governance/staking/QuestManager.sol:QuestManager",
                 constructorArguments: [nexusAddress],
@@ -144,7 +144,7 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
             const questManagerProxy = await deployContract(new AssetProxy__factory(deployer.signer), "AssetProxy", constructorArguments)
             questManagerAddress = questManagerProxy.address
 
-            await hre.run("verify:verify", {
+            await verifyEtherscan(hre, {
                 address: questManagerAddress,
                 contract: "contracts/upgradability/Proxies.sol:AssetProxy",
                 constructorArguments,
@@ -159,7 +159,7 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
             )
             platformTokenVendorFactoryAddress = platformTokenVendorFactory.address
 
-            await hre.run("verify:verify", {
+            await verifyEtherscan(hre, {
                 address: platformTokenVendorFactoryAddress,
                 constructorArguments: [],
             })
@@ -169,6 +169,7 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
             "contracts/rewards/staking/PlatformTokenVendorFactory.sol:PlatformTokenVendorFactory": platformTokenVendorFactoryAddress,
         }
         let stakedTokenImpl
+        let data: string
         if (stakedTokenAddress === rewardsTokenAddress) {
             const constructorArguments = [
                 nexusAddress,
@@ -184,8 +185,9 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
                 "StakedTokenMTA",
                 constructorArguments,
             )
+            data = stakedTokenImpl.interface.encodeFunctionData("initialize", [taskArgs.name, taskArgs.symbol, rewardsDistributorAddress])
 
-            await hre.run("verify:verify", {
+            await verifyEtherscan(hre, {
                 address: stakedTokenImpl.address,
                 constructorArguments,
                 libraries: {
@@ -196,6 +198,9 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
             const balPoolIdStr = taskArgs.balPoolId || "1"
             const balPoolId = formatBytes32String(balPoolIdStr)
 
+            const balancerVaultAddress = resolveAddress("BalancerVault", chain)
+            const balancerRecipientAddress = resolveAddress("BalancerRecipient", chain)
+
             const constructorArguments = [
                 nexusAddress,
                 rewardsTokenAddress,
@@ -203,17 +208,25 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
                 stakedTokenAddress,
                 taskArgs.cooldown,
                 taskArgs.unstakeWindow,
-                [DEAD_ADDRESS, DEAD_ADDRESS, DEAD_ADDRESS],
+                [stakedTokenAddress, balancerVaultAddress],
                 balPoolId,
             ]
+
+            console.log(`Staked Token BPT contract size ${StakedTokenBPT__factory.bytecode.length / 2} bytes`)
 
             stakedTokenImpl = await deployContract(
                 new StakedTokenBPT__factory(stakedTokenLibraryAddresses, deployer.signer),
                 "StakedTokenBPT",
                 constructorArguments,
             )
+            data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
+                taskArgs.name,
+                taskArgs.symbol,
+                rewardsDistributorAddress,
+                balancerRecipientAddress,
+            ])
 
-            await hre.run("verify:verify", {
+            await verifyEtherscan(hre, {
                 address: stakedTokenImpl.address,
                 constructorArguments,
                 libraries: {
@@ -222,14 +235,13 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
             })
         }
 
-        const data = stakedTokenImpl.interface.encodeFunctionData("initialize", [taskArgs.name, taskArgs.symbol, rewardsDistributorAddress])
         const proxy = await deployContract(new AssetProxy__factory(deployer.signer), "AssetProxy", [
             stakedTokenImpl.address,
             deployer.address,
             data,
         ])
 
-        await hre.run("verify:verify", {
+        await verifyEtherscan(hre, {
             address: proxy.address,
             contract: "contracts/upgradability/Proxies.sol:AssetProxy",
             constructorArguments: [stakedTokenImpl.address, deployer.address, data],
