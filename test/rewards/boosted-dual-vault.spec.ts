@@ -582,7 +582,7 @@ describe("BoostedDualVault", async () => {
             it("should calculate boost for 10k imUSD stake and 250 vMTA", async () => {
                 const deposit = simpleToExactAmount(3333, 14)
                 const stake = simpleToExactAmount(250, 18)
-                const expectedBoost = simpleToExactAmount(9999, 14)
+                const expectedBoost = simpleToExactAmount(7483, 14)
 
                 await expectSuccessfulStake(deposit)
                 await stakingContract.setBalanceOf(sa.default.address, stake)
@@ -593,13 +593,13 @@ describe("BoostedDualVault", async () => {
                 assertBNClosePercent(boost(deposit, calcBoost(deposit, stake, priceCoeffOverride)), expectedBoost, "0.1")
 
                 const ratio = await boostedDualVault.getBoost(sa.default.address)
-                assertBNClosePercent(ratio, simpleToExactAmount(3))
+                assertBNClosePercent(ratio, simpleToExactAmount(2.2453))
             })
             // 10k imUSD = 1k $ = 0.33 imBTC
             it("should calculate boost for 10k imUSD stake and 50 vMTA", async () => {
                 const deposit = simpleToExactAmount(3333, 14)
                 const stake = simpleToExactAmount(50, 18)
-                const expectedBoost = simpleToExactAmount(4947, 14)
+                const expectedBoost = simpleToExactAmount(4110, 14)
 
                 await expectSuccessfulStake(deposit)
                 await stakingContract.setBalanceOf(sa.default.address, stake)
@@ -610,13 +610,13 @@ describe("BoostedDualVault", async () => {
                 assertBNClosePercent(boost(deposit, calcBoost(deposit, stake, priceCoeffOverride)), expectedBoost, "0.1")
 
                 const ratio = await boostedDualVault.getBoost(sa.default.address)
-                assertBNClosePercent(ratio, simpleToExactAmount(1.484, 18), "0.1")
+                assertBNClosePercent(ratio, simpleToExactAmount(1.2331, 18), "0.1")
             })
             // 100k imUSD = 10k $ = 3.33 imBTC
             it("should calculate boost for 100k imUSD stake and 500 vMTA", async () => {
                 const deposit = simpleToExactAmount(3333, 15)
                 const stake = simpleToExactAmount(500, 18)
-                const expectedBoost = simpleToExactAmount("5539.9446", 15)
+                const expectedBoost = simpleToExactAmount("4766.19", 15)
 
                 await expectSuccessfulStake(deposit)
                 await stakingContract.setBalanceOf(sa.default.address, stake)
@@ -627,7 +627,7 @@ describe("BoostedDualVault", async () => {
                 assertBNClosePercent(boost(deposit, calcBoost(deposit, stake, priceCoeffOverride)), expectedBoost, "0.1")
 
                 const ratio = await boostedDualVault.getBoost(sa.default.address)
-                assertBNClosePercent(ratio, simpleToExactAmount(1.662, 18), "0.1")
+                assertBNClosePercent(ratio, simpleToExactAmount(1.43, 18), "0.1")
             })
         })
 
@@ -639,7 +639,7 @@ describe("BoostedDualVault", async () => {
                 it("should calculate boost for 10k imUSD stake and 250 vMTA", async () => {
                     const deposit = simpleToExactAmount(10000)
                     const stake = simpleToExactAmount(250, 18)
-                    const expectedBoost = simpleToExactAmount(30000)
+                    const expectedBoost = simpleToExactAmount(22453)
 
                     await expectSuccessfulStake(deposit)
                     await stakingContract.setBalanceOf(sa.default.address, stake)
@@ -649,12 +649,12 @@ describe("BoostedDualVault", async () => {
                     assertBNClosePercent(balance, expectedBoost)
                     assertBNClosePercent(boost(deposit, calcBoost(deposit, stake)), expectedBoost, 0.1)
                     const ratio = await boostedDualVault.getBoost(sa.default.address)
-                    assertBNClosePercent(ratio, simpleToExactAmount(3))
+                    assertBNClosePercent(ratio, simpleToExactAmount(2.2453))
                 })
                 it("should calculate boost for 10k imUSD stake and 50 vMTA", async () => {
                     const deposit = simpleToExactAmount(10000, 18)
                     const stake = simpleToExactAmount(50, 18)
-                    const expectedBoost = simpleToExactAmount(14840, 18)
+                    const expectedBoost = simpleToExactAmount(12331, 18)
 
                     await expectSuccessfulStake(deposit)
                     await stakingContract.setBalanceOf(sa.default.address, stake)
@@ -664,12 +664,12 @@ describe("BoostedDualVault", async () => {
                     assertBNClosePercent(balance, expectedBoost, "1")
                     assertBNClosePercent(boost(deposit, calcBoost(deposit, stake)), expectedBoost, "0.1")
                     const ratio = await boostedDualVault.getBoost(sa.default.address)
-                    assertBNClosePercent(ratio, simpleToExactAmount(1.484, 18), "0.1")
+                    assertBNClosePercent(ratio, simpleToExactAmount(1.2331, 18), "0.1")
                 })
                 it("should calculate boost for 100k imUSD stake and 500 vMTA", async () => {
                     const deposit = simpleToExactAmount(100000, 18)
                     const stake = simpleToExactAmount(500, 18)
-                    const expectedBoost = simpleToExactAmount(166200, 18)
+                    const expectedBoost = simpleToExactAmount(143000, 18)
 
                     await expectSuccessfulStake(deposit)
                     await stakingContract.setBalanceOf(sa.default.address, stake)
@@ -680,7 +680,7 @@ describe("BoostedDualVault", async () => {
                     assertBNClosePercent(boost(deposit, calcBoost(deposit, stake)), expectedBoost, "0.1")
 
                     const ratio = await boostedDualVault.getBoost(sa.default.address)
-                    assertBNClosePercent(ratio, simpleToExactAmount(1.662, 18), "0.1")
+                    assertBNClosePercent(ratio, simpleToExactAmount(1.43, 18), "0.1")
                 })
             })
             describe("when saving with low staking balance and high vMTA", () => {

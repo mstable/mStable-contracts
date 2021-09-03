@@ -29,7 +29,7 @@ interface VaultData {
     userBal: UserBalance
 }
 
-const boostCoeff = 48
+const boostCoeff = 9
 const btcPriceCoeff = simpleToExactAmount(48000)
 const vaults: VaultData[] = [
     {

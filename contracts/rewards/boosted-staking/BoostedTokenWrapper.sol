@@ -182,10 +182,9 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
         if (_votingWeight == 0) return MIN_BOOST;
 
         // Compute balance to the power 3/4
-        uint256 sqrt1 = Root.sqrt(_scaledDeposit);
+        uint256 sqrt1 = Root.sqrt(_scaledDeposit * 1e6);
         uint256 sqrt2 = Root.sqrt(sqrt1);
         uint256 denominator = sqrt1 * sqrt2;
-
         boost =
             (((StableMath.min(_votingWeight, MAX_VMTA) * boostCoeff) / 10) * 1e18) /
             denominator;
