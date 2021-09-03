@@ -5,6 +5,7 @@ import "@typechain/hardhat"
 import "hardhat-gas-reporter"
 import "solidity-coverage"
 import "hardhat-abi-exporter"
+import "@nomiclabs/hardhat-etherscan"
 
 import "ts-node/register"
 import "tsconfig-paths/register"
@@ -42,7 +43,37 @@ export const hardhatConfig = {
         },
     },
     solidity: {
-        version: "0.8.6",
+        // version: "0.8.6",
+        compilers: [
+            {
+                version: "0.8.6",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 200,
+                    },
+                },
+            },
+            {
+                version: "0.8.2",
+                files: "contracts/legacy/v-imBTC.sol",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 200,
+                    },
+                },
+            },
+            {
+                version: "0.5.16",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 200,
+                    },
+                },
+            },
+        ],
         settings: {
             optimizer: {
                 enabled: true,
@@ -76,6 +107,9 @@ export const hardhatConfig = {
     tenderly: {
         username: "alsco77",
         project: "mStable",
+    },
+    etherscan: {
+        apiKey: process.env.ETHERSCAN_KEY,
     },
 }
 

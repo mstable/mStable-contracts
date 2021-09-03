@@ -30,16 +30,16 @@ abstract contract GamifiedToken is
     HeadlessStakingRewards
 {
     /// @notice name of this token (ERC20)
-    string public override name;
+    bytes32 private _name;
     /// @notice symbol of this token (ERC20)
-    string public override symbol;
+    bytes32 private _symbol;
     /// @notice number of decimals of this token (ERC20)
     uint8 public constant override decimals = 18;
 
     /// @notice User balance structs containing all data needed to scale balance
     mapping(address => Balance) internal _balances;
     /// @notice Most recent price coefficients per user
-    mapping(address => uint16) internal _userPriceCoeff;
+    mapping(address => uint256) internal _userPriceCoeff;
     /// @notice Quest Manager
     QuestManager public immutable questManager;
     /// @notice Has variable price
@@ -69,13 +69,13 @@ abstract contract GamifiedToken is
      * @param _rewardsDistributorArg mStable Rewards Distributor
      */
     function __GamifiedToken_init(
-        string memory _nameArg,
-        string memory _symbolArg,
+        bytes32 _nameArg,
+        bytes32 _symbolArg,
         address _rewardsDistributorArg
     ) internal initializer {
         __Context_init_unchained();
-        name = _nameArg;
-        symbol = _symbolArg;
+        _name = _nameArg;
+        _symbol = _symbolArg;
         HeadlessStakingRewards._initialize(_rewardsDistributorArg);
     }
 
@@ -90,6 +90,14 @@ abstract contract GamifiedToken is
     /***************************************
                     VIEWS
     ****************************************/
+
+    function name() public view override returns (string memory) {
+        return bytes32ToString(_name);
+    }
+
+    function symbol() public view override returns (string memory) {
+        return bytes32ToString(_symbol);
+    }
 
     /**
      * @dev Total sum of all scaled balances
@@ -154,7 +162,7 @@ abstract contract GamifiedToken is
     /**
      * @notice Raw staked balance without any multipliers
      */
-    function userPriceCoeff(address _account) external view returns (uint16) {
+    function userPriceCoeff(address _account) external view returns (uint256) {
         return _userPriceCoeff[_account];
     }
 
@@ -221,7 +229,7 @@ abstract contract GamifiedToken is
         }
     }
 
-    function _getPriceCoeff() internal virtual returns (uint16) {
+    function _getPriceCoeff() internal virtual returns (uint256) {
         return 10000;
     }
 
@@ -447,7 +455,7 @@ abstract contract GamifiedToken is
         // Take the opportunity to check for season finish
         _balances[_account].questMultiplier = questManager.checkForSeasonFinish(_account);
         if (hasPriceCoeff) {
-            _userPriceCoeff[_account] = _getPriceCoeff();
+            _userPriceCoeff[_account] = SafeCastExtended.toUint16(_getPriceCoeff());
         }
     }
 
@@ -511,7 +519,7 @@ abstract contract GamifiedToken is
             uint256 oldScaledBalance = _getBalance(_account, _balances[_account]);
             _balances[_account].questMultiplier = newMultiplier;
             if (priceCoeffChanged) {
-                _userPriceCoeff[_account] = _getPriceCoeff();
+                _userPriceCoeff[_account] = SafeCastExtended.toUint16(_getPriceCoeff());
             }
             // 3. Update scaled balance
             _settleScaledBalance(_account, oldScaledBalance);
@@ -526,6 +534,22 @@ abstract contract GamifiedToken is
         address _to,
         uint256 _amount
     ) internal virtual {}
+
+    /***************************************
+                    Utils
+    ****************************************/
+
+    function bytes32ToString(bytes32 _bytes32) internal pure returns (string memory) {
+        uint256 i = 0;
+        while(i < 32 && _bytes32[i] != 0) {
+            i++;
+        }
+        bytes memory bytesArray = new bytes(i);
+        for (i = 0; i < 32 && _bytes32[i] != 0; i++) {
+            bytesArray[i] = _bytes32[i];
+        }
+        return string(bytesArray);
+    }
 
     uint256[45] private __gap;
 }

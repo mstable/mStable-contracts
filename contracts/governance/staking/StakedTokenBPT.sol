@@ -3,7 +3,6 @@ pragma solidity 0.8.6;
 pragma abicoder v2;
 
 import { StakedToken } from "./StakedToken.sol";
-import { SafeCastExtended } from "../../shared/SafeCastExtended.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IBVault, ExitPoolRequest } from "./interfaces/IBVault.sol";
@@ -25,7 +24,7 @@ contract StakedTokenBPT is StakedToken {
     /// @notice Balancer poolId
     bytes32 public immutable poolId;
 
-    /// @notice Core token that is staked and tracked (e.g. MTA)
+    /// @notice contract that can redistribute the $BAL
     address public balRecipient;
 
     /// @notice Keeper
@@ -35,15 +34,15 @@ contract StakedTokenBPT is StakedToken {
     uint256 public pendingBPTFees;
 
     /// @notice Most recent PriceCoefficient
-    uint16 public priceCoefficient;
+    uint256 public priceCoefficient;
 
     /// @notice Time of last priceCoefficient upgrade
-    uint32 public lastPriceUpdateTime;
+    uint256 public lastPriceUpdateTime;
 
     event KeeperUpdated(address newKeeper);
     event BalClaimed();
     event BalRecipientChanged(address newRecipient);
-    event PriceCoefficientUpdated(uint16 newPriceCoeff);
+    event PriceCoefficientUpdated(uint256 newPriceCoeff);
 
     /***************************************
                     INIT
@@ -87,15 +86,16 @@ contract StakedTokenBPT is StakedToken {
      * @param _nameArg Token name
      * @param _symbolArg Token symbol
      * @param _rewardsDistributorArg mStable Rewards Distributor
+     * @param _balRecipient contract that can redistribute the $BAL
      */
     function initialize(
-        string memory _nameArg,
-        string memory _symbolArg,
+        bytes32 _nameArg,
+        bytes32 _symbolArg,
         address _rewardsDistributorArg,
-        address[1] memory _bal
-    ) internal initializer {
+        address _balRecipient
+    ) external initializer {
         __StakedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg);
-        balRecipient = _bal[0];
+        balRecipient = _balRecipient;
         priceCoefficient = 10000;
     }
 
@@ -182,7 +182,7 @@ contract StakedTokenBPT is StakedToken {
      * @param _additionalReward Units of additional RewardToken to add at the next notification
      */
     function _notifyAdditionalReward(uint256 _additionalReward) internal override {
-        require(_additionalReward < 1e24, "Cannot notify with more than a million units");
+        require(_additionalReward < 1e24, "more than a million units");
 
         pendingBPTFees += _additionalReward;
     }
@@ -210,7 +210,7 @@ contract StakedTokenBPT is StakedToken {
     function fetchPriceCoefficient() external governorOrKeeper {
         require(
             block.timestamp > lastPriceUpdateTime + 14 days,
-            "Maximum one update per 14 days allowed"
+            "Max 1 update per 14 days"
         );
 
         (address[] memory tokens, uint256[] memory balances, ) = balancerVault.getPoolTokens(
@@ -224,9 +224,9 @@ contract StakedTokenBPT is StakedToken {
         uint256 unitsPerToken = (balances[0] * 125e16) / STAKED_TOKEN.totalSupply();
         // e.g. 1e18 / 1e14 = 10000
         // e.g. 16e17 / 1e14 = 16000
-        uint16 newPriceCoeff = SafeCastExtended.toUint16(unitsPerToken / 1e14);
-        uint16 oldPriceCoeff = priceCoefficient;
-        uint16 diff = newPriceCoeff > oldPriceCoeff
+        uint256 newPriceCoeff = unitsPerToken / 1e14;
+        uint256 oldPriceCoeff = priceCoefficient;
+        uint256 diff = newPriceCoeff > oldPriceCoeff
             ? newPriceCoeff - oldPriceCoeff
             : oldPriceCoeff - newPriceCoeff;
 
@@ -234,7 +234,7 @@ contract StakedTokenBPT is StakedToken {
         require(newPriceCoeff > 4000 && newPriceCoeff < 22000, "Out of bounds");
 
         priceCoefficient = newPriceCoeff;
-        lastPriceUpdateTime = SafeCastExtended.toUint32(block.timestamp);
+        lastPriceUpdateTime = block.timestamp;
 
         emit PriceCoefficientUpdated(newPriceCoeff);
     }
@@ -242,7 +242,7 @@ contract StakedTokenBPT is StakedToken {
     /**
      * @dev Get the current priceCoeff
      */
-    function _getPriceCoeff() internal view override returns (uint16) {
+    function _getPriceCoeff() internal view override returns (uint256) {
         return priceCoefficient;
     }
 }

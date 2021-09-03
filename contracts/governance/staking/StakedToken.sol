@@ -91,8 +91,8 @@ contract StakedToken is GamifiedVotingToken {
      * @param _rewardsDistributorArg mStable Rewards Distributor
      */
     function __StakedToken_init(
-        string memory _nameArg,
-        string memory _symbolArg,
+        bytes32 _nameArg,
+        bytes32 _symbolArg,
         address _rewardsDistributorArg
     ) public initializer {
         __GamifiedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg);

@@ -11,7 +11,7 @@ import { StakedToken } from "../../governance/staking/StakedToken.sol";
  **/
 contract MockStakedTokenWithPrice is StakedToken {
     /// @notice Most recent PriceCoefficient
-    uint16 public priceCoefficient;
+    uint256 public priceCoefficient;
 
     event PriceCoefficientUpdated(uint16 newPriceCoeff);
 
@@ -35,8 +35,8 @@ contract MockStakedTokenWithPrice is StakedToken {
     {}
 
     function initialize(
-        string memory _nameArg,
-        string memory _symbolArg,
+        bytes32 _nameArg,
+        bytes32 _symbolArg,
         address _rewardsDistributorArg
     ) external initializer {
         __StakedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg);
@@ -55,7 +55,7 @@ contract MockStakedTokenWithPrice is StakedToken {
     /**
      * @dev Get the current priceCoeff
      */
-    function _getPriceCoeff() internal view override returns (uint16) {
+    function _getPriceCoeff() internal view override returns (uint256) {
         return priceCoefficient;
     }
 }

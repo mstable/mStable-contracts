@@ -4,7 +4,7 @@ import { BN } from "@utils/math"
 import { MassetMachine, MassetDetails } from "@utils/machines"
 import { ZERO_ADDRESS } from "@utils/constants"
 import { ERC20 } from "types/generated"
-import { Account, Address } from "types"
+import { Account, EthAddress } from "types"
 
 export interface IERC20BehaviourContext {
     token: ERC20
@@ -19,7 +19,7 @@ const shouldBehaveLikeERC20Transfer = (
     ctx: IERC20BehaviourContext,
     errorPrefix: string,
     balance: BN,
-    transfer: (token: ERC20, from: Account, to: Address, value: BN) => void,
+    transfer: (token: ERC20, from: Account, to: EthAddress, value: BN) => void,
 ): void => {
     describe("when the ctx.recipient is not the zero address", () => {
         describe("when the sender does not have enough balance", () => {
@@ -81,7 +81,7 @@ const shouldBehaveLikeERC20Approve = (
     ctx: IERC20BehaviourContext,
     errorPrefix: string,
     supply: BN,
-    approve: (owner: Account, spender: Address, amount: BN) => void,
+    approve: (owner: Account, spender: EthAddress, amount: BN) => void,
 ): void => {
     let owner: Account
     let spender: Account
@@ -187,7 +187,7 @@ export function shouldBehaveLikeERC20(ctx: IERC20BehaviourContext, errorPrefix: 
     })
 
     describe("transfer", () => {
-        shouldBehaveLikeERC20Transfer(ctx, errorPrefix, initialSupply, (token: ERC20, from: Account, to: Address, value: BN) =>
+        shouldBehaveLikeERC20Transfer(ctx, errorPrefix, initialSupply, (token: ERC20, from: Account, to: EthAddress, value: BN) =>
             token.connect(from.signer).transfer(to, value),
         )
     })
@@ -312,7 +312,7 @@ export function shouldBehaveLikeERC20(ctx: IERC20BehaviourContext, errorPrefix: 
     })
 
     describe("approve", () => {
-        shouldBehaveLikeERC20Approve(ctx, errorPrefix, initialSupply, (owner: Account, spender: Address, amount) =>
+        shouldBehaveLikeERC20Approve(ctx, errorPrefix, initialSupply, (owner: Account, spender: EthAddress, amount) =>
             ctx.token.connect(owner.signer).approve(spender, amount),
         )
     })
