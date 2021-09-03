@@ -1,6 +1,6 @@
 import { Signer } from "ethers"
 
-export type Address = string
+export type EthAddress = string
 export type Bytes32 = string
 
 export interface Account {

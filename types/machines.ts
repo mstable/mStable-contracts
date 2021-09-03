@@ -1,15 +1,15 @@
 import { BN } from "../test-utils/math"
-import { Address } from "./common"
+import { EthAddress } from "./common"
 import { Basset } from "../test-utils/mstable-objects"
 import { MockERC20 } from "./generated"
 
 export interface ATokenDetails {
-    bAsset: Address
-    aToken: Address
+    bAsset: EthAddress
+    aToken: EthAddress
 }
 export interface CTokenDetails {
-    bAsset: Address
-    cToken: Address
+    bAsset: EthAddress
+    cToken: EthAddress
 }
 
 export enum IntegrationPlatform {
@@ -22,13 +22,13 @@ export interface BassetIntegrationDetails {
     bAssets: Array<MockERC20>
     bAssetTxFees: boolean[]
     platforms?: Array<IntegrationPlatform>
-    aavePlatformAddress?: Address
+    aavePlatformAddress?: EthAddress
     aTokens?: Array<ATokenDetails>
     cTokens?: Array<CTokenDetails>
 }
 
 export interface BassetDetails extends Basset {
-    address: Address
+    address: EthAddress
     mAssetUnits: BN
     actualBalance: BN
     rawBalance?: BN

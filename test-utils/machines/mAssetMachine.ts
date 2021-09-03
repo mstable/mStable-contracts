@@ -26,7 +26,7 @@ import {
 import { BN, minimum, simpleToExactAmount } from "@utils/math"
 import { fullScale, ratioScale, ZERO_ADDRESS, DEAD_ADDRESS } from "@utils/constants"
 import { Basset } from "@utils/mstable-objects"
-import { Address } from "types/common"
+import { EthAddress } from "types/common"
 import { StandardAccounts } from "./standardAccounts"
 import { ActionDetails, ATokenDetails, BasketComposition, BassetIntegrationDetails } from "../../types/machines"
 
@@ -478,7 +478,7 @@ export class MassetMachine {
      * @returns
      */
     public async loadATokens(bAssets: MockERC20[]): Promise<{
-        aavePlatformAddress: Address
+        aavePlatformAddress: EthAddress
         aTokens?: Array<ATokenDetails>
     }> {
         //  - Mock Aave integration
