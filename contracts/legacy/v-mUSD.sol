@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.2;
 
-
 interface IERC20 {
     /**
      * @dev Returns the amount of tokens in existence.
@@ -56,7 +55,11 @@ interface IERC20 {
      *
      * Emits a {Transfer} event.
      */
-    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) external returns (bool);
 
     /**
      * @dev Emitted when `value` tokens are moved from one account (`from`) to
@@ -431,7 +434,9 @@ library Address {
 
         uint256 size;
         // solhint-disable-next-line no-inline-assembly
-        assembly { size := extcodesize(account) }
+        assembly {
+            size := extcodesize(account)
+        }
         return size > 0;
     }
 
@@ -478,7 +483,7 @@ library Address {
      * _Available since v3.1._
      */
     function functionCall(address target, bytes memory data) internal returns (bytes memory) {
-      return functionCall(target, data, "Address: low-level call failed");
+        return functionCall(target, data, "Address: low-level call failed");
     }
 
     /**
@@ -487,7 +492,11 @@ library Address {
      *
      * _Available since v3.1._
      */
-    function functionCall(address target, bytes memory data, string memory errorMessage) internal returns (bytes memory) {
+    function functionCall(
+        address target,
+        bytes memory data,
+        string memory errorMessage
+    ) internal returns (bytes memory) {
         return functionCallWithValue(target, data, 0, errorMessage);
     }
 
@@ -502,8 +511,13 @@ library Address {
      *
      * _Available since v3.1._
      */
-    function functionCallWithValue(address target, bytes memory data, uint256 value) internal returns (bytes memory) {
-        return functionCallWithValue(target, data, value, "Address: low-level call with value failed");
+    function functionCallWithValue(
+        address target,
+        bytes memory data,
+        uint256 value
+    ) internal returns (bytes memory) {
+        return
+            functionCallWithValue(target, data, value, "Address: low-level call with value failed");
     }
 
     /**
@@ -512,7 +526,12 @@ library Address {
      *
      * _Available since v3.1._
      */
-    function functionCallWithValue(address target, bytes memory data, uint256 value, string memory errorMessage) internal returns (bytes memory) {
+    function functionCallWithValue(
+        address target,
+        bytes memory data,
+        uint256 value,
+        string memory errorMessage
+    ) internal returns (bytes memory) {
         require(address(this).balance >= value, "Address: insufficient balance for call");
         require(isContract(target), "Address: call to non-contract");
 
@@ -527,7 +546,11 @@ library Address {
      *
      * _Available since v3.3._
      */
-    function functionStaticCall(address target, bytes memory data) internal view returns (bytes memory) {
+    function functionStaticCall(address target, bytes memory data)
+        internal
+        view
+        returns (bytes memory)
+    {
         return functionStaticCall(target, data, "Address: low-level static call failed");
     }
 
@@ -537,7 +560,11 @@ library Address {
      *
      * _Available since v3.3._
      */
-    function functionStaticCall(address target, bytes memory data, string memory errorMessage) internal view returns (bytes memory) {
+    function functionStaticCall(
+        address target,
+        bytes memory data,
+        string memory errorMessage
+    ) internal view returns (bytes memory) {
         require(isContract(target), "Address: static call to non-contract");
 
         // solhint-disable-next-line avoid-low-level-calls
@@ -551,7 +578,10 @@ library Address {
      *
      * _Available since v3.4._
      */
-    function functionDelegateCall(address target, bytes memory data) internal returns (bytes memory) {
+    function functionDelegateCall(address target, bytes memory data)
+        internal
+        returns (bytes memory)
+    {
         return functionDelegateCall(target, data, "Address: low-level delegate call failed");
     }
 
@@ -561,7 +591,11 @@ library Address {
      *
      * _Available since v3.4._
      */
-    function functionDelegateCall(address target, bytes memory data, string memory errorMessage) internal returns (bytes memory) {
+    function functionDelegateCall(
+        address target,
+        bytes memory data,
+        string memory errorMessage
+    ) internal returns (bytes memory) {
         require(isContract(target), "Address: delegate call to non-contract");
 
         // solhint-disable-next-line avoid-low-level-calls
@@ -569,7 +603,11 @@ library Address {
         return _verifyCallResult(success, returndata, errorMessage);
     }
 
-    function _verifyCallResult(bool success, bytes memory returndata, string memory errorMessage) private pure returns(bytes memory) {
+    function _verifyCallResult(
+        bool success,
+        bytes memory returndata,
+        string memory errorMessage
+    ) private pure returns (bytes memory) {
         if (success) {
             return returndata;
         } else {
@@ -592,12 +630,24 @@ library Address {
 library SafeERC20 {
     using Address for address;
 
-    function safeTransfer(IERC20 token, address to, uint256 value) internal {
+    function safeTransfer(
+        IERC20 token,
+        address to,
+        uint256 value
+    ) internal {
         _callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
     }
 
-    function safeTransferFrom(IERC20 token, address from, address to, uint256 value) internal {
-        _callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));
+    function safeTransferFrom(
+        IERC20 token,
+        address from,
+        address to,
+        uint256 value
+    ) internal {
+        _callOptionalReturn(
+            token,
+            abi.encodeWithSelector(token.transferFrom.selector, from, to, value)
+        );
     }
 
     /**
@@ -607,28 +657,47 @@ library SafeERC20 {
      * Whenever possible, use {safeIncreaseAllowance} and
      * {safeDecreaseAllowance} instead.
      */
-    function safeApprove(IERC20 token, address spender, uint256 value) internal {
+    function safeApprove(
+        IERC20 token,
+        address spender,
+        uint256 value
+    ) internal {
         // safeApprove should only be called when setting an initial allowance,
         // or when resetting it to zero. To increase and decrease it, use
         // 'safeIncreaseAllowance' and 'safeDecreaseAllowance'
         // solhint-disable-next-line max-line-length
-        require((value == 0) || (token.allowance(address(this), spender) == 0),
+        require(
+            (value == 0) || (token.allowance(address(this), spender) == 0),
             "SafeERC20: approve from non-zero to non-zero allowance"
         );
         _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
     }
 
-    function safeIncreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+    function safeIncreaseAllowance(
+        IERC20 token,
+        address spender,
+        uint256 value
+    ) internal {
         uint256 newAllowance = token.allowance(address(this), spender) + value;
-        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+        _callOptionalReturn(
+            token,
+            abi.encodeWithSelector(token.approve.selector, spender, newAllowance)
+        );
     }
 
-    function safeDecreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+    function safeDecreaseAllowance(
+        IERC20 token,
+        address spender,
+        uint256 value
+    ) internal {
         unchecked {
             uint256 oldAllowance = token.allowance(address(this), spender);
             require(oldAllowance >= value, "SafeERC20: decreased allowance below zero");
             uint256 newAllowance = oldAllowance - value;
-            _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+            _callOptionalReturn(
+                token,
+                abi.encodeWithSelector(token.approve.selector, spender, newAllowance)
+            );
         }
     }
 
@@ -643,8 +712,12 @@ library SafeERC20 {
         // we're implementing it ourselves. We use {Address.functionCall} to perform this call, which verifies that
         // the target address contains contract code and also asserts for success in the low-level call.
 
-        bytes memory returndata = address(token).functionCall(data, "SafeERC20: low-level call failed");
-        if (returndata.length > 0) { // Return data is optional
+        bytes memory returndata = address(token).functionCall(
+            data,
+            "SafeERC20: low-level call failed"
+        );
+        if (returndata.length > 0) {
+            // Return data is optional
             // solhint-disable-next-line max-line-length
             require(abi.decode(returndata, (bool)), "SafeERC20: ERC20 operation did not succeed");
         }
@@ -943,10 +1016,10 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
 
     // Vars for use in the boost calculations
     uint256 private constant MIN_DEPOSIT = 1e18;
-    uint256 private constant MAX_VMTA = 400000e18;
+    uint256 private constant MAX_VMTA = 600000e18;
     uint256 private constant MAX_BOOST = 3e18;
     uint256 private constant MIN_BOOST = 1e18;
-    uint256 private constant FLOOR = 95e16;
+    uint256 private constant FLOOR = 98e16;
     uint256 public immutable boostCoeff; // scaled by 10
     uint256 public immutable priceCoeff;
 
@@ -1056,7 +1129,7 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
             _totalBoostedSupply = _totalBoostedSupply - boostedBalance + newBoostedBalance;
             _boostedBalances[_account] = newBoostedBalance;
 
-            if(newBoostedBalance > boostedBalance) {
+            if (newBoostedBalance > boostedBalance) {
                 emit Transfer(address(0), _account, newBoostedBalance - boostedBalance);
             } else {
                 emit Transfer(_account, address(0), boostedBalance - newBoostedBalance);
@@ -1066,7 +1139,7 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
 
     /**
      * @dev Computes the boost for
-     * boost = min(m, max(1, 0.95 + c * min(voting_weight, f) / deposit^(7/8)))
+     * boost = min(m, max(1, 0.95 + c * min(voting_weight, f) / deposit^(3/4)))
      * @param _scaledDeposit deposit amount in terms of USD
      */
     function _computeBoost(uint256 _scaledDeposit, uint256 _votingWeight)
@@ -1076,71 +1149,67 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
     {
         if (_votingWeight == 0) return MIN_BOOST;
 
-        // Compute balance to the power 7/8
-        // if price is     $0.10, do sqrt(_deposit * 1e5)
-        // if price is     $1.00, do sqrt(_deposit * 1e6)
-        // if price is $10000.00, do sqrt(_deposit * 1e9)
-        uint256 denominator = Root.sqrt(Root.sqrt(Root.sqrt(_scaledDeposit * 1e6)));
-        denominator =
-            denominator *
-            denominator *
-            denominator *
-            denominator *
-            denominator *
-            denominator *
+        // Compute balance to the power 3/4
+        uint256 sqrt1 = Root.sqrt(_scaledDeposit * 1e6);
+        uint256 sqrt2 = Root.sqrt(sqrt1);
+        uint256 denominator = sqrt1 * sqrt2;
+        boost =
+            (((StableMath.min(_votingWeight, MAX_VMTA) * boostCoeff) / 10) * 1e18) /
             denominator;
-        denominator /= 1e3;
-        boost = (((StableMath.min(_votingWeight, MAX_VMTA) * boostCoeff) / 10) * 1e18) / denominator;
         boost = StableMath.min(MAX_BOOST, StableMath.max(MIN_BOOST, FLOOR + boost));
     }
 }
 
 contract Initializable {
+    /**
+     * @dev Indicates that the contract has been initialized.
+     */
+    bool private initialized;
 
-  /**
-   * @dev Indicates that the contract has been initialized.
-   */
-  bool private initialized;
+    /**
+     * @dev Indicates that the contract is in the process of being initialized.
+     */
+    bool private initializing;
 
-  /**
-   * @dev Indicates that the contract is in the process of being initialized.
-   */
-  bool private initializing;
+    /**
+     * @dev Modifier to use in the initializer function of a contract.
+     */
+    modifier initializer() {
+        require(
+            initializing || isConstructor() || !initialized,
+            "Contract instance has already been initialized"
+        );
 
-  /**
-   * @dev Modifier to use in the initializer function of a contract.
-   */
-  modifier initializer() {
-    require(initializing || isConstructor() || !initialized, "Contract instance has already been initialized");
+        bool isTopLevelCall = !initializing;
+        if (isTopLevelCall) {
+            initializing = true;
+            initialized = true;
+        }
 
-    bool isTopLevelCall = !initializing;
-    if (isTopLevelCall) {
-      initializing = true;
-      initialized = true;
+        _;
+
+        if (isTopLevelCall) {
+            initializing = false;
+        }
     }
 
-    _;
-
-    if (isTopLevelCall) {
-      initializing = false;
+    /// @dev Returns true if and only if the function is running in the constructor
+    function isConstructor() private view returns (bool) {
+        // extcodesize checks the size of the code stored in an address, and
+        // address returns the current address. Since the code is still not
+        // deployed when running a constructor, any checks on its code size will
+        // yield zero, making it an effective way to detect if a contract is
+        // under construction or not.
+        address self = address(this);
+        uint256 cs;
+        assembly {
+            cs := extcodesize(self)
+        }
+        return cs == 0;
     }
-  }
 
-  /// @dev Returns true if and only if the function is running in the constructor
-  function isConstructor() private view returns (bool) {
-    // extcodesize checks the size of the code stored in an address, and
-    // address returns the current address. Since the code is still not
-    // deployed when running a constructor, any checks on its code size will
-    // yield zero, making it an effective way to detect if a contract is
-    // under construction or not.
-    address self = address(this);
-    uint256 cs;
-    assembly { cs := extcodesize(self) }
-    return cs == 0;
-  }
-
-  // Reserved storage space to allow for layout changes in the future.
-  uint256[50] private ______gap;
+    // Reserved storage space to allow for layout changes in the future.
+    uint256[50] private ______gap;
 }
 
 library SafeCast {
@@ -1155,7 +1224,7 @@ library SafeCast {
      * - input must fit into 128 bits
      */
     function toUint128(uint256 value) internal pure returns (uint128) {
-        require(value < 2**128, "SafeCast: value doesn\'t fit in 128 bits");
+        require(value < 2**128, "SafeCast: value doesn't fit in 128 bits");
         return uint128(value);
     }
 
@@ -1170,7 +1239,7 @@ library SafeCast {
      * - input must fit into 64 bits
      */
     function toUint64(uint256 value) internal pure returns (uint64) {
-        require(value < 2**64, "SafeCast: value doesn\'t fit in 64 bits");
+        require(value < 2**64, "SafeCast: value doesn't fit in 64 bits");
         return uint64(value);
     }
 
@@ -1185,7 +1254,7 @@ library SafeCast {
      * - input must fit into 32 bits
      */
     function toUint32(uint256 value) internal pure returns (uint32) {
-        require(value < 2**32, "SafeCast: value doesn\'t fit in 32 bits");
+        require(value < 2**32, "SafeCast: value doesn't fit in 32 bits");
         return uint32(value);
     }
 
@@ -1200,7 +1269,7 @@ library SafeCast {
      * - input must fit into 16 bits
      */
     function toUint16(uint256 value) internal pure returns (uint16) {
-        require(value < 2**16, "SafeCast: value doesn\'t fit in 16 bits");
+        require(value < 2**16, "SafeCast: value doesn't fit in 16 bits");
         return uint16(value);
     }
 
@@ -1215,7 +1284,7 @@ library SafeCast {
      * - input must fit into 8 bits.
      */
     function toUint8(uint256 value) internal pure returns (uint8) {
-        require(value < 2**8, "SafeCast: value doesn\'t fit in 8 bits");
+        require(value < 2**8, "SafeCast: value doesn't fit in 8 bits");
         return uint8(value);
     }
 
@@ -1245,7 +1314,7 @@ library SafeCast {
      * _Available since v3.1._
      */
     function toInt128(int256 value) internal pure returns (int128) {
-        require(value >= -2**127 && value < 2**127, "SafeCast: value doesn\'t fit in 128 bits");
+        require(value >= -2**127 && value < 2**127, "SafeCast: value doesn't fit in 128 bits");
         return int128(value);
     }
 
@@ -1263,7 +1332,7 @@ library SafeCast {
      * _Available since v3.1._
      */
     function toInt64(int256 value) internal pure returns (int64) {
-        require(value >= -2**63 && value < 2**63, "SafeCast: value doesn\'t fit in 64 bits");
+        require(value >= -2**63 && value < 2**63, "SafeCast: value doesn't fit in 64 bits");
         return int64(value);
     }
 
@@ -1281,7 +1350,7 @@ library SafeCast {
      * _Available since v3.1._
      */
     function toInt32(int256 value) internal pure returns (int32) {
-        require(value >= -2**31 && value < 2**31, "SafeCast: value doesn\'t fit in 32 bits");
+        require(value >= -2**31 && value < 2**31, "SafeCast: value doesn't fit in 32 bits");
         return int32(value);
     }
 
@@ -1299,7 +1368,7 @@ library SafeCast {
      * _Available since v3.1._
      */
     function toInt16(int256 value) internal pure returns (int16) {
-        require(value >= -2**15 && value < 2**15, "SafeCast: value doesn\'t fit in 16 bits");
+        require(value >= -2**15 && value < 2**15, "SafeCast: value doesn't fit in 16 bits");
         return int16(value);
     }
 
@@ -1317,7 +1386,7 @@ library SafeCast {
      * _Available since v3.1._
      */
     function toInt8(int256 value) internal pure returns (int8) {
-        require(value >= -2**7 && value < 2**7, "SafeCast: value doesn\'t fit in 8 bits");
+        require(value >= -2**7 && value < 2**7, "SafeCast: value doesn't fit in 8 bits");
         return int8(value);
     }
 
@@ -1333,7 +1402,6 @@ library SafeCast {
         return int256(value);
     }
 }
-
 
 // Internal
 // Libs
@@ -1416,7 +1484,11 @@ contract BoostedSavingsVault is
      * @dev StakingRewards is a TokenWrapper and RewardRecipient
      * Constants added to bytecode at deployTime to reduce SLOAD cost
      */
-    function initialize(address _rewardsDistributor, string calldata _nameArg, string calldata _symbolArg) external initializer {
+    function initialize(
+        address _rewardsDistributor,
+        string calldata _nameArg,
+        string calldata _symbolArg
+    ) external initializer {
         InitializableRewardsDistributionRecipient._initialize(_rewardsDistributor);
     }
 
@@ -1716,8 +1788,11 @@ contract BoostedSavingsVault is
      * @return Total reward amount earned
      */
     function earned(address _account) public view override returns (uint256) {
-        uint256 newEarned =
-            _earned(_account, userData[_account].rewardPerTokenPaid, rewardPerToken());
+        uint256 newEarned = _earned(
+            _account,
+            userData[_account].rewardPerTokenPaid,
+            rewardPerToken()
+        );
         uint256 immediatelyUnlocked = newEarned.mulTruncate(UNLOCK);
         return immediatelyUnlocked + userData[_account].rewards;
     }
