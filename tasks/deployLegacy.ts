@@ -146,7 +146,9 @@ task("LegacyVault.deploy", "Deploys a vault contract")
             const priceCoeff = vault.priceCoeff ? vault.priceCoeff : simpleToExactAmount(1)
             let vaultImpl: Contract
             let constructorArguments: any[]
-            if (vault.platformToken) {
+            if (vault.underlyingTokenSymbol === "mUSD") {
+                vaultImpl = await vaultFactory.deploy()
+            } else if (vault.platformToken) {
                 const platformTokenAddress = resolveAddress(vault.platformToken, chain)
                 constructorArguments = [
                     nexusAddress,
