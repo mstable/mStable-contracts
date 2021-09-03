@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.5.16;
 
 interface IERC20 {
     /**
@@ -137,6 +136,11 @@ interface IBoostedVaultWithLockup {
     function pokeBoost(address _account) external;
 
     /**
+     * @dev Gets the RewardsToken
+     */
+    function getRewardToken() external view returns (IERC20);
+
+    /**
      * @dev Gets the last applicable timestamp for this reward period
      */
     function lastTimeRewardApplicable() external view returns (uint256);
@@ -207,9 +211,6 @@ contract ModuleKeys {
     // keccak256("Liquidator");
     bytes32 internal constant KEY_LIQUIDATOR =
         0x1e9cb14d7560734a61fa5ff9273953e971ff3cd9283c03d8346e3264617933d4;
-    // keccak256("InterestValidator");
-    bytes32 internal constant KEY_INTEREST_VALIDATOR =
-        0xc10a28f028c7f7282a03c90608e38a4a646e136e614e4b07d119280c5f7f839f;
 }
 
 interface INexus {
@@ -232,28 +233,15 @@ interface INexus {
     function lockModule(bytes32 _key) external;
 }
 
-abstract contract ImmutableModule is ModuleKeys {
-    INexus public immutable nexus;
-
-    /**
-     * @dev Initialization function for upgradable proxy contracts
-     * @param _nexus Nexus contract address
-     */
-    constructor(address _nexus) {
-        require(_nexus != address(0), "Nexus address is zero");
-        nexus = INexus(_nexus);
-    }
+contract InitializableModule2 is ModuleKeys {
+    INexus public constant nexus = INexus(0xAFcE80b19A8cE13DEc0739a1aaB7A028d6845Eb3);
 
     /**
      * @dev Modifier to allow function calls only from the Governor.
      */
     modifier onlyGovernor() {
-        _onlyGovernor();
-        _;
-    }
-
-    function _onlyGovernor() internal view {
         require(msg.sender == _governor(), "Only governor can execute");
+        _;
     }
 
     /**
@@ -363,14 +351,17 @@ interface IRewardsDistributionRecipient {
     function getRewardToken() external view returns (IERC20);
 }
 
-abstract contract InitializableRewardsDistributionRecipient is
+contract InitializableRewardsDistributionRecipient is
     IRewardsDistributionRecipient,
-    ImmutableModule
+    InitializableModule2
 {
+    // @abstract
+    function notifyRewardAmount(uint256 reward) external;
+
+    function getRewardToken() external view returns (IERC20);
+
     // This address has the ability to distribute the rewards
     address public rewardsDistributor;
-
-    constructor(address _nexus) ImmutableModule(_nexus) {}
 
     /** @dev Recipient is a module, governed by mStable governance */
     function _initialize(address _rewardsDistributor) internal {
@@ -394,16 +385,213 @@ abstract contract InitializableRewardsDistributionRecipient is
     }
 }
 
-interface IBoostDirector {
-    function getBalance(address _user) external returns (uint256);
+contract IERC20WithCheckpointing {
+    function balanceOf(address _owner) public view returns (uint256);
 
-    function setDirection(
-        address _old,
-        address _new,
-        bool _pokeNew
-    ) external;
+    function balanceOfAt(address _owner, uint256 _blockNumber) public view returns (uint256);
 
-    function whitelistVaults(address[] calldata _vaults) external;
+    function totalSupply() public view returns (uint256);
+
+    function totalSupplyAt(uint256 _blockNumber) public view returns (uint256);
+}
+
+contract IIncentivisedVotingLockup is IERC20WithCheckpointing {
+    function getLastUserPoint(address _addr)
+        external
+        view
+        returns (
+            int128 bias,
+            int128 slope,
+            uint256 ts
+        );
+
+    function createLock(uint256 _value, uint256 _unlockTime) external;
+
+    function withdraw() external;
+
+    function increaseLockAmount(uint256 _value) external;
+
+    function increaseLockLength(uint256 _unlockTime) external;
+
+    function eject(address _user) external;
+
+    function expireContract() external;
+
+    function claimReward() public;
+
+    function earned(address _account) public view returns (uint256);
+}
+
+/**
+ * @dev Interface of the ERC20 standard as defined in the EIP. Does not include
+ * the optional functions; to access them see {ERC20Detailed}.
+ */
+
+/**
+ * @dev Wrappers over Solidity's arithmetic operations with added overflow
+ * checks.
+ *
+ * Arithmetic operations in Solidity wrap on overflow. This can easily result
+ * in bugs, because programmers usually assume that an overflow raises an
+ * error, which is the standard behavior in high level programming languages.
+ * `SafeMath` restores this intuition by reverting the transaction when an
+ * operation overflows.
+ *
+ * Using this library instead of the unchecked operations eliminates an entire
+ * class of bugs, so it's recommended to use it always.
+ */
+library SafeMath {
+    /**
+     * @dev Returns the addition of two unsigned integers, reverting on
+     * overflow.
+     *
+     * Counterpart to Solidity's `+` operator.
+     *
+     * Requirements:
+     * - Addition cannot overflow.
+     */
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        uint256 c = a + b;
+        require(c >= a, "SafeMath: addition overflow");
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the subtraction of two unsigned integers, reverting on
+     * overflow (when the result is negative).
+     *
+     * Counterpart to Solidity's `-` operator.
+     *
+     * Requirements:
+     * - Subtraction cannot overflow.
+     */
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+        return sub(a, b, "SafeMath: subtraction overflow");
+    }
+
+    /**
+     * @dev Returns the subtraction of two unsigned integers, reverting with custom message on
+     * overflow (when the result is negative).
+     *
+     * Counterpart to Solidity's `-` operator.
+     *
+     * Requirements:
+     * - Subtraction cannot overflow.
+     *
+     * _Available since v2.4.0._
+     */
+    function sub(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
+        require(b <= a, errorMessage);
+        uint256 c = a - b;
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the multiplication of two unsigned integers, reverting on
+     * overflow.
+     *
+     * Counterpart to Solidity's `*` operator.
+     *
+     * Requirements:
+     * - Multiplication cannot overflow.
+     */
+    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
+        // benefit is lost if 'b' is also tested.
+        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
+        if (a == 0) {
+            return 0;
+        }
+
+        uint256 c = a * b;
+        require(c / a == b, "SafeMath: multiplication overflow");
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the integer division of two unsigned integers. Reverts on
+     * division by zero. The result is rounded towards zero.
+     *
+     * Counterpart to Solidity's `/` operator. Note: this function uses a
+     * `revert` opcode (which leaves remaining gas untouched) while Solidity
+     * uses an invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     */
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+        return div(a, b, "SafeMath: division by zero");
+    }
+
+    /**
+     * @dev Returns the integer division of two unsigned integers. Reverts with custom message on
+     * division by zero. The result is rounded towards zero.
+     *
+     * Counterpart to Solidity's `/` operator. Note: this function uses a
+     * `revert` opcode (which leaves remaining gas untouched) while Solidity
+     * uses an invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     *
+     * _Available since v2.4.0._
+     */
+    function div(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
+        // Solidity only automatically asserts when dividing by 0
+        require(b > 0, errorMessage);
+        uint256 c = a / b;
+        // assert(a == b * c + a % b); // There is no case in which this doesn't hold
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
+     * Reverts when dividing by zero.
+     *
+     * Counterpart to Solidity's `%` operator. This function uses a `revert`
+     * opcode (which leaves remaining gas untouched) while Solidity uses an
+     * invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     */
+    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+        return mod(a, b, "SafeMath: modulo by zero");
+    }
+
+    /**
+     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
+     * Reverts with custom message when dividing by zero.
+     *
+     * Counterpart to Solidity's `%` operator. This function uses a `revert`
+     * opcode (which leaves remaining gas untouched) while Solidity uses an
+     * invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     *
+     * _Available since v2.4.0._
+     */
+    function mod(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
+        require(b != 0, errorMessage);
+        return a % b;
+    }
 }
 
 /**
@@ -428,16 +616,26 @@ library Address {
      * ====
      */
     function isContract(address account) internal view returns (bool) {
-        // This method relies on extcodesize, which returns 0 for contracts in
-        // construction, since the code is only stored at the end of the
-        // constructor execution.
-
-        uint256 size;
+        // According to EIP-1052, 0x0 is the value returned for not-yet created accounts
+        // and 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470 is returned
+        // for accounts without code, i.e. `keccak256('')`
+        bytes32 codehash;
+        bytes32 accountHash = 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470;
         // solhint-disable-next-line no-inline-assembly
         assembly {
-            size := extcodesize(account)
+            codehash := extcodehash(account)
         }
-        return size > 0;
+        return (codehash != accountHash && codehash != 0x0);
+    }
+
+    /**
+     * @dev Converts an `address` into `address payable`. Note that this is
+     * simply a type cast: the actual underlying value is not changed.
+     *
+     * _Available since v2.4.0._
+     */
+    function toPayable(address account) internal pure returns (address payable) {
+        return address(uint160(account));
     }
 
     /**
@@ -455,179 +653,20 @@ library Address {
      * taken to not create reentrancy vulnerabilities. Consider using
      * {ReentrancyGuard} or the
      * https://solidity.readthedocs.io/en/v0.5.11/security-considerations.html#use-the-checks-effects-interactions-pattern[checks-effects-interactions pattern].
+     *
+     * _Available since v2.4.0._
      */
     function sendValue(address payable recipient, uint256 amount) internal {
         require(address(this).balance >= amount, "Address: insufficient balance");
 
-        // solhint-disable-next-line avoid-low-level-calls, avoid-call-value
-        (bool success, ) = recipient.call{ value: amount }("");
+        // solhint-disable-next-line avoid-call-value
+        (bool success, ) = recipient.call.value(amount)("");
         require(success, "Address: unable to send value, recipient may have reverted");
-    }
-
-    /**
-     * @dev Performs a Solidity function call using a low level `call`. A
-     * plain`call` is an unsafe replacement for a function call: use this
-     * function instead.
-     *
-     * If `target` reverts with a revert reason, it is bubbled up by this
-     * function (like regular Solidity function calls).
-     *
-     * Returns the raw returned data. To convert to the expected return value,
-     * use https://solidity.readthedocs.io/en/latest/units-and-global-variables.html?highlight=abi.decode#abi-encoding-and-decoding-functions[`abi.decode`].
-     *
-     * Requirements:
-     *
-     * - `target` must be a contract.
-     * - calling `target` with `data` must not revert.
-     *
-     * _Available since v3.1._
-     */
-    function functionCall(address target, bytes memory data) internal returns (bytes memory) {
-        return functionCall(target, data, "Address: low-level call failed");
-    }
-
-    /**
-     * @dev Same as {xref-Address-functionCall-address-bytes-}[`functionCall`], but with
-     * `errorMessage` as a fallback revert reason when `target` reverts.
-     *
-     * _Available since v3.1._
-     */
-    function functionCall(
-        address target,
-        bytes memory data,
-        string memory errorMessage
-    ) internal returns (bytes memory) {
-        return functionCallWithValue(target, data, 0, errorMessage);
-    }
-
-    /**
-     * @dev Same as {xref-Address-functionCall-address-bytes-}[`functionCall`],
-     * but also transferring `value` wei to `target`.
-     *
-     * Requirements:
-     *
-     * - the calling contract must have an ETH balance of at least `value`.
-     * - the called Solidity function must be `payable`.
-     *
-     * _Available since v3.1._
-     */
-    function functionCallWithValue(
-        address target,
-        bytes memory data,
-        uint256 value
-    ) internal returns (bytes memory) {
-        return
-            functionCallWithValue(target, data, value, "Address: low-level call with value failed");
-    }
-
-    /**
-     * @dev Same as {xref-Address-functionCallWithValue-address-bytes-uint256-}[`functionCallWithValue`], but
-     * with `errorMessage` as a fallback revert reason when `target` reverts.
-     *
-     * _Available since v3.1._
-     */
-    function functionCallWithValue(
-        address target,
-        bytes memory data,
-        uint256 value,
-        string memory errorMessage
-    ) internal returns (bytes memory) {
-        require(address(this).balance >= value, "Address: insufficient balance for call");
-        require(isContract(target), "Address: call to non-contract");
-
-        // solhint-disable-next-line avoid-low-level-calls
-        (bool success, bytes memory returndata) = target.call{ value: value }(data);
-        return _verifyCallResult(success, returndata, errorMessage);
-    }
-
-    /**
-     * @dev Same as {xref-Address-functionCall-address-bytes-}[`functionCall`],
-     * but performing a static call.
-     *
-     * _Available since v3.3._
-     */
-    function functionStaticCall(address target, bytes memory data)
-        internal
-        view
-        returns (bytes memory)
-    {
-        return functionStaticCall(target, data, "Address: low-level static call failed");
-    }
-
-    /**
-     * @dev Same as {xref-Address-functionCall-address-bytes-string-}[`functionCall`],
-     * but performing a static call.
-     *
-     * _Available since v3.3._
-     */
-    function functionStaticCall(
-        address target,
-        bytes memory data,
-        string memory errorMessage
-    ) internal view returns (bytes memory) {
-        require(isContract(target), "Address: static call to non-contract");
-
-        // solhint-disable-next-line avoid-low-level-calls
-        (bool success, bytes memory returndata) = target.staticcall(data);
-        return _verifyCallResult(success, returndata, errorMessage);
-    }
-
-    /**
-     * @dev Same as {xref-Address-functionCall-address-bytes-}[`functionCall`],
-     * but performing a delegate call.
-     *
-     * _Available since v3.4._
-     */
-    function functionDelegateCall(address target, bytes memory data)
-        internal
-        returns (bytes memory)
-    {
-        return functionDelegateCall(target, data, "Address: low-level delegate call failed");
-    }
-
-    /**
-     * @dev Same as {xref-Address-functionCall-address-bytes-string-}[`functionCall`],
-     * but performing a delegate call.
-     *
-     * _Available since v3.4._
-     */
-    function functionDelegateCall(
-        address target,
-        bytes memory data,
-        string memory errorMessage
-    ) internal returns (bytes memory) {
-        require(isContract(target), "Address: delegate call to non-contract");
-
-        // solhint-disable-next-line avoid-low-level-calls
-        (bool success, bytes memory returndata) = target.delegatecall(data);
-        return _verifyCallResult(success, returndata, errorMessage);
-    }
-
-    function _verifyCallResult(
-        bool success,
-        bytes memory returndata,
-        string memory errorMessage
-    ) private pure returns (bytes memory) {
-        if (success) {
-            return returndata;
-        } else {
-            // Look for revert reason and bubble it up if present
-            if (returndata.length > 0) {
-                // The easiest way to bubble the revert reason is using memory via assembly
-
-                // solhint-disable-next-line no-inline-assembly
-                assembly {
-                    let returndata_size := mload(returndata)
-                    revert(add(32, returndata), returndata_size)
-                }
-            } else {
-                revert(errorMessage);
-            }
-        }
     }
 }
 
 library SafeERC20 {
+    using SafeMath for uint256;
     using Address for address;
 
     function safeTransfer(
@@ -635,7 +674,7 @@ library SafeERC20 {
         address to,
         uint256 value
     ) internal {
-        _callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
+        callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
     }
 
     function safeTransferFrom(
@@ -644,19 +683,12 @@ library SafeERC20 {
         address to,
         uint256 value
     ) internal {
-        _callOptionalReturn(
+        callOptionalReturn(
             token,
             abi.encodeWithSelector(token.transferFrom.selector, from, to, value)
         );
     }
 
-    /**
-     * @dev Deprecated. This function has issues similar to the ones found in
-     * {IERC20-approve}, and its usage is discouraged.
-     *
-     * Whenever possible, use {safeIncreaseAllowance} and
-     * {safeDecreaseAllowance} instead.
-     */
     function safeApprove(
         IERC20 token,
         address spender,
@@ -670,7 +702,7 @@ library SafeERC20 {
             (value == 0) || (token.allowance(address(this), spender) == 0),
             "SafeERC20: approve from non-zero to non-zero allowance"
         );
-        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
+        callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
     }
 
     function safeIncreaseAllowance(
@@ -678,8 +710,8 @@ library SafeERC20 {
         address spender,
         uint256 value
     ) internal {
-        uint256 newAllowance = token.allowance(address(this), spender) + value;
-        _callOptionalReturn(
+        uint256 newAllowance = token.allowance(address(this), spender).add(value);
+        callOptionalReturn(
             token,
             abi.encodeWithSelector(token.approve.selector, spender, newAllowance)
         );
@@ -690,15 +722,14 @@ library SafeERC20 {
         address spender,
         uint256 value
     ) internal {
-        unchecked {
-            uint256 oldAllowance = token.allowance(address(this), spender);
-            require(oldAllowance >= value, "SafeERC20: decreased allowance below zero");
-            uint256 newAllowance = oldAllowance - value;
-            _callOptionalReturn(
-                token,
-                abi.encodeWithSelector(token.approve.selector, spender, newAllowance)
-            );
-        }
+        uint256 newAllowance = token.allowance(address(this), spender).sub(
+            value,
+            "SafeERC20: decreased allowance below zero"
+        );
+        callOptionalReturn(
+            token,
+            abi.encodeWithSelector(token.approve.selector, spender, newAllowance)
+        );
     }
 
     /**
@@ -707,15 +738,21 @@ library SafeERC20 {
      * @param token The token targeted by the call.
      * @param data The call data (encoded using abi.encode or one of its variants).
      */
-    function _callOptionalReturn(IERC20 token, bytes memory data) private {
+    function callOptionalReturn(IERC20 token, bytes memory data) private {
         // We need to perform a low level call here, to bypass Solidity's return data size checking mechanism, since
-        // we're implementing it ourselves. We use {Address.functionCall} to perform this call, which verifies that
-        // the target address contains contract code and also asserts for success in the low-level call.
+        // we're implementing it ourselves.
 
-        bytes memory returndata = address(token).functionCall(
-            data,
-            "SafeERC20: low-level call failed"
-        );
+        // A Solidity high level call has three parts:
+        //  1. The target address is checked to verify it contains contract code
+        //  2. The call itself is made, and success asserted
+        //  3. The return value is decoded, which in turn checks the size of the returned data.
+        // solhint-disable-next-line max-line-length
+        require(address(token).isContract(), "SafeERC20: call to non-contract");
+
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, bytes memory returndata) = address(token).call(data);
+        require(success, "SafeERC20: low-level call failed");
+
         if (returndata.length > 0) {
             // Return data is optional
             // solhint-disable-next-line max-line-length
@@ -727,7 +764,7 @@ library SafeERC20 {
 contract InitializableReentrancyGuard {
     bool private _notEntered;
 
-    function _initializeReentrancyGuard() internal {
+    function _initialize() internal {
         // Storing an initial non-zero value makes deployment a bit more
         // expensive, but in exchange the refund on every call to nonReentrant
         // will be lower in amount. Since refunds are capped to a percetange of
@@ -760,6 +797,8 @@ contract InitializableReentrancyGuard {
 }
 
 library StableMath {
+    using SafeMath for uint256;
+
     /**
      * @dev Scaling unit for use in specific calculations,
      * where 1 * 10**18, or 1e18 represents a unit '1'
@@ -767,9 +806,9 @@ library StableMath {
     uint256 private constant FULL_SCALE = 1e18;
 
     /**
-     * @dev Token Ratios are used when converting between units of bAsset, mAsset and MTA
+     * @notice Token Ratios are used when converting between units of bAsset, mAsset and MTA
      * Reasoning: Takes into account token decimals, and difference in base unit (i.e. grams to Troy oz for gold)
-     * bAsset ratio unit for use in exact calculations,
+     * @dev bAsset ratio unit for use in exact calculations,
      * where (1 bAsset unit * bAsset.ratio) / ratioScale == x mAsset unit
      */
     uint256 private constant RATIO_SCALE = 1e8;
@@ -796,7 +835,7 @@ library StableMath {
      * @return    Scaled value a to an exact number
      */
     function scaleInteger(uint256 x) internal pure returns (uint256) {
-        return x * FULL_SCALE;
+        return x.mul(FULL_SCALE);
     }
 
     /***************************************
@@ -830,8 +869,9 @@ library StableMath {
     ) internal pure returns (uint256) {
         // e.g. assume scale = fullScale
         // z = 10e18 * 9e17 = 9e36
+        uint256 z = x.mul(y);
         // return 9e38 / 1e18 = 9e18
-        return (x * y) / scale;
+        return z.div(scale);
     }
 
     /**
@@ -843,11 +883,11 @@ library StableMath {
      */
     function mulTruncateCeil(uint256 x, uint256 y) internal pure returns (uint256) {
         // e.g. 8e17 * 17268172638 = 138145381104e17
-        uint256 scaled = x * y;
+        uint256 scaled = x.mul(y);
         // e.g. 138145381104e17 + 9.99...e17 = 138145381113.99...e17
-        uint256 ceil = scaled + FULL_SCALE - 1;
+        uint256 ceil = scaled.add(FULL_SCALE.sub(1));
         // e.g. 13814538111.399...e18 / 1e18 = 13814538111
-        return ceil / FULL_SCALE;
+        return ceil.div(FULL_SCALE);
     }
 
     /**
@@ -860,8 +900,9 @@ library StableMath {
      */
     function divPrecisely(uint256 x, uint256 y) internal pure returns (uint256) {
         // e.g. 8e18 * 1e18 = 8e36
+        uint256 z = x.mul(FULL_SCALE);
         // e.g. 8e36 / 10e18 = 8e17
-        return (x * FULL_SCALE) / y;
+        return z.div(y);
     }
 
     /***************************************
@@ -873,7 +914,7 @@ library StableMath {
      *      i.e. How much mAsset is this bAsset worth?
      * @param x     Left hand operand to multiplication (i.e Exact quantity)
      * @param ratio bAsset ratio
-     * @return c    Result after multiplying the two inputs and then dividing by the ratio scale
+     * @return      Result after multiplying the two inputs and then dividing by the ratio scale
      */
     function mulRatioTruncate(uint256 x, uint256 ratio) internal pure returns (uint256 c) {
         return mulTruncateScale(x, ratio, RATIO_SCALE);
@@ -890,11 +931,11 @@ library StableMath {
     function mulRatioTruncateCeil(uint256 x, uint256 ratio) internal pure returns (uint256) {
         // e.g. How much mAsset should I burn for this bAsset (x)?
         // 1e18 * 1e8 = 1e26
-        uint256 scaled = x * ratio;
+        uint256 scaled = x.mul(ratio);
         // 1e26 + 9.99e7 = 100..00.999e8
-        uint256 ceil = scaled + RATIO_SCALE - 1;
+        uint256 ceil = scaled.add(RATIO_SCALE.sub(1));
         // return 100..00.999e8 / 1e8 = 1e18
-        return ceil / RATIO_SCALE;
+        return ceil.div(RATIO_SCALE);
     }
 
     /**
@@ -902,13 +943,14 @@ library StableMath {
      *      i.e. How much bAsset is this mAsset worth?
      * @param x     Left hand operand in division
      * @param ratio bAsset ratio
-     * @return c    Result after multiplying the left operand by the scale, and
+     * @return      Result after multiplying the left operand by the scale, and
      *              executing the division on the right hand input.
      */
     function divRatioPrecisely(uint256 x, uint256 ratio) internal pure returns (uint256 c) {
         // e.g. 1e14 * 1e8 = 1e22
+        uint256 y = x.mul(RATIO_SCALE);
         // return 1e22 / 1e12 = 1e10
-        return (x * RATIO_SCALE) / ratio;
+        return y.div(ratio);
     }
 
     /***************************************
@@ -947,6 +989,8 @@ library StableMath {
 }
 
 library Root {
+    using SafeMath for uint256;
+
     /**
      * @dev Returns the square root of a given number
      * @param x Input
@@ -984,31 +1028,40 @@ library Root {
             if (xx >= 0x8) {
                 r <<= 1;
             }
-            r = (r + x / r) >> 1;
-            r = (r + x / r) >> 1;
-            r = (r + x / r) >> 1;
-            r = (r + x / r) >> 1;
-            r = (r + x / r) >> 1;
-            r = (r + x / r) >> 1;
-            r = (r + x / r) >> 1; // Seven iterations should be enough
-            uint256 r1 = x / r;
+            r = (r.add(x).div(r)) >> 1;
+            r = (r.add(x).div(r)) >> 1;
+            r = (r.add(x).div(r)) >> 1;
+            r = (r.add(x).div(r)) >> 1;
+            r = (r.add(x).div(r)) >> 1;
+            r = (r.add(x).div(r)) >> 1;
+            r = (r.add(x).div(r)) >> 1; // Seven iterations should be enough
+            uint256 r1 = x.div(r);
             return uint256(r < r1 ? r : r1);
         }
     }
 }
 
+interface IBoostDirector {
+    function getBalance(address _user) external returns (uint256);
+
+    function setDirection(
+        address _old,
+        address _new,
+        bool _pokeNew
+    ) external;
+
+    function whitelistVaults(address[] calldata _vaults) external;
+}
+
 contract BoostedTokenWrapper is InitializableReentrancyGuard {
+    using SafeMath for uint256;
     using StableMath for uint256;
     using SafeERC20 for IERC20;
 
-    event Transfer(address indexed from, address indexed to, uint256 value);
-
-    // Using a constant as string types can not be immutable
-    string public constant name = "imUSD Vault";
-    string public constant symbol = "v-imUSD";
-
-    IERC20 public immutable stakingToken;
-    IBoostDirector public immutable boostDirector;
+    IERC20 public constant stakingToken = IERC20(0x30647a72Dc82d7Fbb1123EA74716aB8A317Eac19);
+    // mStable MTA Staking contract
+    // TODO - add BoostDirector
+    IBoostDirector public constant boostDirector = IBoostDirector(0);
 
     uint256 private _totalBoostedSupply;
     mapping(address => uint256) private _boostedBalances;
@@ -1020,37 +1073,14 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
     uint256 private constant MAX_BOOST = 3e18;
     uint256 private constant MIN_BOOST = 1e18;
     uint256 private constant FLOOR = 98e16;
-    uint256 public immutable boostCoeff; // scaled by 10
-    uint256 public immutable priceCoeff;
+    uint256 public constant boostCoeff = 9;
+    uint256 public constant priceCoeff = 1e17;
 
     /**
      * @dev TokenWrapper constructor
-     * @param _stakingToken Wrapped token to be staked
-     * @param _boostDirector vMTA boost director
-     * @param _priceCoeff Rough price of a given LP token, to be used in boost calculations, where $1 = 1e18
-     */
-    constructor(
-        address _stakingToken,
-        address _boostDirector,
-        uint256 _priceCoeff,
-        uint256 _boostCoeff
-    ) {
-        stakingToken = IERC20(_stakingToken);
-        boostDirector = IBoostDirector(_boostDirector);
-        priceCoeff = _priceCoeff;
-        boostCoeff = _boostCoeff;
-    }
-
-    // function name() public view virtual returns (string memory) {
-    //     return _name;
-    // }
-
-    // function symbol() public view virtual returns (string memory) {
-    //     return _symbol;
-    // }
-
-    function decimals() public view virtual returns (uint8) {
-        return 18;
+     **/
+    function _initialize() internal {
+        InitializableReentrancyGuard._initialize();
     }
 
     /**
@@ -1091,7 +1121,7 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
      * @param _amount Units of StakingToken
      */
     function _stakeRaw(address _beneficiary, uint256 _amount) internal nonReentrant {
-        _rawBalances[_beneficiary] += _amount;
+        _rawBalances[_beneficiary] = _rawBalances[_beneficiary].add(_amount);
         stakingToken.safeTransferFrom(msg.sender, address(this), _amount);
     }
 
@@ -1100,7 +1130,7 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
      * @param _amount Units of StakingToken
      */
     function _withdrawRaw(uint256 _amount) internal nonReentrant {
-        _rawBalances[msg.sender] -= _amount;
+        _rawBalances[msg.sender] = _rawBalances[msg.sender].sub(_amount);
         stakingToken.safeTransfer(msg.sender, _amount);
     }
 
@@ -1118,7 +1148,7 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
         // Check whether balance is sufficient
         // is_boosted is used to minimize gas usage
         uint256 scaledBalance = (rawBalance * priceCoeff) / 1e18;
-        if (scaledBalance >= MIN_DEPOSIT) {
+        if (rawBalance >= MIN_DEPOSIT) {
             uint256 votingWeight = boostDirector.getBalance(_account);
             boost = _computeBoost(scaledBalance, votingWeight);
         }
@@ -1126,14 +1156,8 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
         uint256 newBoostedBalance = rawBalance.mulTruncate(boost);
 
         if (newBoostedBalance != boostedBalance) {
-            _totalBoostedSupply = _totalBoostedSupply - boostedBalance + newBoostedBalance;
+            _totalBoostedSupply = _totalBoostedSupply.sub(boostedBalance).add(newBoostedBalance);
             _boostedBalances[_account] = newBoostedBalance;
-
-            if (newBoostedBalance > boostedBalance) {
-                emit Transfer(address(0), _account, newBoostedBalance - boostedBalance);
-            } else {
-                emit Transfer(_account, address(0), boostedBalance - newBoostedBalance);
-            }
         }
     }
 
@@ -1287,127 +1311,13 @@ library SafeCast {
         require(value < 2**8, "SafeCast: value doesn't fit in 8 bits");
         return uint8(value);
     }
-
-    /**
-     * @dev Converts a signed int256 into an unsigned uint256.
-     *
-     * Requirements:
-     *
-     * - input must be greater than or equal to 0.
-     */
-    function toUint256(int256 value) internal pure returns (uint256) {
-        require(value >= 0, "SafeCast: value must be positive");
-        return uint256(value);
-    }
-
-    /**
-     * @dev Returns the downcasted int128 from int256, reverting on
-     * overflow (when the input is less than smallest int128 or
-     * greater than largest int128).
-     *
-     * Counterpart to Solidity's `int128` operator.
-     *
-     * Requirements:
-     *
-     * - input must fit into 128 bits
-     *
-     * _Available since v3.1._
-     */
-    function toInt128(int256 value) internal pure returns (int128) {
-        require(value >= -2**127 && value < 2**127, "SafeCast: value doesn't fit in 128 bits");
-        return int128(value);
-    }
-
-    /**
-     * @dev Returns the downcasted int64 from int256, reverting on
-     * overflow (when the input is less than smallest int64 or
-     * greater than largest int64).
-     *
-     * Counterpart to Solidity's `int64` operator.
-     *
-     * Requirements:
-     *
-     * - input must fit into 64 bits
-     *
-     * _Available since v3.1._
-     */
-    function toInt64(int256 value) internal pure returns (int64) {
-        require(value >= -2**63 && value < 2**63, "SafeCast: value doesn't fit in 64 bits");
-        return int64(value);
-    }
-
-    /**
-     * @dev Returns the downcasted int32 from int256, reverting on
-     * overflow (when the input is less than smallest int32 or
-     * greater than largest int32).
-     *
-     * Counterpart to Solidity's `int32` operator.
-     *
-     * Requirements:
-     *
-     * - input must fit into 32 bits
-     *
-     * _Available since v3.1._
-     */
-    function toInt32(int256 value) internal pure returns (int32) {
-        require(value >= -2**31 && value < 2**31, "SafeCast: value doesn't fit in 32 bits");
-        return int32(value);
-    }
-
-    /**
-     * @dev Returns the downcasted int16 from int256, reverting on
-     * overflow (when the input is less than smallest int16 or
-     * greater than largest int16).
-     *
-     * Counterpart to Solidity's `int16` operator.
-     *
-     * Requirements:
-     *
-     * - input must fit into 16 bits
-     *
-     * _Available since v3.1._
-     */
-    function toInt16(int256 value) internal pure returns (int16) {
-        require(value >= -2**15 && value < 2**15, "SafeCast: value doesn't fit in 16 bits");
-        return int16(value);
-    }
-
-    /**
-     * @dev Returns the downcasted int8 from int256, reverting on
-     * overflow (when the input is less than smallest int8 or
-     * greater than largest int8).
-     *
-     * Counterpart to Solidity's `int8` operator.
-     *
-     * Requirements:
-     *
-     * - input must fit into 8 bits.
-     *
-     * _Available since v3.1._
-     */
-    function toInt8(int256 value) internal pure returns (int8) {
-        require(value >= -2**7 && value < 2**7, "SafeCast: value doesn't fit in 8 bits");
-        return int8(value);
-    }
-
-    /**
-     * @dev Converts an unsigned uint256 into a signed int256.
-     *
-     * Requirements:
-     *
-     * - input must be less than or equal to maxInt256.
-     */
-    function toInt256(uint256 value) internal pure returns (int256) {
-        require(value < 2**255, "SafeCast: value doesn't fit in an int256");
-        return int256(value);
-    }
 }
 
 // Internal
 // Libs
 /**
  * @title  BoostedSavingsVault
- * @author mStable
+ * @author Stability Labs Pty. Ltd.
  * @notice Accrues rewards second by second, based on a users boosted balance
  * @dev    Forked from rewards/staking/StakingRewards.sol
  *         Changes:
@@ -1422,7 +1332,6 @@ contract BoostedSavingsVault is
     InitializableRewardsDistributionRecipient,
     BoostedTokenWrapper
 {
-    using SafeERC20 for IERC20;
     using StableMath for uint256;
     using SafeCast for uint256;
 
@@ -1432,13 +1341,13 @@ contract BoostedSavingsVault is
     event Poked(address indexed user);
     event RewardPaid(address indexed user, uint256 reward);
 
-    IERC20 public immutable rewardsToken;
+    IERC20 public constant rewardsToken = IERC20(0xa3BeD4E1c75D00fa6f4E5E6922DB7261B5E9AcD2);
 
     uint64 public constant DURATION = 7 days;
     // Length of token lockup, after rewards are earned
     uint256 public constant LOCKUP = 26 weeks;
     // Percentage of earned tokens unlocked immediately
-    uint64 public constant UNLOCK = 33e16;
+    uint64 public constant UNLOCK = 2e17;
 
     // Timestamp for current period finish
     uint256 public periodFinish;
@@ -1466,30 +1375,13 @@ contract BoostedSavingsVault is
         uint128 rate;
     }
 
-    constructor(
-        address _nexus,
-        address _stakingToken,
-        address _boostDirector,
-        uint256 _priceCoeff,
-        uint256 _coeff,
-        address _rewardsToken
-    )
-        InitializableRewardsDistributionRecipient(_nexus)
-        BoostedTokenWrapper(_stakingToken, _boostDirector, _priceCoeff, _coeff)
-    {
-        rewardsToken = IERC20(_rewardsToken);
-    }
-
     /**
      * @dev StakingRewards is a TokenWrapper and RewardRecipient
      * Constants added to bytecode at deployTime to reduce SLOAD cost
      */
-    function initialize(
-        address _rewardsDistributor,
-        string calldata _nameArg,
-        string calldata _symbolArg
-    ) external initializer {
+    function initialize(address _rewardsDistributor) external initializer {
         InitializableRewardsDistributionRecipient._initialize(_rewardsDistributor);
+        BoostedTokenWrapper._initialize();
     }
 
     /**
@@ -1512,25 +1404,25 @@ contract BoostedSavingsVault is
             // Setting of personal vars based on new globals
             if (_account != address(0)) {
                 UserData memory data = userData[_account];
-                uint256 earned_ = _earned(_account, data.rewardPerTokenPaid, newRewardPerToken);
+                uint256 earned = _earned(_account, data.rewardPerTokenPaid, newRewardPerToken);
 
                 // If earned == 0, then it must either be the initial stake, or an action in the
                 // same block, since new rewards unlock after each block.
-                if (earned_ > 0) {
-                    uint256 unlocked = earned_.mulTruncate(UNLOCK);
-                    uint256 locked = earned_ - unlocked;
+                if (earned > 0) {
+                    uint256 unlocked = earned.mulTruncate(UNLOCK);
+                    uint256 locked = earned.sub(unlocked);
 
                     userRewards[_account].push(
                         Reward({
-                            start: SafeCast.toUint64(LOCKUP + data.lastAction),
-                            finish: SafeCast.toUint64(LOCKUP + currentTime),
-                            rate: SafeCast.toUint128(locked / (currentTime - data.lastAction))
+                            start: SafeCast.toUint64(LOCKUP.add(data.lastAction)),
+                            finish: SafeCast.toUint64(LOCKUP.add(currentTime)),
+                            rate: SafeCast.toUint128(locked.div(currentTime.sub(data.lastAction)))
                         })
                     );
 
                     userData[_account] = UserData({
                         rewardPerTokenPaid: SafeCast.toUint128(newRewardPerToken),
-                        rewards: SafeCast.toUint128(unlocked + data.rewards),
+                        rewards: SafeCast.toUint128(unlocked.add(data.rewards)),
                         lastAction: currentTime64,
                         rewardCount: data.rewardCount + 1
                     });
@@ -1564,12 +1456,7 @@ contract BoostedSavingsVault is
      * @dev Stakes a given amount of the StakingToken for the sender
      * @param _amount Units of StakingToken
      */
-    function stake(uint256 _amount)
-        external
-        override
-        updateReward(msg.sender)
-        updateBoost(msg.sender)
-    {
+    function stake(uint256 _amount) external updateReward(msg.sender) updateBoost(msg.sender) {
         _stake(msg.sender, _amount);
     }
 
@@ -1580,7 +1467,6 @@ contract BoostedSavingsVault is
      */
     function stake(address _beneficiary, uint256 _amount)
         external
-        override
         updateReward(_beneficiary)
         updateBoost(_beneficiary)
     {
@@ -1592,7 +1478,7 @@ contract BoostedSavingsVault is
      * Note, this function is costly - the args for _claimRewards
      * should be determined off chain and then passed to other fn
      */
-    function exit() external override updateReward(msg.sender) updateBoost(msg.sender) {
+    function exit() external updateReward(msg.sender) updateBoost(msg.sender) {
         _withdraw(rawBalanceOf(msg.sender));
         (uint256 first, uint256 last) = _unclaimedEpochs(msg.sender);
         _claimRewards(first, last);
@@ -1605,7 +1491,6 @@ contract BoostedSavingsVault is
      */
     function exit(uint256 _first, uint256 _last)
         external
-        override
         updateReward(msg.sender)
         updateBoost(msg.sender)
     {
@@ -1617,12 +1502,7 @@ contract BoostedSavingsVault is
      * @dev Withdraws given stake amount from the pool
      * @param _amount Units of the staked token to withdraw
      */
-    function withdraw(uint256 _amount)
-        external
-        override
-        updateReward(msg.sender)
-        updateBoost(msg.sender)
-    {
+    function withdraw(uint256 _amount) external updateReward(msg.sender) updateBoost(msg.sender) {
         _withdraw(_amount);
     }
 
@@ -1630,7 +1510,7 @@ contract BoostedSavingsVault is
      * @dev Claims only the tokens that have been immediately unlocked, not including
      * those that are in the lockers.
      */
-    function claimReward() external override updateReward(msg.sender) updateBoost(msg.sender) {
+    function claimReward() external updateReward(msg.sender) updateBoost(msg.sender) {
         uint256 unlocked = userData[msg.sender].rewards;
         userData[msg.sender].rewards = 0;
 
@@ -1645,7 +1525,7 @@ contract BoostedSavingsVault is
      * Note, this function is costly - the args for _claimRewards
      * should be determined off chain and then passed to other fn
      */
-    function claimRewards() external override updateReward(msg.sender) updateBoost(msg.sender) {
+    function claimRewards() external updateReward(msg.sender) updateBoost(msg.sender) {
         (uint256 first, uint256 last) = _unclaimedEpochs(msg.sender);
 
         _claimRewards(first, last);
@@ -1659,7 +1539,6 @@ contract BoostedSavingsVault is
      */
     function claimRewards(uint256 _first, uint256 _last)
         external
-        override
         updateReward(msg.sender)
         updateBoost(msg.sender)
     {
@@ -1669,12 +1548,7 @@ contract BoostedSavingsVault is
     /**
      * @dev Pokes a given account to reset the boost
      */
-    function pokeBoost(address _account)
-        external
-        override
-        updateReward(_account)
-        updateBoost(_account)
-    {
+    function pokeBoost(address _account) external updateReward(_account) updateBoost(_account) {
         emit Poked(_account);
     }
 
@@ -1695,7 +1569,7 @@ contract BoostedSavingsVault is
         uint256 unlocked = userData[msg.sender].rewards;
         userData[msg.sender].rewards = 0;
 
-        uint256 total = unclaimed + unlocked;
+        uint256 total = unclaimed.add(unlocked);
 
         if (total > 0) {
             rewardsToken.safeTransfer(msg.sender, total);
@@ -1735,14 +1609,14 @@ contract BoostedSavingsVault is
     /**
      * @dev Gets the RewardsToken
      */
-    function getRewardToken() external view override returns (IERC20) {
+    function getRewardToken() external view returns (IERC20) {
         return rewardsToken;
     }
 
     /**
      * @dev Gets the last applicable timestamp for this reward period
      */
-    function lastTimeRewardApplicable() public view override returns (uint256) {
+    function lastTimeRewardApplicable() public view returns (uint256) {
         return StableMath.min(block.timestamp, periodFinish);
     }
 
@@ -1751,7 +1625,7 @@ contract BoostedSavingsVault is
      * and sums with stored to give the new cumulative reward per token
      * @return 'Reward' per staked token
      */
-    function rewardPerToken() public view override returns (uint256) {
+    function rewardPerToken() public view returns (uint256) {
         (uint256 rewardPerToken_, ) = _rewardPerToken();
         return rewardPerToken_;
     }
@@ -1762,13 +1636,13 @@ contract BoostedSavingsVault is
         returns (uint256 rewardPerToken_, uint256 lastTimeRewardApplicable_)
     {
         uint256 lastApplicableTime = lastTimeRewardApplicable(); // + 1 SLOAD
-        uint256 timeDelta = lastApplicableTime - lastUpdateTime; // + 1 SLOAD
+        uint256 timeDelta = lastApplicableTime.sub(lastUpdateTime); // + 1 SLOAD
         // If this has been called twice in the same block, shortcircuit to reduce gas
         if (timeDelta == 0) {
             return (rewardPerTokenStored, lastApplicableTime);
         }
         // new reward units to distribute = rewardRate * timeSinceLastUpdate
-        uint256 rewardUnitsToDistribute = rewardRate * timeDelta; // + 1 SLOAD
+        uint256 rewardUnitsToDistribute = rewardRate.mul(timeDelta); // + 1 SLOAD
         uint256 supply = totalSupply(); // + 1 SLOAD
         // If there is no StakingToken liquidity, avoid div(0)
         // If there is nothing to distribute, short circuit
@@ -1778,7 +1652,7 @@ contract BoostedSavingsVault is
         // new reward units per token = (rewardUnitsToDistribute * 1e18) / totalTokens
         uint256 unitsToDistributePerToken = rewardUnitsToDistribute.divPrecisely(supply);
         // return summed rate
-        return (rewardPerTokenStored + unitsToDistributePerToken, lastApplicableTime); // + 1 SLOAD
+        return (rewardPerTokenStored.add(unitsToDistributePerToken), lastApplicableTime); // + 1 SLOAD
     }
 
     /**
@@ -1787,14 +1661,14 @@ contract BoostedSavingsVault is
      * @param _account User address
      * @return Total reward amount earned
      */
-    function earned(address _account) public view override returns (uint256) {
+    function earned(address _account) public view returns (uint256) {
         uint256 newEarned = _earned(
             _account,
             userData[_account].rewardPerTokenPaid,
             rewardPerToken()
         );
         uint256 immediatelyUnlocked = newEarned.mulTruncate(UNLOCK);
-        return immediatelyUnlocked + userData[_account].rewards;
+        return immediatelyUnlocked.add(userData[_account].rewards);
     }
 
     /**
@@ -1808,7 +1682,6 @@ contract BoostedSavingsVault is
     function unclaimedRewards(address _account)
         external
         view
-        override
         returns (
             uint256 amount,
             uint256 first,
@@ -1817,7 +1690,7 @@ contract BoostedSavingsVault is
     {
         (first, last) = _unclaimedEpochs(_account);
         (uint256 unlocked, ) = _unclaimedRewards(_account, first, last);
-        amount = unlocked + earned(_account);
+        amount = unlocked.add(earned(_account));
     }
 
     /** @dev Returns only the most recently earned rewards */
@@ -1827,7 +1700,7 @@ contract BoostedSavingsVault is
         uint256 _currentRewardPerToken
     ) internal view returns (uint256) {
         // current rate per token - rate user previously received
-        uint256 userRewardDelta = _currentRewardPerToken - _userRewardPerTokenPaid; // + 1 SLOAD
+        uint256 userRewardDelta = _currentRewardPerToken.sub(_userRewardPerTokenPaid); // + 1 SLOAD
         // Short circuit if there is nothing new to distribute
         if (userRewardDelta == 0) {
             return 0;
@@ -1875,23 +1748,23 @@ contract BoostedSavingsVault is
         // If there are previous unlocks, check for claims that would leave them untouchable
         if (_first > 0) {
             require(
-                lastClaim >= userRewards[_account][_first - 1].finish,
+                lastClaim >= userRewards[_account][_first.sub(1)].finish,
                 "Invalid _first arg: Must claim earlier entries"
             );
         }
 
-        uint256 count = _last - _first + 1;
+        uint256 count = _last.sub(_first).add(1);
         for (uint256 i = 0; i < count; i++) {
-            uint256 id = _first + i;
+            uint256 id = _first.add(i);
             Reward memory rwd = userRewards[_account][id];
 
             require(currentTime >= rwd.start && lastClaim <= rwd.finish, "Invalid epoch");
 
             uint256 endTime = StableMath.min(rwd.finish, currentTime);
             uint256 startTime = StableMath.max(rwd.start, lastClaim);
-            uint256 unclaimed = (endTime - startTime) * rwd.rate;
+            uint256 unclaimed = endTime.sub(startTime).mul(rwd.rate);
 
-            amount += unclaimed;
+            amount = amount.add(unclaimed);
         }
 
         // Calculate last relevant timestamp here to allow users to avoid issue of OOG errors
@@ -1915,11 +1788,11 @@ contract BoostedSavingsVault is
         // Will be always enough for 128-bit numbers
         for (uint256 i = 0; i < 128; i++) {
             if (min >= max) break;
-            uint256 mid = (min + max + 1) / 2;
+            uint256 mid = (min.add(max).add(1)).div(2);
             if (_lastClaim > userRewards[_account][mid].start) {
                 min = mid;
             } else {
-                max = mid - 1;
+                max = mid.sub(1);
             }
         }
         return min;
@@ -1937,11 +1810,11 @@ contract BoostedSavingsVault is
         // Will be always enough for 128-bit numbers
         for (uint256 i = 0; i < 128; i++) {
             if (min >= max) break;
-            uint256 mid = (min + max + 1) / 2;
-            if (block.timestamp > userRewards[_account][mid].start) {
+            uint256 mid = (min.add(max).add(1)).div(2);
+            if (now > userRewards[_account][mid].start) {
                 min = mid;
             } else {
-                max = mid - 1;
+                max = mid.sub(1);
             }
         }
         return min;
@@ -1958,7 +1831,6 @@ contract BoostedSavingsVault is
      */
     function notifyRewardAmount(uint256 _reward)
         external
-        override
         onlyRewardsDistributor
         updateReward(address(0))
     {
@@ -1967,17 +1839,17 @@ contract BoostedSavingsVault is
         uint256 currentTime = block.timestamp;
         // If previous period over, reset rewardRate
         if (currentTime >= periodFinish) {
-            rewardRate = _reward / DURATION;
+            rewardRate = _reward.div(DURATION);
         }
         // If additional reward to existing period, calc sum
         else {
-            uint256 remaining = periodFinish - currentTime;
-            uint256 leftover = remaining * rewardRate;
-            rewardRate = (_reward + leftover) / DURATION;
+            uint256 remaining = periodFinish.sub(currentTime);
+            uint256 leftover = remaining.mul(rewardRate);
+            rewardRate = _reward.add(leftover).div(DURATION);
         }
 
         lastUpdateTime = currentTime;
-        periodFinish = currentTime + DURATION;
+        periodFinish = currentTime.add(DURATION);
 
         emit RewardAdded(_reward);
     }
