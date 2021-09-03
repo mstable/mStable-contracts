@@ -198,15 +198,15 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "DelayedProxyAdmin":
                 return "0x2d369F83E9DC764a759a74e87a9Bc542a2BbfdF0"
             case "BoostDirector":
-                return "0x8D084F66e8594C91461E4E0B85433feFf1CA8AA9"
+                return "0x363FDC050722e74C5549C11B7d2c9d68FB9D7411"
             case "SignatureVerifier":
                 return "0x3Bf48139e7C714ADA37C97Cd29e0F04D9673494a"
             case "QuestManager":
                 return "0x3e8aa84E846EEb89392E99d44cD51acA668ae7BA"
             case "StakedTokenMTA":
-                return "0xf98c297368c3e341f7f6dC9eCE8D3A33CBE62B6A"
-            // case "StakedTokenBPT":
-            //     return "0x4A869C278b7f397734F0dAFd4E5EEE1A1543Cb80"
+                return "0xa5583F67311231A2127D2C6f9a15aB112222C080"
+            case "StakedTokenBPT":
+                return "0x2813Baaf158F53F8251a369c296c7934cb1fbAF0"
             case "PlatformTokenVendorFactory":
                 return "0x91fdDea51aD5A4e050c2A34e209284344206aF8e"
             case "BalancerVault":

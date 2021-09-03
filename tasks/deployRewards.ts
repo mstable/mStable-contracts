@@ -5,6 +5,7 @@ import { ONE_WEEK } from "@utils/constants"
 
 import { Contract } from "@ethersproject/contracts"
 import { formatBytes32String } from "ethers/lib/utils"
+import { simpleToExactAmount } from "@utils/math"
 import { params } from "./taskUtils"
 import {
     AssetProxy__factory,
@@ -34,6 +35,12 @@ task("getBytecode-BoostedDualVault").setAction(async () => {
 
 task("BoostDirector.deploy", "Deploys a new BoostDirector")
     .addOptionalParam("stakingToken", "Symbol of the staking token", "MTA", types.string)
+    .addOptionalParam(
+        "vaults",
+        "Comma separated list of vault underlying token symbols, eg RmUSD,RmBTC",
+        "mUSD,mBTC,GUSD,BUSD,alUSD,HBTC,TBTC",
+        types.string,
+    )
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)
@@ -47,18 +54,12 @@ task("BoostDirector.deploy", "Deploys a new BoostDirector")
             stakingToken.address,
         ])
 
-        const tx = await boostDirector.initialize([
-            resolveAddress("mUSD", chain, "vault"),
-            resolveAddress("mBTC", chain, "vault"),
-            resolveAddress("GUSD", chain, "vault"),
-            resolveAddress("BUSD", chain, "vault"),
-            resolveAddress("HBTC", chain, "vault"),
-            resolveAddress("TBTC", chain, "vault"),
-            resolveAddress("alUSD", chain, "vault"),
-        ])
+        const vaultSymbols = taskArgs.vaults.split(",")
+        const vaultAddresses = vaultSymbols.map((symbol) => resolveAddress(symbol, chain, "vault"))
+        const tx = await boostDirector.initialize(vaultAddresses)
         await logTxDetails(tx, "initialize BoostDirector")
 
-        await hre.run("verify:verify", {
+        await verifyEtherscan(hre, {
             address: boostDirector.address,
             constructorArguments: [nexusAddress, stakingToken.address],
         })
@@ -68,24 +69,23 @@ task("Vault.deploy", "Deploys a vault contract")
     .addParam("boosted", "True if a mainnet boosted vault", true, types.boolean)
     .addParam("vaultName", "Vault name", undefined, types.string, false)
     .addParam("vaultSymbol", "Vault symbol", undefined, types.string, false)
-    .addOptionalParam("stakingToken", "Symbol of staking token. eg MTA, BAL, RMTA", "MTA", types.string)
+    .addOptionalParam("stakingToken", "Symbol of staking token. eg MTA, BAL, RMTA, mUSD, RmUSD", "MTA", types.string)
     .addOptionalParam("rewardsToken", "Symbol of rewards token. eg MTA or RMTA for Ropsten", "MTA", types.string)
-    .addParam("priceCoefficient", "Price coefficient", undefined, types.string, false)
+    .addOptionalParam("priceCoeff", "Price coefficient without 18 decimal places. eg 1 or 4800", 1, types.int)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
-        const signer = await getSigner(hre, taskArgs.speed)
         const chain = getChain(hre)
 
         const vaultData: VaultData = {
             boosted: taskArgs.boosted,
             name: taskArgs.vaultName,
             symbol: taskArgs.vaultSymbol,
-            priceCoeff: taskArgs.priceCoefficient,
+            priceCoeff: simpleToExactAmount(taskArgs.priceCoeff),
             stakingToken: resolveAddress(taskArgs.stakingToken, chain),
             rewardToken: resolveAddress(taskArgs.rewardsToken, chain),
         }
 
-        await deployVault(signer, vaultData, chain)
+        await deployVault(hre, vaultData)
     })
 
 task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
