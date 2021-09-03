@@ -128,7 +128,7 @@ task("deployVault", "Deploy Feeder Pool with boosted dual vault")
             dualRewardToken: dualRewardToken?.address,
         }
 
-        await deployVault(signer, vaultData, chain)
+        await deployVault(hre, vaultData)
     })
 
 task("FeederWrapper-deploy", "Deploy a new FeederWrapper").setAction(async (taskArgs, hre) => {

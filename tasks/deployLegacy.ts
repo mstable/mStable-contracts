@@ -13,6 +13,7 @@ import { BigNumberish, Signer } from "ethers"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getSigner } from "./utils/signerFactory"
 import { Chain, logTxDetails } from "./utils"
+import { verifyEtherscan } from "./utils/etherscan"
 
 interface UserBalance {
     user: string
@@ -49,7 +50,7 @@ const vaults: VaultData[] = [
         symbol: "v-fPmUSD/GUSD",
         userBal: {
             user: "0xf794CF2d946BC6eE6eD905F47db211EBd451Aa5F",
-            balance: simpleToExactAmount(1500000),
+            balance: simpleToExactAmount(425000),
         },
     },
     {
@@ -177,7 +178,7 @@ task("LegacyVault.deploy", "Deploys a vault contract")
                 const tx2 = await proxyAdmin.acceptUpgradeRequest(vaultProxyAddress)
                 await logTxDetails(tx2, `${vault.underlyingTokenSymbol} acceptUpgradeRequest`)
             } else {
-                await hre.run("verify:verify", {
+                await verifyEtherscan(hre, {
                     address: vaultImpl.address,
                     constructorArguments,
                 })
