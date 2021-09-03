@@ -47,12 +47,8 @@ task("BoostDirector.deploy", "Deploys a new BoostDirector")
         const chain = getChain(hre)
 
         const nexusAddress = getChainAddress("Nexus", chain)
-        const stakingToken = resolveToken(taskArgs.stakingToken, chain)
 
-        const boostDirector: BoostDirectorV2 = await deployContract(new BoostDirectorV2__factory(signer), "BoostDirector", [
-            nexusAddress,
-            stakingToken.address,
-        ])
+        const boostDirector: BoostDirectorV2 = await deployContract(new BoostDirectorV2__factory(signer), "BoostDirector", [nexusAddress])
 
         const vaultSymbols = taskArgs.vaults.split(",")
         const vaultAddresses = vaultSymbols.map((symbol) => resolveAddress(symbol, chain, "vault"))
@@ -61,7 +57,7 @@ task("BoostDirector.deploy", "Deploys a new BoostDirector")
 
         await verifyEtherscan(hre, {
             address: boostDirector.address,
-            constructorArguments: [nexusAddress, stakingToken.address],
+            constructorArguments: [nexusAddress],
         })
     })
 

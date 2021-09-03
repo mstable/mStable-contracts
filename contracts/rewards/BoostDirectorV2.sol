@@ -41,8 +41,7 @@ contract BoostDirectorV2 is IBoostDirector, ImmutableModule {
     ****************************************/
 
     // Simple constructor
-    constructor(address _nexus, address _stakingContract) ImmutableModule(_nexus) {
-        stakedTokenContracts.push(IERC20(_stakingContract));
+    constructor(address _nexus) ImmutableModule(_nexus) {
         balanceDivisor = 12;
     }
 
