@@ -366,9 +366,9 @@ abstract contract GamifiedToken is
         }
         //  ii) For previous minters, recalculate time held
         //      Calc new weighted timestamp
-        uint256 oldWeighredSecondsHeld = (block.timestamp - oldBalance.weightedTimestamp) *
+        uint256 oldWeightedSecondsHeld = (block.timestamp - oldBalance.weightedTimestamp) *
             totalRaw;
-        uint256 newSecondsHeld = oldWeighredSecondsHeld / (totalRaw + (_rawAmount / 2));
+        uint256 newSecondsHeld = oldWeightedSecondsHeld / (totalRaw + (_rawAmount / 2));
         uint32 newWeightedTs = SafeCastExtended.toUint32(block.timestamp - newSecondsHeld);
         _balances[_account].weightedTimestamp = newWeightedTs;
 
@@ -418,10 +418,10 @@ abstract contract GamifiedToken is
 
         // 3. Set back scaled time
         // e.g. stake 10 for 100 seconds, withdraw 5.
-        //      secondsHeld = (100 - 0) * (10 - 1.25) = 875
+        //      secondsHeld = (100 - 0) * (10 - 0.625) = 937.5
         uint256 secondsHeld = (block.timestamp - oldBalance.weightedTimestamp) *
-            (totalRaw - (_rawAmount / 4));
-        //      newWeightedTs = 875 / 100 = 87.5
+            (totalRaw - (_rawAmount / 8));
+        //      newWeightedTs = 937.5 / 100 = 93.75
         uint256 newSecondsHeld = secondsHeld / totalRaw;
         uint32 newWeightedTs = SafeCastExtended.toUint32(block.timestamp - newSecondsHeld);
         _balances[_account].weightedTimestamp = newWeightedTs;
@@ -541,7 +541,7 @@ abstract contract GamifiedToken is
 
     function bytes32ToString(bytes32 _bytes32) internal pure returns (string memory) {
         uint256 i = 0;
-        while(i < 32 && _bytes32[i] != 0) {
+        while (i < 32 && _bytes32[i] != 0) {
             i++;
         }
         bytes memory bytesArray = new bytes(i);

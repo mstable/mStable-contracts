@@ -93,7 +93,7 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
     .addOptionalParam("name", "Staked Token name", "Voting MTA V2", types.string)
     .addOptionalParam("symbol", "Staked Token symbol", "vMTA", types.string)
     .addOptionalParam("cooldown", "Number of seconds for the cooldown period", ONE_WEEK.mul(3).toNumber(), types.int)
-    .addOptionalParam("unstakeWindow", "Number of seconds for the unstake window", ONE_WEEK.toNumber(), types.int)
+    .addOptionalParam("unstakeWindow", "Number of seconds for the unstake window", ONE_WEEK.mul(2).toNumber(), types.int)
     .setAction(async (taskArgs, hre) => {
         const deployer = await getSignerAccount(hre, taskArgs.speed)
         const chain = getChain(hre)
