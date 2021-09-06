@@ -1414,7 +1414,7 @@ describe("Staked Token", () => {
             })
             it("partial withdraw not including fee", async () => {
                 const withdrawAmount = simpleToExactAmount(100)
-                const redemptionFee = withdrawAmount.div(10)
+                const redemptionFee = withdrawAmount.mul(75).div(1000)
                 const tx2 = await stakedToken.withdraw(withdrawAmount, sa.default.address, false, false)
                 await expect(tx2).to.emit(stakedToken, "Withdraw").withArgs(sa.default.address, sa.default.address, withdrawAmount)
 
@@ -1431,11 +1431,10 @@ describe("Staked Token", () => {
                 expect(afterData.rewardsBalance, "staker rewards after").to.eq(beforeData.rewardsBalance.add(withdrawAmount))
             })
             it("full withdraw including fee", async () => {
-                // withdraw with fee = staked withdraw + staked withdraw * 0.1 = 1.1 * staked withdraw
-                // staked withdraw = withdraw with fee / 1.1
-                // fee = staked withdraw * 0.1
-                // fee = withdraw with fee / 1.1 * 0.1 = withdraw with fee / 11
-                const redemptionFee = stakedAmount.div(11)
+                // withdrawal = stakedAmount / (1 + rate)
+                // fee = stakedAmount - withdrawal
+                // fee = stakedAmount - (stakedAmount / (1 + rate))
+                const redemptionFee = stakedAmount.sub(stakedAmount.mul(1000).div(1075))
 
                 const tx2 = await stakedToken.withdraw(stakedAmount, sa.default.address, true, true)
                 await expect(tx2).to.emit(stakedToken, "Withdraw").withArgs(sa.default.address, sa.default.address, stakedAmount)
@@ -1480,7 +1479,7 @@ describe("Staked Token", () => {
             })
             it("partial withdraw not including fee", async () => {
                 const withdrawAmount = simpleToExactAmount(300)
-                const redemptionFee = withdrawAmount.div(10)
+                const redemptionFee = withdrawAmount.mul(75).div(1000)
                 const tx2 = await stakedToken.withdraw(withdrawAmount, sa.default.address, false, false)
                 await expect(tx2).to.emit(stakedToken, "Withdraw").withArgs(sa.default.address, sa.default.address, withdrawAmount)
 
@@ -1499,11 +1498,7 @@ describe("Staked Token", () => {
                 expect(afterData.rewardsBalance, "staker rewards after").to.eq(beforeData.rewardsBalance.add(withdrawAmount))
             })
             it("full withdraw of cooldown amount including fee", async () => {
-                // withdraw with fee = staked withdraw + staked withdraw * 0.1 = 1.1 * staked withdraw
-                // staked withdraw = withdraw with fee / 1.1
-                // fee = staked withdraw * 0.1
-                // fee = withdraw with fee / 1.1 * 0.1 = withdraw with fee / 11
-                const redemptionFee = cooldownAmount.div(11)
+                const redemptionFee = cooldownAmount.sub(cooldownAmount.mul(1000).div(1075))
                 const tx2 = await stakedToken.withdraw(cooldownAmount, sa.default.address, true, true)
                 await expect(tx2).to.emit(stakedToken, "Withdraw").withArgs(sa.default.address, sa.default.address, cooldownAmount)
 
@@ -1580,11 +1575,11 @@ describe("Staked Token", () => {
                 currentTime = await getTimestamp()
             })
             const runs = [
-                { stakedSeconds: BN.from(0), expected: 100, desc: "immediate" },
-                { stakedSeconds: ONE_DAY, expected: 100, desc: "1 day" },
-                { stakedSeconds: ONE_WEEK, expected: 100, desc: "1 week" },
-                { stakedSeconds: ONE_WEEK.mul(2), expected: 100, desc: "2 weeks" },
-                { stakedSeconds: ONE_WEEK.mul(21).div(10), expected: 94.52286093, desc: "2.1 weeks" },
+                { stakedSeconds: BN.from(0), expected: 75, desc: "immediate" },
+                { stakedSeconds: ONE_DAY, expected: 75, desc: "1 day" },
+                { stakedSeconds: ONE_WEEK, expected: 75, desc: "1 week" },
+                { stakedSeconds: ONE_WEEK.mul(2), expected: 75, desc: "2 weeks" },
+                { stakedSeconds: ONE_WEEK.mul(32).div(10), expected: 71.82458365, desc: "3.1 weeks" },
                 { stakedSeconds: ONE_WEEK.mul(10), expected: 29.77225575, desc: "10 weeks" },
                 { stakedSeconds: ONE_WEEK.mul(12), expected: 25, desc: "12 weeks" },
                 { stakedSeconds: ONE_WEEK.mul(47), expected: 0.26455763, desc: "47 weeks" },
@@ -1726,7 +1721,7 @@ describe("Staked Token", () => {
 
             const tx = await stakedToken.exit()
 
-            const redemptionFee = stakedAmount.div(11).add(1)
+            const redemptionFee = stakedAmount.sub(stakedAmount.mul(1000).div(1075))
             await expect(tx).to.emit(stakedToken, "Withdraw").withArgs(sa.default.address, sa.default.address, stakedAmount)
             await expect(tx)
                 .to.emit(rewardToken, "Transfer")

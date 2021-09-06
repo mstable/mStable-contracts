@@ -473,7 +473,7 @@ contract StakedToken is GamifiedVotingToken {
         returns (uint256 _feeRate)
     {
         uint256 weeksStaked = ((block.timestamp - _weightedTimestamp) * 1e18) / ONE_WEEK;
-        if (weeksStaked > 2e18) {
+        if (weeksStaked > 3e18) {
             // e.g. weeks = 1  = sqrt(300e18) = 17320508075
             // e.g. weeks = 10 = sqrt(30e18) =   5477225575
             // e.g. weeks = 26 = sqrt(11.5) =    3391164991
@@ -483,7 +483,7 @@ contract StakedToken is GamifiedVotingToken {
             // e.g. weeks = 26 =  34e15 - 25e15 = 9e15 or 0.9%
             _feeRate = _feeRate < 25e15 ? 0 : _feeRate - 25e15;
         } else {
-            _feeRate = 1e17;
+            _feeRate = 75e15;
         }
     }
 
