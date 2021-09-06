@@ -12,7 +12,7 @@ import { expect } from "chai"
 import { BigNumberish, Signer } from "ethers"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getSigner } from "./utils/signerFactory"
-import { Chain, logTxDetails } from "./utils"
+import { Chain, deployContract, logTxDetails } from "./utils"
 import { verifyEtherscan } from "./utils/etherscan"
 
 interface UserBalance {
@@ -147,7 +147,7 @@ task("LegacyVault.deploy", "Deploys a vault contract")
             let vaultImpl: Contract
             let constructorArguments: any[]
             if (vault.underlyingTokenSymbol === "mUSD") {
-                vaultImpl = await vaultFactory.deploy()
+                vaultImpl = await deployContract(vaultFactory, `${vault.underlyingTokenSymbol} vault`)
             } else if (vault.platformToken) {
                 const platformTokenAddress = resolveAddress(vault.platformToken, chain)
                 constructorArguments = [
@@ -159,10 +159,10 @@ task("LegacyVault.deploy", "Deploys a vault contract")
                     rewardTokenAddress,
                     platformTokenAddress,
                 ]
-                vaultImpl = await vaultFactory.deploy(...constructorArguments)
+                vaultImpl = await deployContract(vaultFactory, `${vault.underlyingTokenSymbol} vault`, constructorArguments)
             } else {
                 constructorArguments = [nexusAddress, stakingTokenAddress, boostDirectorAddress, priceCoeff, boostCoeff, rewardTokenAddress]
-                vaultImpl = await vaultFactory.deploy(...constructorArguments)
+                vaultImpl = await deployContract(vaultFactory, `${vault.underlyingTokenSymbol} vault`, constructorArguments)
             }
 
             if (hre.network.name === "hardhat") {
@@ -218,8 +218,11 @@ const vaultVerification = async (hre, signer: Signer, chain: Chain) => {
 
         console.log(`About to verify the ${vault.underlyingTokenSymbol} vault`)
 
-        expect(await proxy.name(), `${vault.underlyingTokenSymbol} vault name`).to.eq(vault.name)
-        expect(await proxy.symbol(), `${vault.underlyingTokenSymbol} symbol name`).to.eq(vault.symbol)
+        if (vault.underlyingTokenSymbol !== "mUSD") {
+            expect(await proxy.name(), `${vault.underlyingTokenSymbol} vault name`).to.eq(vault.name)
+            expect(await proxy.symbol(), `${vault.underlyingTokenSymbol} vault symbol`).to.eq(vault.symbol)
+            expect(await proxy.decimals(), `${vault.underlyingTokenSymbol} decimals`).to.eq(18)
+        }
         expect(await proxy.nexus(), `${vault.underlyingTokenSymbol} vault nexus`).to.eq(nexusAddress)
         expect(await proxy.boostDirector(), `${vault.underlyingTokenSymbol} vault boost director`).to.eq(boostDirectorAddress)
         expect(await proxy.getRewardToken(), `${vault.underlyingTokenSymbol} vault reward token`).to.eq(rewardTokenAddress)
