@@ -1992,35 +1992,3 @@ contract BoostedSavingsVault is
         emit RewardAdded(_reward);
     }
 }
-
-/**
- * @title  BoostedSavingsVaultFactory
- * @author mStable
- * @notice Library that deploys a BoostedSavingsVault contract used for older vaults
- */
-contract BoostedSavingsVaultFactory {
-
-    event NewVault(address vault);
-    
-    /**
-     * @notice Deploys a new BoostedSavingsVault contract
-     */
-    function create(
-        address _nexus,
-        address _stakingToken,
-        address _boostDirector,
-        uint256 _priceCoeff,
-        uint256 _coeff,
-        address _rewardsToken
-    ) public {
-        BoostedSavingsVault newVault = new BoostedSavingsVault(
-            _nexus,
-            _stakingToken,
-            _boostDirector,
-            _priceCoeff,
-            _coeff,
-            _rewardsToken);
-
-        emit NewVault(address(newVault));
-    }
-}
