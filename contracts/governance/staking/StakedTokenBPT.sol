@@ -87,16 +87,18 @@ contract StakedTokenBPT is StakedToken {
      * @param _symbolArg Token symbol
      * @param _rewardsDistributorArg mStable Rewards Distributor
      * @param _balRecipient contract that can redistribute the $BAL
+     * @param _priceCoefficient Initial pricing coefficient
      */
     function initialize(
         bytes32 _nameArg,
         bytes32 _symbolArg,
         address _rewardsDistributorArg,
-        address _balRecipient
+        address _balRecipient,
+        uint256 _priceCoefficient
     ) external initializer {
         __StakedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg);
         balRecipient = _balRecipient;
-        priceCoefficient = 10000;
+        priceCoefficient = _priceCoefficient;
     }
 
     modifier governorOrKeeper() {
@@ -201,18 +203,35 @@ contract StakedTokenBPT is StakedToken {
     }
 
     /**
+     * @dev Allows the governor or keeper to update the price coeff
+     */
+    function fetchPriceCoefficient() external governorOrKeeper {
+        require(block.timestamp > lastPriceUpdateTime + 14 days, "Max 1 update per 14 days");
+
+        uint256 newPriceCoeff = getProspectivePriceCoefficient();
+        uint256 oldPriceCoeff = priceCoefficient;
+        uint256 diff = newPriceCoeff > oldPriceCoeff
+            ? newPriceCoeff - oldPriceCoeff
+            : oldPriceCoeff - newPriceCoeff;
+
+        // e.g. 500 * 10000 / 35000 = 5000000 / 35000 = 142
+        require((diff * 10000) / oldPriceCoeff > 500, "Must be > 5% diff");
+        require(newPriceCoeff > 15000 && newPriceCoeff < 75000, "Out of bounds");
+
+        priceCoefficient = newPriceCoeff;
+        lastPriceUpdateTime = block.timestamp;
+
+        emit PriceCoefficientUpdated(newPriceCoeff);
+    }
+
+    /**
      * @dev Fetches most recent priceCoeff from the balancer pool.
      * PriceCoeff = units of MTA per BPT, scaled to 1:1 = 10000
      * Assuming an 80/20 BPT, it is possible to calculate
      * PriceCoeff (p) = balanceOfMTA in pool (b) / bpt supply (s) / 0.8
      * p = b * 1.25 / s
      */
-    function fetchPriceCoefficient() external governorOrKeeper {
-        require(
-            block.timestamp > lastPriceUpdateTime + 14 days,
-            "Max 1 update per 14 days"
-        );
-
+    function getProspectivePriceCoefficient() public view returns (uint256 newPriceCoeff) {
         (address[] memory tokens, uint256[] memory balances, ) = balancerVault.getPoolTokens(
             poolId
         );
@@ -224,19 +243,7 @@ contract StakedTokenBPT is StakedToken {
         uint256 unitsPerToken = (balances[0] * 125e16) / STAKED_TOKEN.totalSupply();
         // e.g. 1e18 / 1e14 = 10000
         // e.g. 16e17 / 1e14 = 16000
-        uint256 newPriceCoeff = unitsPerToken / 1e14;
-        uint256 oldPriceCoeff = priceCoefficient;
-        uint256 diff = newPriceCoeff > oldPriceCoeff
-            ? newPriceCoeff - oldPriceCoeff
-            : oldPriceCoeff - newPriceCoeff;
-
-        require(diff > 500, "Must be > 5% diff");
-        require(newPriceCoeff > 4000 && newPriceCoeff < 22000, "Out of bounds");
-
-        priceCoefficient = newPriceCoeff;
-        lastPriceUpdateTime = block.timestamp;
-
-        emit PriceCoefficientUpdated(newPriceCoeff);
+        newPriceCoeff = unitsPerToken / 1e14;
     }
 
     /**
