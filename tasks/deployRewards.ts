@@ -18,7 +18,7 @@ import {
     BoostDirectorV2__factory,
     BoostDirectorV2,
 } from "../types/generated"
-import { getChain, getChainAddress, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
+import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getSignerAccount, getSigner } from "./utils/signerFactory"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { deployVault, VaultData } from "./utils/feederUtils"
