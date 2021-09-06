@@ -80,7 +80,7 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "RewardsDistributor":
                 return "0x04dfDfa471b79cc9E6E8C355e6C71F8eC4916C50"
             case "BoostDirector":
-                return "0x8892d7A5e018cdDB631F4733B5C1654e9dE10aaF"
+                return "0xBa05FD2f20AE15B0D3f20DDc6870FeCa6ACd3592"
             case "Collector":
                 return "0x3F63e5bbB53e46F8B21F67C25Bf2dd78BC6C0e43"
             case "Ejector":
@@ -279,11 +279,12 @@ export const resolveAddress = (
             // If a token Symbol
             const token = tokens.find((t) => t.symbol === addressContractNameSymbol && t.chain === chain)
             if (!token)
-                throw Error(`Invalid approve address, token symbol or contract name ${addressContractNameSymbol} for chain ${chain}`)
-            if (!token[tokenType]) throw Error(`Can not find token type ${tokenType} for ${addressContractNameSymbol} on chain ${chain}`)
+                throw Error(`Invalid approve address, token symbol or contract name "${addressContractNameSymbol}" for chain ${chain}`)
+            if (!token[tokenType])
+                throw Error(`Can not find token type "${tokenType}" for "${addressContractNameSymbol}" on chain ${chain}`)
 
             address = token[tokenType]
-            console.log(`Resolved asset with symbol ${addressContractNameSymbol} and type "${tokenType}" to address ${address}`)
+            console.log(`Resolved asset with symbol "${addressContractNameSymbol}" and type "${tokenType}" to address ${address}`)
 
             // Update the singleton instance so we don't need to resolve this next time
             updateResolvedAddresses(addressContractNameSymbol, tokenType, address)

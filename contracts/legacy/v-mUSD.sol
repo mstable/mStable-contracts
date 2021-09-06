@@ -1059,9 +1059,8 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
     using SafeERC20 for IERC20;
 
     IERC20 public constant stakingToken = IERC20(0x30647a72Dc82d7Fbb1123EA74716aB8A317Eac19);
-    // mStable MTA Staking contract
-    // TODO - add BoostDirector
-    IBoostDirector public constant boostDirector = IBoostDirector(0);
+    // mStable MTA Staking contract via the BoostDirectorV2
+    IBoostDirector public constant boostDirector = IBoostDirector(0xBa05FD2f20AE15B0D3f20DDc6870FeCa6ACd3592);
 
     uint256 private _totalBoostedSupply;
     mapping(address => uint256) private _boostedBalances;
