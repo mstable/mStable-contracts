@@ -1505,6 +1505,11 @@ contract BoostedSavingsVault is
      * to locking up for a flat 6 months from the time of this fn call (allowing more passive accrual).
      */
     modifier updateReward(address _account) {
+        _updateReward(_account);
+        _;
+    }
+    
+    function _updateReward(address _account) internal {
         uint256 currentTime = block.timestamp;
         uint64 currentTime64 = SafeCast.toUint64(currentTime);
 
@@ -1553,7 +1558,6 @@ contract BoostedSavingsVault is
             // This should only be hit once, for first staker in initialisation case
             userData[_account].lastAction = currentTime64;
         }
-        _;
     }
 
     /** @dev Updates the boost for a given address, after the rest of the function has executed */
@@ -1986,5 +1990,37 @@ contract BoostedSavingsVault is
         periodFinish = currentTime + DURATION;
 
         emit RewardAdded(_reward);
+    }
+}
+
+/**
+ * @title  BoostedSavingsVaultFactory
+ * @author mStable
+ * @notice Library that deploys a BoostedSavingsVault contract used for older vaults
+ */
+contract BoostedSavingsVaultFactory {
+
+    event NewVault(address vault);
+    
+    /**
+     * @notice Deploys a new BoostedSavingsVault contract
+     */
+    function create(
+        address _nexus,
+        address _stakingToken,
+        address _boostDirector,
+        uint256 _priceCoeff,
+        uint256 _coeff,
+        address _rewardsToken
+    ) public {
+        BoostedSavingsVault newVault = new BoostedSavingsVault(
+            _nexus,
+            _stakingToken,
+            _boostDirector,
+            _priceCoeff,
+            _coeff,
+            _rewardsToken);
+
+        emit NewVault(address(newVault));
     }
 }
