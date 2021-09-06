@@ -2,7 +2,7 @@
 /* eslint-disable no-restricted-syntax */
 import "ts-node/register"
 import "tsconfig-paths/register"
-import { task, types } from "hardhat/config"
+import { subtask, task, types } from "hardhat/config"
 
 import { BN, simpleToExactAmount } from "@utils/math"
 import { DelayedProxyAdmin__factory } from "types"
@@ -39,8 +39,8 @@ const vaults: VaultData[] = [
         name: "imBTC Vault",
         symbol: "v-imBTC",
         userBal: {
-            user: "0x285B10c73de847Ee35BCB5Cd86f17D55Ff936476",
-            balance: simpleToExactAmount(768),
+            user: "0x25953c127efd1e15f4d2be82b753d49b12d626d7",
+            balance: simpleToExactAmount(172),
         },
     },
     {
@@ -64,17 +64,6 @@ const vaults: VaultData[] = [
         },
     },
     {
-        underlyingTokenSymbol: "alUSD",
-        stakingTokenType: "feederPool",
-        name: "mUSD/alUSD fPool Vault",
-        symbol: "v-fPmUSD/alUSD",
-        platformToken: "ALCX",
-        userBal: {
-            user: "0x97020c9ec66e0f59231918b1d2f167a66026aff2",
-            balance: simpleToExactAmount(1200000),
-        },
-    },
-    {
         underlyingTokenSymbol: "HBTC",
         stakingTokenType: "feederPool",
         priceCoeff: btcPriceCoeff,
@@ -94,6 +83,17 @@ const vaults: VaultData[] = [
         userBal: {
             user: "0x6f500bb95ee1cf1a92e45f7697fabb2d477087af",
             balance: simpleToExactAmount(2.2),
+        },
+    },
+    {
+        underlyingTokenSymbol: "alUSD",
+        stakingTokenType: "feederPool",
+        name: "mUSD/alUSD fPool Vault",
+        symbol: "v-fPmUSD/alUSD",
+        platformToken: "ALCX",
+        userBal: {
+            user: "0x97020c9ec66e0f59231918b1d2f167a66026aff2",
+            balance: simpleToExactAmount(1200000),
         },
     },
     {
@@ -139,15 +139,15 @@ task("LegacyVault.deploy", "Deploys a vault contract")
             const stakingTokenAddress = resolveAddress(vault.underlyingTokenSymbol, chain, vault.stakingTokenType)
             const vaultProxyAddress = resolveAddress(vault.underlyingTokenSymbol, chain, "vault")
             const contractName = vault.platformToken ? "BoostedDualVault" : "BoostedSavingsVault"
-            const vaultFactory = await hre.ethers.getContractFactory(
-                `contracts/legacy/v-${vault.underlyingTokenSymbol}.sol:${contractName}`,
-                signer,
-            )
+
             const priceCoeff = vault.priceCoeff ? vault.priceCoeff : simpleToExactAmount(1)
             let vaultImpl: Contract
             let constructorArguments: any[]
             if (vault.underlyingTokenSymbol === "mUSD") {
-                vaultImpl = await deployContract(vaultFactory, `${vault.underlyingTokenSymbol} vault`)
+                const vaultFactory = await hre.ethers.getContractFactory(
+                    `contracts/legacy/v-${vault.underlyingTokenSymbol}.sol:${contractName}`,
+                )
+                vaultImpl = await deployContract(vaultFactory.connect(signer), `${vault.underlyingTokenSymbol} vault`)
             } else if (vault.platformToken) {
                 const platformTokenAddress = resolveAddress(vault.platformToken, chain)
                 constructorArguments = [
@@ -159,10 +159,14 @@ task("LegacyVault.deploy", "Deploys a vault contract")
                     rewardTokenAddress,
                     platformTokenAddress,
                 ]
-                vaultImpl = await deployContract(vaultFactory, `${vault.underlyingTokenSymbol} vault`, constructorArguments)
+                const vaultFactory = await hre.ethers.getContractFactory(
+                    `contracts/legacy/v-${vault.underlyingTokenSymbol}.sol:${contractName}`,
+                )
+                vaultImpl = await deployContract(vaultFactory.connect(signer), `${vault.underlyingTokenSymbol} vault`, constructorArguments)
             } else {
                 constructorArguments = [nexusAddress, stakingTokenAddress, boostDirectorAddress, priceCoeff, boostCoeff, rewardTokenAddress]
-                vaultImpl = await deployContract(vaultFactory, `${vault.underlyingTokenSymbol} vault`, constructorArguments)
+                const vaultFactory = await hre.ethers.getContractFactory(`contracts/legacy/v-mBTC.sol:${contractName}`)
+                vaultImpl = await deployContract(vaultFactory.connect(signer), `${vault.underlyingTokenSymbol} vault`, constructorArguments)
             }
 
             if (hre.network.name === "hardhat") {
