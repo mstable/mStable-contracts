@@ -56,7 +56,6 @@ export const hardhatConfig = {
             },
             {
                 version: "0.8.2",
-                files: "contracts/legacy/v-imBTC.sol",
                 settings: {
                     optimizer: {
                         enabled: true,
