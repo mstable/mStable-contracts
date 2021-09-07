@@ -153,8 +153,8 @@ contract StakedTokenBPT is StakedToken {
         uint256[] memory minOut = new uint256[](1);
         address[] memory exitToken = new address[](1);
         {
-            uint256 unitsPerToken = (balances[0] * 12e17) / STAKED_TOKEN.totalSupply();
-            minOut[0] = (pendingBPT * unitsPerToken) / 1e18;
+            // e.g. 1e18 * 42000 / 12500 = 3.36e18
+            minOut[0] = (pendingBPT * priceCoefficient) / 12500;
             exitToken[0] = address(REWARDS_TOKEN);
         }
 
@@ -175,7 +175,7 @@ contract StakedTokenBPT is StakedToken {
 
         // 3. Inform HeadlessRewards about the new rewards
         uint256 mtaBalAfter = REWARDS_TOKEN.balanceOf(address(this));
-        pendingAdditionalReward += (mtaBalAfter - mtaBalBefore);
+        super._notifyAdditionalReward(mtaBalAfter - mtaBalBefore);
     }
 
     /**
