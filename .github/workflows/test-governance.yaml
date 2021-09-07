@@ -21,4 +21,4 @@ jobs:
                       ${{ runner.os }}-yarn-
             - run: yarn
             - run: yarn compile
-            - run: yarn test:file ./test/governance/*.spec.ts
+            - run: yarn test:file ./test/governance/*.spec.ts ./test/governance/**/*.spec.ts

@@ -132,6 +132,10 @@ describe("Staked Token BPT", () => {
         sa = mAssetMachine.sa
     })
 
+    // '''..................................................................'''
+    // '''....................    STAKEDTOKEN.DATA    ......................'''
+    // '''..................................................................'''
+
     context("deploy and initialize", () => {
         before(async () => {
             ;({ stakedToken, questManager } = await redeployStakedToken())
@@ -140,6 +144,10 @@ describe("Staked Token BPT", () => {
             expect(await stakedToken.priceCoefficient()).eq(10000)
         })
     })
+
+    // '''..................................................................'''
+    // '''...................    PRICE COEFFICIENT    ......................'''
+    // '''..................................................................'''
 
     context("when a StakedToken has price coefficient", () => {
         const stakedAmount = simpleToExactAmount(1000)
@@ -170,5 +178,21 @@ describe("Staked Token BPT", () => {
             expect(data.userPriceCoeff).eq(10000)
             expect(data.votes).eq(stakedAmount.mul(2))
         })
+    })
+
+    // '''..................................................................'''
+    // '''...................        BAL TOKENS       ......................'''
+    // '''..................................................................'''
+
+    context("claiming BAL rewards", () => {
+        it("should allow BAL tokens to be claimed")
+    })
+
+    // '''..................................................................'''
+    // '''........................    FEES ETC    ..........................'''
+    // '''..................................................................'''
+
+    context("collecting fees", () => {
+        it("should convert fees back into $MTA")
     })
 })

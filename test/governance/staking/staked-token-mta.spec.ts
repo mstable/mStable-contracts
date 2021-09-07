@@ -41,7 +41,9 @@ describe("Staked Token MTA rewards", () => {
     let stakedToken: StakedToken
     let rewardsVendorAddress: string
     const startingMintAmount = simpleToExactAmount(10000000)
+
     console.log(`Staked Token MTA contract size ${StakedTokenMTA__factory.bytecode.length / 2} bytes`)
+
     const redeployStakedToken = async (): Promise<void> => {
         deployTime = await getTimestamp()
         nexus = await new MockNexus__factory(sa.default.signer).deploy(sa.governor.address, DEAD_ADDRESS, DEAD_ADDRESS)
@@ -95,6 +97,7 @@ describe("Staked Token MTA rewards", () => {
 
         rewardsVendorAddress = await stakedToken.rewardTokenVendor()
     }
+
     const snapRewardsData = async (user: string): Promise<SnapData> => {
         const globalData = await stakedToken.globalData()
         const userData = await stakedToken.userData(user)
@@ -105,11 +108,17 @@ describe("Staked Token MTA rewards", () => {
             earned,
         }
     }
+
     before("Create test accounts", async () => {
         const accounts = await ethers.getSigners()
         const mAssetMachine = await new MassetMachine().initAccounts(accounts)
         sa = mAssetMachine.sa
     })
+
+    // '''..................................................................'''
+    // '''........................      DATA      ..........................'''
+    // '''..................................................................'''
+
     context("deploy and initialize", () => {
         before(async () => {
             await redeployStakedToken()
@@ -130,6 +139,23 @@ describe("Staked Token MTA rewards", () => {
             expect(globalData.rewardPerTokenStored, "rewardPerTokenStored").to.eq(0)
         })
     })
+
+    // '''..................................................................'''
+    // '''..................      COMPOUNDING RWDS      ....................'''
+    // '''..................................................................'''
+
+    context("compound rewards", () => {
+        it("should compound rewards")
+    })
+
+    // '''..................................................................'''
+    // '''................      REWARD DISTRIBUTION      ...................'''
+    // '''..................................................................'''
+
+    context("collecting fees in $MTA", () => {
+        it("should collect the fees and notify as part of notification")
+    })
+
     context("distribute rewards", () => {
         const distAmount = simpleToExactAmount(10000)
         context("should fail when", () => {
