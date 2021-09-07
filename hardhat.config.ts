@@ -5,6 +5,7 @@ import "@typechain/hardhat"
 import "hardhat-gas-reporter"
 import "solidity-coverage"
 import "hardhat-abi-exporter"
+import "@nomiclabs/hardhat-etherscan"
 
 import "ts-node/register"
 import "tsconfig-paths/register"
@@ -22,19 +23,14 @@ import "tsconfig-paths/register"
 export const hardhatConfig = {
     networks: {
         hardhat: {
-            allowUnlimitedContractSize: true,
+            allowUnlimitedContractSize: false,
+            initialBaseFeePerGas: 0,
         },
-        localhost: { url: "http://localhost:7545" },
-        fork: {
-            url: "http://localhost:7545",
-        },
-        // export the NODE_URL environment variable to use remote nodes like Alchemy or Infura. eg
+        local: { url: "http://localhost:8545" },
+        // export the NODE_URL environment variable to use remote nodes like Alchemy or Infura. ge
         // export NODE_URL=https://eth-mainnet.alchemyapi.io/v2/yourApiKey
-        env: { url: process.env.NODE_URL || "" },
         ropsten: {
             url: process.env.NODE_URL || "",
-            gasPrice: 30000000000,
-            gasLimit: 8000000,
         },
         polygon_testnet: {
             url: process.env.NODE_URL || "https://rpc-mumbai.maticvigil.com",
@@ -47,7 +43,36 @@ export const hardhatConfig = {
         },
     },
     solidity: {
-        version: "0.8.6",
+        // version: "0.8.6",
+        compilers: [
+            {
+                version: "0.8.6",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 200,
+                    },
+                },
+            },
+            {
+                version: "0.8.2",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 200,
+                    },
+                },
+            },
+            {
+                version: "0.5.16",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 200,
+                    },
+                },
+            },
+        ],
         settings: {
             optimizer: {
                 enabled: true,
@@ -79,8 +104,11 @@ export const hardhatConfig = {
         target: "ethers-v5",
     },
     tenderly: {
-        username: "mStable",
-        project: "mStable-contracts",
+        username: "alsco77",
+        project: "mStable",
+    },
+    etherscan: {
+        apiKey: process.env.ETHERSCAN_KEY,
     },
 }
 

@@ -22,7 +22,7 @@ abstract contract InitializableRewardsDistributionRecipient is
     constructor(address _nexus) ImmutableModule(_nexus) {}
 
     /** @dev Recipient is a module, governed by mStable governance */
-    function _initialize(address _rewardsDistributor) internal {
+    function _initialize(address _rewardsDistributor) internal virtual {
         rewardsDistributor = _rewardsDistributor;
     }
 

@@ -79,8 +79,8 @@ abstract contract ImmutableModule is ModuleKeys {
     }
 
     /**
-     * @dev Return Recollateraliser Module address from the Nexus
-     * @return  Address of the Recollateraliser Module contract (Phase 2)
+     * @dev Return Liquidator Module address from the Nexus
+     * @return  Address of the Liquidator Module contract
      */
     function _liquidator() internal view returns (address) {
         return nexus.getModule(KEY_LIQUIDATOR);

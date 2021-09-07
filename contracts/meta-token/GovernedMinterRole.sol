@@ -19,6 +19,7 @@ abstract contract GovernedMinterRole is ImmutableModule, AccessControl {
     event MinterRemoved(address indexed account);
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+
     constructor(address _nexus) ImmutableModule(_nexus) {
         _setupRole(DEFAULT_ADMIN_ROLE, INexus(_nexus).governor());
     }
@@ -53,6 +54,7 @@ abstract contract GovernedMinterRole is ImmutableModule, AccessControl {
         revokeRole(MINTER_ROLE, account);
         emit MinterRemoved(account);
     }
+
     function _renounceMinter(address account) internal {
         renounceRole(MINTER_ROLE, account);
         emit MinterRemoved(account);

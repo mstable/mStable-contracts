@@ -28,11 +28,19 @@ export class StandardAccounts {
 
     public fundManager2: Account
 
+    public questMaster: Account
+
+    public questSigner: Account
+
     public mockSavingsManager: Account
 
     public mockInterestValidator: Account
 
+    public mockRecollateraliser: Account
+
     public mockMasset: Account
+
+    public mockRewardsDistributor: Account
 
     public async initAccounts(signers: Signer[]): Promise<StandardAccounts> {
         this.all = await Promise.all(
@@ -51,9 +59,13 @@ export class StandardAccounts {
             this.dummy4,
             this.fundManager,
             this.fundManager2,
+            this.questMaster,
+            this.questSigner,
             this.mockSavingsManager,
             this.mockInterestValidator,
+            this.mockRecollateraliser,
             this.mockMasset,
+            this.mockRewardsDistributor,
         ] = this.all
         return this
     }

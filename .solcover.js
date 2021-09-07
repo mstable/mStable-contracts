@@ -10,5 +10,6 @@ module.exports = {
         "peripheral",
         "savings/peripheral",
         "upgradability",
+        "legacy",
     ],
 }

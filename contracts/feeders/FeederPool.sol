@@ -7,7 +7,7 @@ import { IMasset } from "../interfaces/IMasset.sol";
 // Internal
 import "../masset/MassetStructs.sol";
 import { IFeederPool } from "../interfaces/IFeederPool.sol";
-import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
+import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { InitializableToken } from "../shared/InitializableToken.sol";
 import { PausableModule } from "../shared/PausableModule.sol";
 import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyGuard.sol";

@@ -10,7 +10,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @title  StakingTokenWrapper
  * @author Synthetix (forked from /Synthetixio/synthetix/contracts/StakingRewards.sol)
  *         Audit: https://github.com/sigp/public-audits/blob/master/synthetix/unipool/review.pdf
- *         Changes by: Stability Labs Pty. Ltd.
+ *         Changes by: mStable
  * @notice Basic wrapper to facilitate tracking of staked balances
  * @dev    Changes:
  *          - Cosmetic (comments, readability)

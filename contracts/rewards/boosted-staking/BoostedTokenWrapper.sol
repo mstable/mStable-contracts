@@ -37,10 +37,10 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
 
     // Vars for use in the boost calculations
     uint256 private constant MIN_DEPOSIT = 1e18;
-    uint256 private constant MAX_VMTA = 300000e18;
-    uint256 private constant MAX_BOOST = 4e18;
+    uint256 private constant MAX_VMTA = 600000e18;
+    uint256 private constant MAX_BOOST = 3e18;
     uint256 private constant MIN_BOOST = 1e18;
-    uint256 private constant FLOOR = 95e16;
+    uint256 private constant FLOOR = 98e16;
     uint256 public immutable boostCoeff; // scaled by 10
     uint256 public immutable priceCoeff;
 
@@ -171,7 +171,7 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
 
     /**
      * @dev Computes the boost for
-     * boost = min(m, max(1, 0.95 + c * min(voting_weight, f) / deposit^(7/8)))
+     * boost = min(m, max(1, 0.95 + c * min(voting_weight, f) / deposit^(3/4)))
      * @param _scaledDeposit deposit amount in terms of USD
      */
     function _computeBoost(uint256 _scaledDeposit, uint256 _votingWeight)
@@ -181,20 +181,10 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
     {
         if (_votingWeight == 0) return MIN_BOOST;
 
-        // Compute balance to the power 7/8
-        // if price is     $0.10, do sqrt(_deposit * 1e5)
-        // if price is     $1.00, do sqrt(_deposit * 1e6)
-        // if price is $10000.00, do sqrt(_deposit * 1e9)
-        uint256 denominator = Root.sqrt(Root.sqrt(Root.sqrt(_scaledDeposit * 1e6)));
-        denominator =
-            denominator *
-            denominator *
-            denominator *
-            denominator *
-            denominator *
-            denominator *
-            denominator;
-        denominator /= 1e3;
+        // Compute balance to the power 3/4
+        uint256 sqrt1 = Root.sqrt(_scaledDeposit * 1e6);
+        uint256 sqrt2 = Root.sqrt(sqrt1);
+        uint256 denominator = sqrt1 * sqrt2;
         boost =
             (((StableMath.min(_votingWeight, MAX_VMTA) * boostCoeff) / 10) * 1e18) /
             denominator;

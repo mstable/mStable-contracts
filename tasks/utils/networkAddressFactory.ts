@@ -1,3 +1,4 @@
+import { DEAD_ADDRESS } from "@utils/constants"
 import { ethereumAddress } from "@utils/regex"
 import { AssetAddressTypes, Chain, Token, tokens } from "./tokens"
 
@@ -23,6 +24,15 @@ export const contractNames = [
     "FeederWrapper",
     "FeederInterestValidator",
     "BasketManager", // Legacy mUSD contract
+    "SignatureVerifier",
+    "QuestManager",
+    "QuestMaster",
+    "QuestSigner",
+    "StakedTokenMTA",
+    "StakedTokenBPT",
+    "PlatformTokenVendorFactory",
+    "BalancerVault",
+    "BalancerRecipient",
     "AaveIncentivesController",
     "AaveLendingPoolAddressProvider",
     "AlchemixStakingPool",
@@ -70,7 +80,7 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "RewardsDistributor":
                 return "0x04dfDfa471b79cc9E6E8C355e6C71F8eC4916C50"
             case "BoostDirector":
-                return "0x8892d7A5e018cdDB631F4733B5C1654e9dE10aaF"
+                return "0xBa05FD2f20AE15B0D3f20DDc6870FeCa6ACd3592"
             case "Collector":
                 return "0x3F63e5bbB53e46F8B21F67C25Bf2dd78BC6C0e43"
             case "Ejector":
@@ -91,6 +101,14 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x7C1fD068CE739A4687BEe9F69e5FD2275C7372d4"
             case "FeederInterestValidator":
                 return "0xf1049aeD858C4eAd6df1de4dbE63EF607CfF3262"
+            case "QuestMaster":
+                return "0x3dd46846eed8D147841AE162C8425c08BD8E1b41"
+            case "QuestSigner":
+                return "0xfe99964d9677d7dfb66c5ca609b64f710d2808b8"
+            case "BalancerVault":
+                return "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
+            case "BalancerRecipient":
+                return DEAD_ADDRESS
             case "BasketManager":
                 return "0x66126B4aA2a1C07536Ef8E5e8bD4EfDA1FdEA96D"
             case "AaveIncentivesController":
@@ -179,6 +197,28 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xeD04Cd19f50F893792357eA53A549E23Baf3F6cB"
             case "DelayedProxyAdmin":
                 return "0x2d369F83E9DC764a759a74e87a9Bc542a2BbfdF0"
+            case "BoostDirector":
+                return "0x363FDC050722e74C5549C11B7d2c9d68FB9D7411"
+            case "SignatureVerifier":
+                return "0x3Bf48139e7C714ADA37C97Cd29e0F04D9673494a"
+            case "QuestManager":
+                return "0x3e8aa84E846EEb89392E99d44cD51acA668ae7BA"
+            case "StakedTokenMTA":
+                return "0xa5583F67311231A2127D2C6f9a15aB112222C080"
+            case "StakedTokenBPT":
+                return "0x2813Baaf158F53F8251a369c296c7934cb1fbAF0"
+            case "PlatformTokenVendorFactory":
+                return "0x91fdDea51aD5A4e050c2A34e209284344206aF8e"
+            case "BalancerVault":
+                return DEAD_ADDRESS
+            case "BalancerRecipient":
+                return DEAD_ADDRESS
+            case "QuestMaster":
+                return "0x04617083205b2fdd18b15bcf60d06674c6e2c1dc"
+            case "QuestSigner":
+                return "0x04617083205b2fdd18b15bcf60d06674c6e2c1dc"
+            case "RewardsDistributor":
+                return DEAD_ADDRESS
             default:
         }
     }
@@ -239,11 +279,12 @@ export const resolveAddress = (
             // If a token Symbol
             const token = tokens.find((t) => t.symbol === addressContractNameSymbol && t.chain === chain)
             if (!token)
-                throw Error(`Invalid approve address, token symbol or contract name ${addressContractNameSymbol} for chain ${chain}`)
-            if (!token[tokenType]) throw Error(`Can not find token type ${tokenType} for ${addressContractNameSymbol} on chain ${chain}`)
+                throw Error(`Invalid approve address, token symbol or contract name "${addressContractNameSymbol}" for chain ${chain}`)
+            if (!token[tokenType])
+                throw Error(`Can not find token type "${tokenType}" for "${addressContractNameSymbol}" on chain ${chain}`)
 
             address = token[tokenType]
-            console.log(`Resolved asset with symbol ${addressContractNameSymbol} and type "${tokenType}" to address ${address}`)
+            console.log(`Resolved asset with symbol "${addressContractNameSymbol}" and type "${tokenType}" to address ${address}`)
 
             // Update the singleton instance so we don't need to resolve this next time
             updateResolvedAddresses(addressContractNameSymbol, tokenType, address)
@@ -269,7 +310,7 @@ export const resolveToken = (symbol: string, chain = Chain.mainnet, tokenType: A
 
     // If a token Symbol
     const token = tokens.find((t) => t.symbol === symbol && t.chain === chain)
-    if (!token) throw Error(`Can not fine token symbol ${symbol} on chain ${chain}`)
+    if (!token) throw Error(`Can not find token symbol ${symbol} on chain ${chain}`)
     if (!token[tokenType]) throw Error(`Can not find token type "${tokenType}" for ${symbol} on chain ${chain}`)
 
     console.log(`Resolved token symbol ${symbol} and type "${tokenType}" to address ${token[tokenType]}`)

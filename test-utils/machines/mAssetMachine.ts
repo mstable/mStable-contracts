@@ -26,7 +26,7 @@ import {
 import { BN, minimum, simpleToExactAmount } from "@utils/math"
 import { fullScale, ratioScale, ZERO_ADDRESS, DEAD_ADDRESS } from "@utils/constants"
 import { Basset } from "@utils/mstable-objects"
-import { Address } from "types/common"
+import { EthAddress } from "types/common"
 import { StandardAccounts } from "./standardAccounts"
 import { ActionDetails, ATokenDetails, BasketComposition, BassetIntegrationDetails } from "../../types/machines"
 
@@ -69,8 +69,8 @@ export class MassetMachine {
             this.sa.mockInterestValidator.address,
         )
         const mAssetFactoryLibs = {
-            __$6a4be19f34d71a078def5cee18ccebcd10$__: logicLib.address,
-            __$3b19b776afde68cd758db0cae1b8e49f94$__: managerLib.address,
+            "contracts/masset/MassetLogic.sol:MassetLogic": logicLib.address,
+            "contracts/masset/MassetManager.sol:MassetManager": managerLib.address,
         }
         const MassetFactory = new ExposedMasset__factory(mAssetFactoryLibs, this.sa.default.signer)
         const impl = (await MassetFactory.deploy(nexus.address, simpleToExactAmount(5, 13))) as ExposedMasset
@@ -131,8 +131,8 @@ export class MassetMachine {
 
         // 3.2. Masset
         const mAssetFactoryLibs = {
-            __$6a4be19f34d71a078def5cee18ccebcd10$__: logicLib.address,
-            __$3b19b776afde68cd758db0cae1b8e49f94$__: managerLib.address,
+            "contracts/masset/MassetLogic.sol:MassetLogic": logicLib.address,
+            "contracts/masset/MassetManager.sol:MassetManager": managerLib.address,
         }
         const MassetFactory = new ExposedMasset__factory(mAssetFactoryLibs, this.sa.default.signer)
         const impl = (await MassetFactory.deploy(nexus.address, simpleToExactAmount(5, 13))) as Masset
@@ -478,7 +478,7 @@ export class MassetMachine {
      * @returns
      */
     public async loadATokens(bAssets: MockERC20[]): Promise<{
-        aavePlatformAddress: Address
+        aavePlatformAddress: EthAddress
         aTokens?: Array<ATokenDetails>
     }> {
         //  - Mock Aave integration

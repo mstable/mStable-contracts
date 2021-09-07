@@ -82,12 +82,24 @@ export const MmUSD: Token = {
     decimals: 18,
     quantityFormatter: "USD",
 }
+// Ropsten
 export const RmUSD: Token = {
     symbol: "RmUSD",
     address: "0x4E1000616990D83e56f4b5fC6CC8602DcfD20459",
     chain: Chain.ropsten,
     decimals: 18,
     quantityFormatter: "USD",
+    savings: "0x5b7f01dAe6BCE656c9cA4175Eb3E406ADC6c7957",
+    vault: "0xDEFc008BAC1e38F13F081DDD20acf89985DFa7C8",
+}
+export const RmBTC: Token = {
+    symbol: "RmBTC",
+    address: "0x4A677A48A790f26eac4c97f495E537558Abf6A79",
+    chain: Chain.ropsten,
+    decimals: 18,
+    quantityFormatter: "BTC",
+    savings: "0xBfe31D984d688628d06Ae2Da1D640Cf5D9e242A5",
+    vault: "0x7799BEEAf20120CC78f5cF2EB9C85e395B43bF4D",
 }
 
 // USD Main Pool Assets on Mainnet
@@ -313,6 +325,15 @@ export const PMTA: Token = {
     quantityFormatter: "USD",
 }
 
+export const RMTA: Token = {
+    symbol: "RMTA",
+    address: "0x273bc479E5C21CAA15aA8538DecBF310981d14C0",
+    chain: Chain.ropsten,
+    decimals: 18,
+    quantityFormatter: "USD",
+    vault: "0x4d8E465ba7FACa907E8A5F39649e056bB14802D1",
+}
+
 export const PWMATIC: Token = {
     symbol: "PWMATIC",
     address: "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
@@ -361,9 +382,26 @@ export const cyMUSD: Token = {
     quantityFormatter: "USD",
 }
 
+export const BAL: Token = {
+    symbol: "BAL",
+    address: "0xba100000625a3754423978a60c9317c58a424e3d",
+    chain: Chain.mainnet,
+    decimals: 18,
+    quantityFormatter: "USD",
+}
+
+export const RBAL: Token = {
+    symbol: "RBAL",
+    address: "0x0Aa94D9Db9dA74Bb86A437E28EE4ecf22365843E",
+    chain: Chain.ropsten,
+    decimals: 18,
+    quantityFormatter: "USD",
+}
+
 export const tokens = [
     MTA,
     PMTA,
+    RMTA,
     mUSD,
     mBTC,
     sUSD,
@@ -385,4 +423,8 @@ export const tokens = [
     PUSDT,
     PDAI,
     PWMATIC,
+    RmUSD,
+    RmBTC,
+    BAL,
+    RBAL,
 ]
