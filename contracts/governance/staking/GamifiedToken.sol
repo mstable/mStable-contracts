@@ -551,5 +551,5 @@ abstract contract GamifiedToken is
         return string(bytesArray);
     }
 
-    uint256[45] private __gap;
+    uint256[46] private __gap;
 }

@@ -145,7 +145,7 @@ describe("Staked Token MTA rewards", () => {
     // '''..................................................................'''
 
     context("compound rewards", () => {
-        it("should compound rewards")
+        it("should compound a users rewards")
     })
 
     // '''..................................................................'''
@@ -154,6 +154,7 @@ describe("Staked Token MTA rewards", () => {
 
     context("collecting fees in $MTA", () => {
         it("should collect the fees and notify as part of notification")
+        it("should add the correct amount of fees, and deposit to the vendor")
     })
 
     context("distribute rewards", () => {
@@ -316,5 +317,12 @@ describe("Staked Token MTA rewards", () => {
                 assertBNClose(user1DataAfter.earned, user1EarnedExpected, 1000000)
             })
         })
+    })
+
+    context("earning rewards", () => {
+        it("should earn rewards on all user actions")
+        it("should claim rewards (from the token vendor)")
+        it("should calculate earned")
+        it("should use boostedBalance and totalSupply to earn rewards")
     })
 })

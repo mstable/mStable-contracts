@@ -118,6 +118,8 @@ contract QuestManager is IQuestManager, Initializable, ContextUpgradeable, Immut
      * @dev Adds a new stakedToken
      */
     function addStakedToken(address _stakedToken) external override onlyGovernor {
+        require(_stakedToken != address(0), "Invalid StakedToken");
+
         _stakedTokens.push(_stakedToken);
 
         emit StakedTokenAdded(_stakedToken);

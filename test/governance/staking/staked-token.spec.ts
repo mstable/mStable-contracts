@@ -39,6 +39,8 @@ const signQuestUsers = async (questId: BigNumberish, users: string[], questSigne
     return signature
 }
 
+// TODO
+//  - Consider how to enforce invariant that sum(balances) == totalSupply.
 describe("Staked Token", () => {
     let sa: StandardAccounts
     let deployTime: BN
@@ -61,7 +63,7 @@ describe("Staked Token", () => {
         deployTime = await getTimestamp()
         nexus = await new MockNexus__factory(sa.default.signer).deploy(sa.governor.address, DEAD_ADDRESS, DEAD_ADDRESS)
         await nexus.setRecollateraliser(sa.mockRecollateraliser.address)
-        rewardToken = await new MockERC20__factory(sa.default.signer).deploy("Reward", "RWD", 18, sa.default.address, 10000000)
+        rewardToken = await new MockERC20__factory(sa.default.signer).deploy("Reward", "RWD", 18, sa.default.address, 10000100)
 
         const signatureVerifier = await new SignatureVerifier__factory(sa.default.signer).deploy()
         const questManagerLibraryAddresses = {
@@ -101,6 +103,10 @@ describe("Staked Token", () => {
         await emissionController.addStakingContract(sToken.address)
         await emissionController.setPreferences(65793)
         await sToken.connect(sa.governor.signer).setGovernanceHook(emissionController.address)
+
+        await rewardToken.transfer(sa.mockRewardsDistributor.address, simpleToExactAmount(100))
+        await rewardToken.connect(sa.mockRewardsDistributor.signer).transfer(sToken.address, simpleToExactAmount(100))
+        await sToken.connect(sa.mockRewardsDistributor.signer).notifyRewardAmount(simpleToExactAmount(100))
 
         return {
             stakedToken: sToken,
@@ -153,6 +159,7 @@ describe("Staked Token", () => {
             expect(await stakedToken.COOLDOWN_SECONDS(), "cooldown").to.eq(ONE_WEEK)
             expect(await stakedToken.UNSTAKE_WINDOW(), "unstake window").to.eq(ONE_DAY.mul(2))
             expect(await stakedToken.questManager(), "quest manager").to.eq(questManager.address)
+            expect(await stakedToken.hasPriceCoeff(), "price coeff").to.eq(false)
 
             const safetyData = await stakedToken.safetyData()
             expect(safetyData.collateralisationRatio, "Collateralisation ratio").to.eq(simpleToExactAmount(1))
@@ -164,6 +171,7 @@ describe("Staked Token", () => {
     // '''...............  STAKEDTOKEN.STAKE & DELEGATE   ..................'''
     // '''..................................................................'''
 
+    // TODO - factor in `rawBalanceOf` here
     context("staking and delegating", () => {
         const stakedAmount = simpleToExactAmount(1000)
         beforeEach(async () => {
@@ -267,6 +275,9 @@ describe("Staked Token", () => {
 
             expect(await stakedToken.totalSupply(), "total staked after").to.eq(stakedAmount.add(delegateStakedAmount))
         })
+        it("should update weightedTimestamp after subsequent stake")
+        it("should fail if staking 0 amount")
+        it("should exit cooldown if cooldown period has expired")
     })
     context("change delegate votes", () => {
         const stakedAmount = simpleToExactAmount(100)
@@ -379,6 +390,7 @@ describe("Staked Token", () => {
     // '''............    STAKEDTOKEN.COOLDOWN & WITHDRAW    ...............'''
     // '''..................................................................'''
 
+    // TODO - factor in `rawBalanceOf` here
     context("cooldown", () => {
         const stakedAmount = simpleToExactAmount(7000)
         context("with no delegate", () => {
@@ -463,8 +475,11 @@ describe("Staked Token", () => {
                 expect(stakerDataAfter2ndCooldown.questBalance.seasonMultiplier, "season multiplier after 2nd").to.eq(0)
                 expect(stakerDataAfter2ndCooldown.userBalances.timeMultiplier, "time multiplier after 2nd").to.eq(0)
                 expect(stakerDataAfter2ndCooldown.stakedBalance, "staked balance after 2nd").to.eq(stakedAmount.mul(4).div(5))
+                expect(stakerDataAfter2ndCooldown.votes, "votes balance after 2nd").to.eq(stakedAmount.mul(4).div(5))
+                expect(await stakedToken.totalSupply(), "total supply").to.eq(stakedAmount.mul(4).div(5))
             })
             it("should reduce cooldown percentage enough to end the cooldown")
+
             context("should end 100% cooldown", () => {
                 beforeEach(async () => {
                     await increaseTime(ONE_WEEK)
@@ -746,9 +761,12 @@ describe("Staked Token", () => {
             it("when withdrawing too much", async () => {
                 await stakedToken.startCooldown(10000)
                 await increaseTime(ONE_DAY.mul(7).add(60))
-                await expect(stakedToken.withdraw(stakedAmount.add(1), sa.default.address, false, false)).to.reverted
+                await expect(stakedToken.withdraw(stakedAmount.add(1), sa.default.address, false, false)).to.revertedWith(
+                    "Exceeds max withdrawal",
+                )
             })
         })
+
         context("with no delegate, after 100% cooldown and in unstake window", () => {
             let beforeData: UserStakingData
             beforeEach(async () => {
@@ -808,6 +826,7 @@ describe("Staked Token", () => {
             it("apply a redemption fee which is added to the pendingRewards from the rewards contract")
             it("distribute these pendingAdditionalReward with the next notification")
         })
+        // TODO - calculate weightedTimestamp updates, voting balance, totalSupply
         context("with no delegate, after 70% cooldown and in unstake window", () => {
             let beforeData: UserStakingData
             // 2000 * 0.3 = 600
@@ -881,7 +900,7 @@ describe("Staked Token", () => {
                 await stakedToken.connect(sa.governor.signer).changeSlashingPercentage(slashingPercentage)
                 await stakedToken.connect(sa.mockRecollateraliser.signer).emergencyRecollateralisation()
             })
-            it("should withdraw all incl fee and get 75% of rewards", async () => {
+            it("should withdraw all incl fee and get 75% of balance", async () => {
                 const tx = await stakedToken.withdraw(stakedAmount, sa.default.address, true, false)
                 await expect(tx).to.emit(stakedToken, "Withdraw").withArgs(sa.default.address, sa.default.address, stakedAmount)
                 await expect(tx)
@@ -895,7 +914,7 @@ describe("Staked Token", () => {
                 expect(afterData.userBalances.cooldownUnits, "staked cooldown units after").to.eq(0)
                 expect(afterData.userBalances.raw, "staked raw balance after").to.eq(0)
             })
-            it("should withdraw all excl. fee and get 75% of rewards", async () => {
+            it("should withdraw all excl. fee and get 75% of balance", async () => {
                 const tx = await stakedToken.withdraw(stakedAmount, sa.default.address, false, false)
                 await expect(tx).to.emit(stakedToken, "Withdraw").withArgs(sa.default.address, sa.default.address, stakedAmount)
                 await expect(tx)
@@ -909,7 +928,7 @@ describe("Staked Token", () => {
                 expect(afterData.userBalances.cooldownUnits, "staked cooldown units").to.eq(0)
                 expect(afterData.userBalances.raw, "staked raw balance after").to.eq(0)
             })
-            it("should partial withdraw and get 75% of rewards", async () => {
+            it("should partial withdraw and get 75% of balance", async () => {
                 const withdrawAmount = stakedAmount.div(10)
                 const tx = await stakedToken.withdraw(withdrawAmount, sa.default.address, true, false)
                 await expect(tx).to.emit(stakedToken, "Withdraw").withArgs(sa.default.address, sa.default.address, withdrawAmount)
@@ -1161,6 +1180,9 @@ describe("Staked Token", () => {
             })
         })
     })
+    context("when there is a priceCoeff but no overload", () => {
+        it("should default to 10000")
+    })
 
     // '''..................................................................'''
     // '''...................    STAKEDTOKEN.ADMIN    ......................'''
@@ -1215,6 +1237,8 @@ describe("Staked Token", () => {
             expect(await safetyDataAfter.collateralisationRatio, "collateralisation ratio after").to.eq(
                 simpleToExactAmount(1).sub(slashingPercentage),
             )
+
+            // TODO - withdrawal should return 75%
         })
         context("should not allow", () => {
             const slashingPercentage = simpleToExactAmount(10, 16)
@@ -1258,17 +1282,18 @@ describe("Staked Token", () => {
     // '''..................................................................'''
 
     context("questManager", () => {
-        it("should allow admin to add stakingtokens")
-    })
-
-    context("questing and multipliers", () => {
-        const stakedAmount = simpleToExactAmount(5000)
-        before(async () => {
-            ;({ stakedToken, questManager } = await redeployStakedToken())
-            await rewardToken.connect(sa.default.signer).approve(stakedToken.address, simpleToExactAmount(10000))
-            await stakedToken["stake(uint256,address)"](stakedAmount, sa.default.address)
+        context("adding staked token", () => {
+            it("should allow admin to add stakingtokens")
+            it("should fail if address 0")
+            it("should propagate quest completion to all stakedTokens")
         })
         context("add quest", () => {
+            const stakedAmount = simpleToExactAmount(5000)
+            before(async () => {
+                ;({ stakedToken, questManager } = await redeployStakedToken())
+                await rewardToken.connect(sa.default.signer).approve(stakedToken.address, simpleToExactAmount(10000))
+                await stakedToken["stake(uint256,address)"](stakedAmount, sa.default.address)
+            })
             let id = 0
             it("should allow governor to add a seasonal quest", async () => {
                 const multiplier = 20 // 1.2x
@@ -1335,6 +1360,8 @@ describe("Staked Token", () => {
                         questManager.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 51, deployTime.add(ONE_WEEK)),
                     ).to.revertedWith("Quest multiplier too large > 1.5x")
                 })
+                // NOTE - this is max uint8. Stops irresponsible quests being added
+                it("if it will push multiplier over 2.5x")
             })
         })
         context("expire quest", () => {
@@ -1412,7 +1439,54 @@ describe("Staked Token", () => {
                     await increaseTime(ONE_WEEK.mul(39).sub(60))
                     await expect(questManager.connect(sa.governor.signer).startNewQuestSeason()).to.revertedWith("Season has not elapsed")
                 })
+                it("if there are still active quests")
             })
+        })
+        context("questMaster", () => {
+            beforeEach(async () => {
+                ;({ stakedToken, questManager } = await redeployStakedToken())
+                expect(await questManager.questMaster(), "quest master before").to.eq(sa.questMaster.address)
+            })
+            it("should set questMaster by governor", async () => {
+                const tx = await questManager.connect(sa.governor.signer).setQuestMaster(sa.dummy1.address)
+                await expect(tx).to.emit(questManager, "QuestMaster").withArgs(sa.questMaster.address, sa.dummy1.address)
+                expect(await questManager.questMaster(), "quest master after").to.eq(sa.dummy1.address)
+            })
+            it("should set questMaster by quest master", async () => {
+                const tx = await questManager.connect(sa.questMaster.signer).setQuestMaster(sa.dummy2.address)
+                await expect(tx).to.emit(questManager, "QuestMaster").withArgs(sa.questMaster.address, sa.dummy2.address)
+                expect(await questManager.questMaster(), "quest master after").to.eq(sa.dummy2.address)
+            })
+            it("should fail to set quest master by anyone", async () => {
+                await expect(questManager.connect(sa.dummy3.signer).setQuestMaster(sa.dummy3.address)).to.revertedWith("Not verified")
+            })
+        })
+        context("questSigner", () => {
+            beforeEach(async () => {
+                ;({ stakedToken, questManager } = await redeployStakedToken())
+            })
+            it("should set quest signer by governor", async () => {
+                const tx = await questManager.connect(sa.governor.signer).setQuestSigner(sa.dummy1.address)
+                await expect(tx).to.emit(questManager, "QuestSigner").withArgs(sa.questSigner.address, sa.dummy1.address)
+            })
+            it("should fail to set quest signer by quest master", async () => {
+                await expect(questManager.connect(sa.questMaster.signer).setQuestSigner(sa.dummy3.address)).to.revertedWith(
+                    "Only governor can execute",
+                )
+            })
+            it("should fail to set quest signer by anyone", async () => {
+                await expect(questManager.connect(sa.dummy3.signer).setQuestSigner(sa.dummy3.address)).to.revertedWith(
+                    "Only governor can execute",
+                )
+            })
+        })
+    })
+
+    context("questing and multipliers", () => {
+        context("completeQuestusers", () => {
+            it("should require valid signature")
+            it("should require valid questId")
+            it("should require account list")
         })
         context("complete quests", () => {
             let stakedTime
@@ -1420,6 +1494,7 @@ describe("Staked Token", () => {
             let seasonQuestId: BN
             const permanentMultiplier = 10
             const seasonMultiplier = 20
+            const stakedAmount = simpleToExactAmount(5000)
             beforeEach(async () => {
                 ;({ stakedToken, questManager } = await redeployStakedToken())
                 await rewardToken.connect(sa.default.signer).approve(stakedToken.address, simpleToExactAmount(10000))
@@ -1565,11 +1640,18 @@ describe("Staked Token", () => {
                 await expect(
                     questManager.connect(sa.dummy3.signer).completeUserQuests(userAddress, [permanentQuestId], signature),
                 ).to.revertedWith("Invalid Quest Signer Signature")
+                // TODO - check for completeQuestUsers
             })
+            // e.g. wrong quest ID
+            // TODO - for both types of completion
+            it("should fail if the signature is invalid")
+            it("should fail if the signature is for a different account")
+            it("should fail if the signature is too long or short")
         })
         context("time multiplier", () => {
             let stakerDataBefore: UserStakingData
             let anySigner: Signer
+            const stakedAmount = simpleToExactAmount(5000)
             beforeEach(async () => {
                 ;({ stakedToken, questManager } = await redeployStakedToken())
                 await rewardToken.connect(sa.default.signer).approve(stakedToken.address, simpleToExactAmount(10000))
@@ -1634,6 +1716,7 @@ describe("Staked Token", () => {
                 { type: QuestType.SEASONAL, multiplier: 5, weeks: 6 },
                 { type: QuestType.SEASONAL, multiplier: 8, weeks: 10 },
             ]
+            const stakedAmount = simpleToExactAmount(5000)
             beforeEach(async () => {
                 ;({ stakedToken, questManager } = await redeployStakedToken())
 
@@ -1856,61 +1939,34 @@ describe("Staked Token", () => {
                 })
             })
         })
-        context("questMaster", () => {
-            beforeEach(async () => {
-                ;({ stakedToken, questManager } = await redeployStakedToken())
-                expect(await questManager.questMaster(), "quest master before").to.eq(sa.questMaster.address)
-            })
-            it("should set questMaster by governor", async () => {
-                const tx = await questManager.connect(sa.governor.signer).setQuestMaster(sa.dummy1.address)
-                await expect(tx).to.emit(questManager, "QuestMaster").withArgs(sa.questMaster.address, sa.dummy1.address)
-                expect(await questManager.questMaster(), "quest master after").to.eq(sa.dummy1.address)
-            })
-            it("should set questMaster by quest master", async () => {
-                const tx = await questManager.connect(sa.questMaster.signer).setQuestMaster(sa.dummy2.address)
-                await expect(tx).to.emit(questManager, "QuestMaster").withArgs(sa.questMaster.address, sa.dummy2.address)
-                expect(await questManager.questMaster(), "quest master after").to.eq(sa.dummy2.address)
-            })
-            it("should fail to set quest master by anyone", async () => {
-                await expect(questManager.connect(sa.dummy3.signer).setQuestMaster(sa.dummy3.address)).to.revertedWith("Not verified")
-            })
-        })
-        context("questSigner", () => {
-            beforeEach(async () => {
-                ;({ stakedToken, questManager } = await redeployStakedToken())
-            })
-            it("should set quest signer by governor", async () => {
-                const tx = await questManager.connect(sa.governor.signer).setQuestSigner(sa.dummy1.address)
-                await expect(tx).to.emit(questManager, "QuestSigner").withArgs(sa.questSigner.address, sa.dummy1.address)
-            })
-            it("should fail to set quest signer by quest master", async () => {
-                await expect(questManager.connect(sa.questMaster.signer).setQuestSigner(sa.dummy3.address)).to.revertedWith(
-                    "Only governor can execute",
-                )
-            })
-            it("should fail to set quest signer by anyone", async () => {
-                await expect(questManager.connect(sa.dummy3.signer).setQuestSigner(sa.dummy3.address)).to.revertedWith(
-                    "Only governor can execute",
-                )
-            })
-        })
-
         // Important that each action (checkTimestamp, completeQuest, mint) applies this because
         // scaledBalance could actually decrease, even in these situations, since old seasonMultipliers are slashed
-        it("should slash an old seasons reward on any action")
-    })
-    context("boosting", () => {
-        it("should apply a multiplier if the user stakes within the migration window")
-        it("should apply the multiplier to voting power but not raw balance")
+        context("in a new season", () => {
+            it("should slash an old seasons reward on any action")
+        })
+        it("should always keep totalSupply == sum(boostedBalances)")
         it("should update total votingPower, totalSupply, etc, retroactively")
+    })
+
+    context("claiming rewards after season finish", () => {
+        it("should update the users scaled balance and multiplier")
+    })
+
+    context("reviewing timestamp and completing quests with no stake", () => {
+        it("should do nothing")
+        it("should not result in unfair advantages somehow")
     })
 
     // '''..................................................................'''
     // '''......................    VOTINGTOKEN    .........................'''
     // '''..................................................................'''
 
-    context("maintaining checkpoints", () => {
+    // TODO - consider forking OZ tests https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/master/test/token/ERC20/extensions/ERC20Votes.test.js
+
+    context("maintaining checkpoints and balances", () => {
+        // TODO - look up historical checkpoints via `getVotes`, `getPastVotes`, `numCheckpoints` and `checkpoints`
         it("should track users balance as checkpoints")
+        it("should maintain totalsupply checkpoints")
     })
     context("triggering the governance hook", () => {
         it("should allow governor to add a governanceHook")
@@ -1931,5 +1987,7 @@ describe("Staked Token", () => {
 
     context("calling applyQuestMultiplier", () => {
         it("should fail unless called by questManager")
+        it("should do nothing if there is no stake")
+        it("should update quest & time multiplier")
     })
 })

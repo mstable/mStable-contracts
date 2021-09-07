@@ -142,12 +142,31 @@ describe("Staked Token BPT", () => {
         })
         it("post initialize", async () => {
             expect(await stakedToken.priceCoefficient()).eq(10000)
+            // BAL
+            // balancerVault
+            // poolId
+            // balRecipient
+            // keeper
+            // pendingBPTFees
+            // priceCoefficient
+            // lastPriceUpdateTime
         })
     })
 
     // '''..................................................................'''
     // '''...................    PRICE COEFFICIENT    ......................'''
     // '''..................................................................'''
+
+    context("setting keeper", () => {
+        it("should allow governance to set keeper")
+    })
+
+    context("fetching live priceCoeff", () => {
+        // TODO - also call the `getProspectivePriceCoefficient` fn
+        it("should allow govenror or keeper to fetch new price Coeff")
+        it("should fail to set more than once per 14 days")
+        it("should fail to set if the diff is < 5% or it's out of bounds")
+    })
 
     context("when a StakedToken has price coefficient", () => {
         const stakedAmount = simpleToExactAmount(1000)
@@ -186,6 +205,7 @@ describe("Staked Token BPT", () => {
 
     context("claiming BAL rewards", () => {
         it("should allow BAL tokens to be claimed")
+        it("should allow govner to set bal recipient")
     })
 
     // '''..................................................................'''
@@ -194,5 +214,8 @@ describe("Staked Token BPT", () => {
 
     context("collecting fees", () => {
         it("should convert fees back into $MTA")
+        it("should add the correct amount of fees, and deposit to the vendor")
+        it("should notify the headlessstakingrewards")
+        it("should reset the pendingFeesBPT var to 1")
     })
 })
