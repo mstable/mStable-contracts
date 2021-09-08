@@ -28,6 +28,8 @@ contract QuestManager is IQuestManager, Initializable, ContextUpgradeable, Immut
     Quest[] private _quests;
     /// @notice Timestamp at which the current season started
     uint32 public override seasonEpoch;
+    /// @notice Timestamp at which the contract was created
+    uint32 public startTime;
 
     /// @notice A whitelisted questMaster who can administer quests including signing user quests are completed.
     address public override questMaster;
@@ -47,7 +49,7 @@ contract QuestManager is IQuestManager, Initializable, ContextUpgradeable, Immut
      * @param _questSignerArg account that can sign user quests as completed
      */
     function initialize(address _questMaster, address _questSignerArg) external initializer {
-        seasonEpoch = SafeCast.toUint32(block.timestamp);
+        startTime = SafeCast.toUint32(block.timestamp);
         questMaster = _questMaster;
         _questSigner = _questSignerArg;
     }
@@ -187,6 +189,7 @@ contract QuestManager is IQuestManager, Initializable, ContextUpgradeable, Immut
      * A new season can only begin after 9 months has passed.
      */
     function startNewQuestSeason() external override questMasterOrGovernor {
+        require(block.timestamp > (startTime + 39 weeks), "First season has not elapsed");
         require(block.timestamp > (seasonEpoch + 39 weeks), "Season has not elapsed");
 
         uint256 len = _quests.length;
