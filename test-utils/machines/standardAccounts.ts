@@ -24,6 +24,12 @@ export class StandardAccounts {
 
     public dummy4: Account
 
+    public dummy5: Account
+
+    public dummy6: Account
+
+    public dummy7: Account
+
     public fundManager: Account
 
     public fundManager2: Account
@@ -57,6 +63,9 @@ export class StandardAccounts {
             this.dummy2,
             this.dummy3,
             this.dummy4,
+            this.dummy5,
+            this.dummy6,
+            this.dummy7,
             this.fundManager,
             this.fundManager2,
             this.questMaster,
