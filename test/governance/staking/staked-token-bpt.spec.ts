@@ -16,6 +16,12 @@ import {
     MockStakedTokenWithPrice__factory,
     QuestManager,
     MockEmissionController__factory,
+    MockBPT,
+    MockBPT__factory,
+    MockBVault,
+    MockBVault__factory,
+    StakedTokenBPT__factory,
+    StakedTokenBPT,
 } from "types"
 import { assertBNClose, DEAD_ADDRESS } from "index"
 import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
@@ -38,29 +44,57 @@ const signQuestUsers = async (questId: BigNumberish, users: string[], questSigne
     return signature
 }
 
+interface Deployment {
+    stakedToken: StakedTokenBPT
+    questManager: QuestManager
+    bpt: BPTDeployment
+}
+
+interface BPTDeployment {
+    vault: MockBVault
+    bpt: MockBPT
+    bal: MockERC20
+    underlying: MockERC20[]
+}
+
 describe("Staked Token BPT", () => {
     let sa: StandardAccounts
     let deployTime: BN
 
     let nexus: MockNexus
     let rewardToken: MockERC20
-    let stakedToken: MockStakedTokenWithPrice
+    let stakedToken: StakedTokenBPT
     let questManager: QuestManager
+    let bpt: BPTDeployment
 
-    const startingMintAmount = simpleToExactAmount(10000000)
+    console.log(`Staked contract size ${StakedTokenBPT__factory.bytecode.length / 2} bytes`)
 
-    console.log(`Staked contract size ${MockStakedTokenWithPrice__factory.bytecode.length / 2} bytes`)
-
-    interface Deployment {
-        stakedToken: MockStakedTokenWithPrice
-        questManager: QuestManager
+    const deployBPT = async (mockMTA: MockERC20): Promise<BPTDeployment> => {
+        const token2 = await new MockERC20__factory(sa.default.signer).deploy("Test Token 2", "TST2", 18, sa.default.address, 10000000)
+        const mockBal = await new MockERC20__factory(sa.default.signer).deploy("Mock BAL", "mkBAL", 18, sa.default.address, 10000000)
+        const bptLocal = await new MockBPT__factory(sa.default.signer).deploy("Balance Pool Token", "mBPT")
+        const vault = await new MockBVault__factory(sa.default.signer).deploy()
+        await mockMTA.approve(vault.address, simpleToExactAmount(100000))
+        await token2.approve(vault.address, simpleToExactAmount(100000))
+        await vault.addPool(
+            bptLocal.address,
+            [mockMTA.address, token2.address],
+            [simpleToExactAmount(3.28), simpleToExactAmount(0.0002693)],
+        )
+        return {
+            vault,
+            bpt: bptLocal,
+            bal: mockBal,
+            underlying: [mockMTA, token2],
+        }
     }
 
-    const redeployStakedToken = async (): Promise<Deployment> => {
+    const redeployStakedToken = async (useFakePrice = false): Promise<Deployment> => {
         deployTime = await getTimestamp()
         nexus = await new MockNexus__factory(sa.default.signer).deploy(sa.governor.address, DEAD_ADDRESS, DEAD_ADDRESS)
         await nexus.setRecollateraliser(sa.mockRecollateraliser.address)
         rewardToken = await new MockERC20__factory(sa.default.signer).deploy("Reward", "RWD", 18, sa.default.address, 10000000)
+        const bptLocal = await deployBPT(rewardToken)
 
         const signatureVerifier = await new SignatureVerifier__factory(sa.default.signer).deploy()
         const questManagerLibraryAddresses = {
@@ -74,25 +108,49 @@ describe("Staked Token BPT", () => {
         const stakedTokenLibraryAddresses = {
             "contracts/rewards/staking/PlatformTokenVendorFactory.sol:PlatformTokenVendorFactory": platformTokenVendorFactory.address,
         }
-        const stakedTokenFactory = new MockStakedTokenWithPrice__factory(stakedTokenLibraryAddresses, sa.default.signer)
-        const stakedTokenImpl = await stakedTokenFactory.deploy(
-            nexus.address,
-            rewardToken.address,
-            questManagerProxy.address,
-            rewardToken.address,
-            ONE_WEEK,
-            ONE_DAY.mul(2),
-        )
-        data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
-            formatBytes32String("Staked Rewards"),
-            formatBytes32String("stkRWD"),
-            sa.mockRewardsDistributor.address,
-        ])
-        const stakedTokenProxy = await new AssetProxy__factory(sa.default.signer).deploy(stakedTokenImpl.address, DEAD_ADDRESS, data)
-        const sToken = stakedTokenFactory.attach(stakedTokenProxy.address) as MockStakedTokenWithPrice
+        let sToken
+        if (useFakePrice) {
+            const stakedTokenFactory = new MockStakedTokenWithPrice__factory(stakedTokenLibraryAddresses, sa.default.signer)
+            const stakedTokenImpl = await stakedTokenFactory.deploy(
+                nexus.address,
+                rewardToken.address,
+                questManagerProxy.address,
+                bptLocal.bpt.address,
+                ONE_WEEK,
+                ONE_DAY.mul(2),
+            )
+            data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
+                formatBytes32String("Staked Rewards"),
+                formatBytes32String("stkRWD"),
+                sa.mockRewardsDistributor.address,
+            ])
+            const stakedTokenProxy = await new AssetProxy__factory(sa.default.signer).deploy(stakedTokenImpl.address, DEAD_ADDRESS, data)
+            sToken = stakedTokenFactory.attach(stakedTokenProxy.address) as any as StakedTokenBPT
+        } else {
+            const stakedTokenFactory = new StakedTokenBPT__factory(stakedTokenLibraryAddresses, sa.default.signer)
+            const stakedTokenImpl = await stakedTokenFactory.deploy(
+                nexus.address,
+                rewardToken.address,
+                questManagerProxy.address,
+                bptLocal.bpt.address,
+                ONE_WEEK,
+                ONE_DAY.mul(2),
+                [bptLocal.bal.address, bptLocal.vault.address],
+                await bptLocal.vault.poolIds(bptLocal.bpt.address),
+            )
+            data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
+                formatBytes32String("Staked Rewards"),
+                formatBytes32String("stkRWD"),
+                sa.mockRewardsDistributor.address,
+                sa.fundManager.address,
+                44000,
+            ])
+            const stakedTokenProxy = await new AssetProxy__factory(sa.default.signer).deploy(stakedTokenImpl.address, DEAD_ADDRESS, data)
+            sToken = stakedTokenFactory.attach(stakedTokenProxy.address) as StakedTokenBPT
+        }
 
         const qMaster = QuestManager__factory.connect(questManagerProxy.address, sa.default.signer)
-        await qMaster.connect(sa.governor.signer).addStakedToken(stakedTokenProxy.address)
+        await qMaster.connect(sa.governor.signer).addStakedToken(sToken.address)
 
         // Test: Add Emission Data
         const emissionController = await new MockEmissionController__factory(sa.default.signer).deploy()
@@ -103,6 +161,7 @@ describe("Staked Token BPT", () => {
         return {
             stakedToken: sToken,
             questManager: qMaster,
+            bpt: bptLocal,
         }
     }
 
@@ -138,10 +197,10 @@ describe("Staked Token BPT", () => {
 
     context("deploy and initialize", () => {
         before(async () => {
-            ;({ stakedToken, questManager } = await redeployStakedToken())
+            ;({ stakedToken, questManager, bpt } = await redeployStakedToken())
         })
         it("post initialize", async () => {
-            expect(await stakedToken.priceCoefficient()).eq(10000)
+            expect(await stakedToken.priceCoefficient()).eq(44000)
             // BAL
             // balancerVault
             // poolId
@@ -162,37 +221,48 @@ describe("Staked Token BPT", () => {
     })
 
     context("fetching live priceCoeff", () => {
+        before(async () => {
+            ;({ stakedToken, questManager, bpt } = await redeployStakedToken())
+        })
         // TODO - also call the `getProspectivePriceCoefficient` fn
-        it("should allow govenror or keeper to fetch new price Coeff")
+        it("should allow govenror or keeper to fetch new price Coeff", async () => {
+            const newPrice = await stakedToken.getProspectivePriceCoefficient()
+            expect(newPrice).gt(30000)
+            expect(newPrice).lt(55000)
+            await stakedToken.connect(sa.governor.signer).fetchPriceCoefficient()
+            expect(await stakedToken.priceCoefficient()).eq(newPrice)
+        })
         it("should fail to set more than once per 14 days")
         it("should fail to set if the diff is < 5% or it's out of bounds")
     })
 
     context("when a StakedToken has price coefficient", () => {
         const stakedAmount = simpleToExactAmount(1000)
+        let mockStakedToken: MockStakedTokenWithPrice
         before(async () => {
-            ;({ stakedToken, questManager } = await redeployStakedToken())
-            await rewardToken.connect(sa.default.signer).approve(stakedToken.address, stakedAmount.mul(3))
+            ;({ stakedToken, bpt, questManager } = await redeployStakedToken(true))
+            mockStakedToken = stakedToken as any as MockStakedTokenWithPrice
+            await bpt.bpt.connect(sa.default.signer).approve(mockStakedToken.address, stakedAmount.mul(3))
         })
         it("should allow basic staking and save coeff to users acc", async () => {
-            await stakedToken["stake(uint256)"](stakedAmount)
+            await mockStakedToken["stake(uint256)"](stakedAmount)
             const data = await snapshotUserStakingData(sa.default.address)
             expect(data.userPriceCoeff).eq(10000)
             expect(data.votes).eq(stakedAmount)
         })
         it("should allow setting of a new priceCoeff", async () => {
-            await stakedToken.setPriceCoefficient(15000)
-            expect(await stakedToken.priceCoefficient()).eq(15000)
+            await mockStakedToken.setPriceCoefficient(15000)
+            expect(await mockStakedToken.priceCoefficient()).eq(15000)
         })
         it("should update the users balance when they claim rewards", async () => {
-            await stakedToken["claimReward()"]()
+            await mockStakedToken["claimReward()"]()
             const data = await snapshotUserStakingData(sa.default.address)
             expect(data.userPriceCoeff).eq(15000)
             expect(data.votes).eq(stakedAmount.mul(3).div(2))
         })
         it("should update the users balance when they stake more", async () => {
-            await stakedToken.setPriceCoefficient(10000)
-            await stakedToken["stake(uint256)"](stakedAmount)
+            await mockStakedToken.setPriceCoefficient(10000)
+            await mockStakedToken["stake(uint256)"](stakedAmount)
             const data = await snapshotUserStakingData(sa.default.address)
             expect(data.userPriceCoeff).eq(10000)
             expect(data.votes).eq(stakedAmount.mul(2))

@@ -175,6 +175,7 @@ contract StakedTokenBPT is StakedToken {
 
         // 3. Inform HeadlessRewards about the new rewards
         uint256 mtaBalAfter = REWARDS_TOKEN.balanceOf(address(this));
+        require(mtaBalAfter - mtaBalBefore >= minOut[0], "Must receive tokens");
         super._notifyAdditionalReward(mtaBalAfter - mtaBalBefore);
     }
 
