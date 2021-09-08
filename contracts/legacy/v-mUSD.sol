@@ -1028,14 +1028,15 @@ library Root {
             if (xx >= 0x8) {
                 r <<= 1;
             }
-            r = (r.add(x).div(r)) >> 1;
-            r = (r.add(x).div(r)) >> 1;
-            r = (r.add(x).div(r)) >> 1;
-            r = (r.add(x).div(r)) >> 1;
-            r = (r.add(x).div(r)) >> 1;
-            r = (r.add(x).div(r)) >> 1;
-            r = (r.add(x).div(r)) >> 1; // Seven iterations should be enough
+            r = (r.add(x.div(r))) >> 1;
+            r = (r.add(x.div(r))) >> 1;
+            r = (r.add(x.div(r))) >> 1;
+            r = (r.add(x.div(r))) >> 1;
+            r = (r.add(x.div(r))) >> 1;
+            r = (r.add(x.div(r))) >> 1;
+            r = (r.add(x.div(r))) >> 1; // Seven iterations should be enough
             uint256 r1 = x.div(r);
+
             return uint256(r < r1 ? r : r1);
         }
     }
@@ -1060,7 +1061,8 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
 
     IERC20 public constant stakingToken = IERC20(0x30647a72Dc82d7Fbb1123EA74716aB8A317Eac19);
     // mStable MTA Staking contract via the BoostDirectorV2
-    IBoostDirector public constant boostDirector = IBoostDirector(0xBa05FD2f20AE15B0D3f20DDc6870FeCa6ACd3592);
+    IBoostDirector public constant boostDirector =
+        IBoostDirector(0xBa05FD2f20AE15B0D3f20DDc6870FeCa6ACd3592);
 
     uint256 private _totalBoostedSupply;
     mapping(address => uint256) private _boostedBalances;
