@@ -69,7 +69,7 @@ contract BoostDirectorV2 is IBoostDirector, ImmutableModule {
     /**
      * @dev Removes a staked token from the list
      */
-    function removeStakedTkoen(address _stakedToken) external onlyGovernor {
+    function removeStakedToken(address _stakedToken) external onlyGovernor {
         uint256 len = stakedTokenContracts.length;
         for (uint256 i = 0; i < len; i++) {
             // If we find it, then swap it with the last element and delete the end
