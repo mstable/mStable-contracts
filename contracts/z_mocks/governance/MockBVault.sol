@@ -72,7 +72,7 @@ contract MockBVault is IBVault {
         uint256 outputBal = IERC20(output).balanceOf(address(this));
 
         // Pay out the underlying
-        uint256 returnUnits = (((outputBal * bptIn) / bptSupply) * 120) / 100;
+        uint256 returnUnits = (((outputBal * bptIn) / bptSupply) * 125) / 100;
         require(returnUnits > minOut, "Min out not met");
         IERC20(output).transfer(recipient, returnUnits);
     }
