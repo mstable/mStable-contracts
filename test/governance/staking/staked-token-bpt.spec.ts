@@ -28,21 +28,8 @@ import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { expect } from "chai"
 import { getTimestamp, increaseTime } from "@utils/time"
-import { arrayify, formatBytes32String, solidityKeccak256 } from "ethers/lib/utils"
-import { BigNumberish, Signer } from "ethers"
-import { QuestStatus, QuestType, BalConfig, UserStakingData } from "types/stakedToken"
-
-const signUserQuests = async (user: string, questIds: BigNumberish[], questSigner: Signer): Promise<string> => {
-    const messageHash = solidityKeccak256(["address", "uint256[]"], [user, questIds])
-    const signature = await questSigner.signMessage(arrayify(messageHash))
-    return signature
-}
-
-const signQuestUsers = async (questId: BigNumberish, users: string[], questSigner: Signer): Promise<string> => {
-    const messageHash = solidityKeccak256(["uint256", "address[]"], [questId, users])
-    const signature = await questSigner.signMessage(arrayify(messageHash))
-    return signature
-}
+import { formatBytes32String } from "ethers/lib/utils"
+import { BalConfig, UserStakingData } from "types/stakedToken"
 
 interface Deployment {
     stakedToken: StakedTokenBPT
@@ -239,7 +226,7 @@ describe("Staked Token BPT", () => {
             await bpt.bal.transfer(stakedToken.address, balAirdrop)
         })
         it("should allow governor to set bal recipient", async () => {
-            await expect(stakedToken.setBalRecipient(sa.fundManager.address)).to.be.revertedWith("Only governor")
+            await expect(stakedToken.setBalRecipient(sa.fundManager.address)).to.be.revertedWith("Only governor can execute")
             const tx = stakedToken.connect(sa.governor.signer).setBalRecipient(sa.fundManager.address)
             await expect(tx).to.emit(stakedToken, "BalRecipientChanged").withArgs(sa.fundManager.address)
             expect(await stakedToken.balRecipient()).to.eq(sa.fundManager.address)
@@ -273,6 +260,7 @@ describe("Staked Token BPT", () => {
             expectedMTA = expectedFees.mul(data.balData.priceCoefficient).div(12000)
         })
         it("should collect 7.5% as fees", async () => {
+            expect(await stakedToken.pendingAdditionalReward()).eq(0)
             expect(data.balData.pendingBPTFees).eq(expectedFees)
         })
         it("should convert fees back into $MTA", async () => {
@@ -299,6 +287,9 @@ describe("Staked Token BPT", () => {
             expect(await rewardToken.balanceOf(stakedToken.address)).eq(1)
             expect(await stakedToken.pendingAdditionalReward()).eq(1)
         })
+        it("should fail if there is nothing to collect", async () => {
+            await expect(stakedToken.convertFees()).to.be.revertedWith("Must have something to convert")
+        })
     })
 
     // '''..................................................................'''
@@ -309,23 +300,55 @@ describe("Staked Token BPT", () => {
         before(async () => {
             ;({ stakedToken, questManager, bpt } = await redeployStakedToken())
         })
-        it("should allow governance to set keeper")
+        it("should allow governance to set keeper", async () => {
+            await expect(stakedToken.setKeeper(sa.default.address)).to.be.revertedWith("Only governor can execute")
+            const tx = stakedToken.connect(sa.governor.signer).setKeeper(sa.default.address)
+            await expect(tx).to.emit(stakedToken, "KeeperUpdated").withArgs(sa.default.address)
+            expect(await stakedToken.keeper()).to.eq(sa.default.address)
+        })
     })
 
     context("fetching live priceCoeff", () => {
         before(async () => {
             ;({ stakedToken, questManager, bpt } = await redeployStakedToken())
         })
-        // TODO - also call the `getProspectivePriceCoefficient` fn
+        it("should fail if not called by governor or keeper", async () => {
+            await expect(stakedToken.fetchPriceCoefficient()).to.be.revertedWith("Gov or keeper")
+        })
         it("should allow govenror or keeper to fetch new price Coeff", async () => {
             const newPrice = await stakedToken.getProspectivePriceCoefficient()
             expect(newPrice).gt(30000)
             expect(newPrice).lt(55000)
-            await stakedToken.connect(sa.governor.signer).fetchPriceCoefficient()
+            const tx = stakedToken.connect(sa.governor.signer).fetchPriceCoefficient()
+            await expect(tx).to.emit(stakedToken, "PriceCoefficientUpdated").withArgs(newPrice)
+            const timeNow = await getTimestamp()
             expect(await stakedToken.priceCoefficient()).eq(newPrice)
+            assertBNClose(await stakedToken.lastPriceUpdateTime(), timeNow, 3)
         })
-        it("should fail to set more than once per 14 days")
-        it("should fail to set if the diff is < 5% or it's out of bounds")
+        it("should fail to set more than once per 14 days", async () => {
+            await expect(stakedToken.connect(sa.governor.signer).fetchPriceCoefficient()).to.be.revertedWith("Max 1 update per 14 days")
+        })
+        it("should fail to set if the diff is < 5%", async () => {
+            await increaseTime(ONE_WEEK.mul(2).add(1))
+            await expect(stakedToken.connect(sa.governor.signer).fetchPriceCoefficient()).to.be.revertedWith("Must be > 5% diff")
+        })
+        it("should fail if its's out of bounds", async () => {
+            await bpt.vault.setUnitsPerBpt(bpt.bpt.address, [simpleToExactAmount(0.5), simpleToExactAmount(0.0002693)])
+            let priceCoeff = await stakedToken.getProspectivePriceCoefficient()
+            expect(priceCoeff).eq(6250)
+            await expect(stakedToken.connect(sa.governor.signer).fetchPriceCoefficient()).to.be.revertedWith("Out of bounds")
+
+            await bpt.vault.setUnitsPerBpt(bpt.bpt.address, [simpleToExactAmount(6.5), simpleToExactAmount(0.0002693)])
+            priceCoeff = await stakedToken.getProspectivePriceCoefficient()
+            expect(priceCoeff).eq(81250)
+            await expect(stakedToken.connect(sa.governor.signer).fetchPriceCoefficient()).to.be.revertedWith("Out of bounds")
+
+            await bpt.vault.setUnitsPerBpt(bpt.bpt.address, [simpleToExactAmount(4.2), simpleToExactAmount(0.0002693)])
+            priceCoeff = await stakedToken.getProspectivePriceCoefficient()
+            expect(priceCoeff).eq(52500)
+            await stakedToken.connect(sa.governor.signer).fetchPriceCoefficient()
+            expect(await stakedToken.priceCoefficient()).eq(priceCoeff)
+        })
     })
 
     context("when a StakedToken has price coefficient", () => {

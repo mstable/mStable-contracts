@@ -152,8 +152,9 @@ contract StakedTokenBPT is StakedToken {
         uint256[] memory minOut = new uint256[](1);
         address[] memory exitToken = new address[](1);
         {
-            // e.g. 1e18 * 42000 / 12500 = 3.36e18
-            minOut[0] = (pendingBPT * priceCoefficient) / 12500;
+            // 10% discount from the latest pcoeff
+            // e.g. 1e18 * 42000 / 11000 = 3.81e18
+            minOut[0] = (pendingBPT * priceCoefficient) / 11000;
             exitToken[0] = address(REWARDS_TOKEN);
         }
 

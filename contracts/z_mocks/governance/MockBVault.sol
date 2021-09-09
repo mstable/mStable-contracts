@@ -30,6 +30,29 @@ contract MockBVault is IBVault {
         _tokens[1].transferFrom(msg.sender, address(this), (_unitsPerBpt[1] * supply) / 1e18);
     }
 
+    function setUnitsPerBpt(address _poolAddr, uint256[] memory _unitsPerBpt) external {
+        IERC20[] memory tokens = tokenData[_poolAddr];
+        require(_unitsPerBpt.length == tokens.length, "Invalid length");
+        // desired
+        uint256 supply = IERC20(_poolAddr).totalSupply();
+        uint256 bal0 = tokens[0].balanceOf(address(this));
+        uint256 bal1 = tokens[1].balanceOf(address(this));
+        uint256 desired0 = (_unitsPerBpt[0] * supply) / 1e18;
+        uint256 desired1 = (_unitsPerBpt[1] * supply) / 1e18;
+        // token 1
+        if (bal0 > desired0) {
+            tokens[0].transfer(msg.sender, bal0 - desired0);
+        } else {
+            tokens[0].transferFrom(msg.sender, address(this), desired0 - bal0);
+        }
+        // token 2
+        if (bal1 > desired1) {
+            tokens[1].transfer(msg.sender, bal1 - desired1);
+        } else {
+            tokens[1].transferFrom(msg.sender, address(this), desired1 - bal1);
+        }
+    }
+
     function exitPool(
         bytes32 poolId,
         address sender,

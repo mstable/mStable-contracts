@@ -1049,28 +1049,6 @@ describe("Staked Token", () => {
             expect(data.userBalances.cooldownTimestamp).eq(BN.from(0))
             await expect(stakedToken.increaseLockAmount(stakedAmount)).to.revertedWith("Nothing to increase")
         })
-        it("increase lock length", async () => {
-            await stakedToken.createLock(stakedAmount, ONE_WEEK.mul(12))
-            const stakedTimestamp = await getTimestamp()
-            await increaseTime(ONE_WEEK.mul(10))
-
-            await stakedToken.increaseLockLength(ONE_WEEK.mul(20))
-
-            const afterData = await snapshotUserStakingData(sa.default.address)
-
-            expect(afterData.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
-            expect(afterData.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
-            expect(afterData.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
-            expect(afterData.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTimestamp)
-            expect(afterData.questBalance.lastAction, "last action after").to.eq(0)
-            expect(afterData.questBalance.permMultiplier, "perm multiplier after").to.eq(0)
-            expect(afterData.questBalance.seasonMultiplier, "season multiplier after").to.eq(0)
-            expect(afterData.userBalances.timeMultiplier, "time multiplier after").to.eq(0)
-            expect(afterData.stakedBalance, "staked balance after").to.eq(stakedAmount)
-            expect(afterData.votes, "staker votes after").to.eq(stakedAmount)
-
-            expect(await stakedToken.totalSupply(), "total staked after").to.eq(stakedAmount)
-        })
         it("first exit", async () => {
             await stakedToken.createLock(stakedAmount, ONE_WEEK.mul(20))
             const stakeTimestamp = await getTimestamp()
