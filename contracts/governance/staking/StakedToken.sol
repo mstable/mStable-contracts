@@ -432,15 +432,6 @@ contract StakedToken is GamifiedVotingToken {
     }
 
     /**
-     * @dev Does nothing, because there is no lockup here.
-     **/
-    function increaseLockLength(
-        uint256 /* _unlockTime */
-    ) external virtual {
-        return;
-    }
-
-    /**
      * @dev Backwards compatibility. Previously a lock would run out and a user would call this. Now, it will take 2 calls
      * to exit in order to leave. The first will initiate the cooldown period, and the second will execute a full withdrawal.
      **/

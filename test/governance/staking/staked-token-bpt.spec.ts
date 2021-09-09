@@ -30,7 +30,7 @@ import { expect } from "chai"
 import { getTimestamp, increaseTime } from "@utils/time"
 import { arrayify, formatBytes32String, solidityKeccak256 } from "ethers/lib/utils"
 import { BigNumberish, Signer } from "ethers"
-import { QuestStatus, QuestType, UserStakingData } from "types/stakedToken"
+import { QuestStatus, QuestType, BalConfig, UserStakingData } from "types/stakedToken"
 
 const signUserQuests = async (user: string, questIds: BigNumberish[], questSigner: Signer): Promise<string> => {
     const messageHash = solidityKeccak256(["address", "uint256[]"], [user, questIds])
@@ -165,7 +165,22 @@ describe("Staked Token BPT", () => {
         }
     }
 
-    const snapshotUserStakingData = async (user = sa.default.address): Promise<UserStakingData> => {
+    const snapBalData = async (): Promise<BalConfig> => {
+        const balRecipient = await stakedToken.balRecipient()
+        const keeper = await stakedToken.keeper()
+        const pendingBPTFees = await stakedToken.pendingBPTFees()
+        const priceCoefficient = await stakedToken.priceCoefficient()
+        const lastPriceUpdateTime = await stakedToken.lastPriceUpdateTime()
+        return {
+            balRecipient,
+            keeper,
+            pendingBPTFees,
+            priceCoefficient,
+            lastPriceUpdateTime,
+        }
+    }
+
+    const snapshotUserStakingData = async (user = sa.default.address, skipBalData = false): Promise<UserStakingData> => {
         const stakedBalance = await stakedToken.balanceOf(user)
         const votes = await stakedToken.getVotes(user)
         const earnedRewards = await stakedToken.earned(user)
@@ -182,6 +197,7 @@ describe("Staked Token BPT", () => {
             userBalances,
             userPriceCoeff,
             questBalance,
+            balData: skipBalData ? null : await snapBalData(),
         }
     }
 
@@ -200,15 +216,88 @@ describe("Staked Token BPT", () => {
             ;({ stakedToken, questManager, bpt } = await redeployStakedToken())
         })
         it("post initialize", async () => {
-            expect(await stakedToken.priceCoefficient()).eq(44000)
-            // BAL
-            // balancerVault
-            // poolId
-            // balRecipient
-            // keeper
-            // pendingBPTFees
-            // priceCoefficient
-            // lastPriceUpdateTime
+            const data = await snapBalData()
+            expect(await stakedToken.BAL()).eq(bpt.bal.address)
+            expect(await stakedToken.balancerVault()).eq(bpt.vault.address)
+            expect(await stakedToken.poolId()).eq(await bpt.vault.poolIds(bpt.bpt.address))
+            expect(data.balRecipient).eq(sa.fundManager.address)
+            expect(data.keeper).eq(ZERO_ADDRESS)
+            expect(data.pendingBPTFees).eq(0)
+            expect(data.priceCoefficient).eq(44000)
+            expect(data.lastPriceUpdateTime).eq(0)
+        })
+    })
+
+    // '''..................................................................'''
+    // '''...................        BAL TOKENS       ......................'''
+    // '''..................................................................'''
+
+    context("claiming BAL rewards", () => {
+        const balAirdrop = simpleToExactAmount(100)
+        before(async () => {
+            ;({ stakedToken, questManager, bpt } = await redeployStakedToken())
+            await bpt.bal.transfer(stakedToken.address, balAirdrop)
+        })
+        it("should allow governor to set bal recipient", async () => {
+            await expect(stakedToken.setBalRecipient(sa.fundManager.address)).to.be.revertedWith("Only governor")
+            const tx = stakedToken.connect(sa.governor.signer).setBalRecipient(sa.fundManager.address)
+            await expect(tx).to.emit(stakedToken, "BalRecipientChanged").withArgs(sa.fundManager.address)
+            expect(await stakedToken.balRecipient()).to.eq(sa.fundManager.address)
+        })
+        it("should allow BAL tokens to be claimed", async () => {
+            const balBefore = await bpt.bal.balanceOf(sa.fundManager.address)
+            const tx = stakedToken.claimBal()
+            await expect(tx).to.emit(stakedToken, "BalClaimed")
+            const balAfter = await bpt.bal.balanceOf(sa.fundManager.address)
+            expect(balAfter.sub(balBefore)).eq(balAirdrop)
+        })
+    })
+
+    // '''..................................................................'''
+    // '''........................    FEES ETC    ..........................'''
+    // '''..................................................................'''
+
+    context("collecting fees", () => {
+        const stakeAmount = simpleToExactAmount(100)
+        const expectedFees = stakeAmount.sub(stakeAmount.mul(1000).div(1075))
+        let data: UserStakingData
+        let expectedMTA: BN
+        before(async () => {
+            ;({ stakedToken, questManager, bpt } = await redeployStakedToken())
+            await bpt.bpt.approve(stakedToken.address, stakeAmount)
+            await stakedToken["stake(uint256)"](stakeAmount)
+            await stakedToken.startCooldown(stakeAmount)
+            await increaseTime(ONE_WEEK.add(1))
+            await stakedToken.withdraw(stakeAmount, sa.default.address, true, true)
+            data = await snapshotUserStakingData()
+            expectedMTA = expectedFees.mul(data.balData.priceCoefficient).div(12000)
+        })
+        it("should collect 7.5% as fees", async () => {
+            expect(data.balData.pendingBPTFees).eq(expectedFees)
+        })
+        it("should convert fees back into $MTA", async () => {
+            const bptBalBefore = await bpt.bpt.balanceOf(stakedToken.address)
+            const mtaBalBefore = await rewardToken.balanceOf(stakedToken.address)
+            const tx = stakedToken.convertFees()
+            // it should emit the event
+            await expect(tx).to.emit(stakedToken, "FeesConverted")
+            const dataAfter = await snapshotUserStakingData()
+            // should reset the pendingFeesBPT var to 1
+            expect(dataAfter.balData.pendingBPTFees).eq(1)
+            // should add the new fees to headlessstakingrewards
+            expect(await stakedToken.pendingAdditionalReward()).gt(expectedMTA)
+
+            // should burn bpt and receive mta
+            const bptBalAfter = await bpt.bpt.balanceOf(stakedToken.address)
+            const mtaBalAfter = await rewardToken.balanceOf(stakedToken.address)
+            expect(mtaBalAfter.sub(mtaBalBefore)).gt(expectedMTA)
+            expect(mtaBalAfter).eq(await stakedToken.pendingAdditionalReward())
+            expect(bptBalBefore.sub(bptBalAfter)).eq(expectedFees.sub(1))
+        })
+        it("should add the correct amount of fees, and deposit to the vendor when notifying", async () => {
+            await stakedToken.connect(sa.mockRewardsDistributor.signer).notifyRewardAmount(0)
+            expect(await rewardToken.balanceOf(stakedToken.address)).eq(1)
+            expect(await stakedToken.pendingAdditionalReward()).eq(1)
         })
     })
 
@@ -217,6 +306,9 @@ describe("Staked Token BPT", () => {
     // '''..................................................................'''
 
     context("setting keeper", () => {
+        before(async () => {
+            ;({ stakedToken, questManager, bpt } = await redeployStakedToken())
+        })
         it("should allow governance to set keeper")
     })
 
@@ -246,7 +338,7 @@ describe("Staked Token BPT", () => {
         })
         it("should allow basic staking and save coeff to users acc", async () => {
             await mockStakedToken["stake(uint256)"](stakedAmount)
-            const data = await snapshotUserStakingData(sa.default.address)
+            const data = await snapshotUserStakingData(sa.default.address, true)
             expect(data.userPriceCoeff).eq(10000)
             expect(data.votes).eq(stakedAmount)
         })
@@ -256,36 +348,16 @@ describe("Staked Token BPT", () => {
         })
         it("should update the users balance when they claim rewards", async () => {
             await mockStakedToken["claimReward()"]()
-            const data = await snapshotUserStakingData(sa.default.address)
+            const data = await snapshotUserStakingData(sa.default.address, true)
             expect(data.userPriceCoeff).eq(15000)
             expect(data.votes).eq(stakedAmount.mul(3).div(2))
         })
         it("should update the users balance when they stake more", async () => {
             await mockStakedToken.setPriceCoefficient(10000)
             await mockStakedToken["stake(uint256)"](stakedAmount)
-            const data = await snapshotUserStakingData(sa.default.address)
+            const data = await snapshotUserStakingData(sa.default.address, true)
             expect(data.userPriceCoeff).eq(10000)
             expect(data.votes).eq(stakedAmount.mul(2))
         })
-    })
-
-    // '''..................................................................'''
-    // '''...................        BAL TOKENS       ......................'''
-    // '''..................................................................'''
-
-    context("claiming BAL rewards", () => {
-        it("should allow BAL tokens to be claimed")
-        it("should allow govner to set bal recipient")
-    })
-
-    // '''..................................................................'''
-    // '''........................    FEES ETC    ..........................'''
-    // '''..................................................................'''
-
-    context("collecting fees", () => {
-        it("should convert fees back into $MTA")
-        it("should add the correct amount of fees, and deposit to the vendor")
-        it("should notify the headlessstakingrewards")
-        it("should reset the pendingFeesBPT var to 1")
     })
 })

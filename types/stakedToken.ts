@@ -23,6 +23,14 @@ export interface UserStakingData {
     userBalances: UserBalances
     userPriceCoeff: BN
     questBalance: QuestBalance
+    balData?: BalConfig
+}
+export interface BalConfig {
+    balRecipient: string
+    keeper: string
+    pendingBPTFees: BN
+    priceCoefficient: BN
+    lastPriceUpdateTime: BN
 }
 
 export enum QuestType {

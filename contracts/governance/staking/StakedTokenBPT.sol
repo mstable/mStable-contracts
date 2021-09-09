@@ -43,6 +43,7 @@ contract StakedTokenBPT is StakedToken {
     event BalClaimed();
     event BalRecipientChanged(address newRecipient);
     event PriceCoefficientUpdated(uint256 newPriceCoeff);
+    event FeesConverted(uint256 bpt, uint256 mta);
 
     /***************************************
                     INIT
@@ -144,12 +145,10 @@ contract StakedTokenBPT is StakedToken {
         // 1. Sell the BPT
         uint256 stakingBalBefore = STAKED_TOKEN.balanceOf(address(this));
         uint256 mtaBalBefore = REWARDS_TOKEN.balanceOf(address(this));
-        (address[] memory tokens, uint256[] memory balances, ) = balancerVault.getPoolTokens(
-            poolId
-        );
+        (address[] memory tokens, , ) = balancerVault.getPoolTokens(poolId);
         require(tokens[0] == address(REWARDS_TOKEN), "MTA in wrong place");
 
-        // 1.1. Calculate minimum output amount, assuming bpt 80/20 gives ~4% max slippage
+        // 1.1. Calculate minimum output amount
         uint256[] memory minOut = new uint256[](1);
         address[] memory exitToken = new address[](1);
         {
@@ -174,9 +173,11 @@ contract StakedTokenBPT is StakedToken {
         );
 
         // 3. Inform HeadlessRewards about the new rewards
-        uint256 mtaBalAfter = REWARDS_TOKEN.balanceOf(address(this));
-        require(mtaBalAfter - mtaBalBefore >= minOut[0], "Must receive tokens");
-        super._notifyAdditionalReward(mtaBalAfter - mtaBalBefore);
+        uint256 received = REWARDS_TOKEN.balanceOf(address(this)) - mtaBalBefore;
+        require(received >= minOut[0], "Must receive tokens");
+        super._notifyAdditionalReward(received);
+
+        emit FeesConverted(pendingBPT, received);
     }
 
     /**
