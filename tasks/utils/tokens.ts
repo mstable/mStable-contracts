@@ -399,7 +399,7 @@ export const RBAL: Token = {
 }
 
 export const BPT: Token = {
-    symbol: "RBPT",
+    symbol: "BPT",
     address: "0xe2469f47ab58cf9cf59f9822e3c5de4950a41c49",
     chain: Chain.mainnet,
     decimals: 18,
