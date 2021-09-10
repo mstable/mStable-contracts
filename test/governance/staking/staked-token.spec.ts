@@ -17,6 +17,7 @@ import {
     StakedToken__factory,
     QuestManager,
     MockEmissionController__factory,
+    ExposedMasset__factory,
 } from "types"
 import { assertBNClose, DEAD_ADDRESS } from "index"
 import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
@@ -1262,9 +1263,29 @@ describe("Staked Token", () => {
     // TODO - test startTime and seasonEpoch
     context("questManager", () => {
         context("adding staked token", () => {
-            it("should allow admin to add stakingtokens")
-            it("should fail if address 0")
-            it("should propagate quest completion to all stakedTokens")
+            before(async () => {
+                ;({ stakedToken, questManager } = await redeployStakedToken())
+            })
+            it("should fail if address 0", async () => {
+                const tx = questManager.connect(sa.governor.signer).addStakedToken(ZERO_ADDRESS)
+                await expect(tx).to.revertedWith("Invalid StakedToken")
+            })
+            it("should fail if not governor", async () => {
+                const tx = questManager.addStakedToken(sa.mockInterestValidator.address)
+                await expect(tx).to.revertedWith("Only governor can execute")
+            })
+            it("should fail if quest master", async () => {
+                const tx = questManager.connect(sa.questMaster.signer).addStakedToken(sa.mockInterestValidator.address)
+                await expect(tx).to.revertedWith("Only governor can execute")
+            })
+            it("should fail if quest signer", async () => {
+                const tx = questManager.connect(sa.questSigner.signer).addStakedToken(sa.mockInterestValidator.address)
+                await expect(tx).to.revertedWith("Only governor can execute")
+            })
+            it("should allow governor to add staked token", async () => {
+                const tx = await questManager.connect(sa.governor.signer).addStakedToken(sa.mockInterestValidator.address)
+                await expect(tx).to.emit(questManager, "StakedTokenAdded").withArgs(sa.mockInterestValidator.address)
+            })
         })
         context("add quest", () => {
             const stakedAmount = simpleToExactAmount(5000)
@@ -1346,6 +1367,7 @@ describe("Staked Token", () => {
         context("expire quest", () => {
             let expiry: BN
             before(async () => {
+                ;({ stakedToken, questManager } = await redeployStakedToken())
                 expiry = deployTime.add(ONE_WEEK.mul(12))
             })
             it("should allow governor to expire a seasonal quest", async () => {
@@ -1358,12 +1380,11 @@ describe("Staked Token", () => {
                 await expect(tx).to.emit(questManager, "QuestExpired").withArgs(id)
 
                 const quest = await questManager.getQuest(id)
-                expect(quest.status).to.eq(QuestStatus.EXPIRED)
-                expect(quest.expiry).to.lt(expiry)
-                expect(quest.expiry).to.eq(currentTime.add(1))
+                expect(quest.status, "status after").to.eq(QuestStatus.EXPIRED)
+                expect(quest.expiry, "expiry after").to.eq(currentTime.add(1))
             })
-            it("should allow governor to expire a permanent quest", async () => {
-                const tx0 = await questManager.connect(sa.governor.signer).addQuest(QuestType.PERMANENT, 10, expiry)
+            it("should allow quest master to expire a permanent quest", async () => {
+                const tx0 = await questManager.connect(sa.questMaster.signer).addQuest(QuestType.PERMANENT, 10, expiry)
                 const receipt = await tx0.wait()
                 const { id } = receipt.events[0].args
                 const currentTime = await getTimestamp()
@@ -1372,19 +1393,47 @@ describe("Staked Token", () => {
                 await expect(tx).to.emit(questManager, "QuestExpired").withArgs(id)
 
                 const quest = await questManager.getQuest(id)
-                expect(quest.status).to.eq(QuestStatus.EXPIRED)
-                expect(quest.expiry).to.lt(expiry)
-                expect(quest.expiry).to.eq(currentTime.add(1))
+                expect(quest.status, "status after").to.eq(QuestStatus.EXPIRED)
+                expect(quest.expiry, "expiry after").to.eq(currentTime.add(1))
+            })
+            it("expired quest can no longer be completed", async () => {
+                const tx0 = await questManager.connect(sa.questMaster.signer).addQuest(QuestType.PERMANENT, 10, expiry)
+                const receipt = await tx0.wait()
+                const { id } = receipt.events[0].args
+                await questManager.connect(sa.governor.signer).expireQuest(id)
+
+                const signature = await signUserQuests(sa.dummy1.address, [id], sa.questSigner.signer)
+                const tx = questManager.connect(sa.default.signer).completeUserQuests(sa.dummy1.address, [id], signature)
+                await expect(tx).revertedWith("Err: Invalid Quest")
+            })
+            it("should expire quest after expiry", async () => {
+                const tx0 = await questManager.connect(sa.governor.signer).addQuest(QuestType.PERMANENT, 5, expiry)
+                const receipt = await tx0.wait()
+                const { id } = receipt.events[0].args
+                await increaseTime(ONE_WEEK.mul(13))
+
+                const tx = await questManager.connect(sa.governor.signer).expireQuest(id)
+
+                await expect(tx).to.emit(questManager, "QuestExpired").withArgs(id)
+
+                const quest = await questManager.getQuest(id)
+                expect(quest.status, "status after").to.eq(QuestStatus.EXPIRED)
+                expect(quest.expiry, "expiry after").to.eq(expiry)
             })
             context("should fail to expire quest", () => {
                 let id: number
                 before(async () => {
+                    ;({ stakedToken, questManager } = await redeployStakedToken())
+                    expiry = deployTime.add(ONE_WEEK.mul(12))
                     const tx = await questManager.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 10, expiry)
                     const receipt = await tx.wait()
                     id = receipt.events[0].args.id
                 })
                 it("from deployer", async () => {
                     await expect(questManager.expireQuest(id)).to.revertedWith("Not verified")
+                })
+                it("from quest signer", async () => {
+                    await expect(questManager.connect(sa.questSigner.signer).expireQuest(id)).to.revertedWith("Not verified")
                 })
                 it("with id does not exists", async () => {
                     await expect(questManager.connect(sa.governor.signer).expireQuest(id + 1)).to.revertedWith("Quest does not exist")
@@ -1394,17 +1443,16 @@ describe("Staked Token", () => {
                     await expect(questManager.connect(sa.governor.signer).expireQuest(id)).to.revertedWith("Quest already expired")
                 })
             })
-            it("expired quest can no longer be completed")
         })
         context("start season", () => {
-            before(async () => {
+            beforeEach(async () => {
+                ;({ stakedToken, questManager } = await redeployStakedToken())
                 const expiry = deployTime.add(ONE_WEEK.mul(12))
                 await questManager.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 10, expiry)
-                await questManager.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 10, expiry)
+                await questManager.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 11, expiry)
                 expect(await questManager.startTime(), "season epoch before").to.gt(deployTime)
                 expect(await questManager.seasonEpoch(), "season epoch before").to.eq(0)
             })
-            it("should fail if called within 39 weeks of the startTime")
             it("should allow governor to start season after 39 weeks", async () => {
                 await increaseTime(ONE_WEEK.mul(39).add(60))
                 const tx = await questManager.connect(sa.governor.signer).startNewQuestSeason()
@@ -1414,13 +1462,30 @@ describe("Staked Token", () => {
             })
             context("should fail to start season", () => {
                 it("from deployer", async () => {
-                    await expect(questManager.startNewQuestSeason()).to.revertedWith("Not verified")
+                    const tx = questManager.startNewQuestSeason()
+                    await expect(tx).to.revertedWith("Not verified")
+                })
+                it("should fail if called within 39 weeks of the startTime", async () => {
+                    await increaseTime(ONE_WEEK.mul(39).sub(60))
+                    const tx = questManager.connect(sa.governor.signer).startNewQuestSeason()
+                    await expect(tx).revertedWith("First season has not elapsed")
                 })
                 it("before 39 week from last season", async () => {
+                    await increaseTime(ONE_WEEK.mul(39).add(60))
+                    await questManager.connect(sa.governor.signer).startNewQuestSeason()
+                    const newSeasonStart = await getTimestamp()
+                    await questManager.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 10, newSeasonStart.add(ONE_WEEK.mul(39)))
+
                     await increaseTime(ONE_WEEK.mul(39).sub(60))
-                    await expect(questManager.connect(sa.governor.signer).startNewQuestSeason()).to.revertedWith("Season has not elapsed")
+                    const tx = questManager.connect(sa.governor.signer).startNewQuestSeason()
+                    await expect(tx).to.revertedWith("Season has not elapsed")
                 })
-                it("if there are still active quests")
+                it("if there are still active quests", async () => {
+                    await questManager.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 12, deployTime.add(ONE_WEEK.mul(40)))
+                    await increaseTime(ONE_WEEK.mul(39).add(60))
+                    const tx = questManager.connect(sa.governor.signer).startNewQuestSeason()
+                    await expect(tx).to.revertedWith("All seasonal quests must have expired")
+                })
             })
         })
         context("questMaster", () => {
@@ -1470,7 +1535,7 @@ describe("Staked Token", () => {
             it("should require account list")
         })
         // TODO - should update lastActiontime after quest completion
-        context("complete quests", () => {
+        context("complete user quests", () => {
             let stakedTime
             let permanentQuestId: BN
             let seasonQuestId: BN
@@ -1639,6 +1704,7 @@ describe("Staked Token", () => {
             })
             // e.g. wrong quest ID
             // TODO - for both types of completion
+            it("should propagate quest completion to all stakedTokens", async () => {})
             it("should fail if the signature is invalid")
             it("should fail if the signature is for a different account")
             it("should fail if the signature is too long or short")
