@@ -1,7 +1,6 @@
 import { BigNumberish } from "@ethersproject/bignumber"
 import { Contract } from "@ethersproject/contracts"
 import { formatBytes32String } from "@ethersproject/strings"
-import { HardhatRuntimeEnvironment } from "hardhat/types"
 import { Account } from "types/common"
 import {
     AssetProxy__factory,
@@ -18,17 +17,14 @@ import { getChain, getChainAddress, resolveAddress } from "./networkAddressFacto
 export interface StakedTokenData {
     rewardsTokenSymbol: string
     stakedTokenSymbol: string
+    balTokenSymbol?: string
     cooldown: BigNumberish
     unstakeWindow: BigNumberish
     name: string
     symbol: string
 }
 
-export const deployStakingToken = async (
-    stakedTokenData: StakedTokenData,
-    deployer: Account,
-    hre: HardhatRuntimeEnvironment,
-): Promise<void> => {
+export const deployStakingToken = async (stakedTokenData: StakedTokenData, deployer: Account, hre: any): Promise<void> => {
     const chain = getChain(hre)
 
     const nexusAddress = getChainAddress("Nexus", chain)
@@ -101,7 +97,7 @@ export const deployStakingToken = async (
     let constructorArguments: any[]
     let stakedTokenImpl: Contract
     let data: string
-    if (stakedTokenAddress === rewardsTokenAddress) {
+    if (rewardsTokenAddress === stakedTokenAddress) {
         constructorArguments = [
             nexusAddress,
             rewardsTokenAddress,
@@ -122,9 +118,9 @@ export const deployStakingToken = async (
             rewardsDistributorAddress,
         ])
     } else {
-        const balPoolId = resolveAddress("BalancerStakingPoolId", chain)
+        const balAddress = resolveAddress(stakedTokenData.balTokenSymbol, chain)
 
-        const balAddress = resolveAddress("BAL", chain)
+        const balPoolId = resolveAddress("BalancerStakingPoolId", chain)
         const balancerVaultAddress = resolveAddress("BalancerVault", chain)
         const balancerRecipientAddress = resolveAddress("BalancerRecipient", chain)
 

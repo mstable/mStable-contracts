@@ -87,7 +87,8 @@ task("Vault.deploy", "Deploys a vault contract")
 
 task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
     .addOptionalParam("rewardsToken", "Symbol of rewards token. eg MTA or RMTA for Ropsten", "MTA", types.string)
-    .addOptionalParam("stakedToken", "Symbol of staked token. eg MTA, BAL, RMTA, RBAL", "MTA", types.string)
+    .addOptionalParam("stakedToken", "Symbol of staked token. eg MTA, RMTA, BPT or RBPT", "MTA", types.string)
+    .addOptionalParam("balToken", "Symbol of balancer token. eg BAL or RBAL", "BAL", types.string)
     .addOptionalParam("balPoolId", "Balancer Pool Id", "0001", types.string)
     .addOptionalParam("name", "Staked Token name", "Staked MTA", types.string)
     .addOptionalParam("symbol", "Staked Token symbol", "stkMTA", types.string)
@@ -99,6 +100,7 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
         const stakingTokenData: StakedTokenData = {
             rewardsTokenSymbol: taskArgs.rewardsToken,
             stakedTokenSymbol: taskArgs.stakedToken,
+            balTokenSymbol: taskArgs.balToken,
             cooldown: taskArgs.cooldown,
             unstakeWindow: taskArgs.unstakeWindow,
             name: taskArgs.name,
