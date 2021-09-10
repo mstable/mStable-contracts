@@ -33,6 +33,7 @@ export const contractNames = [
     "PlatformTokenVendorFactory",
     "BalancerVault",
     "BalancerRecipient",
+    "BalancerStakingPoolId",
     "AaveIncentivesController",
     "AaveLendingPoolAddressProvider",
     "AlchemixStakingPool",
@@ -109,6 +110,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
             case "BalancerRecipient":
                 return DEAD_ADDRESS
+            case "BalancerStakingPoolId":
+                return "0xe2469f47ab58cf9cf59f9822e3c5de4950a41c49000200000000000000000089"
             case "BasketManager":
                 return "0x66126B4aA2a1C07536Ef8E5e8bD4EfDA1FdEA96D"
             case "AaveIncentivesController":
@@ -213,6 +216,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return DEAD_ADDRESS
             case "BalancerRecipient":
                 return DEAD_ADDRESS
+            case "BalancerStakingPoolId":
+                return `${DEAD_ADDRESS}000000000001`
             case "QuestMaster":
                 return "0x04617083205b2fdd18b15bcf60d06674c6e2c1dc"
             case "QuestSigner":
