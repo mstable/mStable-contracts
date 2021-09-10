@@ -23,6 +23,7 @@ import { getSignerAccount, getSigner } from "./utils/signerFactory"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { deployVault, VaultData } from "./utils/feederUtils"
 import { verifyEtherscan } from "./utils/etherscan"
+import { deployStakingToken, StakedTokenData } from "./utils/rewardsUtils"
 
 task("getBytecode-BoostedDualVault").setAction(async () => {
     const size = BoostedDualVault__factory.bytecode.length / 2 / 1000
@@ -86,161 +87,26 @@ task("Vault.deploy", "Deploys a vault contract")
 
 task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
     .addOptionalParam("rewardsToken", "Symbol of rewards token. eg MTA or RMTA for Ropsten", "MTA", types.string)
-    .addOptionalParam("stakedToken", "Symbol of staked token. eg MTA, BAL, RMTA, RBAL", "MTA", types.string)
+    .addOptionalParam("stakedToken", "Symbol of staked token. eg MTA, RMTA, BPT or RBPT", "MTA", types.string)
+    .addOptionalParam("balToken", "Symbol of balancer token. eg BAL or RBAL", "BAL", types.string)
     .addOptionalParam("balPoolId", "Balancer Pool Id", "0001", types.string)
-    .addOptionalParam("questMaster", "Address of account that administrates quests", undefined, params.address)
-    .addOptionalParam("questSigner", "Address of account that signs completed quests", undefined, params.address)
     .addOptionalParam("name", "Staked Token name", "Staked MTA", types.string)
     .addOptionalParam("symbol", "Staked Token symbol", "stkMTA", types.string)
     .addOptionalParam("cooldown", "Number of seconds for the cooldown period", ONE_WEEK.mul(3).toNumber(), types.int)
     .addOptionalParam("unstakeWindow", "Number of seconds for the unstake window", ONE_WEEK.mul(2).toNumber(), types.int)
     .setAction(async (taskArgs, hre) => {
         const deployer = await getSignerAccount(hre, taskArgs.speed)
-        const chain = getChain(hre)
 
-        const nexusAddress = getChainAddress("Nexus", chain)
-        const rewardsDistributorAddress = getChainAddress("RewardsDistributor", chain)
-        const rewardsTokenAddress = resolveAddress(taskArgs.rewardsToken, chain)
-        const stakedTokenAddress = resolveAddress(taskArgs.stakedToken, chain)
-        const questMasterAddress = taskArgs.questMasterAddress || getChainAddress("QuestMaster", chain)
-        const questSignerAddress = taskArgs.questSignerAddress || getChainAddress("QuestSigner", chain)
-
-        let signatureVerifierAddress = getChainAddress("SignatureVerifier", chain)
-        if (!signatureVerifierAddress) {
-            const signatureVerifier = await deployContract(new SignatureVerifier__factory(deployer.signer), "SignatureVerifier")
-            signatureVerifierAddress = signatureVerifier.address
-
-            await verifyEtherscan(hre, {
-                address: signatureVerifierAddress,
-                contract: "contracts/governance/staking/deps/SignatureVerifier.sol:SignatureVerifier",
-            })
+        const stakingTokenData: StakedTokenData = {
+            rewardsTokenSymbol: taskArgs.rewardsToken,
+            stakedTokenSymbol: taskArgs.stakedToken,
+            balTokenSymbol: taskArgs.balToken,
+            cooldown: taskArgs.cooldown,
+            unstakeWindow: taskArgs.unstakeWindow,
+            name: taskArgs.name,
+            symbol: taskArgs.symbol,
         }
-
-        let questManagerAddress = getChainAddress("QuestManager", chain)
-        if (!questManagerAddress) {
-            const questManagerLibraryAddresses = {
-                "contracts/governance/staking/deps/SignatureVerifier.sol:SignatureVerifier": signatureVerifierAddress,
-            }
-            const questManagerImpl = await deployContract(
-                new QuestManager__factory(questManagerLibraryAddresses, deployer.signer),
-                "QuestManager",
-                [nexusAddress],
-            )
-            const data = questManagerImpl.interface.encodeFunctionData("initialize", [questMasterAddress, questSignerAddress])
-
-            await verifyEtherscan(hre, {
-                address: questManagerImpl.address,
-                contract: "contracts/governance/staking/QuestManager.sol:QuestManager",
-                constructorArguments: [nexusAddress],
-                libraries: {
-                    SignatureVerifier: signatureVerifierAddress,
-                },
-            })
-
-            const constructorArguments = [questManagerImpl.address, deployer.address, data]
-            const questManagerProxy = await deployContract(new AssetProxy__factory(deployer.signer), "AssetProxy", constructorArguments)
-            questManagerAddress = questManagerProxy.address
-
-            await verifyEtherscan(hre, {
-                address: questManagerAddress,
-                contract: "contracts/upgradability/Proxies.sol:AssetProxy",
-                constructorArguments,
-            })
-        }
-
-        let platformTokenVendorFactoryAddress = getChainAddress("PlatformTokenVendorFactory", chain)
-        if (!platformTokenVendorFactoryAddress) {
-            const platformTokenVendorFactory = await deployContract(
-                new PlatformTokenVendorFactory__factory(deployer.signer),
-                "PlatformTokenVendorFactory",
-            )
-            platformTokenVendorFactoryAddress = platformTokenVendorFactory.address
-
-            await verifyEtherscan(hre, {
-                address: platformTokenVendorFactoryAddress,
-                constructorArguments: [],
-            })
-        }
-
-        const stakedTokenLibraryAddresses = {
-            "contracts/rewards/staking/PlatformTokenVendorFactory.sol:PlatformTokenVendorFactory": platformTokenVendorFactoryAddress,
-        }
-        let constructorArguments: any[]
-        let stakedTokenImpl: Contract
-        let data: string
-        if (stakedTokenAddress === rewardsTokenAddress) {
-            constructorArguments = [
-                nexusAddress,
-                rewardsTokenAddress,
-                questManagerAddress,
-                rewardsTokenAddress,
-                taskArgs.cooldown,
-                taskArgs.unstakeWindow,
-            ]
-
-            stakedTokenImpl = await deployContract(
-                new StakedTokenMTA__factory(stakedTokenLibraryAddresses, deployer.signer),
-                "StakedTokenMTA",
-                constructorArguments,
-            )
-            data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
-                formatBytes32String(taskArgs.name),
-                formatBytes32String(taskArgs.symbol),
-                rewardsDistributorAddress,
-            ])
-        } else {
-            const balPoolIdStr = taskArgs.balPoolId || "1"
-            const balPoolId = formatBytes32String(balPoolIdStr)
-
-            const balancerVaultAddress = resolveAddress("BalancerVault", chain)
-            const balancerRecipientAddress = resolveAddress("BalancerRecipient", chain)
-
-            constructorArguments = [
-                nexusAddress,
-                rewardsTokenAddress,
-                questManagerAddress,
-                stakedTokenAddress,
-                taskArgs.cooldown,
-                taskArgs.unstakeWindow,
-                [stakedTokenAddress, balancerVaultAddress],
-                balPoolId,
-            ]
-
-            console.log(`Staked Token BPT contract size ${StakedTokenBPT__factory.bytecode.length / 2} bytes`)
-
-            stakedTokenImpl = await deployContract(
-                new StakedTokenBPT__factory(stakedTokenLibraryAddresses, deployer.signer),
-                "StakedTokenBPT",
-                constructorArguments,
-            )
-
-            data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
-                formatBytes32String(taskArgs.name),
-                formatBytes32String(taskArgs.symbol),
-                rewardsDistributorAddress,
-                balancerRecipientAddress,
-            ])
-        }
-
-        await verifyEtherscan(hre, {
-            address: stakedTokenImpl.address,
-            constructorArguments,
-            libraries: {
-                PlatformTokenVendorFactory: platformTokenVendorFactoryAddress,
-            },
-        })
-
-        const proxy = await deployContract(new AssetProxy__factory(deployer.signer), "AssetProxy", [
-            stakedTokenImpl.address,
-            deployer.address,
-            data,
-        ])
-
-        await verifyEtherscan(hre, {
-            address: proxy.address,
-            contract: "contracts/upgradability/Proxies.sol:AssetProxy",
-            constructorArguments: [stakedTokenImpl.address, deployer.address, data],
-        })
+        await deployStakingToken(stakingTokenData, deployer, hre)
     })
 
 export {}

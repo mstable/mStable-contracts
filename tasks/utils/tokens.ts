@@ -398,6 +398,22 @@ export const RBAL: Token = {
     quantityFormatter: "USD",
 }
 
+export const BPT: Token = {
+    symbol: "BPT",
+    address: "0xe2469f47ab58cf9cf59f9822e3c5de4950a41c49",
+    chain: Chain.mainnet,
+    decimals: 18,
+    quantityFormatter: "USD",
+}
+
+export const RBPT: Token = {
+    symbol: "RBPT",
+    address: "0x021c343C6180f03cE9E48FaE3ff432309b9aF199",
+    chain: Chain.ropsten,
+    decimals: 18,
+    quantityFormatter: "USD",
+}
+
 export const tokens = [
     MTA,
     PMTA,
@@ -425,6 +441,8 @@ export const tokens = [
     PWMATIC,
     RmUSD,
     RmBTC,
+    BPT,
+    RBPT,
     BAL,
     RBAL,
 ]

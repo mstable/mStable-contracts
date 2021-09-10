@@ -2,12 +2,12 @@
 /* eslint-disable no-restricted-syntax */
 import "ts-node/register"
 import "tsconfig-paths/register"
-import { subtask, task, types } from "hardhat/config"
+import { task, types } from "hardhat/config"
 
 import { BN, simpleToExactAmount } from "@utils/math"
 import { DelayedProxyAdmin__factory } from "types"
 import { Contract } from "@ethersproject/contracts"
-import { ONE_DAY } from "@utils/constants"
+import { ONE_DAY, ONE_WEEK } from "@utils/constants"
 import { expect } from "chai"
 import { BigNumberish, Signer } from "ethers"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
@@ -183,6 +183,8 @@ task("LegacyVault.deploy", "Deploys a vault contract")
 
                 const tx2 = await proxyAdmin.acceptUpgradeRequest(vaultProxyAddress)
                 await logTxDetails(tx2, `${vault.underlyingTokenSymbol} acceptUpgradeRequest`)
+
+                await vaultVerification(hre, signer, chain)
             } else {
                 await verifyEtherscan(hre, {
                     address: vaultImpl.address,
@@ -192,8 +194,6 @@ task("LegacyVault.deploy", "Deploys a vault contract")
                 console.log(`${vault.underlyingTokenSymbol} proposeUpgrade tx args: proxy ${vaultProxyAddress}, impl ${vaultImpl.address}`)
             }
         }
-
-        await vaultVerification(hre, signer, chain)
     })
 
 task("LegacyVault.check", "Checks the vaults post upgrade")
@@ -210,6 +210,27 @@ const vaultVerification = async (hre, signer: Signer, chain: Chain) => {
     const nexusAddress = getChainAddress("Nexus", chain)
     const boostDirectorAddress = getChainAddress("BoostDirector", chain)
     const rewardTokenAddress = resolveAddress("MTA", chain)
+    const delayedProxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)
+
+    // TODO remove once proposed upgrades have been accepted
+    const governorAddress = resolveAddress("Governor", chain)
+    if (hre.network.name === "hardhat") {
+        // TODO use impersonate function instead of the following
+        // impersonate fails with "You probably tried to import the "hardhat" module from your config or a file imported from it."
+        await hre.network.provider.request({
+            method: "hardhat_impersonateAccount",
+            params: [governorAddress],
+        })
+        await hre.network.provider.request({
+            method: "hardhat_setBalance",
+            params: [governorAddress, "0x8AC7230489E80000"],
+        })
+    }
+    const governor = hre.ethers.provider.getSigner(governorAddress)
+    const delayedProxyAdmin = DelayedProxyAdmin__factory.connect(delayedProxyAdminAddress, governor)
+    // TODO use increaseTime instead of the following
+    await hre.ethers.provider.send("evm_increaseTime", [ONE_WEEK.toNumber()])
+    await hre.ethers.provider.send("evm_mine", [])
 
     for (const vault of vaults) {
         const vaultProxyAddress = resolveAddress(vault.underlyingTokenSymbol, chain, "vault")
@@ -219,6 +240,9 @@ const vaultVerification = async (hre, signer: Signer, chain: Chain) => {
             signer,
         )
         const proxy = await vaultFactory.attach(vaultProxyAddress)
+
+        // TODO remove this once proposed upgrades have been accepted
+        delayedProxyAdmin.acceptUpgradeRequest(vaultProxyAddress)
 
         console.log(`About to verify the ${vault.underlyingTokenSymbol} vault`)
 
