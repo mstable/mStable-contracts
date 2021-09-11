@@ -24,7 +24,19 @@ export interface StakedTokenData {
     symbol: string
 }
 
-export const deployStakingToken = async (stakedTokenData: StakedTokenData, deployer: Account, hre: any): Promise<void> => {
+export interface StakedTokenDeployAddresses {
+    stakedToken: string
+    questManager: string
+    signatureVerifier: string
+    platformTokenVendorFactory: string
+}
+
+export const deployStakingToken = async (
+    stakedTokenData: StakedTokenData,
+    deployer: Account,
+    hre: any,
+    overrides?: StakedTokenDeployAddresses,
+): Promise<StakedTokenDeployAddresses> => {
     const chain = getChain(hre)
 
     const nexusAddress = getChainAddress("Nexus", chain)
@@ -34,7 +46,7 @@ export const deployStakingToken = async (stakedTokenData: StakedTokenData, deplo
     const questMasterAddress = getChainAddress("QuestMaster", chain)
     const questSignerAddress = getChainAddress("QuestSigner", chain)
 
-    let signatureVerifierAddress = getChainAddress("SignatureVerifier", chain)
+    let signatureVerifierAddress = overrides ? overrides.signatureVerifier : getChainAddress("SignatureVerifier", chain)
     if (!signatureVerifierAddress) {
         const signatureVerifier = await deployContract(new SignatureVerifier__factory(deployer.signer), "SignatureVerifier")
         signatureVerifierAddress = signatureVerifier.address
@@ -45,7 +57,7 @@ export const deployStakingToken = async (stakedTokenData: StakedTokenData, deplo
         })
     }
 
-    let questManagerAddress = getChainAddress("QuestManager", chain)
+    let questManagerAddress = overrides ? overrides.questManager : getChainAddress("QuestManager", chain)
     if (!questManagerAddress) {
         const questManagerLibraryAddresses = {
             "contracts/governance/staking/deps/SignatureVerifier.sol:SignatureVerifier": signatureVerifierAddress,
@@ -77,7 +89,9 @@ export const deployStakingToken = async (stakedTokenData: StakedTokenData, deplo
         })
     }
 
-    let platformTokenVendorFactoryAddress = getChainAddress("PlatformTokenVendorFactory", chain)
+    let platformTokenVendorFactoryAddress = overrides
+        ? overrides.platformTokenVendorFactory
+        : getChainAddress("PlatformTokenVendorFactory", chain)
     if (!platformTokenVendorFactoryAddress) {
         const platformTokenVendorFactory = await deployContract(
             new PlatformTokenVendorFactory__factory(deployer.signer),
@@ -172,4 +186,11 @@ export const deployStakingToken = async (stakedTokenData: StakedTokenData, deplo
         contract: "contracts/upgradability/Proxies.sol:AssetProxy",
         constructorArguments: [stakedTokenImpl.address, deployer.address, data],
     })
+
+    return {
+        stakedToken: proxy.address,
+        questManager: questManagerAddress,
+        signatureVerifier: signatureVerifierAddress,
+        platformTokenVendorFactory: platformTokenVendorFactoryAddress,
+    }
 }
