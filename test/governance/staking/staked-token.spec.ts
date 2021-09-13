@@ -26,6 +26,7 @@ import { advanceBlock, getTimestamp, increaseTime } from "@utils/time"
 import { arrayify, formatBytes32String, solidityKeccak256 } from "ethers/lib/utils"
 import { BigNumberish, Signer } from "ethers"
 import { QuestStatus, QuestType, UserStakingData } from "types/stakedToken"
+import { Block } from "@ethersproject/abstract-provider"
 
 const signUserQuests = async (user: string, questIds: BigNumberish[], questSigner: Signer): Promise<string> => {
     const messageHash = solidityKeccak256(["address", "uint256[]"], [user, questIds])
@@ -356,6 +357,7 @@ describe("Staked Token", () => {
 
             expect(await stakedToken.totalSupply(), "total staked after").to.eq(stakedAmount.add(delegateStakedAmount))
         })
+        // TODO
         it("should stake twice in the same block")
         it("should update weightedTimestamp after subsequent stake")
         it("should exit cooldown if cooldown period has expired")
@@ -2116,10 +2118,41 @@ describe("Staked Token", () => {
     // '''......................    VOTINGTOKEN    .........................'''
     // '''..................................................................'''
 
-    // TODO - consider forking OZ tests https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/master/test/token/ERC20/extensions/ERC20Votes.test.js
-
     context("maintaining checkpoints and balances", () => {
-        // TODO - look up historical checkpoints via `getVotes`, `getPastVotes`, `numCheckpoints` and `checkpoints`
+        const assertPastCheckpoint = async (
+            user: string,
+            blockNumber: number,
+            _votesBefore: BN | undefined,
+            changeAmount: BN,
+            stake = true,
+        ): Promise<BN> => {
+            const votesBefore = _votesBefore === undefined ? BN.from(0) : _votesBefore
+            const votesAfter = stake ? votesBefore.add(changeAmount) : votesBefore.sub(changeAmount)
+            if (votesBefore) {
+                expect(await stakedToken.getPastVotes(user, blockNumber - 1), "just before").to.eq(votesBefore)
+            }
+            expect(await stakedToken.getPastVotes(user, blockNumber), "at").to.eq(votesAfter)
+            expect(await stakedToken.getPastVotes(user, blockNumber + 1), "just after").to.eq(votesAfter)
+
+            return votesAfter
+        }
+        const assertPastTotalSupply = async (
+            action: string,
+            blockNumber: number,
+            _supplyBefore: BN | undefined,
+            changeAmount: BN,
+            stake = true,
+        ): Promise<BN> => {
+            const supplyBefore = _supplyBefore === undefined ? BN.from(0) : _supplyBefore
+            const supplyAfter = stake ? supplyBefore.add(changeAmount) : supplyBefore.sub(changeAmount)
+            if (_supplyBefore) {
+                expect(await stakedToken.getPastTotalSupply(blockNumber - 1), `just before ${action}`).to.eq(supplyBefore)
+            }
+            expect(await stakedToken.getPastTotalSupply(blockNumber), `at ${action}`).to.eq(supplyAfter)
+            expect(await stakedToken.getPastTotalSupply(blockNumber + 1), `just after ${action}`).to.eq(supplyAfter)
+
+            return supplyAfter
+        }
         context("with no delegate", () => {
             // stake, stake again, other stake, partial cooldown, partial withdraw, partial cooldown, stake and exit cooldown, full cooldown, full withdraw
             let stakerAddress
@@ -2149,7 +2182,7 @@ describe("Staked Token", () => {
                 await increaseTime(ONE_WEEK)
                 await advanceBlock()
             })
-            it("first stake", async () => {
+            it("should first stake", async () => {
                 const tx = await stakedToken["stake(uint256)"](firstStakedAmount)
                 const receipt = await tx.wait()
                 blocks.push(receipt.blockNumber)
@@ -2164,7 +2197,7 @@ describe("Staked Token", () => {
                 totalSupply = totalSupply.add(firstStakedAmount)
                 expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
             })
-            it("second stake", async () => {
+            it("should second stake", async () => {
                 const tx = await stakedToken["stake(uint256)"](secondStakedAmount)
                 const receipt = await tx.wait()
                 blocks.push(receipt.blockNumber)
@@ -2179,7 +2212,7 @@ describe("Staked Token", () => {
                 totalSupply = totalSupply.add(secondStakedAmount)
                 expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
             })
-            it("first stake from other", async () => {
+            it("should first stake from other", async () => {
                 const tx = await stakedToken.connect(sa.dummy1.signer)["stake(uint256)"](firstOtherStakedAmount)
                 const receipt = await tx.wait()
                 blocks.push(receipt.blockNumber)
@@ -2193,7 +2226,7 @@ describe("Staked Token", () => {
                 totalSupply = totalSupply.add(firstOtherStakedAmount)
                 expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
             })
-            it("first cooldown partial", async () => {
+            it("should first cooldown partial", async () => {
                 const tx = await stakedToken.startCooldown(firstCooldownAmount)
                 const receipt = await tx.wait()
                 blocks.push(receipt.blockNumber)
@@ -2208,7 +2241,7 @@ describe("Staked Token", () => {
                 totalSupply = totalSupply.sub(firstCooldownAmount)
                 expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
             })
-            it("first withdraw partial", async () => {
+            it("should first withdraw partial", async () => {
                 const tx = await stakedToken.withdraw(firstCooldownAmount, stakerAddress, true, true)
                 const receipt = await tx.wait()
                 blocks.push(receipt.blockNumber)
@@ -2218,7 +2251,7 @@ describe("Staked Token", () => {
                 // Total Supply unchanged
                 expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
             })
-            it("second cooldown full", async () => {
+            it("should second cooldown full", async () => {
                 const tx = await stakedToken.startCooldown(secondCooldownAmount)
                 const receipt = await tx.wait()
                 blocks.push(receipt.blockNumber)
@@ -2233,7 +2266,7 @@ describe("Staked Token", () => {
                 totalSupply = totalSupply.sub(secondCooldownAmount)
                 expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
             })
-            it("third stake and exit cooldown", async () => {
+            it("should third stake and exit cooldown", async () => {
                 const tx = await stakedToken["stake(uint256,bool)"](thirdStakedAmount, true)
                 const receipt = await tx.wait()
                 blocks.push(receipt.blockNumber)
@@ -2248,7 +2281,7 @@ describe("Staked Token", () => {
                 totalSupply = totalSupply.add(secondCooldownAmount).add(thirdStakedAmount)
                 expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
             })
-            it("third cooldown full", async () => {
+            it("should third cooldown full", async () => {
                 const tx = await stakedToken.startCooldown(thirdCooldownAmount)
                 const receipt = await tx.wait()
                 blocks.push(receipt.blockNumber)
@@ -2263,7 +2296,7 @@ describe("Staked Token", () => {
                 totalSupply = totalSupply.sub(thirdCooldownAmount)
                 expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
             })
-            it("third withdraw full", async () => {
+            it("should third withdraw full", async () => {
                 const tx = await stakedToken.withdraw(thirdCooldownAmount, stakerAddress, true, true)
                 const receipt = await tx.wait()
                 blocks.push(receipt.blockNumber)
@@ -2273,66 +2306,27 @@ describe("Staked Token", () => {
                 // Total Supply unchanged
                 expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
             })
-
-            const assertPastCheckpoint = async (
-                action: string,
-                blockNumber: number,
-                _votesBefore: BN | undefined,
-                changeAmount: BN,
-                stake = true,
-            ): Promise<BN> => {
-                const votesBefore = _votesBefore === undefined ? BN.from(0) : _votesBefore
-                const votesAfter = stake ? votesBefore.add(changeAmount) : votesBefore.sub(changeAmount)
-                if (votesBefore) {
-                    expect(await stakedToken.getPastVotes(stakerAddress, blockNumber - 1), `just before ${action}`).to.eq(votesBefore)
-                }
-                expect(await stakedToken.getPastVotes(stakerAddress, blockNumber), `at ${action}`).to.eq(votesAfter)
-                expect(await stakedToken.getPastVotes(stakerAddress, blockNumber + 1), `just after ${action}`).to.eq(votesAfter)
-
-                return votesAfter
-            }
-            it("past votes", async () => {
-                await increaseTime(ONE_WEEK)
-                await advanceBlock()
-
-                let votesAfter = await assertPastCheckpoint("staked token deploy", blocks[0], undefined, BN.from(0))
-                votesAfter = await assertPastCheckpoint("first stake", blocks[1], votesAfter, firstStakedAmount)
-                votesAfter = await assertPastCheckpoint("second stake", blocks[2], votesAfter, secondStakedAmount)
-                votesAfter = await assertPastCheckpoint("first other stake", blocks[3], votesAfter, BN.from(0))
-                votesAfter = await assertPastCheckpoint("first cooldown partial", blocks[4], votesAfter, firstCooldownAmount, false)
-                votesAfter = await assertPastCheckpoint("first withdraw partial", blocks[5], votesAfter, BN.from(0))
-                votesAfter = await assertPastCheckpoint("second cooldown full", blocks[6], votesAfter, secondCooldownAmount, false)
-                votesAfter = await assertPastCheckpoint(
-                    "third stake and exit cooldown",
-                    blocks[7],
-                    votesAfter,
-                    secondCooldownAmount.add(thirdStakedAmount),
-                )
-                votesAfter = await assertPastCheckpoint("third cooldown full", blocks[8], votesAfter, thirdCooldownAmount, false)
-                await assertPastCheckpoint("third withdraw full", blocks[9], votesAfter, BN.from(0))
+            context("should get staker past votes", () => {
+                const stakerChanges: [string, BN, boolean][] = [
+                    ["staked token deploy", BN.from(0), true],
+                    ["first stake", firstStakedAmount, true],
+                    ["second stake", secondStakedAmount, true],
+                    ["first other stake", BN.from(0), true],
+                    ["first cooldown partial", firstCooldownAmount, false],
+                    ["first withdraw partial", BN.from(0), true],
+                    ["second cooldown full", secondCooldownAmount, false],
+                    ["third stake and exit cooldown", secondCooldownAmount.add(thirdStakedAmount), true],
+                    ["third cooldown full", thirdCooldownAmount, false],
+                    ["third withdraw full", BN.from(0), true],
+                ]
+                let votesAfter
+                stakerChanges.forEach((test, i) => {
+                    it(test[0], async () => {
+                        votesAfter = await assertPastCheckpoint(stakerAddress, blocks[i], votesAfter, test[1], test[2])
+                    })
+                })
             })
-
-            const assertPastTotalSupply = async (
-                action: string,
-                blockNumber: number,
-                _supplyBefore: BN | undefined,
-                changeAmount: BN,
-                stake = true,
-            ): Promise<BN> => {
-                const supplyBefore = _supplyBefore === undefined ? BN.from(0) : _supplyBefore
-                const supplyAfter = stake ? supplyBefore.add(changeAmount) : supplyBefore.sub(changeAmount)
-                if (_supplyBefore) {
-                    expect(await stakedToken.getPastTotalSupply(blockNumber - 1), `just before ${action}`).to.eq(supplyBefore)
-                }
-                expect(await stakedToken.getPastTotalSupply(blockNumber), `at ${action}`).to.eq(supplyAfter)
-                expect(await stakedToken.getPastTotalSupply(blockNumber + 1), `just after ${action}`).to.eq(supplyAfter)
-
-                return supplyAfter
-            }
-            it("past total supply", async () => {
-                await increaseTime(ONE_WEEK)
-                await advanceBlock()
-
+            it("should get past total supply", async () => {
                 let afterTotal = await assertPastTotalSupply("staked token deploy", blocks[0], undefined, BN.from(0))
                 afterTotal = await assertPastTotalSupply("first stake", blocks[1], afterTotal, firstStakedAmount)
                 afterTotal = await assertPastTotalSupply("second stake", blocks[2], afterTotal, secondStakedAmount)
@@ -2349,18 +2343,46 @@ describe("Staked Token", () => {
                 afterTotal = await assertPastTotalSupply("third cooldown full", blocks[8], afterTotal, thirdCooldownAmount, false)
                 await assertPastTotalSupply("third withdraw full", blocks[9], afterTotal, BN.from(0), false)
             })
+            context("should fail to get future block for", () => {
+                let block: Block
+                before(async () => {
+                    block = await ethers.provider.getBlock("latest")
+                })
+                it("past votes", async () => {
+                    const tx = stakedToken.getPastVotes(stakerAddress, block.number + 100)
+                    await expect(tx).to.revertedWith("ERC20Votes: block not yet mined")
+                })
+                it("past total supply", async () => {
+                    const tx = stakedToken.getPastTotalSupply(block.number + 100)
+                    await expect(tx).to.revertedWith("ERC20Votes: block not yet mined")
+                })
+            })
         })
         context("with delegate", () => {
-            // stake, stake again, other stake, partial cooldown, partial withdraw, partial cooldown, stake and exit cooldown, full cooldown, full withdraw
+            // stake 11 to 1st delegate
+            // stake 22 again to 1st delegate
+            // change to 2nd delegate
+            // partial cooldown 16
+            // stake 33 back to 1st delegate
+            // end cooldown
             let stakerAddress
             let otherStakerAddress
             let firstDelegateAddress
             let secondDelegateAddress
+            const firstStakedAmount = simpleToExactAmount(11)
+            const secondStakedAmount = simpleToExactAmount(22)
+            const thirdStakedAmount = simpleToExactAmount(33)
+            const firstCooldownAmount = simpleToExactAmount(16)
 
             const blocks: number[] = []
+            let totalSupply = BN.from(0)
+            let firstDelegateVotes = BN.from(0)
+            let secondDelegateVotes = BN.from(0)
             before(async () => {
                 stakerAddress = sa.default.address
                 otherStakerAddress = sa.dummy1.address
+                firstDelegateAddress = sa.dummy2.address
+                secondDelegateAddress = sa.dummy3.address
                 ;({ stakedToken, questManager } = await redeployStakedToken())
                 await rewardToken.connect(sa.default.signer).approve(stakedToken.address, simpleToExactAmount(1000000))
                 await rewardToken.transfer(otherStakerAddress, simpleToExactAmount(100000))
@@ -2372,11 +2394,180 @@ describe("Staked Token", () => {
                 await increaseTime(ONE_WEEK)
                 await advanceBlock()
             })
-            // stake to delegate, stake again to delegate, change delegate, partial withdraw, stake again to delegate, full withdraw
+
+            it("should first stake", async () => {
+                const tx = await stakedToken["stake(uint256,address)"](firstStakedAmount, firstDelegateAddress)
+                const receipt = await tx.wait()
+                blocks.push(receipt.blockNumber)
+
+                expect(await stakedToken.numCheckpoints(stakerAddress), "staker num checkpoints").to.eq(0)
+                expect(await stakedToken.numCheckpoints(firstDelegateAddress), "1st delegate num checkpoints").to.eq(1)
+                expect(await stakedToken.numCheckpoints(secondDelegateAddress), "2nd delegate num checkpoints").to.eq(0)
+
+                // First delegate Checkpoint
+                const checkpoint = await stakedToken.checkpoints(firstDelegateAddress, 0)
+                expect(checkpoint.fromBlock, "checkpoint block").to.eq(receipt.blockNumber)
+                firstDelegateVotes = firstDelegateVotes.add(firstStakedAmount)
+                expect(checkpoint.votes, "checkpoint votes").to.eq(firstDelegateVotes)
+
+                // Total Supply
+                totalSupply = totalSupply.add(firstStakedAmount)
+                expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
+            })
+            it("should second stake", async () => {
+                const tx = await stakedToken["stake(uint256,address)"](secondStakedAmount, firstDelegateAddress)
+                const receipt = await tx.wait()
+                blocks.push(receipt.blockNumber)
+
+                expect(await stakedToken.numCheckpoints(stakerAddress), "staker num checkpoints").to.eq(0)
+                expect(await stakedToken.numCheckpoints(firstDelegateAddress), "1st delegate num checkpoints").to.eq(2)
+                expect(await stakedToken.numCheckpoints(secondDelegateAddress), "2nd delegate num checkpoints").to.eq(0)
+
+                // First delegate Checkpoint
+                const checkpoint = await stakedToken.checkpoints(firstDelegateAddress, 1)
+                expect(checkpoint.fromBlock, "checkpoint block").to.eq(receipt.blockNumber)
+                firstDelegateVotes = firstDelegateVotes.add(secondStakedAmount)
+                expect(checkpoint.votes, "checkpoint votes").to.eq(firstDelegateVotes)
+
+                // Total Supply
+                totalSupply = totalSupply.add(secondStakedAmount)
+                expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
+            })
+            it("should change delegate", async () => {
+                const tx = await stakedToken.delegate(secondDelegateAddress)
+                const receipt = await tx.wait()
+                blocks.push(receipt.blockNumber)
+
+                expect(await stakedToken.numCheckpoints(stakerAddress), "staker num checkpoints").to.eq(0)
+                expect(await stakedToken.numCheckpoints(firstDelegateAddress), "1st delegate num checkpoints").to.eq(3)
+                expect(await stakedToken.numCheckpoints(secondDelegateAddress), "2nd delegate num checkpoints").to.eq(1)
+
+                // First delegate Checkpoint
+                const firstDelegateCheckpoint = await stakedToken.checkpoints(firstDelegateAddress, 2)
+                expect(firstDelegateCheckpoint.fromBlock, "1st delegate checkpoint block").to.eq(receipt.blockNumber)
+                firstDelegateVotes = BN.from(0)
+                expect(firstDelegateCheckpoint.votes, "1st delegate checkpoint votes").to.eq(firstDelegateVotes)
+
+                // Second delegate Checkpoint
+                const secondDelegateCheckpoint = await stakedToken.checkpoints(secondDelegateAddress, 0)
+                expect(secondDelegateCheckpoint.fromBlock, "2nd delegate checkpoint block").to.eq(receipt.blockNumber)
+                secondDelegateVotes = firstStakedAmount.add(secondStakedAmount)
+                expect(secondDelegateCheckpoint.votes, "2nd delegate checkpoint votes").to.eq(secondDelegateVotes)
+
+                // Total Supply unchanged
+                expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
+            })
+            it("should first cooldown partial", async () => {
+                const tx = await stakedToken.startCooldown(firstCooldownAmount)
+                const receipt = await tx.wait()
+                blocks.push(receipt.blockNumber)
+
+                expect(await stakedToken.numCheckpoints(stakerAddress), "staker num checkpoints").to.eq(0)
+                expect(await stakedToken.numCheckpoints(firstDelegateAddress), "1st delegate num checkpoints").to.eq(3)
+                expect(await stakedToken.numCheckpoints(secondDelegateAddress), "2nd delegate num checkpoints").to.eq(2)
+
+                // Second delegate Checkpoint
+                const secondDelegateCheckpoint = await stakedToken.checkpoints(secondDelegateAddress, 1)
+                expect(secondDelegateCheckpoint.fromBlock, "2nd delegate checkpoint block").to.eq(receipt.blockNumber)
+                secondDelegateVotes = secondDelegateVotes.sub(firstCooldownAmount)
+                expect(secondDelegateCheckpoint.votes, "2nd delegate checkpoint votes").to.eq(secondDelegateVotes)
+
+                // Total Supply
+                totalSupply = totalSupply.sub(firstCooldownAmount)
+                expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
+            })
+            it("should third stake and change delegate back to first delegate", async () => {
+                const tx = await stakedToken["stake(uint256,address)"](thirdStakedAmount, firstDelegateAddress)
+                const receipt = await tx.wait()
+                blocks.push(receipt.blockNumber)
+
+                expect(await stakedToken.numCheckpoints(stakerAddress), "staker num checkpoints").to.eq(0)
+                expect(await stakedToken.numCheckpoints(firstDelegateAddress), "1st delegate num checkpoints").to.eq(4)
+                expect(await stakedToken.numCheckpoints(secondDelegateAddress), "2nd delegate num checkpoints").to.eq(3)
+
+                // First delegate Checkpoint
+                const firstDelegateCheckpoint = await stakedToken.checkpoints(firstDelegateAddress, 3)
+                expect(firstDelegateCheckpoint.fromBlock, "1st delegate checkpoint block").to.eq(receipt.blockNumber)
+                firstDelegateVotes = secondDelegateVotes.add(thirdStakedAmount)
+                expect(firstDelegateCheckpoint.votes, "1st delegate checkpoint votes").to.eq(firstDelegateVotes)
+
+                // Second delegate Checkpoint
+                const secondDelegateCheckpoint = await stakedToken.checkpoints(secondDelegateAddress, 2)
+                expect(secondDelegateCheckpoint.fromBlock, "2nd delegate checkpoint block").to.eq(receipt.blockNumber)
+                secondDelegateVotes = BN.from(0)
+                expect(secondDelegateCheckpoint.votes, "2nd delegate checkpoint votes").to.eq(secondDelegateVotes)
+
+                // Total Supply
+                totalSupply = totalSupply.add(thirdStakedAmount)
+                expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
+            })
+            it("should end cooldown", async () => {
+                const tx = await stakedToken.endCooldown()
+                const receipt = await tx.wait()
+                blocks.push(receipt.blockNumber)
+
+                expect(await stakedToken.numCheckpoints(stakerAddress), "staker num checkpoints").to.eq(0)
+                expect(await stakedToken.numCheckpoints(firstDelegateAddress), "1st delegate num checkpoints").to.eq(5)
+                expect(await stakedToken.numCheckpoints(secondDelegateAddress), "2nd delegate num checkpoints").to.eq(3)
+
+                // Second delegate Checkpoint
+                const firstDelegateCheckpoint = await stakedToken.checkpoints(firstDelegateAddress, 4)
+                expect(firstDelegateCheckpoint.fromBlock, "1st delegate checkpoint block").to.eq(receipt.blockNumber)
+                firstDelegateVotes = firstDelegateVotes.add(firstCooldownAmount)
+                expect(firstDelegateCheckpoint.votes, "1st delegate checkpoint votes").to.eq(firstDelegateVotes)
+
+                // Total Supply
+                totalSupply = totalSupply.add(firstCooldownAmount)
+                expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
+            })
+            context("should get first delegate past votes", () => {
+                const firstDelegateChanges: [string, BN, boolean][] = [
+                    ["staked token deploy", BN.from(0), true],
+                    ["first stake", firstStakedAmount, true],
+                    ["second stake", secondStakedAmount, true],
+                    ["change delegate", firstStakedAmount.add(secondStakedAmount), false],
+                    ["first cooldown partial", BN.from(0), true],
+                    [
+                        "third stake and change delegate",
+                        firstStakedAmount.add(secondStakedAmount).add(thirdStakedAmount).sub(firstCooldownAmount),
+                        true,
+                    ],
+                    ["end cooldown", firstCooldownAmount, true],
+                ]
+                let votesAfter
+                firstDelegateChanges.forEach((test, i) => {
+                    it(test[0], async () => {
+                        votesAfter = await assertPastCheckpoint(firstDelegateAddress, blocks[i], votesAfter, test[1], test[2])
+                    })
+                })
+            })
+            context("should get second delegate past votes", () => {
+                const firstDelegateChanges: [string, BN, boolean][] = [
+                    ["staked token deploy", BN.from(0), true],
+                    ["first stake", BN.from(0), true],
+                    ["second stake", BN.from(0), true],
+                    ["change delegate", firstStakedAmount.add(secondStakedAmount), true],
+                    ["first cooldown partial", firstCooldownAmount, false],
+                    ["third stake and change delegate", firstStakedAmount.add(secondStakedAmount).sub(firstCooldownAmount), false],
+                    ["end cooldown", BN.from(0), true],
+                ]
+                let votesAfter
+                firstDelegateChanges.forEach((test, i) => {
+                    it(test[0], async () => {
+                        votesAfter = await assertPastCheckpoint(secondDelegateAddress, blocks[i], votesAfter, test[1], test[2])
+                    })
+                })
+            })
+            it("should get past total supply", async () => {
+                let afterTotal = await assertPastTotalSupply("staked token deploy", blocks[0], undefined, BN.from(0))
+                afterTotal = await assertPastTotalSupply("first stake", blocks[1], afterTotal, firstStakedAmount)
+                afterTotal = await assertPastTotalSupply("second stake", blocks[2], afterTotal, secondStakedAmount)
+                afterTotal = await assertPastTotalSupply("change delegate", blocks[3], afterTotal, BN.from(0))
+                afterTotal = await assertPastTotalSupply("first cooldown partial", blocks[4], afterTotal, firstCooldownAmount, false)
+                afterTotal = await assertPastTotalSupply("third stake and change delegate", blocks[5], afterTotal, thirdStakedAmount)
+                await assertPastTotalSupply("end cooldown", blocks[6], afterTotal, firstCooldownAmount, true)
+            })
         })
-        // stake to self, stake to delegate, change delegate, withdraw, stake
-        it("should track users balance as checkpoints")
-        it("should maintain totalsupply checkpoints")
     })
     context("triggering the governance hook", () => {
         it("should allow governor to add a governanceHook")
