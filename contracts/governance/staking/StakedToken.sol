@@ -205,8 +205,9 @@ contract StakedToken is GamifiedVotingToken {
         Balance memory oldBalance = _balances[_msgSender()];
         //      If we have missed the unstake window, or the user has chosen to exit the cooldown,
         //      then reset the timestamp to 0
-        bool exitCooldown = _exitCooldown ||
-            block.timestamp > (oldBalance.cooldownTimestamp + COOLDOWN_SECONDS + UNSTAKE_WINDOW);
+        bool exitCooldown = _exitCooldown || (
+            oldBalance.cooldownTimestamp > 0 &&
+            block.timestamp > (oldBalance.cooldownTimestamp + COOLDOWN_SECONDS + UNSTAKE_WINDOW) );
         if (exitCooldown) {
             emit CooldownExited(_msgSender());
         }

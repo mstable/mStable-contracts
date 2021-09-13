@@ -17,13 +17,12 @@ import {
     StakedToken__factory,
     QuestManager,
     MockEmissionController__factory,
-    ExposedMasset__factory,
 } from "types"
 import { assertBNClose, DEAD_ADDRESS } from "index"
 import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { expect } from "chai"
-import { getTimestamp, increaseTime } from "@utils/time"
+import { advanceBlock, getTimestamp, increaseTime } from "@utils/time"
 import { arrayify, formatBytes32String, solidityKeccak256 } from "ethers/lib/utils"
 import { BigNumberish, Signer } from "ethers"
 import { QuestStatus, QuestType, UserStakingData } from "types/stakedToken"
@@ -119,6 +118,7 @@ describe("Staked Token", () => {
         const stakedBalance = await stakedToken.balanceOf(user)
         const votes = await stakedToken.getVotes(user)
         const earnedRewards = await stakedToken.earned(user)
+        const numCheckpoints = await stakedToken.numCheckpoints(user)
         const rewardsBalance = await rewardToken.balanceOf(user)
         const userBalances = await stakedToken.balanceData(user)
         const userPriceCoeff = await stakedToken.userPriceCoeff(user)
@@ -128,6 +128,7 @@ describe("Staked Token", () => {
             stakedBalance,
             votes,
             earnedRewards,
+            numCheckpoints,
             rewardsBalance,
             userBalances,
             userPriceCoeff,
@@ -191,26 +192,30 @@ describe("Staked Token", () => {
             expect(stakerDataBefore.rewardsBalance, "staker RWD before").to.eq(startingMintAmount)
             expect(stakerDataBefore.votes, "staker votes before").to.eq(0)
             expect(stakerDataBefore.userBalances.cooldownTimestamp, "staker cooldown before").to.eq(0)
+            expect(stakerDataBefore.numCheckpoints, "staked checkpoints before").to.eq(0)
 
             const delegateDataBefore = await snapshotUserStakingData(sa.dummy1.address)
             expect(delegateDataBefore.stakedBalance, "delegate stkRWD before").to.eq(0)
             expect(delegateDataBefore.rewardsBalance, "delegate RWD before").to.eq(0)
             expect(delegateDataBefore.votes, "delegate votes before").to.eq(0)
             expect(delegateDataBefore.userBalances.cooldownTimestamp, "delegate cooldown before").to.eq(0)
+            expect(delegateDataBefore.numCheckpoints, "delegate checkpoints before").to.eq(0)
 
             expect(await stakedToken.totalSupply(), "total staked before").to.eq(0)
         })
         it("should delegate to self by default", async () => {
+            const stakerAddress = sa.default.address
             const tx = await stakedToken["stake(uint256)"](stakedAmount)
 
             const stakedTimestamp = await getTimestamp()
 
-            await expect(tx).to.emit(stakedToken, "Staked").withArgs(sa.default.address, stakedAmount, ZERO_ADDRESS)
-            await expect(tx).to.emit(stakedToken, "DelegateChanged").not
-            await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(sa.default.address, 0, stakedAmount)
-            await expect(tx).to.emit(rewardToken, "Transfer").withArgs(sa.default.address, stakedToken.address, stakedAmount)
+            await expect(tx).to.emit(stakedToken, "Staked").withArgs(stakerAddress, stakedAmount, ZERO_ADDRESS)
+            await expect(tx).to.not.emit(stakedToken, "DelegateChanged")
+            await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(stakerAddress, 0, stakedAmount)
+            await expect(tx).to.emit(rewardToken, "Transfer").withArgs(stakerAddress, stakedToken.address, stakedAmount)
+            await expect(tx).to.not.emit(stakedToken, "CooldownExited")
 
-            const afterData = await snapshotUserStakingData(sa.default.address)
+            const afterData = await snapshotUserStakingData(stakerAddress)
 
             expect(afterData.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
             expect(afterData.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
@@ -223,36 +228,111 @@ describe("Staked Token", () => {
             expect(afterData.userBalances.timeMultiplier, "time multiplier after").to.eq(0)
             expect(afterData.stakedBalance, "staked balance after").to.eq(stakedAmount)
             expect(afterData.votes, "staker votes after").to.eq(stakedAmount)
+            // Staker checkpoint
+            expect(afterData.numCheckpoints, "staked checkpoints after").to.eq(1)
+            const checkpoint = await stakedToken.checkpoints(stakerAddress, 0)
+            const receipt = await tx.wait()
+            expect(checkpoint.fromBlock, "staked checkpoint block").to.eq(receipt.blockNumber)
+            expect(checkpoint.votes, "staked checkpoint votes").to.eq(stakedAmount)
 
             expect(await stakedToken.totalSupply(), "total staked after").to.eq(stakedAmount)
         })
         it("should assign delegate", async () => {
-            const tx = await stakedToken["stake(uint256,address)"](stakedAmount, sa.dummy1.address)
+            const stakerAddress = sa.default.address
+            const delegateAddress = sa.dummy1.address
+            const tx = await stakedToken["stake(uint256,address)"](stakedAmount, delegateAddress)
 
             const stakedTimestamp = await getTimestamp()
 
-            await expect(tx).to.emit(stakedToken, "Staked").withArgs(sa.default.address, stakedAmount, sa.dummy1.address)
-            await expect(tx).to.emit(stakedToken, "DelegateChanged").withArgs(sa.default.address, sa.default.address, sa.dummy1.address)
-            await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(sa.dummy1.address, 0, stakedAmount)
-            await expect(tx).to.emit(rewardToken, "Transfer").withArgs(sa.default.address, stakedToken.address, stakedAmount)
+            await expect(tx).to.emit(stakedToken, "Staked").withArgs(stakerAddress, stakedAmount, delegateAddress)
+            await expect(tx).to.emit(stakedToken, "DelegateChanged").withArgs(stakerAddress, stakerAddress, delegateAddress)
+            await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(delegateAddress, 0, stakedAmount)
+            await expect(tx).to.emit(rewardToken, "Transfer").withArgs(stakerAddress, stakedToken.address, stakedAmount)
+            await expect(tx).to.not.emit(stakedToken, "CooldownExited")
 
-            const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
+            const stakerDataAfter = await snapshotUserStakingData(stakerAddress)
             expect(stakerDataAfter.userBalances.raw, "staker raw balance after").to.eq(stakedAmount)
             expect(stakerDataAfter.userBalances.weightedTimestamp, "staker weighted timestamp after").to.eq(stakedTimestamp)
             expect(stakerDataAfter.questBalance.lastAction, "staker last action after").to.eq(0)
             expect(stakerDataAfter.stakedBalance, "staker stkRWD after").to.eq(stakedAmount)
             expect(stakerDataAfter.votes, "staker votes after").to.eq(0)
             expect(stakerDataAfter.userBalances.cooldownTimestamp, "staker cooldown after").to.eq(0)
+            expect(stakerDataAfter.numCheckpoints, "staker checkpoints after").to.eq(0)
 
-            const delegateDataAfter = await snapshotUserStakingData(sa.dummy1.address)
+            const delegateDataAfter = await snapshotUserStakingData(delegateAddress)
             expect(delegateDataAfter.userBalances.raw, "delegate raw balance after").to.eq(0)
             expect(delegateDataAfter.userBalances.weightedTimestamp, "delegate weighted timestamp after").to.eq(0)
             expect(delegateDataAfter.questBalance.lastAction, "delegate last action after").to.eq(0)
             expect(delegateDataAfter.stakedBalance, "delegate stkRWD after").to.eq(0)
             expect(delegateDataAfter.votes, "delegate votes after").to.eq(stakedAmount)
             expect(delegateDataAfter.userBalances.cooldownTimestamp, "delegate cooldown after").to.eq(0)
+            expect(delegateDataAfter.numCheckpoints, "delegate checkpoints after").to.eq(1)
+            // Delegate Checkpoint
+            const checkpoint = await stakedToken.checkpoints(delegateAddress, 0)
+            const receipt = await tx.wait()
+            expect(checkpoint.fromBlock, "delegate checkpoint block").to.eq(receipt.blockNumber)
+            expect(checkpoint.votes, "delegate checkpoint votes").to.eq(stakedAmount)
 
             expect(await stakedToken.totalSupply(), "total staked after").to.eq(stakedAmount)
+        })
+        it("should stake to a delegate after staking with self as delegate", async () => {
+            const firstStakedAmount = simpleToExactAmount(100)
+            const secondStakedAmount = simpleToExactAmount(200)
+            const bothStakedAmounts = firstStakedAmount.add(secondStakedAmount)
+            const stakerAddress = sa.default.address
+            const delegateAddress = sa.dummy1.address
+            const tx1 = await stakedToken["stake(uint256)"](firstStakedAmount)
+            const receipt1 = await tx1.wait()
+
+            await increaseTime(ONE_WEEK)
+
+            const tx2 = await stakedToken["stake(uint256,address)"](secondStakedAmount, delegateAddress)
+            const receipt2 = await tx2.wait()
+
+            const secondStakedTimestamp = await getTimestamp()
+
+            await expect(tx2).to.emit(stakedToken, "Staked").withArgs(stakerAddress, secondStakedAmount, delegateAddress)
+            await expect(tx2).to.emit(stakedToken, "DelegateChanged").withArgs(stakerAddress, stakerAddress, delegateAddress)
+            await expect(tx2).to.emit(stakedToken, "DelegateVotesChanged").withArgs(stakerAddress, firstStakedAmount, 0)
+            await expect(tx2).to.emit(stakedToken, "DelegateVotesChanged").withArgs(delegateAddress, 0, firstStakedAmount)
+            await expect(tx2).to.emit(stakedToken, "DelegateVotesChanged").withArgs(delegateAddress, firstStakedAmount, bothStakedAmounts)
+            await expect(tx2).to.emit(rewardToken, "Transfer").withArgs(stakerAddress, stakedToken.address, secondStakedAmount)
+            await expect(tx2).to.not.emit(stakedToken, "CooldownExited")
+
+            // Staker
+            const stakerDataAfter = await snapshotUserStakingData(stakerAddress)
+            expect(stakerDataAfter.userBalances.raw, "staker raw balance after").to.eq(bothStakedAmounts)
+            // TODO
+            // expect(stakerDataAfter.userBalances.weightedTimestamp, "staker weighted timestamp after").to.eq(secondStakedTimestamp)
+            expect(stakerDataAfter.questBalance.lastAction, "staker last action after").to.eq(0)
+            expect(stakerDataAfter.stakedBalance, "staker stkRWD after").to.eq(bothStakedAmounts)
+            expect(stakerDataAfter.votes, "staker votes after").to.eq(0)
+            expect(stakerDataAfter.userBalances.cooldownTimestamp, "staker cooldown after").to.eq(0)
+            expect(stakerDataAfter.numCheckpoints, "staker checkpoints after").to.eq(2)
+            // Staker 1st checkpoint
+            const stakerCheckpoint1 = await stakedToken.checkpoints(stakerAddress, 0)
+            expect(stakerCheckpoint1.fromBlock, "staker 1st checkpoint block").to.eq(receipt1.blockNumber)
+            expect(stakerCheckpoint1.votes, "staker 1st checkpoint votes").to.eq(firstStakedAmount)
+            // Staker 2nd checkpoint
+            const stakerCheckpoint2 = await stakedToken.checkpoints(stakerAddress, 1)
+            expect(stakerCheckpoint2.fromBlock, "staker 2nd checkpoint block").to.eq(receipt2.blockNumber)
+            expect(stakerCheckpoint2.votes, "staker 2nd checkpoint votes").to.eq(0)
+
+            // Delegate
+            const delegateDataAfter = await snapshotUserStakingData(delegateAddress)
+            expect(delegateDataAfter.userBalances.raw, "delegate raw balance after").to.eq(0)
+            expect(delegateDataAfter.userBalances.weightedTimestamp, "delegate weighted timestamp after").to.eq(0)
+            expect(delegateDataAfter.questBalance.lastAction, "delegate last action after").to.eq(0)
+            expect(delegateDataAfter.stakedBalance, "delegate stkRWD after").to.eq(0)
+            expect(delegateDataAfter.votes, "delegate votes after").to.eq(bothStakedAmounts)
+            expect(delegateDataAfter.userBalances.cooldownTimestamp, "delegate cooldown after").to.eq(0)
+            expect(delegateDataAfter.numCheckpoints, "delegate checkpoints after").to.eq(1)
+            // Delegate Checkpoint
+            const delegateCheckpoint = await stakedToken.checkpoints(delegateAddress, 0)
+            expect(delegateCheckpoint.fromBlock, "delegate checkpoint block").to.eq(receipt2.blockNumber)
+            expect(delegateCheckpoint.votes, "delegate checkpoint votes").to.eq(bothStakedAmounts)
+
+            expect(await stakedToken.totalSupply(), "total staked after").to.eq(bothStakedAmounts)
         })
         it("should not chain delegate votes", async () => {
             const delegateStakedAmount = simpleToExactAmount(2000)
@@ -276,9 +356,23 @@ describe("Staked Token", () => {
 
             expect(await stakedToken.totalSupply(), "total staked after").to.eq(stakedAmount.add(delegateStakedAmount))
         })
+        it("should stake twice in the same block")
         it("should update weightedTimestamp after subsequent stake")
-        it("should fail if staking 0 amount")
         it("should exit cooldown if cooldown period has expired")
+        context("should fail when", () => {
+            it("staking 0 amount", async () => {
+                const tx = stakedToken["stake(uint256)"](0)
+                await expect(tx).to.revertedWith("INVALID_ZERO_AMOUNT")
+            })
+            it("staking 0 amount while exiting cooldown", async () => {
+                const tx = stakedToken["stake(uint256,bool)"](0, true)
+                await expect(tx).to.revertedWith("INVALID_ZERO_AMOUNT")
+            })
+            it("staking 0 amount with delegate", async () => {
+                const tx = stakedToken["stake(uint256,address)"](0, sa.dummy1.address)
+                await expect(tx).to.revertedWith("INVALID_ZERO_AMOUNT")
+            })
+        })
     })
     context("change delegate votes", () => {
         const stakedAmount = simpleToExactAmount(100)
@@ -659,7 +753,7 @@ describe("Staked Token", () => {
                 const secondStakedTimestamp = await getTimestamp()
 
                 await expect(tx).to.emit(stakedToken, "Staked").withArgs(sa.default.address, secondStakeAmount, ZERO_ADDRESS)
-                await expect(tx).to.emit(stakedToken, "DelegateChanged").not
+                await expect(tx).to.not.emit(stakedToken, "DelegateChanged")
                 await expect(tx)
                     .to.emit(stakedToken, "DelegateVotesChanged")
                     .withArgs(sa.default.address, stakedAmount.div(5), stakedAmount.add(secondStakeAmount))
@@ -989,7 +1083,7 @@ describe("Staked Token", () => {
             const stakedTimestamp = await getTimestamp()
 
             await expect(tx).to.emit(stakedToken, "Staked").withArgs(sa.default.address, stakedAmount, ZERO_ADDRESS)
-            await expect(tx).to.emit(stakedToken, "DelegateChanged").not
+            await expect(tx).to.not.emit(stakedToken, "DelegateChanged")
             await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(sa.default.address, 0, stakedAmount)
             await expect(tx).to.emit(rewardToken, "Transfer").withArgs(sa.default.address, stakedToken.address, stakedAmount)
 
@@ -1017,7 +1111,7 @@ describe("Staked Token", () => {
             const tx = await stakedToken.increaseLockAmount(increaseAmount)
 
             await expect(tx).to.emit(stakedToken, "Staked").withArgs(sa.default.address, increaseAmount, ZERO_ADDRESS)
-            await expect(tx).to.emit(stakedToken, "DelegateChanged").not
+            await expect(tx).to.not.emit(stakedToken, "DelegateChanged")
             await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(sa.default.address, stakedAmount, newBalance)
             await expect(tx).to.emit(rewardToken, "Transfer").withArgs(sa.default.address, stakedToken.address, increaseAmount)
 
@@ -2026,6 +2120,261 @@ describe("Staked Token", () => {
 
     context("maintaining checkpoints and balances", () => {
         // TODO - look up historical checkpoints via `getVotes`, `getPastVotes`, `numCheckpoints` and `checkpoints`
+        context("with no delegate", () => {
+            // stake, stake again, other stake, partial cooldown, partial withdraw, partial cooldown, stake and exit cooldown, full cooldown, full withdraw
+            let stakerAddress
+            let otherStakerAddress
+            const firstStakedAmount = simpleToExactAmount(1000)
+            const secondStakedAmount = simpleToExactAmount(2000)
+            const thirdStakedAmount = simpleToExactAmount(3000)
+            const firstCooldownAmount = simpleToExactAmount(500)
+            const secondCooldownAmount = simpleToExactAmount(2500)
+            const thirdCooldownAmount = simpleToExactAmount(5500)
+
+            const firstOtherStakedAmount = simpleToExactAmount(100)
+            const blocks: number[] = []
+            let totalSupply = BN.from(0)
+            let stakerVotes = BN.from(0)
+            before(async () => {
+                stakerAddress = sa.default.address
+                otherStakerAddress = sa.dummy1.address
+                ;({ stakedToken, questManager } = await redeployStakedToken())
+                await rewardToken.connect(sa.default.signer).approve(stakedToken.address, simpleToExactAmount(1000000))
+                await rewardToken.transfer(otherStakerAddress, simpleToExactAmount(100000))
+                await rewardToken.connect(sa.dummy1.signer).approve(stakedToken.address, simpleToExactAmount(1000000))
+                const block = await sa.default.signer.provider.getBlock("latest")
+                blocks.push(block.number)
+            })
+            beforeEach(async () => {
+                await increaseTime(ONE_WEEK)
+                await advanceBlock()
+            })
+            it("first stake", async () => {
+                const tx = await stakedToken["stake(uint256)"](firstStakedAmount)
+                const receipt = await tx.wait()
+                blocks.push(receipt.blockNumber)
+
+                // Staker Checkpoint
+                const stakerCheckpoint = await stakedToken.checkpoints(stakerAddress, 0)
+                expect(stakerCheckpoint.fromBlock, "checkpoint block").to.eq(receipt.blockNumber)
+                stakerVotes = stakerVotes.add(firstStakedAmount)
+                expect(stakerCheckpoint.votes, "checkpoint votes").to.eq(stakerVotes)
+
+                // Total Supply
+                totalSupply = totalSupply.add(firstStakedAmount)
+                expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
+            })
+            it("second stake", async () => {
+                const tx = await stakedToken["stake(uint256)"](secondStakedAmount)
+                const receipt = await tx.wait()
+                blocks.push(receipt.blockNumber)
+
+                // Staker Checkpoint
+                const stakerCheckpoint = await stakedToken.checkpoints(stakerAddress, 1)
+                expect(stakerCheckpoint.fromBlock, "checkpoint block").to.eq(receipt.blockNumber)
+                stakerVotes = stakerVotes.add(secondStakedAmount)
+                expect(stakerCheckpoint.votes, "checkpoint votes").to.eq(stakerVotes)
+
+                // Total Supply
+                totalSupply = totalSupply.add(secondStakedAmount)
+                expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
+            })
+            it("first stake from other", async () => {
+                const tx = await stakedToken.connect(sa.dummy1.signer)["stake(uint256)"](firstOtherStakedAmount)
+                const receipt = await tx.wait()
+                blocks.push(receipt.blockNumber)
+
+                // Staker Checkpoint
+                const stakerCheckpoint = await stakedToken.checkpoints(otherStakerAddress, 0)
+                expect(stakerCheckpoint.fromBlock, "checkpoint block").to.eq(receipt.blockNumber)
+                expect(stakerCheckpoint.votes, "checkpoint votes").to.eq(firstOtherStakedAmount)
+
+                // Total Supply
+                totalSupply = totalSupply.add(firstOtherStakedAmount)
+                expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
+            })
+            it("first cooldown partial", async () => {
+                const tx = await stakedToken.startCooldown(firstCooldownAmount)
+                const receipt = await tx.wait()
+                blocks.push(receipt.blockNumber)
+
+                // Staker Checkpoint
+                const stakerCheckpoint = await stakedToken.checkpoints(stakerAddress, 2)
+                expect(stakerCheckpoint.fromBlock, "checkpoint block").to.eq(receipt.blockNumber)
+                stakerVotes = stakerVotes.sub(firstCooldownAmount)
+                expect(stakerCheckpoint.votes, "checkpoint votes").to.eq(stakerVotes)
+
+                // Total Supply
+                totalSupply = totalSupply.sub(firstCooldownAmount)
+                expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
+            })
+            it("first withdraw partial", async () => {
+                const tx = await stakedToken.withdraw(firstCooldownAmount, stakerAddress, true, true)
+                const receipt = await tx.wait()
+                blocks.push(receipt.blockNumber)
+
+                // Not new Staker Checkpoint
+                expect(await stakedToken.numCheckpoints(stakerAddress), "checkpoint block").to.eq(3)
+                // Total Supply unchanged
+                expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
+            })
+            it("second cooldown full", async () => {
+                const tx = await stakedToken.startCooldown(secondCooldownAmount)
+                const receipt = await tx.wait()
+                blocks.push(receipt.blockNumber)
+
+                // Staker Checkpoint
+                const stakerCheckpoint = await stakedToken.checkpoints(stakerAddress, 3)
+                expect(stakerCheckpoint.fromBlock, "checkpoint block").to.eq(receipt.blockNumber)
+                stakerVotes = BN.from(0)
+                expect(stakerCheckpoint.votes, "checkpoint votes").to.eq(stakerVotes)
+
+                // Total Supply
+                totalSupply = totalSupply.sub(secondCooldownAmount)
+                expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
+            })
+            it("third stake and exit cooldown", async () => {
+                const tx = await stakedToken["stake(uint256,bool)"](thirdStakedAmount, true)
+                const receipt = await tx.wait()
+                blocks.push(receipt.blockNumber)
+
+                // Staker Checkpoint
+                const stakerCheckpoint = await stakedToken.checkpoints(stakerAddress, 4)
+                expect(stakerCheckpoint.fromBlock, "checkpoint block").to.eq(receipt.blockNumber)
+                stakerVotes = secondCooldownAmount.add(thirdStakedAmount)
+                expect(stakerCheckpoint.votes, "checkpoint votes").to.eq(stakerVotes)
+
+                // Total Supply
+                totalSupply = totalSupply.add(secondCooldownAmount).add(thirdStakedAmount)
+                expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
+            })
+            it("third cooldown full", async () => {
+                const tx = await stakedToken.startCooldown(thirdCooldownAmount)
+                const receipt = await tx.wait()
+                blocks.push(receipt.blockNumber)
+
+                // Staker Checkpoint
+                const stakerCheckpoint = await stakedToken.checkpoints(stakerAddress, 5)
+                expect(stakerCheckpoint.fromBlock, "checkpoint block").to.eq(receipt.blockNumber)
+                stakerVotes = BN.from(0)
+                expect(stakerCheckpoint.votes, "checkpoint votes").to.eq(stakerVotes)
+
+                // Total Supply
+                totalSupply = totalSupply.sub(thirdCooldownAmount)
+                expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
+            })
+            it("third withdraw full", async () => {
+                const tx = await stakedToken.withdraw(thirdCooldownAmount, stakerAddress, true, true)
+                const receipt = await tx.wait()
+                blocks.push(receipt.blockNumber)
+
+                // Not new Staker Checkpoint
+                expect(await stakedToken.numCheckpoints(stakerAddress), "checkpoint block").to.eq(6)
+                // Total Supply unchanged
+                expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalSupply)
+            })
+
+            const assertPastCheckpoint = async (
+                action: string,
+                blockNumber: number,
+                _votesBefore: BN | undefined,
+                changeAmount: BN,
+                stake = true,
+            ): Promise<BN> => {
+                const votesBefore = _votesBefore === undefined ? BN.from(0) : _votesBefore
+                const votesAfter = stake ? votesBefore.add(changeAmount) : votesBefore.sub(changeAmount)
+                if (votesBefore) {
+                    expect(await stakedToken.getPastVotes(stakerAddress, blockNumber - 1), `just before ${action}`).to.eq(votesBefore)
+                }
+                expect(await stakedToken.getPastVotes(stakerAddress, blockNumber), `at ${action}`).to.eq(votesAfter)
+                expect(await stakedToken.getPastVotes(stakerAddress, blockNumber + 1), `just after ${action}`).to.eq(votesAfter)
+
+                return votesAfter
+            }
+            it("past votes", async () => {
+                await increaseTime(ONE_WEEK)
+                await advanceBlock()
+
+                let votesAfter = await assertPastCheckpoint("staked token deploy", blocks[0], undefined, BN.from(0))
+                votesAfter = await assertPastCheckpoint("first stake", blocks[1], votesAfter, firstStakedAmount)
+                votesAfter = await assertPastCheckpoint("second stake", blocks[2], votesAfter, secondStakedAmount)
+                votesAfter = await assertPastCheckpoint("first other stake", blocks[3], votesAfter, BN.from(0))
+                votesAfter = await assertPastCheckpoint("first cooldown partial", blocks[4], votesAfter, firstCooldownAmount, false)
+                votesAfter = await assertPastCheckpoint("first withdraw partial", blocks[5], votesAfter, BN.from(0))
+                votesAfter = await assertPastCheckpoint("second cooldown full", blocks[6], votesAfter, secondCooldownAmount, false)
+                votesAfter = await assertPastCheckpoint(
+                    "third stake and exit cooldown",
+                    blocks[7],
+                    votesAfter,
+                    secondCooldownAmount.add(thirdStakedAmount),
+                )
+                votesAfter = await assertPastCheckpoint("third cooldown full", blocks[8], votesAfter, thirdCooldownAmount, false)
+                await assertPastCheckpoint("third withdraw full", blocks[9], votesAfter, BN.from(0))
+            })
+
+            const assertPastTotalSupply = async (
+                action: string,
+                blockNumber: number,
+                _supplyBefore: BN | undefined,
+                changeAmount: BN,
+                stake = true,
+            ): Promise<BN> => {
+                const supplyBefore = _supplyBefore === undefined ? BN.from(0) : _supplyBefore
+                const supplyAfter = stake ? supplyBefore.add(changeAmount) : supplyBefore.sub(changeAmount)
+                if (_supplyBefore) {
+                    expect(await stakedToken.getPastTotalSupply(blockNumber - 1), `just before ${action}`).to.eq(supplyBefore)
+                }
+                expect(await stakedToken.getPastTotalSupply(blockNumber), `at ${action}`).to.eq(supplyAfter)
+                expect(await stakedToken.getPastTotalSupply(blockNumber + 1), `just after ${action}`).to.eq(supplyAfter)
+
+                return supplyAfter
+            }
+            it("past total supply", async () => {
+                await increaseTime(ONE_WEEK)
+                await advanceBlock()
+
+                let afterTotal = await assertPastTotalSupply("staked token deploy", blocks[0], undefined, BN.from(0))
+                afterTotal = await assertPastTotalSupply("first stake", blocks[1], afterTotal, firstStakedAmount)
+                afterTotal = await assertPastTotalSupply("second stake", blocks[2], afterTotal, secondStakedAmount)
+                afterTotal = await assertPastTotalSupply("first other stake", blocks[3], afterTotal, firstOtherStakedAmount)
+                afterTotal = await assertPastTotalSupply("first cooldown partial", blocks[4], afterTotal, firstCooldownAmount, false)
+                afterTotal = await assertPastTotalSupply("first withdraw partial", blocks[5], afterTotal, BN.from(0), false)
+                afterTotal = await assertPastTotalSupply("second cooldown full", blocks[6], afterTotal, secondCooldownAmount, false)
+                afterTotal = await assertPastTotalSupply(
+                    "third stake and exit cooldown",
+                    blocks[7],
+                    afterTotal,
+                    secondCooldownAmount.add(thirdStakedAmount),
+                )
+                afterTotal = await assertPastTotalSupply("third cooldown full", blocks[8], afterTotal, thirdCooldownAmount, false)
+                await assertPastTotalSupply("third withdraw full", blocks[9], afterTotal, BN.from(0), false)
+            })
+        })
+        context("with delegate", () => {
+            // stake, stake again, other stake, partial cooldown, partial withdraw, partial cooldown, stake and exit cooldown, full cooldown, full withdraw
+            let stakerAddress
+            let otherStakerAddress
+            let firstDelegateAddress
+            let secondDelegateAddress
+
+            const blocks: number[] = []
+            before(async () => {
+                stakerAddress = sa.default.address
+                otherStakerAddress = sa.dummy1.address
+                ;({ stakedToken, questManager } = await redeployStakedToken())
+                await rewardToken.connect(sa.default.signer).approve(stakedToken.address, simpleToExactAmount(1000000))
+                await rewardToken.transfer(otherStakerAddress, simpleToExactAmount(100000))
+                await rewardToken.connect(sa.dummy1.signer).approve(stakedToken.address, simpleToExactAmount(1000000))
+                const block = await sa.default.signer.provider.getBlock("latest")
+                blocks.push(block.number)
+            })
+            beforeEach(async () => {
+                await increaseTime(ONE_WEEK)
+                await advanceBlock()
+            })
+            // stake to delegate, stake again to delegate, change delegate, partial withdraw, stake again to delegate, full withdraw
+        })
+        // stake to self, stake to delegate, change delegate, withdraw, stake
         it("should track users balance as checkpoints")
         it("should maintain totalsupply checkpoints")
     })

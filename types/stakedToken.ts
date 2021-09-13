@@ -19,6 +19,7 @@ export interface UserStakingData {
     stakedBalance: BN
     votes: BN
     earnedRewards: BN
+    numCheckpoints: number
     rewardsBalance: BN
     userBalances: UserBalances
     userPriceCoeff: BN
