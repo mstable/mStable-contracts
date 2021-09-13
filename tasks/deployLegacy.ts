@@ -6,7 +6,7 @@ import { task, types } from "hardhat/config"
 
 import { BN, simpleToExactAmount } from "@utils/math"
 import { DelayedProxyAdmin__factory } from "types"
-import { Contract } from "@ethersproject/contracts"
+import { Overrides, Contract } from "@ethersproject/contracts"
 import { ONE_DAY, ONE_WEEK } from "@utils/constants"
 import { expect } from "chai"
 import { BigNumberish, Signer } from "ethers"
@@ -110,10 +110,17 @@ const vaults: VaultData[] = [
 ]
 
 task("LegacyVault.deploy", "Deploys a vault contract")
+    .addOptionalParam("gasPrice", "The max gas price in Gwei. maxGas = baseFee + maxPriority", undefined, types.int)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)
         const chain = getChain(hre)
+
+        const overrides: Overrides = taskArgs.gasPrice
+            ? {
+                  gasPrice: simpleToExactAmount(taskArgs.gasPrice, 9),
+              }
+            : {}
 
         const governorAddress = resolveAddress("Governor", chain)
         if (hre.network.name === "hardhat") {
@@ -147,7 +154,7 @@ task("LegacyVault.deploy", "Deploys a vault contract")
                 const vaultFactory = await hre.ethers.getContractFactory(
                     `contracts/legacy/v-${vault.underlyingTokenSymbol}.sol:${contractName}`,
                 )
-                vaultImpl = await deployContract(vaultFactory.connect(signer), `${vault.underlyingTokenSymbol} vault`)
+                vaultImpl = await deployContract(vaultFactory.connect(signer), `${vault.underlyingTokenSymbol} vault`, [], overrides)
             } else if (vault.platformToken) {
                 const platformTokenAddress = resolveAddress(vault.platformToken, chain)
                 constructorArguments = [
@@ -162,11 +169,21 @@ task("LegacyVault.deploy", "Deploys a vault contract")
                 const vaultFactory = await hre.ethers.getContractFactory(
                     `contracts/legacy/v-${vault.underlyingTokenSymbol}.sol:${contractName}`,
                 )
-                vaultImpl = await deployContract(vaultFactory.connect(signer), `${vault.underlyingTokenSymbol} vault`, constructorArguments)
+                vaultImpl = await deployContract(
+                    vaultFactory.connect(signer),
+                    `${vault.underlyingTokenSymbol} vault`,
+                    constructorArguments,
+                    overrides,
+                )
             } else {
                 constructorArguments = [nexusAddress, stakingTokenAddress, boostDirectorAddress, priceCoeff, boostCoeff, rewardTokenAddress]
                 const vaultFactory = await hre.ethers.getContractFactory(`contracts/legacy/v-mBTC.sol:${contractName}`)
-                vaultImpl = await deployContract(vaultFactory.connect(signer), `${vault.underlyingTokenSymbol} vault`, constructorArguments)
+                vaultImpl = await deployContract(
+                    vaultFactory.connect(signer),
+                    `${vault.underlyingTokenSymbol} vault`,
+                    constructorArguments,
+                    overrides,
+                )
             }
 
             if (hre.network.name === "hardhat") {
@@ -183,8 +200,6 @@ task("LegacyVault.deploy", "Deploys a vault contract")
 
                 const tx2 = await proxyAdmin.acceptUpgradeRequest(vaultProxyAddress)
                 await logTxDetails(tx2, `${vault.underlyingTokenSymbol} acceptUpgradeRequest`)
-
-                await vaultVerification(hre, signer, chain)
             } else {
                 await verifyEtherscan(hre, {
                     address: vaultImpl.address,
@@ -193,6 +208,10 @@ task("LegacyVault.deploy", "Deploys a vault contract")
                 console.log(`Delayed Proxy Admin contract ${delayedProxyAdminAddress}`)
                 console.log(`${vault.underlyingTokenSymbol} proposeUpgrade tx args: proxy ${vaultProxyAddress}, impl ${vaultImpl.address}`)
             }
+        }
+
+        if (hre.network.name === "hardhat") {
+            await vaultVerification(hre, signer, chain)
         }
     })
 

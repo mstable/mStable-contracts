@@ -1,12 +1,13 @@
-import { Contract, ContractFactory, ContractReceipt, ContractTransaction } from "ethers"
+import { Contract, ContractFactory, ContractReceipt, ContractTransaction, Overrides } from "ethers"
 import { formatUnits } from "@ethersproject/units"
 
 export const deployContract = async <T extends Contract>(
     contractFactory: ContractFactory,
     contractName = "Contract",
     contractorArgs: Array<unknown> = [],
+    overrides: Overrides = {},
 ): Promise<T> => {
-    const contract = (await contractFactory.deploy(...contractorArgs)) as T
+    const contract = (await contractFactory.deploy(...contractorArgs, overrides)) as T
     console.log(
         `Deployed ${contractName} contract with hash ${contract.deployTransaction.hash} from ${
             contract.deployTransaction.from
