@@ -383,6 +383,7 @@ context("StakedToken deployments and vault upgrades", () => {
             expect(balAfter.votes).eq(balAfter.stakedBalance)
             expect(await deployedContracts.questManager.hasCompleted(staker1, 0)).eq(true)
         })
+
         // staker 1 just call staticBalance on the boost director
         // staker 2 poke boost on the gusd fPool and check the multiplier
         // staker 3 (no stake) poke boost and see it go to 0 multiplier
@@ -415,24 +416,24 @@ context("StakedToken deployments and vault upgrades", () => {
         })
         it("should allow immediate upgrades of staking tokens", async () => {
             // TODO:
-            //  - get impl addr from ProxyAdmin and check
+            //  - get impl addr from ProxyAdmin and check (this verifies that its owned by ProxyAdmin)
             //  - Propose it again through the ProxyAdmin
         })
         it("should allow proposal of upgrades for questManager", async () => {
             // TODO:
-            //  - get impl addr from DelayedProxyAdmin and check
+            //  - get impl addr from DelayedProxyAdmin and check (this verifies that its owned by DelayedProxyAdmin)
             //  - Propose it again through the DelayedProxyAdmin
         })
     })
     context("5. Finalise", () => {
         it("should add all launch rewards", async () => {
             // TODO:
-            //  - Add the rewards to each thing
+            //  - Add the rewards (32.5k, 20k) to each stakedtoken
         })
         it("should expire the old staking contract", async () => {
             // TODO
             //  - Expire old staking contract
-            //  - Check that it's possible to exit
+            //  - Check that it's possible to exit for all users
         })
     })
     context("6. Test Badger migration", () => {
