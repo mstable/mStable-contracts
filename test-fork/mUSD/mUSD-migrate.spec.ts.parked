@@ -253,7 +253,7 @@ const validateBasset = (bAssets, i: number, expectToken: Token, expectVaultBalan
     }
     expect(bAssets.personal[i].addr, `${expectToken.symbol} address`).to.eq(expectToken.address)
     expect(bAssets.personal[i].integrator, `${expectToken.symbol} integrator`).to.eq(expectToken.integrator)
-    expect(bAssets.personal[i].hasTxFee, `${expectToken.symbol} hasTxFee`).to.be.false
+    expect(bAssets.personal[i].hasTxFee, `${expectToken.symbol} hasTxFee`).to.equal(false)
     expect(bAssets.personal[i].status, `${expectToken.symbol} status`).to.eq(BassetStatus.Normal)
     expect(bAssets.data[i].ratio, `${expectToken.symbol} ratio`).to.eq(simpleToExactAmount(1, 8 + (18 - expectToken.decimals)))
     expect(bAssets.data[i].vaultBalance, `${expectToken.symbol} vault`).to.eq(expectVaultBalances[i])
@@ -277,10 +277,10 @@ const validateNewMassetStorage = async (mUsd: MusdV2 | Masset, validator: string
 
     // Get basket state
     const basketState = await mUsd.basket()
-    expect(basketState.undergoingRecol, "undergoingRecol").to.be.true
-    expect(basketState[0], "basketState[0]").to.be.true
-    expect(basketState.failed, "undergoingRecol").to.be.false
-    expect(basketState[1], "basketState[1]").to.be.false
+    expect(basketState.undergoingRecol, "undergoingRecol").to.equal(true)
+    expect(basketState[0], "basketState[0]").to.equal(true)
+    expect(basketState.failed, "undergoingRecol").to.equal(false)
+    expect(basketState[1], "basketState[1]").to.equal(false)
 
     const invariantConfig = await mUsd.getConfig()
     expect(invariantConfig.a, "amplification coefficient (A)").to.eq(defaultConfig.a * 100)
@@ -749,10 +749,10 @@ describe("mUSD V2.0 to V3.0", () => {
                 await mUsdV2.proxy.connect(governor).negateIsolation(finalBassets[0].address)
                 // Get basket state
                 const basketState = await mUsdV2.proxy.basket()
-                expect(basketState.undergoingRecol, "undergoingRecol").to.be.false
-                expect(basketState[0], "basketState[0]").to.be.false
-                expect(basketState.failed, "undergoingRecol").to.be.false
-                expect(basketState[1], "basketState[1]").to.be.false
+                expect(basketState.undergoingRecol, "undergoingRecol").to.equal(false)
+                expect(basketState[0], "basketState[0]").to.equal(false)
+                expect(basketState.failed, "undergoingRecol").to.equal(false)
+                expect(basketState[1], "basketState[1]").to.equal(false)
             })
             // it("moves USDT to V2", async () => {
             //     await basketManager.migrateBassets([USDT.address], aaveV2.address)

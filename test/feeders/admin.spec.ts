@@ -198,7 +198,7 @@ describe("Feeder Admin", () => {
             const { pool, mAsset } = details
             const asset = await pool.getBasset(mAsset.address)
             expect(asset.personal.addr, "personal.addr").to.eq(mAsset.address)
-            expect(asset.personal.hasTxFee, "personal.hasTxFee").to.false
+            expect(asset.personal.hasTxFee, "personal.hasTxFee").to.equal(false)
             expect(asset.personal.integrator, "personal.integrator").to.eq(ZERO_ADDRESS)
             expect(asset.personal.status, "personal.status").to.eq(BassetStatus.Normal)
             expect(asset.vaultData.ratio).to.eq(simpleToExactAmount(1, 8)) // 26 - 18
@@ -208,7 +208,7 @@ describe("Feeder Admin", () => {
             const { pool, fAsset } = details
             const asset = await pool.getBasset(fAsset.address)
             expect(asset.personal.addr, "personal.addr").to.eq(fAsset.address)
-            expect(asset.personal.hasTxFee, "personal.hasTxFee").to.false
+            expect(asset.personal.hasTxFee, "personal.hasTxFee").to.equal(false)
             expect(asset.personal.integrator, "personal.integrator").to.eq(ZERO_ADDRESS)
             expect(asset.personal.status, "personal.status").to.eq(BassetStatus.Normal)
             expect(asset.vaultData.ratio).to.eq(simpleToExactAmount(1, 8)) // 26 - 18
@@ -267,48 +267,48 @@ describe("Feeder Admin", () => {
                     // 60 * 60 * 24 * 10 / 2000 = 432
                     desc: "just under before increment",
                     elapsedSeconds: 61,
-                    expectedValaue: 30000,
+                    expectedValue: 30000,
                 },
                 {
                     desc: "just under after increment",
                     elapsedSeconds: 434,
-                    expectedValaue: 30005,
+                    expectedValue: 30005,
                 },
                 {
                     desc: "after 1 day",
                     elapsedSeconds: ONE_DAY.add(1),
-                    expectedValaue: 31000,
+                    expectedValue: 31000,
                 },
                 {
                     desc: "after 9 days",
                     elapsedSeconds: ONE_DAY.mul(9).add(1),
-                    expectedValaue: 39000,
+                    expectedValue: 39000,
                 },
                 {
                     desc: "just under 10 days",
                     elapsedSeconds: ONE_DAY.mul(10).sub(2),
-                    expectedValaue: 39999,
+                    expectedValue: 39999,
                 },
                 {
                     desc: "after 10 days",
                     elapsedSeconds: ONE_DAY.mul(10),
-                    expectedValaue: 40000,
+                    expectedValue: 40000,
                 },
                 {
                     desc: "after 11 days",
                     elapsedSeconds: ONE_DAY.mul(11),
-                    expectedValaue: 40000,
+                    expectedValue: 40000,
                 },
             ]
-            for (const testData of testsData) {
+            testsData.forEach((testData) => {
                 it(`should succeed getting A ${testData.desc}`, async () => {
                     const currentTime = await getTimestamp()
                     const incrementSeconds = startTime.add(testData.elapsedSeconds).sub(currentTime)
                     await increaseTime(incrementSeconds)
                     const config = await pool.getConfig()
-                    assertBNClose(config.a, BN.from(testData.expectedValaue), 20)
+                    assertBNClose(config.a, BN.from(testData.expectedValue), 20)
                 })
-            }
+            })
         })
         context("A target changes just in range", () => {
             let currentA: BN
@@ -370,48 +370,48 @@ describe("Feeder Admin", () => {
                     // 60 * 60 * 24 * 5 / 5000 = 86
                     desc: "just under before increment",
                     elapsedSeconds: 24,
-                    expectedValaue: 30000,
+                    expectedValue: 30000,
                 },
                 {
                     desc: "just under after increment",
                     elapsedSeconds: 88,
-                    expectedValaue: 29997,
+                    expectedValue: 29997,
                 },
                 {
                     desc: "after 1 day",
                     elapsedSeconds: ONE_DAY.add(1),
-                    expectedValaue: 27000,
+                    expectedValue: 27000,
                 },
                 {
                     desc: "after 4 days",
                     elapsedSeconds: ONE_DAY.mul(4).add(1),
-                    expectedValaue: 18000,
+                    expectedValue: 18000,
                 },
                 {
                     desc: "just under 5 days",
                     elapsedSeconds: ONE_DAY.mul(5).sub(2),
-                    expectedValaue: 15001,
+                    expectedValue: 15001,
                 },
                 {
                     desc: "after 5 days",
                     elapsedSeconds: ONE_DAY.mul(5),
-                    expectedValaue: 15000,
+                    expectedValue: 15000,
                 },
                 {
                     desc: "after 6 days",
                     elapsedSeconds: ONE_DAY.mul(6),
-                    expectedValaue: 15000,
+                    expectedValue: 15000,
                 },
             ]
-            for (const testData of testsData) {
+            testsData.forEach((testData) => {
                 it(`should succeed getting A ${testData.desc}`, async () => {
                     const currentTime = await getTimestamp()
                     const incrementSeconds = startTime.add(testData.elapsedSeconds).sub(currentTime)
                     await increaseTime(incrementSeconds)
                     const config = await pool.getConfig()
-                    assertBNClose(config.a, BN.from(testData.expectedValaue), 10)
+                    assertBNClose(config.a, BN.from(testData.expectedValue), 10)
                 })
-            }
+            })
         })
         describe("should fail to start ramp A", () => {
             before(async () => {

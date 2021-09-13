@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/dot-notation */
 /* eslint-disable no-restricted-syntax */
 /* eslint-disable @typescript-eslint/no-loop-func */
 
 import { assertBNClose } from "@utils/assertions"
-import { DEAD_ADDRESS, fullScale, MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
+import { DEAD_ADDRESS, MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { mAssetData } from "@utils/validator-data"
@@ -28,6 +29,7 @@ const swapFeeRate = simpleToExactAmount(6, 14)
 const tolerance = 1
 
 const cv = (n: number | string): BN => BN.from(BigInt(n).toString())
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const getReserves = (data: any) =>
     [0, 1, 2, 3, 4]
         .filter((i) => data[`reserve${i}`])
@@ -164,7 +166,7 @@ describe("Feeder Logic - One basket one test", () => {
             describe(`reserves: ${testData.reserve0}, ${testData.reserve1}, ${testData.reserve2}`, () => {
                 for (const testRedeem of testData.redeems) {
                     // Deduct swap fee before performing redemption
-                    if (testRedeem.hardLimitError) {
+                    if (testRedeem["hardLimitError"]) {
                         it(`${(count += 1)} throws Max Weight error when redeeming ${testRedeem.mAssetQty} mAssets for bAsset ${
                             testRedeem.bAssetIndex
                         }`, async () => {
@@ -202,13 +204,13 @@ describe("Feeder Logic - One basket one test", () => {
                     // Deduct swap fee after performing redemption
                     const qtys = testRedeem.bAssetQtys.map((b) => cv(b))
 
-                    if (testRedeem.insufficientLiquidityError) {
+                    if (testRedeem["insufficientLiquidityError"]) {
                         it(`${(count += 1)} throws throw insufficient liquidity error when redeeming ${qtys} bAssets`, async () => {
                             await expect(validator.computeRedeemExact(reserves, [0, 1, 2], qtys, config, swapFeeRate)).to.be.revertedWith(
                                 "VM Exception",
                             )
                         })
-                    } else if (testRedeem.hardLimitError) {
+                    } else if (testRedeem["hardLimitError"]) {
                         it(`${(count += 1)} throws Max Weight error when redeeming ${qtys} bAssets`, async () => {
                             await expect(validator.computeRedeemExact(reserves, [0, 1, 2], qtys, config, swapFeeRate)).to.be.revertedWith(
                                 "Exceeds weight limits",
@@ -239,7 +241,6 @@ describe("Feeder Logic - One basket one test", () => {
                 let bAssetAddresses: string[]
                 let bAssets: MockERC20[]
                 let massetFactory: Masset__factory
-                let forgeValAddr: string
                 before(async () => {
                     const accounts = await ethers.getSigners()
                     const mAssetMachine = await new MassetMachine().initAccounts(accounts)

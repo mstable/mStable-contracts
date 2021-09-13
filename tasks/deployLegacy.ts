@@ -2,8 +2,7 @@
 /* eslint-disable no-restricted-syntax */
 import "ts-node/register"
 import "tsconfig-paths/register"
-import { subtask, task, types } from "hardhat/config"
-
+import { task, types } from "hardhat/config"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { DelayedProxyAdmin__factory } from "types"
 import { Contract } from "@ethersproject/contracts"
@@ -109,6 +108,44 @@ const vaults: VaultData[] = [
     },
 ]
 
+// Post upgrade verification tasks
+const vaultVerification = async (hre, signer: Signer, chain: Chain) => {
+    const nexusAddress = getChainAddress("Nexus", chain)
+    const boostDirectorAddress = getChainAddress("BoostDirector", chain)
+    const rewardTokenAddress = resolveAddress("MTA", chain)
+
+    for (const vault of vaults) {
+        const vaultProxyAddress = resolveAddress(vault.underlyingTokenSymbol, chain, "vault")
+        const contractName = vault.platformToken ? "BoostedDualVault" : "BoostedSavingsVault"
+        const vaultFactory = await hre.ethers.getContractFactory(
+            `contracts/legacy/v-${vault.underlyingTokenSymbol}.sol:${contractName}`,
+            signer,
+        )
+        const proxy = await vaultFactory.attach(vaultProxyAddress)
+
+        console.log(`About to verify the ${vault.underlyingTokenSymbol} vault`)
+
+        if (vault.underlyingTokenSymbol !== "mUSD") {
+            expect(await proxy.name(), `${vault.underlyingTokenSymbol} vault name`).to.eq(vault.name)
+            expect(await proxy.symbol(), `${vault.underlyingTokenSymbol} vault symbol`).to.eq(vault.symbol)
+            expect(await proxy.decimals(), `${vault.underlyingTokenSymbol} decimals`).to.eq(18)
+        }
+        expect(await proxy.nexus(), `${vault.underlyingTokenSymbol} vault nexus`).to.eq(nexusAddress)
+        expect(await proxy.boostDirector(), `${vault.underlyingTokenSymbol} vault boost director`).to.eq(boostDirectorAddress)
+        expect(await proxy.getRewardToken(), `${vault.underlyingTokenSymbol} vault reward token`).to.eq(rewardTokenAddress)
+        expect(await proxy.priceCoeff(), `${vault.underlyingTokenSymbol} vault priceCoeff`).to.eq(
+            vault.priceCoeff ? vault.priceCoeff : simpleToExactAmount(1),
+        )
+        if (vault.underlyingTokenSymbol === "alUSD") {
+            expect(await proxy.getPlatformToken(), `${vault.underlyingTokenSymbol} vault platform token`).to.eq(
+                resolveAddress(vault.platformToken, chain),
+            )
+        }
+        expect(await proxy.balanceOf(vault.userBal.user), `${vault.underlyingTokenSymbol} vault user balance`).to.gt(vault.userBal.balance)
+        expect(await proxy.totalSupply(), `${vault.underlyingTokenSymbol} vault total supply`).to.gt(0)
+    }
+}
+
 task("LegacyVault.deploy", "Deploys a vault contract")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
@@ -142,6 +179,7 @@ task("LegacyVault.deploy", "Deploys a vault contract")
 
             const priceCoeff = vault.priceCoeff ? vault.priceCoeff : simpleToExactAmount(1)
             let vaultImpl: Contract
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let constructorArguments: any[]
             if (vault.underlyingTokenSymbol === "mUSD") {
                 const vaultFactory = await hre.ethers.getContractFactory(
@@ -204,43 +242,5 @@ task("LegacyVault.check", "Checks the vaults post upgrade")
 
         await vaultVerification(hre, signer, chain)
     })
-
-// Post upgrade verification tasks
-const vaultVerification = async (hre, signer: Signer, chain: Chain) => {
-    const nexusAddress = getChainAddress("Nexus", chain)
-    const boostDirectorAddress = getChainAddress("BoostDirector", chain)
-    const rewardTokenAddress = resolveAddress("MTA", chain)
-
-    for (const vault of vaults) {
-        const vaultProxyAddress = resolveAddress(vault.underlyingTokenSymbol, chain, "vault")
-        const contractName = vault.platformToken ? "BoostedDualVault" : "BoostedSavingsVault"
-        const vaultFactory = await hre.ethers.getContractFactory(
-            `contracts/legacy/v-${vault.underlyingTokenSymbol}.sol:${contractName}`,
-            signer,
-        )
-        const proxy = await vaultFactory.attach(vaultProxyAddress)
-
-        console.log(`About to verify the ${vault.underlyingTokenSymbol} vault`)
-
-        if (vault.underlyingTokenSymbol !== "mUSD") {
-            expect(await proxy.name(), `${vault.underlyingTokenSymbol} vault name`).to.eq(vault.name)
-            expect(await proxy.symbol(), `${vault.underlyingTokenSymbol} vault symbol`).to.eq(vault.symbol)
-            expect(await proxy.decimals(), `${vault.underlyingTokenSymbol} decimals`).to.eq(18)
-        }
-        expect(await proxy.nexus(), `${vault.underlyingTokenSymbol} vault nexus`).to.eq(nexusAddress)
-        expect(await proxy.boostDirector(), `${vault.underlyingTokenSymbol} vault boost director`).to.eq(boostDirectorAddress)
-        expect(await proxy.getRewardToken(), `${vault.underlyingTokenSymbol} vault reward token`).to.eq(rewardTokenAddress)
-        expect(await proxy.priceCoeff(), `${vault.underlyingTokenSymbol} vault priceCoeff`).to.eq(
-            vault.priceCoeff ? vault.priceCoeff : simpleToExactAmount(1),
-        )
-        if (vault.underlyingTokenSymbol === "alUSD") {
-            expect(await proxy.getPlatformToken(), `${vault.underlyingTokenSymbol} vault platform token`).to.eq(
-                resolveAddress(vault.platformToken, chain),
-            )
-        }
-        expect(await proxy.balanceOf(vault.userBal.user), `${vault.underlyingTokenSymbol} vault user balance`).to.gt(vault.userBal.balance)
-        expect(await proxy.totalSupply(), `${vault.underlyingTokenSymbol} vault total supply`).to.gt(0)
-    }
-}
 
 export {}

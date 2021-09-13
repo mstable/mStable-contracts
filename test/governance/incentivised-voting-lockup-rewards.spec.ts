@@ -54,7 +54,7 @@ const expectWithdrawEvent = async (
     const currentTime = await getTimestamp()
     await expect(tx).to.emit(votingLockup, EVENTS.WITHDRAW)
     const withdrawEvent = findContractEvent(receipt, votingLockup.address, EVENTS.WITHDRAW)
-    expect(withdrawEvent).to.exist
+    expect(withdrawEvent).to.not.equal(undefined)
     expect(withdrawEvent.args.provider, "provider in Withdraw event").to.eq(args.provider)
     expect(withdrawEvent.args.value, "value in Withdraw event").to.eq(args.value)
     assertBNClose(withdrawEvent.args.ts, currentTime.add(1), BN.from(10), "ts in Withdraw event")
@@ -204,17 +204,13 @@ describe("IncentivisedVotingLockupRewards", () => {
         shouldResetRewards = false,
     ): Promise<void> => {
         const timeAfter = await getTimestamp()
-        const periodIsFinished = BN.from(timeAfter).gt(beforeData.periodFinishTime)
-
+        const periodIsFinished = timeAfter.gt(beforeData.periodFinishTime)
+        const lastUpdateTokenTime =
+            beforeData.rewardPerTokenStored.eq(0) && beforeData.totalStaticWeight.eq(0) ? beforeData.lastUpdateTime : timeAfter
         //    LastUpdateTime
-        expect(
-            periodIsFinished
-                ? beforeData.periodFinishTime
-                : beforeData.rewardPerTokenStored.eq(0) && beforeData.totalStaticWeight.eq(0)
-                ? beforeData.lastUpdateTime
-                : timeAfter,
-        ).eq(afterData.lastUpdateTime)
-        //    RewardRate doesnt change
+        expect(periodIsFinished ? beforeData.periodFinishTime : lastUpdateTokenTime).eq(afterData.lastUpdateTime)
+
+        //    RewardRate does not change
         expect(beforeData.rewardRate).eq(afterData.rewardRate)
         //    RewardPerTokenStored goes up
         expect(afterData.rewardPerTokenStored).gte(beforeData.rewardPerTokenStored)
@@ -292,7 +288,7 @@ describe("IncentivisedVotingLockupRewards", () => {
         const receipt = await (await tx).wait()
         await expect(tx).to.emit(votingLockup, EVENTS.DEPOSIT)
         const depositEvent = findContractEvent(receipt, votingLockup.address, EVENTS.DEPOSIT)
-        expect(depositEvent).to.exist
+        expect(depositEvent).to.not.equal(undefined)
         expect(depositEvent.args.provider, "provider in Deposit event").to.eq(sender.address)
         expect(depositEvent.args.value, "value in Deposit event").to.eq(expectedAmount)
         expect(depositEvent.args.locktime, "locktime in Deposit event").to.eq(expectedLocktime)

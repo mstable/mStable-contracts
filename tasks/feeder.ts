@@ -157,7 +157,7 @@ task("feeder-snap", "Gets feeder transactions over a period of time")
 
         const balances = await getBalances(feederPool, toBlock.blockNumber, fAsset, quantityFormatter)
 
-        const collectedInterestSummary = await getCollectedInterest(
+        await getCollectedInterest(
             fpAssets,
             feederPool,
             savingsManager,

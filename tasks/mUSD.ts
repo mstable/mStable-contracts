@@ -156,7 +156,7 @@ task("mUSD-snap", "Snaps mUSD")
 
         const balances = await getBalances(mAsset, accounts, usdFormatter, toBlock.blockNumber)
 
-        const collectedInterestSummary = await getCollectedInterest(
+        await getCollectedInterest(
             bAssets,
             mAsset,
             savingsManager,
@@ -221,6 +221,7 @@ task("mUSD-BassetAdded", "Lists the BassetAdded events from a mAsset")
         console.log(`${await mAsset.symbol()} ${mAsset.address}`)
         if (logs.length === 0)
             console.error(`Failed to find any BassetAdded events between blocks ${fromBlock.blockNumber} and ${toBlock.blockNumber}`)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         logs.forEach((log: any) => {
             console.log(`Basset added at block ${log.blockNumber} in tx ${log.blockHash}`)
         })
