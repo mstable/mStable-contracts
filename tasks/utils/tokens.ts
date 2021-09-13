@@ -445,4 +445,7 @@ export const tokens = [
     RBPT,
     BAL,
     RBAL,
+    stkAAVE,
+    AAVE,
+    COMP,
 ]
