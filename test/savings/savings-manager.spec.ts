@@ -440,7 +440,7 @@ describe("SavingsManager", async () => {
                 const s15 = await snapshotData()
                 assertBNClosePercent(s15.savingsManagerBal, s7.savingsManagerBal.sub(expectedInterest), "0.01")
 
-                expect(s15.liqStream.end).lt(s15.lastCollection as any)
+                expect(s15.liqStream.end).lt(s15.lastCollection)
                 expect(s15.liqStream.rate).eq(s7.liqStream.rate)
                 assertBNClose(s15.savingsManagerBal, BN.from(0), simpleToExactAmount(1, 6))
 
@@ -622,7 +622,7 @@ describe("SavingsManager", async () => {
                 assertBNClosePercent(s16.savingsManagerBal, s115.savingsManagerBal.sub(expectedInterest), "0.01")
                 assertBNClosePercent(s16.savingsContractBal, s115.savingsContractBal.add(expectedInterest), "0.01")
                 // all mUSD should be drained now
-                expect(s16.savingsManagerBal).lt(simpleToExactAmount(1, 16) as any)
+                expect(s16.savingsManagerBal).lt(simpleToExactAmount(1, 16))
                 await increaseTime(ONE_DAY.div(2))
                 // @16.5
                 const ts17 = await getTimestamp()
@@ -735,7 +735,7 @@ describe("SavingsManager", async () => {
                 const passingInterest = simpleToExactAmount(9999, 18)
                 await mUSD.setAmountForCollectInterest(passingInterest)
 
-                const tx = await savingsManager.collectAndDistributeInterest(mUSD.address)
+                await savingsManager.collectAndDistributeInterest(mUSD.address)
 
                 const endTime = await getTimestamp()
                 const lastCollectionEnd = await savingsManager.lastCollection(mUSD.address)
@@ -956,7 +956,7 @@ describe("SavingsManager", async () => {
 
             it("should allow interest collection before 30 mins", async () => {
                 await savingsManager.collectAndDistributeInterest(mUSD.address)
-                const tx = await savingsManager.collectAndDistributeInterest(mUSD.address)
+                await savingsManager.collectAndDistributeInterest(mUSD.address)
             })
 
             it("should allow interest collection again after 30 mins", async () => {

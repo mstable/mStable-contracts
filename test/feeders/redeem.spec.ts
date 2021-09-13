@@ -182,7 +182,7 @@ describe("Feeder - Redeem", () => {
         await expect(tx, "Redeem event").to.emit(pool, "Redeemed")
         // TODO replace when Waffle supports withNamedArgs
         const redeemEvent = receipt.events.find((event) => event.event === "Redeemed" && event.address === pool.address)
-        expect(redeemEvent).to.exist
+        expect(redeemEvent).to.not.equal(undefined)
         expect(redeemEvent.args.redeemer, "redeemer in Redeemer event").to.eq(sender.address)
         expect(redeemEvent.args.recipient, "recipient in Redeemer event").to.eq(recipient)
         expect(redeemEvent.args.mAssetQuantity, "mAssetQuantity in Redeemer event").to.eq(fpTokenQuantityExact)
@@ -272,7 +272,7 @@ describe("Feeder - Redeem", () => {
         await expect(tx).to.emit(pool, "RedeemedMulti")
         // TODO replace when Waffle supports withNamedArgs
         const redeemEvent = receipt.events.find((event) => event.event === "RedeemedMulti" && event.address === pool.address)
-        expect(redeemEvent).to.exist
+        expect(redeemEvent).to.not.equal(undefined)
         expect(redeemEvent.args.redeemer, "redeemer in RedeemedMulti event").to.eq(sender.address)
         expect(redeemEvent.args.recipient, "recipient in RedeemedMulti event").to.eq(recipient)
         expect(redeemEvent.args.mAssetQuantity, "mAssetQuantity in RedeemedMulti event").to.eq(inputQuantityExpectedExact)
@@ -334,7 +334,7 @@ describe("Feeder - Redeem", () => {
         await expect(tx).to.emit(pool, "RedeemedMulti")
         // TODO replace when Waffle supports withNamedArgs
         const redeemEvent = receipt.events.find((event) => event.event === "RedeemedMulti" && event.address === pool.address)
-        expect(redeemEvent).to.exist
+        expect(redeemEvent).to.not.equal(undefined)
         expect(redeemEvent.args.redeemer, "redeemer in RedeemedMulti event").to.eq(sender.address)
         expect(redeemEvent.args.recipient, "recipient in RedeemedMulti event").to.eq(recipient)
         expect(redeemEvent.args.mAssetQuantity, "mAssetQuantity in RedeemedMulti event").to.eq(fpTokenQuantityExact)
@@ -465,15 +465,15 @@ describe("Feeder - Redeem", () => {
                 context("when feeder pool is paused", () => {
                     before(async () => {
                         const { pool } = details
-                        expect(await pool.paused(), "before pause").to.be.false
+                        expect(await pool.paused(), "before pause").to.equal(false)
                         await pool.connect(sa.governor.signer).pause()
-                        expect(await pool.paused(), "after pause").to.be.true
+                        expect(await pool.paused(), "after pause").to.equal(true)
                     })
                     after(async () => {
                         const { pool } = details
-                        expect(await pool.paused(), "before unpause").to.be.true
+                        expect(await pool.paused(), "before unpause").to.equal(true)
                         await pool.connect(sa.governor.signer).unpause()
-                        expect(await pool.paused(), "after unpause").to.be.false
+                        expect(await pool.paused(), "after unpause").to.equal(false)
                     })
                     it("should fail to redeem feeder asset", async () => {
                         const { fAsset, pool } = details
@@ -714,15 +714,15 @@ describe("Feeder - Redeem", () => {
                 context("when feeder pool is paused", () => {
                     before(async () => {
                         const { pool } = details
-                        expect(await pool.paused(), "before pause").to.be.false
+                        expect(await pool.paused(), "before pause").to.equal(false)
                         await pool.connect(sa.governor.signer).pause()
-                        expect(await pool.paused(), "after pause").to.be.true
+                        expect(await pool.paused(), "after pause").to.equal(true)
                     })
                     after(async () => {
                         const { pool } = details
-                        expect(await pool.paused(), "before unpause").to.be.true
+                        expect(await pool.paused(), "before unpause").to.equal(true)
                         await pool.connect(sa.governor.signer).unpause()
-                        expect(await pool.paused(), "after unpause").to.be.false
+                        expect(await pool.paused(), "after unpause").to.equal(false)
                     })
                     it("should fail to redeem exact feeder asset", async () => {
                         const { fAsset, pool } = details
@@ -856,15 +856,15 @@ describe("Feeder - Redeem", () => {
                 context("when feeder pool is paused", () => {
                     before(async () => {
                         const { pool } = details
-                        expect(await pool.paused(), "before pause").to.be.false
+                        expect(await pool.paused(), "before pause").to.equal(false)
                         await pool.connect(sa.governor.signer).pause()
-                        expect(await pool.paused(), "after pause").to.be.true
+                        expect(await pool.paused(), "after pause").to.equal(true)
                     })
                     after(async () => {
                         const { pool } = details
-                        expect(await pool.paused(), "before unpause").to.be.true
+                        expect(await pool.paused(), "before unpause").to.equal(true)
                         await pool.connect(sa.governor.signer).unpause()
-                        expect(await pool.paused(), "after unpause").to.be.false
+                        expect(await pool.paused(), "after unpause").to.equal(false)
                     })
                     it("should fail to redeem proportionately", async () => {
                         const { pool } = details

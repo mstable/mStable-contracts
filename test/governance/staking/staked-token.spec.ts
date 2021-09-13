@@ -476,7 +476,7 @@ describe("Staked Token", () => {
 
                     await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
 
-                    const endCooldownTimestamp = await getTimestamp()
+                    // const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
                     expect(stakerDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
                     expect(stakerDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
@@ -495,7 +495,7 @@ describe("Staked Token", () => {
 
                     await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
 
-                    const endCooldownTimestamp = await getTimestamp()
+                    // const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
                     expect(stakerDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
                     expect(stakerDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
@@ -514,7 +514,7 @@ describe("Staked Token", () => {
 
                     await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
 
-                    const endCooldownTimestamp = await getTimestamp()
+                    // const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
                     expect(stakerDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
                     expect(stakerDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
@@ -533,7 +533,7 @@ describe("Staked Token", () => {
 
                     await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
 
-                    const endCooldownTimestamp = await getTimestamp()
+                    // const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
                     expect(stakerDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
                     expect(stakerDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
@@ -559,7 +559,7 @@ describe("Staked Token", () => {
 
                     await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
 
-                    const endCooldownTimestamp = await getTimestamp()
+                    // const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
                     expect(stakerDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
                     expect(stakerDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
@@ -578,7 +578,7 @@ describe("Staked Token", () => {
 
                     await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
 
-                    const endCooldownTimestamp = await getTimestamp()
+                    // const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
                     expect(stakerDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
                     expect(stakerDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
@@ -597,7 +597,7 @@ describe("Staked Token", () => {
 
                     await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
 
-                    const endCooldownTimestamp = await getTimestamp()
+                    // const endCooldownTimestamp = await getTimestamp()
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
                     expect(stakerDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
                     expect(stakerDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
@@ -640,7 +640,7 @@ describe("Staked Token", () => {
                 // Stake 3000 on top of 7000 and end cooldown
                 const secondStakeAmount = simpleToExactAmount(3000)
                 const tx = await stakedToken["stake(uint256,bool)"](secondStakeAmount, true)
-                const secondStakedTimestamp = await getTimestamp()
+                // const secondStakedTimestamp = await getTimestamp()
 
                 await expect(tx).to.emit(stakedToken, "Staked").withArgs(sa.default.address, secondStakeAmount, ZERO_ADDRESS)
                 await expect(tx).to.emit(stakedToken, "DelegateChanged").not
@@ -681,7 +681,7 @@ describe("Staked Token", () => {
                 const secondStakeAmount = simpleToExactAmount(3000)
                 await stakedToken["stake(uint256,address)"](secondStakeAmount, sa.default.address)
 
-                const secondStakeTimestamp = await getTimestamp()
+                // const secondStakeTimestamp = await getTimestamp()
 
                 const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
                 expect(stakerDataAfter.userBalances.cooldownTimestamp, "staker cooldown timestamp after 2nd stake").to.eq(
@@ -1089,7 +1089,7 @@ describe("Staked Token", () => {
                 .to.emit(rewardToken, "Transfer")
                 .withArgs(stakedToken.address, sa.default.address, stakedAmount.sub(redemptionFee))
 
-            const withdrawTimestamp = await getTimestamp()
+            // const withdrawTimestamp = await getTimestamp()
             const afterData = await snapshotUserStakingData(sa.default.address)
             expect(afterData.stakedBalance, "staker stkRWD after").to.eq(0)
             expect(afterData.votes, "staker votes after").to.eq(0)
@@ -1111,10 +1111,10 @@ describe("Staked Token", () => {
             await rewardToken.transfer(stakedTokenWrapper.address, stakedAmount.mul(3))
         })
         it("should allow governor to whitelist a contract", async () => {
-            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper not whitelisted before").to.be.false
+            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper not whitelisted before").to.equal(false)
             const tx = await stakedToken.connect(sa.governor.signer).whitelistWrapper(stakedTokenWrapper.address)
             await expect(tx).to.emit(stakedToken, "WrapperWhitelisted").withArgs(stakedTokenWrapper.address)
-            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper whitelisted after").to.be.true
+            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper whitelisted after").to.equal(true)
 
             const tx2 = await stakedTokenWrapper["stake(uint256)"](stakedAmount)
             await expect(tx2).to.emit(stakedToken, "Staked").withArgs(stakedTokenWrapper.address, stakedAmount, ZERO_ADDRESS)
@@ -1122,11 +1122,11 @@ describe("Staked Token", () => {
         it("should allow governor to blacklist a contract", async () => {
             const tx = await stakedToken.connect(sa.governor.signer).whitelistWrapper(stakedTokenWrapper.address)
             await expect(tx).to.emit(stakedToken, "WrapperWhitelisted").withArgs(stakedTokenWrapper.address)
-            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper whitelisted").to.be.true
+            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper whitelisted").to.equal(true)
 
             const tx2 = await stakedToken.connect(sa.governor.signer).blackListWrapper(stakedTokenWrapper.address)
             await expect(tx2).to.emit(stakedToken, "WrapperBlacklisted").withArgs(stakedTokenWrapper.address)
-            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper not whitelisted").to.be.false
+            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper not whitelisted").to.equal(false)
 
             await expect(stakedTokenWrapper["stake(uint256)"](stakedAmount)).to.revertedWith("Not a whitelisted contract")
         })
@@ -1436,7 +1436,7 @@ describe("Staked Token", () => {
             })
             it("should allow quest signer to complete a user's seasonal quest", async () => {
                 const userAddress = sa.default.address
-                expect(await questManager.hasCompleted(userAddress, seasonQuestId), "quest completed before").to.be.false
+                expect(await questManager.hasCompleted(userAddress, seasonQuestId), "quest completed before").to.equal(false)
 
                 // Complete User Season Quest
                 const signature = await signUserQuests(userAddress, [seasonQuestId], sa.questSigner.signer)
@@ -1446,7 +1446,7 @@ describe("Staked Token", () => {
                 await expect(tx).to.emit(questManager, "QuestCompleteQuests").withArgs(userAddress, [seasonQuestId])
 
                 // Check data
-                expect(await questManager.hasCompleted(userAddress, seasonQuestId), "quest completed after").to.be.true
+                expect(await questManager.hasCompleted(userAddress, seasonQuestId), "quest completed after").to.equal(true)
                 const userDataAfter = await snapshotUserStakingData(userAddress)
                 expect(userDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
                 expect(userDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
@@ -1462,7 +1462,7 @@ describe("Staked Token", () => {
             })
             it("should allow quest signer to complete a user's permanent quest", async () => {
                 const userAddress = sa.default.address
-                expect(await questManager.hasCompleted(userAddress, permanentQuestId), "quest completed before").to.be.false
+                expect(await questManager.hasCompleted(userAddress, permanentQuestId), "quest completed before").to.equal(false)
 
                 // Complete User Permanent Quest
                 const signature = await signUserQuests(userAddress, [permanentQuestId], sa.questSigner.signer)
@@ -1471,7 +1471,7 @@ describe("Staked Token", () => {
                 // Check events
                 await expect(tx).to.emit(questManager, "QuestCompleteQuests").withArgs(userAddress, [permanentQuestId])
                 // Check data
-                expect(await questManager.hasCompleted(userAddress, permanentQuestId), "quest completed after").to.be.true
+                expect(await questManager.hasCompleted(userAddress, permanentQuestId), "quest completed after").to.equal(true)
                 const userDataAfter = await snapshotUserStakingData(userAddress)
                 expect(userDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
                 expect(userDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
@@ -1487,7 +1487,7 @@ describe("Staked Token", () => {
             })
             it("should complete user quest before a user stakes", async () => {
                 const userAddress = sa.dummy1.address
-                expect(await questManager.hasCompleted(userAddress, permanentQuestId), "quest completed before").to.be.false
+                expect(await questManager.hasCompleted(userAddress, permanentQuestId), "quest completed before").to.equal(false)
 
                 // Complete User Permanent and Seasonal Quests
                 const signature = await signUserQuests(userAddress, [permanentQuestId, seasonQuestId], sa.questSigner.signer)
@@ -1501,7 +1501,7 @@ describe("Staked Token", () => {
                 await expect(tx).to.emit(questManager, "QuestCompleteQuests").withArgs(userAddress, [permanentQuestId, seasonQuestId])
 
                 // Check data
-                expect(await questManager.hasCompleted(userAddress, permanentQuestId), "quest completed after").to.be.true
+                expect(await questManager.hasCompleted(userAddress, permanentQuestId), "quest completed after").to.equal(true)
                 const userDataAfter = await snapshotUserStakingData(userAddress)
                 expect(userDataAfter.userBalances.raw, "staked raw balance after").to.eq(0)
                 expect(userDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(0)
@@ -1517,10 +1517,10 @@ describe("Staked Token", () => {
                 const user2Address = sa.dummy2.address
                 const user3Address = sa.dummy3.address
                 const user4Address = sa.dummy4.address
-                expect(await questManager.hasCompleted(user1Address, permanentQuestId), "user 1 quest completed before").to.be.false
-                expect(await questManager.hasCompleted(user2Address, permanentQuestId), "user 2 quest completed before").to.be.false
-                expect(await questManager.hasCompleted(user3Address, permanentQuestId), "user 3 quest completed before").to.be.false
-                expect(await questManager.hasCompleted(user4Address, permanentQuestId), "user 4 quest completed before").to.be.false
+                expect(await questManager.hasCompleted(user1Address, permanentQuestId), "user 1 quest completed before").to.equal(false)
+                expect(await questManager.hasCompleted(user2Address, permanentQuestId), "user 2 quest completed before").to.equal(false)
+                expect(await questManager.hasCompleted(user3Address, permanentQuestId), "user 3 quest completed before").to.equal(false)
+                expect(await questManager.hasCompleted(user4Address, permanentQuestId), "user 4 quest completed before").to.equal(false)
 
                 // Complete User Permanent and Seasonal Quests
                 const signature = await signQuestUsers(
@@ -1540,8 +1540,8 @@ describe("Staked Token", () => {
                     .withArgs(permanentQuestId, [user1Address, user2Address, user3Address, user4Address])
 
                 // Check data
-                expect(await questManager.hasCompleted(user1Address, permanentQuestId), "user 1 quest completed after").to.be.true
-                expect(await questManager.hasCompleted(user2Address, permanentQuestId), "user 2 quest completed after").to.be.true
+                expect(await questManager.hasCompleted(user1Address, permanentQuestId), "user 1 quest completed after").to.equal(true)
+                expect(await questManager.hasCompleted(user2Address, permanentQuestId), "user 2 quest completed after").to.equal(true)
                 const user1DataAfter = await snapshotUserStakingData(user1Address)
                 expect(user1DataAfter.questBalance.lastAction, "user 1 last action after").to.eq(completeQuestTimestamp)
                 expect(user1DataAfter.questBalance.permMultiplier, "user 1 perm multiplier after").to.eq(permanentMultiplier)

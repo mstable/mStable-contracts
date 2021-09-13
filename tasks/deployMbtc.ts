@@ -36,6 +36,12 @@ interface CommonAddresses {
     renGatewayRegistry: string
 }
 
+interface BAssetRaw {
+    address: string
+    integrator: string
+    txFee: boolean
+}
+
 const COEFF = 45
 
 const deployBasset = async (sender: Signer, name: string, symbol: string, decimals = 18, initialMint = 500000): Promise<MockERC20> => {
@@ -353,7 +359,7 @@ task("reDeployMBTC", "Re-deploys the mBTC contracts given bAsset addresses").set
                   renGatewayRegistry: DEAD_ADDRESS,
               }
 
-    const bAssetsRaw: any[] = [
+    const bAssetsRaw: Array<BAssetRaw> = [
         {
             address: "0xd4Da7c3b1C985b8Baec8D2a5709409CCFE809096",
             integrator: ZERO_ADDRESS,
@@ -425,7 +431,7 @@ task("deployMBTC-mainnet", "Deploys the mBTC contracts to Mainnet").setAction(as
         poker: "0x0C2eF8a1b3Bc00Bf676053732F31a67ebbA5bD81",
         renGatewayRegistry: DEAD_ADDRESS,
     }
-    const bAssetsRaw: any[] = [
+    const bAssetsRaw: Array<BAssetRaw> = [
         {
             address: "0xeb4c2781e4eba804ce9a9803c67d0893436bb27d",
             integrator: ZERO_ADDRESS,

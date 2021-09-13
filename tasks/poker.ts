@@ -110,12 +110,13 @@ task("over-boost", "Pokes accounts that are over boosted")
             accounts: string[]
         }[] = []
         // For each Boosted Vault
-        for (const vault of gqlData.boostedSavingsVaults) {
-            if (vault.id === mUSD.vault.toLocaleLowerCase()) continue
+        const vaults = gqlData.boostedSavingsVaults.filter((vault) => vault.id !== mUSD.vault.toLocaleLowerCase())
+        for (const vault of vaults) {
             const boostVault = BoostedVault__factory.connect(vault.id, signer)
             const priceCoeff = await boostVault.priceCoeff()
             const boostCoeff = await boostVault.boostCoeff()
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const overBoosted: any[] = []
             console.log(
                 `\nVault with id ${vault.id} for token ${vault.stakingToken.symbol}, ${vault.accounts.length} accounts, price coeff ${priceCoeff}, boost coeff ${boostCoeff}`,

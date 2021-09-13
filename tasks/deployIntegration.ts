@@ -16,7 +16,7 @@ import { simpleToExactAmount } from "@utils/math"
 import { encodeUniswapPath } from "@utils/peripheral/uniswap"
 import { ZERO_ADDRESS } from "@utils/constants"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
-import { AAVE, ALCX, Chain, COMP, DAI, stkAAVE, tokens, USDC } from "./utils/tokens"
+import { AAVE, ALCX, Chain, COMP, DAI, stkAAVE, tokens } from "./utils/tokens"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getSigner } from "./utils/signerFactory"
 

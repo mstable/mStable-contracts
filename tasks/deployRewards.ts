@@ -165,6 +165,7 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
         const stakedTokenLibraryAddresses = {
             "contracts/rewards/staking/PlatformTokenVendorFactory.sol:PlatformTokenVendorFactory": platformTokenVendorFactoryAddress,
         }
+         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let constructorArguments: any[]
         let stakedTokenImpl: Contract
         let data: string

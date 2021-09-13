@@ -80,6 +80,10 @@ interface StakingData {
     contractData: ContractData
 }
 
+async function getUserReward(boostedDualVault: BoostedDualVault, beneficiary: Account, i: number) {
+    const [start, finish, rate] = await boostedDualVault.userRewards(beneficiary.address, i)
+    return { start, finish, rate }
+}
 describe("BoostedDualVault", async () => {
     const ctx: Partial<IRewardsDistributionRecipientContext> = {}
 
@@ -149,15 +153,12 @@ describe("BoostedDualVault", async () => {
     }
 
     const snapshotStakingData = async (sender = sa.default, beneficiary = sa.default): Promise<StakingData> => {
-        const userData = await boostedDualVault.userData(beneficiary.address)
+        const [rewardPerTokenPaid, rewards, platformRewardPerTokenPaid, platformRewards, lastAction, rewardCount] =
+            await boostedDualVault.userData(beneficiary.address)
+
         const userRewards = []
-        for (let i = 0; i < userData[5].toNumber(); i += 1) {
-            const e = await boostedDualVault.userRewards(beneficiary.address, i)
-            userRewards.push({
-                start: e[0],
-                finish: e[1],
-                rate: e[2],
-            })
+        for (let i = 0; i < rewardCount.toNumber(); i += 1) {
+            userRewards.push(getUserReward(boostedDualVault, beneficiary, i))
         }
         const tokenVendor = await boostedDualVault.platformTokenVendor()
         return {
@@ -178,15 +179,15 @@ describe("BoostedDualVault", async () => {
             },
             vMTABalance: await stakingContract.balanceOf(beneficiary.address),
             userData: {
-                rewardPerTokenPaid: userData[0],
-                rewards: userData[1],
-                platformRewardPerTokenPaid: userData[2],
-                platformRewards: userData[3],
-                lastAction: userData[4],
-                rewardCount: userData[5].toNumber(),
+                rewardPerTokenPaid,
+                rewards,
+                platformRewardPerTokenPaid,
+                platformRewards,
+                lastAction,
+                rewardCount: rewardCount.toNumber(),
                 userClaim: await boostedDualVault.userClaim(beneficiary.address),
             },
-            userRewards,
+            userRewards: await Promise.all(userRewards),
             contractData: {
                 rewardPerTokenStored: await boostedDualVault.rewardPerTokenStored(),
                 platformRewardPerTokenStored: await boostedDualVault.platformRewardPerTokenStored(),
@@ -251,16 +252,15 @@ describe("BoostedDualVault", async () => {
         shouldResetPlatformRewards = false,
     ): Promise<void> => {
         const timeAfter = await getTimestamp()
-        const periodIsFinished = BN.from(timeAfter).gt(beforeData.contractData.periodFinishTime)
-        //    LastUpdateTime
-        expect(
-            periodIsFinished
-                ? beforeData.contractData.periodFinishTime
-                : beforeData.contractData.rewardPerTokenStored.eq(0) && beforeData.boostBalance.totalSupply.eq(0)
+        const periodIsFinished = timeAfter.gt(beforeData.contractData.periodFinishTime)
+        const lastUpdateTokenTime =
+            beforeData.contractData.rewardPerTokenStored.eq(0) && beforeData.boostBalance.totalSupply.eq(0)
                 ? beforeData.contractData.lastUpdateTime
-                : timeAfter,
-        ).to.be.eq(afterData.contractData.lastUpdateTime)
-        //    RewardRate doesnt change
+                : timeAfter
+        //    LastUpdateTime
+        expect(periodIsFinished ? beforeData.contractData.periodFinishTime : lastUpdateTokenTime).eq(afterData.contractData.lastUpdateTime)
+
+        //    RewardRate does not change
         expect(beforeData.contractData.rewardRate).to.be.eq(afterData.contractData.rewardRate)
         expect(beforeData.contractData.platformRewardRate).eq(afterData.contractData.platformRewardRate)
         //    RewardPerTokenStored goes up

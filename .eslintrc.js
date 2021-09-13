@@ -20,18 +20,27 @@ module.exports = {
         },
     },
     rules: {
-        "@typescript-eslint/no-use-before-define": 1,
         "import/no-extraneous-dependencies": "off",
         "no-console": "off",
         "import/prefer-default-export": "off",
         "no-nested-ternary": 1,
-        "@typescript-eslint/dot-notation": 1,
         "no-await-in-loop": 1,
         "no-restricted-syntax": 1,
+        "@typescript-eslint/dot-notation": 1,
+        "@typescript-eslint/no-use-before-define": 1,
         "@typescript-eslint/no-loop-func": 1,
         "@typescript-eslint/no-unused-expressions": 1,
         "lines-between-class-members": 0,
-        "prefer-destructuring": 1,
+        "prefer-destructuring": [
+            1,
+            {
+                array: false,
+                object: false,
+            },
+            {
+                enforceForRenamedProperties: false,
+            },
+        ],
     },
     overrides: [
         {

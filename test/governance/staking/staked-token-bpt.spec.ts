@@ -17,37 +17,39 @@ import {
     QuestManager,
     MockEmissionController__factory,
 } from "types"
-import { assertBNClose, DEAD_ADDRESS } from "index"
-import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
-import { BN, simpleToExactAmount } from "@utils/math"
+import { DEAD_ADDRESS } from "index"
+import { ONE_DAY, ONE_WEEK } from "@utils/constants"
+import { simpleToExactAmount } from "@utils/math"
 import { expect } from "chai"
-import { getTimestamp, increaseTime } from "@utils/time"
-import { arrayify, formatBytes32String, solidityKeccak256 } from "ethers/lib/utils"
-import { BigNumberish, Signer } from "ethers"
-import { QuestStatus, QuestType, UserStakingData } from "types/stakedToken"
+// import { getTimestamp } from "@utils/time"
+import { formatBytes32String } from "ethers/lib/utils"
 
-const signUserQuests = async (user: string, questIds: BigNumberish[], questSigner: Signer): Promise<string> => {
-    const messageHash = solidityKeccak256(["address", "uint256[]"], [user, questIds])
-    const signature = await questSigner.signMessage(arrayify(messageHash))
-    return signature
-}
+// import { arrayify, formatBytes32String, solidityKeccak256 } from "ethers/lib/utils"
+// import { BigNumberish, Signer } from "ethers"
+import { UserStakingData } from "types/stakedToken"
 
-const signQuestUsers = async (questId: BigNumberish, users: string[], questSigner: Signer): Promise<string> => {
-    const messageHash = solidityKeccak256(["uint256", "address[]"], [questId, users])
-    const signature = await questSigner.signMessage(arrayify(messageHash))
-    return signature
-}
+// const signUserQuests = async (user: string, questIds: BigNumberish[], questSigner: Signer): Promise<string> => {
+//     const messageHash = solidityKeccak256(["address", "uint256[]"], [user, questIds])
+//     const signature = await questSigner.signMessage(arrayify(messageHash))
+//     return signature
+// }
+
+// const signQuestUsers = async (questId: BigNumberish, users: string[], questSigner: Signer): Promise<string> => {
+//     const messageHash = solidityKeccak256(["uint256", "address[]"], [questId, users])
+//     const signature = await questSigner.signMessage(arrayify(messageHash))
+//     return signature
+// }
 
 describe("Staked Token BPT", () => {
     let sa: StandardAccounts
-    let deployTime: BN
+    // let deployTime: BN
 
     let nexus: MockNexus
     let rewardToken: MockERC20
     let stakedToken: MockStakedTokenWithPrice
     let questManager: QuestManager
 
-    const startingMintAmount = simpleToExactAmount(10000000)
+    // const startingMintAmount = simpleToExactAmount(10000000)
 
     console.log(`Staked contract size ${MockStakedTokenWithPrice__factory.bytecode.length / 2} bytes`)
 
@@ -57,7 +59,7 @@ describe("Staked Token BPT", () => {
     }
 
     const redeployStakedToken = async (): Promise<Deployment> => {
-        deployTime = await getTimestamp()
+        // deployTime = await getTimestamp()
         nexus = await new MockNexus__factory(sa.default.signer).deploy(sa.governor.address, DEAD_ADDRESS, DEAD_ADDRESS)
         await nexus.setRecollateraliser(sa.mockRecollateraliser.address)
         rewardToken = await new MockERC20__factory(sa.default.signer).deploy("Reward", "RWD", 18, sa.default.address, 10000000)

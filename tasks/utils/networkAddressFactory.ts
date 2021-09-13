@@ -50,6 +50,7 @@ export const contractNames = [
 export type ContractNames = typeof contractNames[number]
 
 export interface HardhatRuntime {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ethers?: any
     hardhatArguments?: {
         config?: string

@@ -23,6 +23,7 @@ const ratio = simpleToExactAmount(1, 8)
 const tolerance = BN.from(10)
 
 const cv = (n: number | string): BN => BN.from(BigInt(n).toString())
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const getReserves = (data: any) =>
     [0, 1, 2, 3, 4, 5]
         .filter((i) => data[`reserve${i}`])

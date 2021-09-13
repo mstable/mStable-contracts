@@ -35,17 +35,17 @@ export interface SnapData {
 
 describe("Staked Token MTA rewards", () => {
     let sa: StandardAccounts
-    let deployTime: BN
+    // let deployTime: BN
     let nexus: MockNexus
     let rewardToken: MockERC20
     let stakedToken: StakedToken
     let rewardsVendorAddress: string
-    const startingMintAmount = simpleToExactAmount(10000000)
+    // const startingMintAmount = simpleToExactAmount(10000000)
 
     console.log(`Staked Token MTA contract size ${StakedTokenMTA__factory.bytecode.length / 2} bytes`)
 
     const redeployStakedToken = async (): Promise<void> => {
-        deployTime = await getTimestamp()
+        // deployTime = await getTimestamp()
         nexus = await new MockNexus__factory(sa.default.signer).deploy(sa.governor.address, DEAD_ADDRESS, DEAD_ADDRESS)
         await nexus.setRecollateraliser(sa.mockRecollateraliser.address)
         rewardToken = await new MockERC20__factory(sa.default.signer).deploy(
@@ -284,7 +284,6 @@ describe("Staked Token MTA rewards", () => {
                 await increaseTime(ONE_DAY)
                 await rewardToken.connect(sa.mockRewardsDistributor.signer).transfer(stakedToken.address, distAmount)
                 await stakedToken.connect(sa.mockRewardsDistributor.signer).notifyRewardAmount(distAmount)
-                const firstDistTimestamp = await getTimestamp()
                 // distribute 2nd rewards
                 await increaseTime(ONE_DAY.mul(8))
                 const secondDistAmount = simpleToExactAmount(15000)
@@ -310,7 +309,7 @@ describe("Staked Token MTA rewards", () => {
                 // expect(user1DataAfter.rewardPerTokenStored, "rewardPerTokenStored user 1 after").to.eq(0)
                 expect(user1DataAfter.rewardPerTokenPaid, "rewardPerTokenPaid user 1 after").to.eq(0)
                 expect(user1DataAfter.rewards, "rewards user 1 after").to.eq(0)
-                const secondsPassed = secondDistTimestamp.sub(firstDistTimestamp)
+                // const secondsPassed = secondDistTimestamp.sub(firstDistTimestamp)
                 // user 1 earned 10000 * 1000 / (1000 + 2000) * 6 / 7 = 10000 * 6 / 21 = 2,857.1428571429
                 const user1EarnedExpected = distAmount.div(3)
                 assertBNClose(user1DataAfter.earned, user1EarnedExpected, 1000000)

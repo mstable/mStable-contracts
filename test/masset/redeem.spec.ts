@@ -2,7 +2,7 @@ import { expect } from "chai"
 import { ethers } from "hardhat"
 import { Signer } from "ethers"
 
-import { simpleToExactAmount, BN, applyRatio } from "@utils/math"
+import { simpleToExactAmount, BN } from "@utils/math"
 import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
 import { MockERC20, Masset } from "types/generated"
 import { fullScale, ZERO_ADDRESS } from "@utils/constants"
@@ -183,9 +183,9 @@ describe("Masset - Redeem", () => {
 
         // Execute the redemption
         const tx = mAsset.redeem(bAsset.address, mAssetQuantityExact, minBassetOutputExact, recipient)
-        const integratorBalBefore = await bAssetBefore.contract.balanceOf(
-            bAssetBefore.integrator ? bAssetBefore.integratorAddr : mAsset.address,
-        )
+        // const integratorBalBefore = await bAssetBefore.contract.balanceOf(
+        //     bAssetBefore.integrator ? bAssetBefore.integratorAddr : mAsset.address,
+        // )
 
         // Check the emitted events
         await expect(tx)
@@ -210,9 +210,9 @@ describe("Masset - Redeem", () => {
         await tx
 
         // VaultBalance should line up
-        const integratorBalAfter = await bAssetBefore.contract.balanceOf(
-            bAssetBefore.integrator ? bAssetBefore.integratorAddr : mAsset.address,
-        )
+        // const integratorBalAfter = await bAssetBefore.contract.balanceOf(
+        //     bAssetBefore.integrator ? bAssetBefore.integratorAddr : mAsset.address,
+        // )
         // Calculate after balance
         // expect(integratorBalAfter, "integratorBalAfter").eq(integratorBalBefore.sub(bAssetQuantityExact))
         // Sender should have less mAsset
@@ -730,8 +730,6 @@ describe("Masset - Redeem", () => {
                     const recipient = sa.dummy3
                     // 1.0 Assert bAsset has fee
                     const bAsset = bAssets[3]
-                    const bAssetDecimals = await bAsset.decimals()
-                    const oneBasset = simpleToExactAmount(1, bAssetDecimals)
                     const bAssetBefore = await mAsset.getBasset(bAsset.address)
                     expect(bAssetBefore.personal.hasTxFee).to.eq(true)
 

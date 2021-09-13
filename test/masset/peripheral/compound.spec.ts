@@ -1,7 +1,7 @@
 /* eslint-disable consistent-return */
 
 import { StandardAccounts, MassetMachine } from "@utils/machines"
-import { ZERO_ADDRESS, DEAD_ADDRESS, fullScale, ONE_WEEK, MAX_UINT256 } from "@utils/constants"
+import { ZERO_ADDRESS, DEAD_ADDRESS, fullScale, MAX_UINT256 } from "@utils/constants"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { MockCToken, MockCToken__factory, MockERC20, MockERC20__factory, MockNexus, MockNexus__factory } from "types/generated"
 import { ethers } from "hardhat"

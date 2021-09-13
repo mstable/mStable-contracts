@@ -2,7 +2,6 @@
 
 import { ethers } from "hardhat"
 import { expect } from "chai"
-import { BN } from "@utils/math"
 import { StandardAccounts, MassetMachine } from "@utils/machines"
 import { DEAD_ADDRESS } from "@utils/constants"
 import {
@@ -16,46 +15,6 @@ import {
     MockBoostedVault__factory,
 } from "types/generated"
 import { Account } from "types"
-
-interface StakingBalance {
-    raw: BN
-    balance: BN
-    totalSupply: BN
-}
-
-interface TokenBalance {
-    sender: BN
-    contract: BN
-}
-
-interface UserData {
-    rewardPerTokenPaid: BN
-    rewards: BN
-    lastAction: BN
-    rewardCount: number
-    userClaim: BN
-}
-interface ContractData {
-    rewardPerTokenStored: BN
-    rewardRate: BN
-    lastUpdateTime: BN
-    lastTimeRewardApplicable: BN
-    periodFinishTime: BN
-}
-interface Reward {
-    start: BN
-    finish: BN
-    rate: BN
-}
-
-interface StakingData {
-    boostBalance: StakingBalance
-    tokenBalance: TokenBalance
-    vMTABalance: BN
-    userData: UserData
-    userRewards: Reward[]
-    contractData: ContractData
-}
 
 describe("BoostDirectorV2", async () => {
     let sa: StandardAccounts

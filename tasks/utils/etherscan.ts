@@ -3,6 +3,7 @@ import { HardhatRuntimeEnvironment } from "hardhat/types"
 interface VerifyEtherscan {
     address: string
     contract?: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-module-boundary-types
     constructorArguments?: any[]
     libraries?: {
         [libraryName: string]: string
