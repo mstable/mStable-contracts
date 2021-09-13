@@ -1,3 +1,4 @@
+import { InstantProxyAdmin__factory } from "./../../types/generated/factories/InstantProxyAdmin__factory"
 import { BigNumberish } from "@ethersproject/bignumber"
 import { Contract } from "@ethersproject/contracts"
 import { formatBytes32String } from "@ethersproject/strings"
@@ -36,6 +37,7 @@ export const deployStakingToken = async (
     deployer: Account,
     hre: any,
     overrides?: StakedTokenDeployAddresses,
+    overrideSigner?: string,
 ): Promise<StakedTokenDeployAddresses> => {
     const chain = getChain(hre)
 
@@ -44,7 +46,15 @@ export const deployStakingToken = async (
     const rewardsTokenAddress = resolveAddress(stakedTokenData.rewardsTokenSymbol, chain)
     const stakedTokenAddress = resolveAddress(stakedTokenData.stakedTokenSymbol, chain)
     const questMasterAddress = getChainAddress("QuestMaster", chain)
-    const questSignerAddress = getChainAddress("QuestSigner", chain)
+    const questSignerAddress = overrideSigner ?? getChainAddress("QuestSigner", chain)
+    const delayedProxyAdminAddress = getChainAddress("DelayedProxyAdmin", chain)
+    let proxyAdminAddress = getChainAddress("ProxyAdmin", chain)
+
+    if (!proxyAdminAddress) {
+        const proxyAdmin = await deployContract(new InstantProxyAdmin__factory(deployer.signer), "InstantProxyAdmin")
+        await proxyAdmin.transferOwnership(getChainAddress("ProtocolDAO", chain))
+        proxyAdminAddress = proxyAdmin.address
+    }
 
     let signatureVerifierAddress = overrides ? overrides.signatureVerifier : getChainAddress("SignatureVerifier", chain)
     if (!signatureVerifierAddress) {
@@ -78,7 +88,7 @@ export const deployStakingToken = async (
             },
         })
 
-        const constructorArguments = [questManagerImpl.address, deployer.address, data]
+        const constructorArguments = [questManagerImpl.address, delayedProxyAdminAddress, data]
         const questManagerProxy = await deployContract(new AssetProxy__factory(deployer.signer), "AssetProxy", constructorArguments)
         questManagerAddress = questManagerProxy.address
 
@@ -177,7 +187,7 @@ export const deployStakingToken = async (
 
     const proxy = await deployContract(new AssetProxy__factory(deployer.signer), "AssetProxy", [
         stakedTokenImpl.address,
-        deployer.address,
+        proxyAdminAddress,
         data,
     ])
 

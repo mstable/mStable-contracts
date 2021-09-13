@@ -5,6 +5,7 @@ import { AssetAddressTypes, Chain, Token, tokens } from "./tokens"
 export const contractNames = [
     "Nexus",
     "DelayedProxyAdmin",
+    "ProxyAdmin",
     "ProtocolDAO",
     "Governor",
     "FundManager",
@@ -67,11 +68,14 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xAFcE80b19A8cE13DEc0739a1aaB7A028d6845Eb3"
             case "DelayedProxyAdmin":
                 return "0x5C8eb57b44C1c6391fC7a8A0cf44d26896f92386"
+            case "ProxyAdmin":
+                return null
             case "ProtocolDAO":
             case "Governor":
                 return "0xF6FF1F7FCEB2cE6d26687EaaB5988b445d0b94a2"
+            case "BalancerRecipient":
             case "FundManager":
-                return "0x437e8c54db5c66bb3d80d2ff156e9bfe31a017db"
+                return "0x437E8C54Db5C66Bb3D80D2FF156e9bfe31a017db"
             case "mStableDAO":
                 return "0x3dd46846eed8D147841AE162C8425c08BD8E1b41"
             case "SavingsManager":
@@ -108,8 +112,6 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xfe99964d9677d7dfb66c5ca609b64f710d2808b8"
             case "BalancerVault":
                 return "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
-            case "BalancerRecipient":
-                return DEAD_ADDRESS
             case "BalancerStakingPoolId":
                 return "0xe2469f47ab58cf9cf59f9822e3c5de4950a41c49000200000000000000000089"
             case "BasketManager":
