@@ -171,6 +171,7 @@ describe("Staked Token BPT", () => {
         const stakedBalance = await stakedToken.balanceOf(user)
         const votes = await stakedToken.getVotes(user)
         const earnedRewards = await stakedToken.earned(user)
+        const numCheckpoints = await stakedToken.numCheckpoints(user)
         const rewardsBalance = await rewardToken.balanceOf(user)
         const userBalances = await stakedToken.balanceData(user)
         const userPriceCoeff = await stakedToken.userPriceCoeff(user)
@@ -180,6 +181,7 @@ describe("Staked Token BPT", () => {
             stakedBalance,
             votes,
             earnedRewards,
+            numCheckpoints,
             rewardsBalance,
             userBalances,
             userPriceCoeff,
