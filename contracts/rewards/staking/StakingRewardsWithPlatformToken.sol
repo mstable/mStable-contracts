@@ -78,7 +78,7 @@ contract StakingRewardsWithPlatformToken is
         address _rewardsToken,
         address _platformToken,
         uint256 _duration
-    ) public StakingTokenWrapper(_stakingToken) InitializableRewardsDistributionRecipient(_nexus) {
+    ) StakingTokenWrapper(_stakingToken) InitializableRewardsDistributionRecipient(_nexus) {
         rewardsToken = IERC20(_rewardsToken);
         platformToken = IERC20(_platformToken);
         DURATION = _duration;

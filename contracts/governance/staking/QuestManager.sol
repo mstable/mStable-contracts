@@ -300,8 +300,8 @@ contract QuestManager is IQuestManager, Initializable, ContextUpgradeable, Immut
             questMultiplier += quest.multiplier;
 
             uint256 len2 = _stakedTokens.length;
-            for (uint256 i = 0; i < len2; i++) {
-                IStakedToken(_stakedTokens[i]).applyQuestMultiplier(_accounts[i], questMultiplier);
+            for (uint256 j = 0; j < len2; j++) {
+                IStakedToken(_stakedTokens[j]).applyQuestMultiplier(_accounts[j], questMultiplier);
             }
         }
 
