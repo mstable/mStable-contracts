@@ -149,13 +149,11 @@ contract StakedTokenBPT is StakedToken {
         require(tokens[0] == address(REWARDS_TOKEN), "MTA in wrong place");
 
         // 1.1. Calculate minimum output amount
-        uint256[] memory minOut = new uint256[](1);
-        address[] memory exitToken = new address[](1);
+        uint256[] memory minOut = new uint256[](2);
         {
             // 10% discount from the latest pcoeff
             // e.g. 1e18 * 42000 / 11000 = 3.81e18
             minOut[0] = (pendingBPT * priceCoefficient) / 11000;
-            exitToken[0] = address(REWARDS_TOKEN);
         }
 
         // 1.2. Exits to here, from here. Assumes token is in position 0
@@ -163,7 +161,7 @@ contract StakedTokenBPT is StakedToken {
             poolId,
             address(this),
             payable(address(this)),
-            ExitPoolRequest(exitToken, minOut, bytes(abi.encode(0, pendingBPT - 1, 0)), false)
+            ExitPoolRequest(tokens, minOut, bytes(abi.encode(0, pendingBPT - 1, 0)), false)
         );
 
         // 2. Verify and update state

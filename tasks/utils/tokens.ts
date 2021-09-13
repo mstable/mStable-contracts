@@ -384,7 +384,7 @@ export const cyMUSD: Token = {
 
 export const BAL: Token = {
     symbol: "BAL",
-    address: "0xba100000625a3754423978a60c9317c58a424e3d",
+    address: "0xba100000625a3754423978a60c9317c58a424e3D",
     chain: Chain.mainnet,
     decimals: 18,
     quantityFormatter: "USD",
@@ -400,7 +400,7 @@ export const RBAL: Token = {
 
 export const BPT: Token = {
     symbol: "BPT",
-    address: "0xe2469f47ab58cf9cf59f9822e3c5de4950a41c49",
+    address: "0xe2469f47aB58cf9CF59F9822e3C5De4950a41C49",
     chain: Chain.mainnet,
     decimals: 18,
     quantityFormatter: "USD",
