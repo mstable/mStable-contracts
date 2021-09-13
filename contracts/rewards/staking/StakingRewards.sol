@@ -75,7 +75,7 @@ contract StakingRewards is
         address _stakingToken,
         address _rewardsToken,
         uint256 _duration
-    ) public StakingTokenWrapper(_stakingToken) InitializableRewardsDistributionRecipient(_nexus) {
+    ) StakingTokenWrapper(_stakingToken) InitializableRewardsDistributionRecipient(_nexus) {
         rewardsToken = IERC20(_rewardsToken);
         DURATION = _duration;
     }

@@ -102,7 +102,7 @@ contract BoostDirector is IBoostDirector, ImmutableModule {
             return bal;
         }
 
-        if (count >= 3) return 0;
+        return 0;
     }
 
     /**
