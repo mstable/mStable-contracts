@@ -3,21 +3,8 @@ import "tsconfig-paths/register"
 import { task, types } from "hardhat/config"
 import { ONE_WEEK } from "@utils/constants"
 
-import { Contract } from "@ethersproject/contracts"
-import { formatBytes32String } from "ethers/lib/utils"
 import { simpleToExactAmount } from "@utils/math"
-import { params } from "./taskUtils"
-import {
-    AssetProxy__factory,
-    BoostedDualVault__factory,
-    SignatureVerifier__factory,
-    PlatformTokenVendorFactory__factory,
-    StakedTokenMTA__factory,
-    QuestManager__factory,
-    StakedTokenBPT__factory,
-    BoostDirectorV2__factory,
-    BoostDirectorV2,
-} from "../types/generated"
+import { BoostedDualVault__factory, BoostDirectorV2__factory, BoostDirectorV2 } from "../types/generated"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getSignerAccount, getSigner } from "./utils/signerFactory"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"

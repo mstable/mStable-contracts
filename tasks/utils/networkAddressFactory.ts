@@ -211,7 +211,7 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "StakedTokenMTA":
                 return "0xc3DCB920C30D4a4222220250DD2E8bA0c5A40d51"
             case "StakedTokenBPT":
-                return "0x6faD64017fF10A7D1CaC9702e734172ffdfAE3bF"
+                return "0x96a3Ee762022be1EA48Fc35DB46169a6182ba5c8"
             case "PlatformTokenVendorFactory":
                 return "0x91fdDea51aD5A4e050c2A34e209284344206aF8e"
             case "BalancerVault":
