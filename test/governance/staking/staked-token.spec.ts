@@ -1806,7 +1806,7 @@ describe("Staked Token", () => {
                     expect(afterStakeData.stakedBalance, "staked balance after stake").to.eq(votesExpected)
                     expect(afterStakeData.votes, "staker votes after stake").to.eq(votesExpected)
                 })
-                it.only("should update quest & time multiplier", async () => {
+                it("should update quest & time multiplier", async () => {
                     const userAddress = sa.dummy1.address
 
                     await rewardToken.transfer(userAddress, stakedAmount)
