@@ -56,9 +56,6 @@ const calcWeightedTimestamp = (
     stakedDelta: BN,
     stake: boolean,
 ): BN => {
-    console.log(
-        `old timestamp ${oldWeightedTimestamp.toString()}, current ${currentTimestamp.toString()}, old balance ${oldStakedBalance.toString()}, staked delta ${stakedDelta}`,
-    )
     const oldWeightedSeconds = currentTimestamp.sub(oldWeightedTimestamp)
     const adjustedStakedBalanceDelta = stake ? stakedDelta.div(2) : stakedDelta.div(8)
     const adjustedNewStakedBalance = stake
@@ -1512,8 +1509,6 @@ describe("Staked Token", () => {
                         questManager.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 51, deployTime.add(ONE_WEEK)),
                     ).to.revertedWith("Quest multiplier too large > 1.5x")
                 })
-                // NOTE - this is max uint8. Stops irresponsible quests being added
-                it("if it will push multiplier over 2.5x")
             })
         })
         context("expire quest", () => {
@@ -1602,6 +1597,7 @@ describe("Staked Token", () => {
                 const expiry = deployTime.add(ONE_WEEK.mul(12))
                 await questManager.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 10, expiry)
                 await questManager.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 11, expiry)
+                await questManager.connect(sa.governor.signer).addQuest(QuestType.PERMANENT, 12, deployTime.add(ONE_WEEK.mul(50)))
                 expect(await questManager.startTime(), "season epoch before").to.gt(deployTime)
                 expect(await questManager.seasonEpoch(), "season epoch before").to.eq(0)
             })
@@ -1697,7 +1693,7 @@ describe("Staked Token", () => {
                 await increaseTime(ONE_WEEK.mul(39).add(1))
                 await questManager.connect(sa.governor.signer).startNewQuestSeason()
 
-                const expiry = (await getTimestamp()).add(ONE_WEEK.mul(12))
+                const expiry = (await getTimestamp()).add(ONE_WEEK.mul(25))
                 await questManager.connect(sa.governor.signer).addQuest(QuestType.PERMANENT, permanentMultiplier, expiry)
                 const tx = await questManager.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, seasonMultiplier, expiry)
                 const receipt = await tx.wait()
@@ -1709,17 +1705,18 @@ describe("Staked Token", () => {
                 const tests: ("permanent" | "season")[] = ["permanent", "season"]
                 tests.forEach((questType, i) => {
                     it(`should complete ${questType} quest for 4 users`, async () => {
+                        // the second quest is the season quest id
                         const questId = permanentQuestId.add(i)
                         const user1Address = sa.dummy1.address
                         const user2Address = sa.dummy2.address
                         const user3Address = sa.dummy3.address
                         const user4Address = sa.dummy4.address
-                        expect(await questManager.hasCompleted(user1Address, questId), "user 1 quest completed before").to.be.false
-                        expect(await questManager.hasCompleted(user2Address, questId), "user 2 quest completed before").to.be.false
-                        expect(await questManager.hasCompleted(user3Address, questId), "user 3 quest completed before").to.be.false
-                        expect(await questManager.hasCompleted(user4Address, questId), "user 4 quest completed before").to.be.false
+                        expect(await questManager.hasCompleted(user1Address, questId), "user 1 quest not completed before").to.be.false
+                        expect(await questManager.hasCompleted(user2Address, questId), "user 2 quest not completed before").to.be.false
+                        expect(await questManager.hasCompleted(user3Address, questId), "user 3 quest not completed before").to.be.false
+                        expect(await questManager.hasCompleted(user4Address, questId), "user 4 quest not completed before").to.be.false
 
-                        // Complete User Permanent and Seasonal Quests
+                        // Complete quests
                         const signature = await signQuestUsers(
                             questId,
                             [user1Address, user2Address, user3Address, user4Address],
@@ -1760,6 +1757,88 @@ describe("Staked Token", () => {
                             expect(user2DataAfter.questBalance.seasonMultiplier, "user 2 season multiplier after").to.eq(seasonMultiplier)
                         }
                     })
+                })
+                it("should complete quest before stake", async () => {
+                    const userAddress = sa.dummy1.address
+                    expect(await questManager.hasCompleted(userAddress, seasonQuestId), "user quest not completed before").to.be.false
+
+                    // Complete quests
+                    const signature = await signQuestUsers(seasonQuestId, [userAddress], sa.questSigner.signer)
+                    const tx = await questManager.connect(sa.questSigner.signer).completeQuestUsers(seasonQuestId, [userAddress], signature)
+
+                    const completeQuestTimestamp = await getTimestamp()
+
+                    // Check events
+                    await expect(tx).to.emit(questManager, "QuestCompleteUsers").withArgs(seasonQuestId, [userAddress])
+
+                    expect(await questManager.hasCompleted(userAddress, seasonQuestId), "user quest completed after").to.be.true
+
+                    // User data after quest complete
+                    const afterCompleteData = await snapshotUserStakingData(userAddress)
+                    expect(afterCompleteData.userBalances.raw, "staked raw balance after quest complete").to.eq(0)
+                    expect(afterCompleteData.userBalances.weightedTimestamp, "weighted timestamp after quest complete").to.eq(0)
+                    expect(afterCompleteData.questBalance.lastAction, "last action after quest complete").to.eq(completeQuestTimestamp)
+                    expect(afterCompleteData.questBalance.permMultiplier, "perm multiplier after quest complete").to.eq(0)
+                    expect(afterCompleteData.questBalance.seasonMultiplier, "season multiplier after quest complete").to.eq(
+                        seasonMultiplier,
+                    )
+                    expect(afterCompleteData.userBalances.timeMultiplier, "time multiplier after quest complete").to.eq(0)
+                    expect(afterCompleteData.stakedBalance, "staked balance after quest complete").to.eq(0)
+                    expect(afterCompleteData.votes, "staker votes after quest complete").to.eq(0)
+
+                    await increaseTime(ONE_WEEK)
+
+                    await rewardToken.transfer(userAddress, stakedAmount)
+                    await rewardToken.connect(sa.dummy1.signer).approve(stakedToken.address, simpleToExactAmount(10000))
+                    await stakedToken.connect(sa.dummy1.signer)["stake(uint256)"](stakedAmount)
+
+                    const stakedTimestamp = await getTimestamp()
+
+                    // User data after quest complete
+                    const afterStakeData = await snapshotUserStakingData(userAddress)
+                    expect(afterStakeData.userBalances.raw, "staked raw balance after stake").to.eq(stakedAmount)
+                    expect(afterStakeData.userBalances.weightedTimestamp, "weighted timestamp after stake").to.eq(stakedTimestamp)
+                    expect(afterStakeData.questBalance.lastAction, "last action after stake").to.eq(completeQuestTimestamp)
+                    expect(afterStakeData.questBalance.permMultiplier, "perm multiplier after stake").to.eq(0)
+                    expect(afterStakeData.questBalance.seasonMultiplier, "season multiplier after stake").to.eq(seasonMultiplier)
+                    expect(afterStakeData.userBalances.timeMultiplier, "time multiplier after stake").to.eq(0)
+                    const votesExpected = stakedAmount.mul(120).div(100)
+                    expect(afterStakeData.stakedBalance, "staked balance after stake").to.eq(votesExpected)
+                    expect(afterStakeData.votes, "staker votes after stake").to.eq(votesExpected)
+                })
+                it.only("should update quest & time multiplier", async () => {
+                    const userAddress = sa.dummy1.address
+
+                    await rewardToken.transfer(userAddress, stakedAmount)
+                    await rewardToken.connect(sa.dummy1.signer).approve(stakedToken.address, stakedAmount)
+                    await stakedToken.connect(sa.dummy1.signer)["stake(uint256)"](stakedAmount)
+                    const stakedTimestamp = await getTimestamp()
+
+                    const newSeasonMultiplier = 50
+                    const tx = await questManager
+                        .connect(sa.governor.signer)
+                        .addQuest(QuestType.SEASONAL, newSeasonMultiplier, stakedTimestamp.add(ONE_WEEK.mul(20)))
+                    const receipt = await tx.wait()
+                    const newSeasonQuestId = receipt.events[0].args.id
+
+                    // increase time into the first time multiplier
+                    await increaseTime(ONE_WEEK.mul(14))
+
+                    // Complete permanent quest
+                    const signature = await signQuestUsers(newSeasonQuestId, [userAddress], sa.questSigner.signer)
+                    await questManager.connect(sa.questSigner.signer).completeQuestUsers(newSeasonQuestId, [userAddress], signature)
+                    const completeQuestTimestamp = await getTimestamp()
+
+                    const afterData = await snapshotUserStakingData(userAddress)
+                    expect(afterData.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
+                    expect(afterData.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTimestamp)
+                    // expect(afterData.questBalance.lastAction, "last action after").to.eq(completeQuestTimestamp)
+                    expect(afterData.questBalance.permMultiplier, "perm multiplier after").to.eq(0)
+                    expect(afterData.questBalance.seasonMultiplier, "season multiplier after").to.eq(50)
+                    expect(afterData.userBalances.timeMultiplier, "time multiplier after").to.eq(20)
+                    const votesExpected = stakedAmount.mul(100 + 20 + 50).div(100)
+                    // expect(afterData.stakedBalance, "staked balance after").to.eq(votesExpected)
+                    // expect(afterData.votes, "staker votes after").to.eq(votesExpected)
                 })
                 context("should fail", () => {
                     let userAddress: string
@@ -1802,7 +1881,6 @@ describe("Staked Token", () => {
                     })
                 })
             })
-            // TODO - should update lastActiontime after quest completion
             context("complete multiple quests for a user", () => {
                 it("should allow quest signer to complete a user's seasonal quest", async () => {
                     const userAddress = sa.default.address
@@ -1930,6 +2008,33 @@ describe("Staked Token", () => {
 
                         const tx = questManager.completeUserQuests(userAddress, [seasonQuestId], signature)
                         await expect(tx).to.revertedWith("Quest already completed")
+                    })
+                    // NOTE - permMultiplier and seasonMultiplier are uint8 so max user multiplier is 2.55x
+                    it("if user's multiplier over 2.5x", async () => {
+                        const currentTime = await getTimestamp()
+                        const expiry = currentTime.add(ONE_WEEK)
+                        await questManager.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 50, expiry)
+                        await questManager.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 50, expiry)
+                        await questManager.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 50, expiry)
+                        await questManager.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 50, expiry)
+                        await questManager.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 50, expiry)
+                        const tx1 = await questManager.connect(sa.governor.signer).addQuest(QuestType.SEASONAL, 6, expiry)
+                        const receipt = await tx1.wait()
+                        const lastQuestId = receipt.events[0].args.id
+
+                        const completedQuests = [
+                            lastQuestId,
+                            lastQuestId.sub(1),
+                            lastQuestId.sub(2),
+                            lastQuestId.sub(3),
+                            lastQuestId.sub(4),
+                            lastQuestId.sub(5),
+                        ]
+                        const signature = await signUserQuests(userAddress, completedQuests, sa.questSigner.signer)
+                        const tx2 = questManager.completeUserQuests(userAddress, completedQuests, signature)
+                        await expect(tx2).to.revertedWith(
+                            "reverted with panic code 0x11 (Arithmetic operation underflowed or overflowed outside of an unchecked block)",
+                        )
                     })
                 })
                 // TODO - for both types of completion
@@ -2722,9 +2827,8 @@ describe("Staked Token", () => {
             ;({ stakedToken, questManager } = await redeployStakedToken())
         })
         it("should fail unless called by questManager", async () => {
-            // const tx = stakedToken.applyQuestMultiplier()
+            const tx = stakedToken.applyQuestMultiplier(sa.dummy1.address, 50)
+            await expect(tx).to.revertedWith("Not verified")
         })
-        it("should do nothing if there is no stake")
-        it("should update quest & time multiplier")
     })
 })
