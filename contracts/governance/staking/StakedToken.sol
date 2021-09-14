@@ -70,6 +70,7 @@ contract StakedToken is GamifiedVotingToken {
      * @param _stakedToken Core token that is staked and tracked (e.g. MTA)
      * @param _cooldownSeconds Seconds a user must wait after she initiates her cooldown before withdrawal is possible
      * @param _unstakeWindow Window in which it is possible to withdraw, following the cooldown period
+     * @param _hasPriceCoeff true if raw staked amount is multiplied by price coeff to get staked amount. eg BPT Staked Token
      */
     constructor(
         address _nexus,

@@ -52,6 +52,8 @@ abstract contract GamifiedToken is
     /**
      * @param _nexus System nexus
      * @param _rewardsToken Token that is being distributed as a reward. eg MTA
+     * @param _questManager Centralised manager of quests
+     * @param _hasPriceCoeff true if raw staked amount is multiplied by price coeff to get staked amount. eg BPT Staked Token
      */
     constructor(
         address _nexus,
