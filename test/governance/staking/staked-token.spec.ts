@@ -1681,12 +1681,6 @@ describe("Staked Token", () => {
     })
 
     context("questing and multipliers", () => {
-        context("completeQuestusers", () => {
-            it("should require valid signature")
-            it("should require valid questId")
-            it("should require account list")
-        })
-        // TODO - should update lastActiontime after quest completion
         context("complete user quests", () => {
             let stakedTime
             let permanentQuestId: BN
@@ -1711,155 +1705,220 @@ describe("Staked Token", () => {
                 permanentQuestId = seasonQuestId.sub(1)
                 await increaseTime(ONE_DAY)
             })
-            it("should allow quest signer to complete a user's seasonal quest", async () => {
-                const userAddress = sa.default.address
-                expect(await questManager.hasCompleted(userAddress, seasonQuestId), "quest completed before").to.be.false
+            context("complete multiple users of a quest", () => {
+                it("should complete a permanent quest for 4 users", async () => {
+                    const user1Address = sa.dummy1.address
+                    const user2Address = sa.dummy2.address
+                    const user3Address = sa.dummy3.address
+                    const user4Address = sa.dummy4.address
+                    expect(await questManager.hasCompleted(user1Address, permanentQuestId), "user 1 quest completed before").to.be.false
+                    expect(await questManager.hasCompleted(user2Address, permanentQuestId), "user 2 quest completed before").to.be.false
+                    expect(await questManager.hasCompleted(user3Address, permanentQuestId), "user 3 quest completed before").to.be.false
+                    expect(await questManager.hasCompleted(user4Address, permanentQuestId), "user 4 quest completed before").to.be.false
 
-                // Complete User Season Quest
-                const signature = await signUserQuests(userAddress, [seasonQuestId], sa.questSigner.signer)
-                const tx = await questManager.connect(sa.default.signer).completeUserQuests(userAddress, [seasonQuestId], signature)
+                    // Complete User Permanent and Seasonal Quests
+                    const signature = await signQuestUsers(
+                        permanentQuestId,
+                        [user1Address, user2Address, user3Address, user4Address],
+                        sa.questSigner.signer,
+                    )
+                    const tx = await questManager
+                        .connect(sa.questSigner.signer)
+                        .completeQuestUsers(permanentQuestId, [user1Address, user2Address, user3Address, user4Address], signature)
 
-                const completeTime = await getTimestamp()
-                // Check events
-                await expect(tx).to.emit(questManager, "QuestCompleteQuests").withArgs(userAddress, [seasonQuestId])
+                    const completeQuestTimestamp = await getTimestamp()
 
-                // Check data
-                expect(await questManager.hasCompleted(userAddress, seasonQuestId), "quest completed after").to.be.true
-                const userDataAfter = await snapshotUserStakingData(userAddress)
-                expect(userDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
-                expect(userDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
-                expect(userDataAfter.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
-                expect(userDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTime)
-                expect(userDataAfter.questBalance.lastAction, "last action after").to.eq(completeTime)
-                expect(userDataAfter.questBalance.permMultiplier, "perm multiplier after").to.eq(0)
-                expect(userDataAfter.questBalance.seasonMultiplier, "season multiplier after").to.eq(seasonMultiplier)
-                expect(userDataAfter.userBalances.timeMultiplier, "time multiplier after").to.eq(30)
-                const expectedBalance = stakedAmount
-                    .mul(100 + seasonMultiplier)
-                    .div(100)
-                    .mul(130)
-                    .div(100)
-                expect(userDataAfter.stakedBalance, "staked balance after").to.eq(expectedBalance)
-                expect(userDataAfter.votes, "votes after").to.eq(expectedBalance)
+                    // Check events
+                    await expect(tx)
+                        .to.emit(questManager, "QuestCompleteUsers")
+                        .withArgs(permanentQuestId, [user1Address, user2Address, user3Address, user4Address])
+
+                    // Check data
+                    expect(await questManager.hasCompleted(user1Address, permanentQuestId), "user 1 quest completed after").to.be.true
+                    expect(await questManager.hasCompleted(user2Address, permanentQuestId), "user 2 quest completed after").to.be.true
+                    const user1DataAfter = await snapshotUserStakingData(user1Address)
+                    expect(user1DataAfter.questBalance.lastAction, "user 1 last action after").to.eq(completeQuestTimestamp)
+                    expect(user1DataAfter.questBalance.permMultiplier, "user 1 perm multiplier after").to.eq(permanentMultiplier)
+                    expect(user1DataAfter.questBalance.seasonMultiplier, "user 1 season multiplier after").to.eq(0)
+                    const user2DataAfter = await snapshotUserStakingData(user2Address)
+                    expect(user2DataAfter.questBalance.lastAction, "user 2 last action after").to.eq(completeQuestTimestamp)
+                    expect(user2DataAfter.questBalance.permMultiplier, "user 2 perm multiplier after").to.eq(permanentMultiplier)
+                    expect(user2DataAfter.questBalance.seasonMultiplier, "user 2 season multiplier after").to.eq(0)
+                })
+                context("should fail", () => {
+                    let userAddress: string
+                    before(async () => {
+                        userAddress = sa.dummy3.address
+                    })
+                    it("user signing own quest completion", async () => {
+                        const signature = await signQuestUsers(permanentQuestId, [userAddress], sa.dummy3.signer)
+                        const tx = questManager
+                            .connect(sa.questSigner.signer)
+                            .completeQuestUsers(permanentQuestId, [userAddress], signature)
+                        await expect(tx).to.revertedWith("Invalid Quest Signer Signature")
+                    })
+                    it("signature with a different quest id", async () => {
+                        const signature = await signQuestUsers(permanentQuestId, [userAddress], sa.dummy3.signer)
+                        const tx = questManager.completeQuestUsers(seasonQuestId, [userAddress], signature)
+                        await expect(tx).to.revertedWith("Invalid Quest Signer Signature")
+                    })
+                    it("signature with a different user", async () => {
+                        const signature = await signQuestUsers(permanentQuestId, [userAddress], sa.questSigner.signer)
+                        const tx = questManager.completeQuestUsers(permanentQuestId, [sa.dummy4.address], signature)
+                        await expect(tx).to.revertedWith("Invalid Quest Signer Signature")
+                    })
+                    it("an invalid quest ID", async () => {
+                        const signature = await signQuestUsers(seasonQuestId.add(1), [userAddress], sa.questSigner.signer)
+                        const tx = questManager.completeQuestUsers(seasonQuestId.add(1), [userAddress], signature)
+                        await expect(tx).to.revertedWith("Invalid Quest ID")
+                    })
+                    it("no user accounts", async () => {
+                        const signature = await signQuestUsers(seasonQuestId, [userAddress], sa.questSigner.signer)
+                        const tx = questManager.completeQuestUsers(seasonQuestId, [], signature)
+                        await expect(tx).to.revertedWith("No accounts")
+                    })
+                    it("already completed quest", async () => {
+                        const signature = await signQuestUsers(seasonQuestId, [userAddress], sa.questSigner.signer)
+                        await questManager.completeQuestUsers(seasonQuestId, [userAddress], signature)
+
+                        const tx = questManager.completeQuestUsers(seasonQuestId, [userAddress], signature)
+                        await expect(tx).to.revertedWith("Quest already completed")
+                    })
+                })
             })
-            it("should allow quest signer to complete a user's permanent quest", async () => {
-                const userAddress = sa.default.address
-                expect(await questManager.hasCompleted(userAddress, permanentQuestId), "quest completed before").to.be.false
+            // TODO - should update lastActiontime after quest completion
+            context("complete multiple quests for a user", () => {
+                it("should allow quest signer to complete a user's seasonal quest", async () => {
+                    const userAddress = sa.default.address
+                    expect(await questManager.hasCompleted(userAddress, seasonQuestId), "quest completed before").to.be.false
 
-                // Complete User Permanent Quest
-                const signature = await signUserQuests(userAddress, [permanentQuestId], sa.questSigner.signer)
-                const tx = await questManager.connect(sa.questSigner.signer).completeUserQuests(userAddress, [permanentQuestId], signature)
-                const completeTime = await getTimestamp()
+                    // Complete User Season Quest
+                    const signature = await signUserQuests(userAddress, [seasonQuestId], sa.questSigner.signer)
+                    const tx = await questManager.connect(sa.default.signer).completeUserQuests(userAddress, [seasonQuestId], signature)
 
-                // Check events
-                await expect(tx).to.emit(questManager, "QuestCompleteQuests").withArgs(userAddress, [permanentQuestId])
-                // Check data
-                expect(await questManager.hasCompleted(userAddress, permanentQuestId), "quest completed after").to.be.true
-                const userDataAfter = await snapshotUserStakingData(userAddress)
-                expect(userDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
-                expect(userDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
-                expect(userDataAfter.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
-                expect(userDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTime)
-                expect(userDataAfter.questBalance.lastAction, "last action after").to.eq(completeTime)
-                expect(userDataAfter.questBalance.permMultiplier, "perm multiplier after").to.eq(permanentMultiplier)
-                expect(userDataAfter.questBalance.seasonMultiplier, "season multiplier after").to.eq(0)
-                expect(userDataAfter.userBalances.timeMultiplier, "time multiplier after").to.eq(30)
-                const expectedBalance = stakedAmount
-                    .mul(100 + permanentMultiplier)
-                    .div(100)
-                    .mul(130)
-                    .div(100)
-                expect(userDataAfter.stakedBalance, "staked balance after").to.eq(expectedBalance)
-                expect(userDataAfter.votes, "votes after").to.eq(expectedBalance)
+                    const completeTime = await getTimestamp()
+                    // Check events
+                    await expect(tx).to.emit(questManager, "QuestCompleteQuests").withArgs(userAddress, [seasonQuestId])
+
+                    // Check data
+                    expect(await questManager.hasCompleted(userAddress, seasonQuestId), "quest completed after").to.be.true
+                    const userDataAfter = await snapshotUserStakingData(userAddress)
+                    expect(userDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
+                    expect(userDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
+                    expect(userDataAfter.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
+                    expect(userDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTime)
+                    expect(userDataAfter.questBalance.lastAction, "last action after").to.eq(completeTime)
+                    expect(userDataAfter.questBalance.permMultiplier, "perm multiplier after").to.eq(0)
+                    expect(userDataAfter.questBalance.seasonMultiplier, "season multiplier after").to.eq(seasonMultiplier)
+                    expect(userDataAfter.userBalances.timeMultiplier, "time multiplier after").to.eq(30)
+                    const expectedBalance = stakedAmount
+                        .mul(100 + seasonMultiplier)
+                        .div(100)
+                        .mul(130)
+                        .div(100)
+                    expect(userDataAfter.stakedBalance, "staked balance after").to.eq(expectedBalance)
+                    expect(userDataAfter.votes, "votes after").to.eq(expectedBalance)
+                })
+                it("should allow quest signer to complete a user's permanent quest", async () => {
+                    const userAddress = sa.default.address
+                    expect(await questManager.hasCompleted(userAddress, permanentQuestId), "quest completed before").to.be.false
+
+                    // Complete User Permanent Quest
+                    const signature = await signUserQuests(userAddress, [permanentQuestId], sa.questSigner.signer)
+                    const tx = await questManager
+                        .connect(sa.questSigner.signer)
+                        .completeUserQuests(userAddress, [permanentQuestId], signature)
+                    const completeTime = await getTimestamp()
+
+                    // Check events
+                    await expect(tx).to.emit(questManager, "QuestCompleteQuests").withArgs(userAddress, [permanentQuestId])
+                    // Check data
+                    expect(await questManager.hasCompleted(userAddress, permanentQuestId), "quest completed after").to.be.true
+                    const userDataAfter = await snapshotUserStakingData(userAddress)
+                    expect(userDataAfter.userBalances.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
+                    expect(userDataAfter.userBalances.cooldownUnits, "cooldown units after").to.eq(0)
+                    expect(userDataAfter.userBalances.raw, "staked raw balance after").to.eq(stakedAmount)
+                    expect(userDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(stakedTime)
+                    expect(userDataAfter.questBalance.lastAction, "last action after").to.eq(completeTime)
+                    expect(userDataAfter.questBalance.permMultiplier, "perm multiplier after").to.eq(permanentMultiplier)
+                    expect(userDataAfter.questBalance.seasonMultiplier, "season multiplier after").to.eq(0)
+                    expect(userDataAfter.userBalances.timeMultiplier, "time multiplier after").to.eq(30)
+                    const expectedBalance = stakedAmount
+                        .mul(100 + permanentMultiplier)
+                        .div(100)
+                        .mul(130)
+                        .div(100)
+                    expect(userDataAfter.stakedBalance, "staked balance after").to.eq(expectedBalance)
+                    expect(userDataAfter.votes, "votes after").to.eq(expectedBalance)
+                })
+                it("should complete user quest before a user stakes", async () => {
+                    const userAddress = sa.dummy1.address
+                    expect(await questManager.hasCompleted(userAddress, permanentQuestId), "quest completed before").to.be.false
+
+                    // Complete User Permanent and Seasonal Quests
+                    const signature = await signUserQuests(userAddress, [permanentQuestId, seasonQuestId], sa.questSigner.signer)
+                    const tx = await questManager
+                        .connect(sa.questSigner.signer)
+                        .completeUserQuests(userAddress, [permanentQuestId, seasonQuestId], signature)
+
+                    const completeQuestTimestamp = await getTimestamp()
+
+                    // Check events
+                    await expect(tx).to.emit(questManager, "QuestCompleteQuests").withArgs(userAddress, [permanentQuestId, seasonQuestId])
+
+                    // Check data
+                    expect(await questManager.hasCompleted(userAddress, permanentQuestId), "quest completed after").to.be.true
+                    const userDataAfter = await snapshotUserStakingData(userAddress)
+                    expect(userDataAfter.userBalances.raw, "staked raw balance after").to.eq(0)
+                    expect(userDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(0)
+                    expect(userDataAfter.questBalance.lastAction, "last action after").to.eq(completeQuestTimestamp)
+                    expect(userDataAfter.questBalance.permMultiplier, "perm multiplier after").to.eq(permanentMultiplier)
+                    expect(userDataAfter.questBalance.seasonMultiplier, "season multiplier after").to.eq(seasonMultiplier)
+                    expect(userDataAfter.userBalances.timeMultiplier, "time multiplier after").to.eq(0)
+                    expect(userDataAfter.stakedBalance, "staked balance after").to.eq(0)
+                    expect(userDataAfter.votes, "votes after").to.eq(0)
+                })
+                context("should fail", () => {
+                    let userAddress: string
+                    before(async () => {
+                        userAddress = sa.dummy3.address
+                    })
+                    it("user signing own quest completion", async () => {
+                        const signature = await signUserQuests(userAddress, [permanentQuestId], sa.dummy3.signer)
+                        const tx = questManager.connect(sa.dummy3.signer).completeUserQuests(userAddress, [permanentQuestId], signature)
+                        await expect(tx).to.revertedWith("Invalid Quest Signer Signature")
+                    })
+                    it("signature with a different quest id", async () => {
+                        const signature = await signUserQuests(userAddress, [permanentQuestId], sa.questSigner.signer)
+                        const tx = questManager.completeUserQuests(userAddress, [seasonQuestId], signature)
+                        await expect(tx).to.revertedWith("Invalid Quest Signer Signature")
+                    })
+                    it("signature with a different user", async () => {
+                        const signature = await signUserQuests(sa.dummy4.address, [permanentQuestId], sa.questSigner.signer)
+                        const tx = questManager.completeUserQuests(userAddress, [permanentQuestId], signature)
+                        await expect(tx).to.revertedWith("Invalid Quest Signer Signature")
+                    })
+                    it("invalid quest ID", async () => {
+                        const signature = await signUserQuests(userAddress, [seasonQuestId.add(1)], sa.questSigner.signer)
+                        const tx = questManager.completeUserQuests(userAddress, [seasonQuestId.add(1)], signature)
+                        await expect(tx).to.revertedWith("Invalid Quest ID")
+                    })
+                    it("no quest IDs", async () => {
+                        const signature = await signUserQuests(userAddress, [seasonQuestId], sa.questSigner.signer)
+                        const tx = questManager.completeUserQuests(userAddress, [], signature)
+                        await expect(tx).to.revertedWith("No quest IDs")
+                    })
+                    it("already completed quest", async () => {
+                        const signature = await signUserQuests(userAddress, [seasonQuestId], sa.questSigner.signer)
+                        await questManager.completeUserQuests(userAddress, [seasonQuestId], signature)
+
+                        const tx = questManager.completeUserQuests(userAddress, [seasonQuestId], signature)
+                        await expect(tx).to.revertedWith("Quest already completed")
+                    })
+                })
+                // TODO - for both types of completion
+                it("should propagate quest completion to all stakedTokens", async () => {})
             })
-            it("should complete user quest before a user stakes", async () => {
-                const userAddress = sa.dummy1.address
-                expect(await questManager.hasCompleted(userAddress, permanentQuestId), "quest completed before").to.be.false
-
-                // Complete User Permanent and Seasonal Quests
-                const signature = await signUserQuests(userAddress, [permanentQuestId, seasonQuestId], sa.questSigner.signer)
-                const tx = await questManager
-                    .connect(sa.questSigner.signer)
-                    .completeUserQuests(userAddress, [permanentQuestId, seasonQuestId], signature)
-
-                const completeQuestTimestamp = await getTimestamp()
-
-                // Check events
-                await expect(tx).to.emit(questManager, "QuestCompleteQuests").withArgs(userAddress, [permanentQuestId, seasonQuestId])
-
-                // Check data
-                expect(await questManager.hasCompleted(userAddress, permanentQuestId), "quest completed after").to.be.true
-                const userDataAfter = await snapshotUserStakingData(userAddress)
-                expect(userDataAfter.userBalances.raw, "staked raw balance after").to.eq(0)
-                expect(userDataAfter.userBalances.weightedTimestamp, "weighted timestamp after").to.eq(0)
-                expect(userDataAfter.questBalance.lastAction, "last action after").to.eq(completeQuestTimestamp)
-                expect(userDataAfter.questBalance.permMultiplier, "perm multiplier after").to.eq(permanentMultiplier)
-                expect(userDataAfter.questBalance.seasonMultiplier, "season multiplier after").to.eq(seasonMultiplier)
-                expect(userDataAfter.userBalances.timeMultiplier, "time multiplier after").to.eq(0)
-                expect(userDataAfter.stakedBalance, "staked balance after").to.eq(0)
-                expect(userDataAfter.votes, "votes after").to.eq(0)
-            })
-            it("should complete a quest for 4 users", async () => {
-                const user1Address = sa.dummy1.address
-                const user2Address = sa.dummy2.address
-                const user3Address = sa.dummy3.address
-                const user4Address = sa.dummy4.address
-                expect(await questManager.hasCompleted(user1Address, permanentQuestId), "user 1 quest completed before").to.be.false
-                expect(await questManager.hasCompleted(user2Address, permanentQuestId), "user 2 quest completed before").to.be.false
-                expect(await questManager.hasCompleted(user3Address, permanentQuestId), "user 3 quest completed before").to.be.false
-                expect(await questManager.hasCompleted(user4Address, permanentQuestId), "user 4 quest completed before").to.be.false
-
-                // Complete User Permanent and Seasonal Quests
-                const signature = await signQuestUsers(
-                    permanentQuestId,
-                    [user1Address, user2Address, user3Address, user4Address],
-                    sa.questSigner.signer,
-                )
-                const tx = await questManager
-                    .connect(sa.questSigner.signer)
-                    .completeQuestUsers(permanentQuestId, [user1Address, user2Address, user3Address, user4Address], signature)
-
-                const completeQuestTimestamp = await getTimestamp()
-
-                // Check events
-                await expect(tx)
-                    .to.emit(questManager, "QuestCompleteUsers")
-                    .withArgs(permanentQuestId, [user1Address, user2Address, user3Address, user4Address])
-
-                // Check data
-                expect(await questManager.hasCompleted(user1Address, permanentQuestId), "user 1 quest completed after").to.be.true
-                expect(await questManager.hasCompleted(user2Address, permanentQuestId), "user 2 quest completed after").to.be.true
-                const user1DataAfter = await snapshotUserStakingData(user1Address)
-                expect(user1DataAfter.questBalance.lastAction, "user 1 last action after").to.eq(completeQuestTimestamp)
-                expect(user1DataAfter.questBalance.permMultiplier, "user 1 perm multiplier after").to.eq(permanentMultiplier)
-                expect(user1DataAfter.questBalance.seasonMultiplier, "user 1 season multiplier after").to.eq(0)
-                const user2DataAfter = await snapshotUserStakingData(user2Address)
-                expect(user2DataAfter.questBalance.lastAction, "user 2 last action after").to.eq(completeQuestTimestamp)
-                expect(user2DataAfter.questBalance.permMultiplier, "user 2 perm multiplier after").to.eq(permanentMultiplier)
-                expect(user2DataAfter.questBalance.seasonMultiplier, "user 2 season multiplier after").to.eq(0)
-            })
-            it("should fail to complete a user quest again", async () => {
-                const userAddress = sa.dummy2.address
-                const signature = await signUserQuests(userAddress, [permanentQuestId], sa.questSigner.signer)
-                await questManager.connect(sa.questSigner.signer).completeUserQuests(userAddress, [permanentQuestId], signature)
-                await expect(
-                    questManager.connect(sa.questSigner.signer).completeUserQuests(userAddress, [permanentQuestId], signature),
-                ).to.revertedWith("Err: Already Completed")
-            })
-            it("should fail a user signing quest completion", async () => {
-                const userAddress = sa.dummy3.address
-                const signature = await signUserQuests(userAddress, [permanentQuestId], sa.dummy3.signer)
-                await expect(
-                    questManager.connect(sa.dummy3.signer).completeUserQuests(userAddress, [permanentQuestId], signature),
-                ).to.revertedWith("Invalid Quest Signer Signature")
-                // TODO - check for completeQuestUsers
-            })
-            // e.g. wrong quest ID
-            // TODO - for both types of completion
-            it("should propagate quest completion to all stakedTokens", async () => {})
-            it("should fail if the signature is invalid")
-            it("should fail if the signature is for a different account")
-            it("should fail if the signature is too long or short")
         })
         context("time multiplier", () => {
             let stakerDataBefore: UserStakingData
@@ -2643,7 +2702,12 @@ describe("Staked Token", () => {
     // '''..................................................................'''
 
     context("calling applyQuestMultiplier", () => {
-        it("should fail unless called by questManager")
+        before(async () => {
+            ;({ stakedToken, questManager } = await redeployStakedToken())
+        })
+        it("should fail unless called by questManager", async () => {
+            // const tx = stakedToken.applyQuestMultiplier()
+        })
         it("should do nothing if there is no stake")
         it("should update quest & time multiplier")
     })

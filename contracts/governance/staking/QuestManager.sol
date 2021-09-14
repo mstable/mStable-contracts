@@ -225,14 +225,14 @@ contract QuestManager is IQuestManager, Initializable, ContextUpgradeable, Immut
         bytes calldata _signature
     ) external override {
         uint256 len = _ids.length;
-        require(len > 0, "No quest ids");
+        require(len > 0, "No quest IDs");
 
         uint8 questMultiplier = checkForSeasonFinish(_account);
 
         // For each quest
         for (uint256 i = 0; i < len; i++) {
-            require(_validQuest(_ids[i]), "Err: Invalid Quest");
-            require(!hasCompleted(_account, _ids[i]), "Err: Already Completed");
+            require(_validQuest(_ids[i]), "Invalid Quest ID");
+            require(!hasCompleted(_account, _ids[i]), "Quest already completed");
             require(
                 SignatureVerifier.verify(_questSigner, _account, _ids, _signature),
                 "Invalid Quest Signer Signature"
