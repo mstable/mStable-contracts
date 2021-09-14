@@ -2,7 +2,7 @@
 <img src="https://mstable.org/assets/img/email/mstable_logo_horizontal_black.png" width="420" >
 
 ![CI](https://github.com/mstable/mStable-contracts/workflows/Test/badge.svg)
-[![Coverage Status](https://coveralls.io/repos/github/mstable/mStable-ICSMM/badge.svg?branch=icsmm&t=BVkH5s)](https://coveralls.io/github/mstable/mStable-ICSMM?branch=icsmm)
+[![Coverage Status](https://coveralls.io/repos/github/mstable/mStable-contracts/badge.svg?branch=master&t=BVkH5s)](https://coveralls.io/github/mstable/mStable-contracts?branch=master)
 [![Discord](https://img.shields.io/discord/525087739801239552?color=7289DA&label=discord%20)](https://discordapp.com/channels/525087739801239552/)
 [![npm version](https://badge.fury.io/js/%40mstable%2Fprotocol.svg)](https://badge.fury.io/js/%40mstable%2Fprotocol)
 
