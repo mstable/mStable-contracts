@@ -5,6 +5,7 @@ import { AssetAddressTypes, Chain, Token, tokens } from "./tokens"
 export const contractNames = [
     "Nexus",
     "DelayedProxyAdmin",
+    "ProxyAdmin",
     "ProtocolDAO",
     "Governor",
     "FundManager",
@@ -33,6 +34,7 @@ export const contractNames = [
     "PlatformTokenVendorFactory",
     "BalancerVault",
     "BalancerRecipient",
+    "BalancerStakingPoolId",
     "AaveIncentivesController",
     "AaveLendingPoolAddressProvider",
     "AlchemixStakingPool",
@@ -46,6 +48,7 @@ export const contractNames = [
     "OperationsSigner",
     "ENSRegistrarController",
     "ENSResolver",
+    "IncentivisedVotingLockup",
 ] as const
 export type ContractNames = typeof contractNames[number]
 
@@ -66,11 +69,14 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xAFcE80b19A8cE13DEc0739a1aaB7A028d6845Eb3"
             case "DelayedProxyAdmin":
                 return "0x5C8eb57b44C1c6391fC7a8A0cf44d26896f92386"
+            case "ProxyAdmin":
+                return null
             case "ProtocolDAO":
             case "Governor":
                 return "0xF6FF1F7FCEB2cE6d26687EaaB5988b445d0b94a2"
+            case "BalancerRecipient":
             case "FundManager":
-                return "0x437e8c54db5c66bb3d80d2ff156e9bfe31a017db"
+                return "0x437E8C54Db5C66Bb3D80D2FF156e9bfe31a017db"
             case "mStableDAO":
                 return "0x3dd46846eed8D147841AE162C8425c08BD8E1b41"
             case "SavingsManager":
@@ -107,8 +113,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xfe99964d9677d7dfb66c5ca609b64f710d2808b8"
             case "BalancerVault":
                 return "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
-            case "BalancerRecipient":
-                return DEAD_ADDRESS
+            case "BalancerStakingPoolId":
+                return "0xe2469f47ab58cf9cf59f9822e3c5de4950a41c49000200000000000000000089"
             case "BasketManager":
                 return "0x66126B4aA2a1C07536Ef8E5e8bD4EfDA1FdEA96D"
             case "AaveIncentivesController":
@@ -135,6 +141,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x283Af0B28c62C092C9727F1Ee09c02CA627EB7F5"
             case "ENSResolver":
                 return "0x4976fb03c32e5b8cfe2b6ccb31c09ba78ebaba41"
+            case "IncentivisedVotingLockup":
+                return "0xae8bc96da4f9a9613c323478be181fdb2aa0e1bf"
             default:
         }
     } else if (chain === Chain.polygon) {
@@ -204,15 +212,17 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "QuestManager":
                 return "0x3e8aa84E846EEb89392E99d44cD51acA668ae7BA"
             case "StakedTokenMTA":
-                return "0xa5583F67311231A2127D2C6f9a15aB112222C080"
+                return "0xc3DCB920C30D4a4222220250DD2E8bA0c5A40d51"
             case "StakedTokenBPT":
-                return "0x2813Baaf158F53F8251a369c296c7934cb1fbAF0"
+                return "0x96a3Ee762022be1EA48Fc35DB46169a6182ba5c8"
             case "PlatformTokenVendorFactory":
                 return "0x91fdDea51aD5A4e050c2A34e209284344206aF8e"
             case "BalancerVault":
-                return DEAD_ADDRESS
+                return "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
             case "BalancerRecipient":
                 return DEAD_ADDRESS
+            case "BalancerStakingPoolId":
+                return `0x021c343c6180f03ce9e48fae3ff432309b9af199000200000000000000000001`
             case "QuestMaster":
                 return "0x04617083205b2fdd18b15bcf60d06674c6e2c1dc"
             case "QuestSigner":

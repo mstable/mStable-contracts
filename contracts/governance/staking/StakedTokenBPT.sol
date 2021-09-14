@@ -43,6 +43,7 @@ contract StakedTokenBPT is StakedToken {
     event BalClaimed();
     event BalRecipientChanged(address newRecipient);
     event PriceCoefficientUpdated(uint256 newPriceCoeff);
+    event FeesConverted(uint256 bpt, uint256 mta);
 
     /***************************************
                     INIT
@@ -144,18 +145,15 @@ contract StakedTokenBPT is StakedToken {
         // 1. Sell the BPT
         uint256 stakingBalBefore = STAKED_TOKEN.balanceOf(address(this));
         uint256 mtaBalBefore = REWARDS_TOKEN.balanceOf(address(this));
-        (address[] memory tokens, uint256[] memory balances, ) = balancerVault.getPoolTokens(
-            poolId
-        );
+        (address[] memory tokens, , ) = balancerVault.getPoolTokens(poolId);
         require(tokens[0] == address(REWARDS_TOKEN), "MTA in wrong place");
 
-        // 1.1. Calculate minimum output amount, assuming bpt 80/20 gives ~4% max slippage
-        uint256[] memory minOut = new uint256[](1);
-        address[] memory exitToken = new address[](1);
+        // 1.1. Calculate minimum output amount
+        uint256[] memory minOut = new uint256[](2);
         {
-            uint256 unitsPerToken = (balances[0] * 12e17) / STAKED_TOKEN.totalSupply();
-            minOut[0] = (pendingBPT * unitsPerToken) / 1e18;
-            exitToken[0] = address(REWARDS_TOKEN);
+            // 10% discount from the latest pcoeff
+            // e.g. 1e18 * 42000 / 11000 = 3.81e18
+            minOut[0] = (pendingBPT * priceCoefficient) / 11000;
         }
 
         // 1.2. Exits to here, from here. Assumes token is in position 0
@@ -163,7 +161,7 @@ contract StakedTokenBPT is StakedToken {
             poolId,
             address(this),
             payable(address(this)),
-            ExitPoolRequest(exitToken, minOut, bytes(abi.encode(0, pendingBPT - 1, 0)), false)
+            ExitPoolRequest(tokens, minOut, bytes(abi.encode(0, pendingBPT - 1, 0)), false)
         );
 
         // 2. Verify and update state
@@ -174,8 +172,11 @@ contract StakedTokenBPT is StakedToken {
         );
 
         // 3. Inform HeadlessRewards about the new rewards
-        uint256 mtaBalAfter = REWARDS_TOKEN.balanceOf(address(this));
-        pendingAdditionalReward += (mtaBalAfter - mtaBalBefore);
+        uint256 received = REWARDS_TOKEN.balanceOf(address(this)) - mtaBalBefore;
+        require(received >= minOut[0], "Must receive tokens");
+        super._notifyAdditionalReward(received);
+
+        emit FeesConverted(pendingBPT, received);
     }
 
     /**

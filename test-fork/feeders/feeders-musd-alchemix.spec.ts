@@ -196,7 +196,7 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
                     rewardToken: MTA.address,
                 }
 
-                vault = (await deployVault(deployer, vaultData, chain)) as BoostedVault
+                vault = (await deployVault(deployer, vaultData)) as BoostedVault
             })
             it("Distribute MTA rewards to vault", async () => {
                 const distributionAmount = simpleToExactAmount(20000)

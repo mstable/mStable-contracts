@@ -28,6 +28,8 @@ contract QuestManager is IQuestManager, Initializable, ContextUpgradeable, Immut
     Quest[] private _quests;
     /// @notice Timestamp at which the current season started
     uint32 public override seasonEpoch;
+    /// @notice Timestamp at which the contract was created
+    uint32 public startTime;
 
     /// @notice A whitelisted questMaster who can administer quests including signing user quests are completed.
     address public override questMaster;
@@ -47,7 +49,7 @@ contract QuestManager is IQuestManager, Initializable, ContextUpgradeable, Immut
      * @param _questSignerArg account that can sign user quests as completed
      */
     function initialize(address _questMaster, address _questSignerArg) external initializer {
-        seasonEpoch = SafeCast.toUint32(block.timestamp);
+        startTime = SafeCast.toUint32(block.timestamp);
         questMaster = _questMaster;
         _questSigner = _questSignerArg;
     }
@@ -118,6 +120,8 @@ contract QuestManager is IQuestManager, Initializable, ContextUpgradeable, Immut
      * @dev Adds a new stakedToken
      */
     function addStakedToken(address _stakedToken) external override onlyGovernor {
+        require(_stakedToken != address(0), "Invalid StakedToken");
+
         _stakedTokens.push(_stakedToken);
 
         emit StakedTokenAdded(_stakedToken);
@@ -185,6 +189,7 @@ contract QuestManager is IQuestManager, Initializable, ContextUpgradeable, Immut
      * A new season can only begin after 9 months has passed.
      */
     function startNewQuestSeason() external override questMasterOrGovernor {
+        require(block.timestamp > (startTime + 39 weeks), "First season has not elapsed");
         require(block.timestamp > (seasonEpoch + 39 weeks), "Season has not elapsed");
 
         uint256 len = _quests.length;
@@ -220,14 +225,14 @@ contract QuestManager is IQuestManager, Initializable, ContextUpgradeable, Immut
         bytes calldata _signature
     ) external override {
         uint256 len = _ids.length;
-        require(len > 0, "No quest ids");
+        require(len > 0, "No quest IDs");
 
         uint8 questMultiplier = checkForSeasonFinish(_account);
 
         // For each quest
         for (uint256 i = 0; i < len; i++) {
-            require(_validQuest(_ids[i]), "Err: Invalid Quest");
-            require(!hasCompleted(_account, _ids[i]), "Err: Already Completed");
+            require(_validQuest(_ids[i]), "Invalid Quest ID");
+            require(!hasCompleted(_account, _ids[i]), "Quest already completed");
             require(
                 SignatureVerifier.verify(_questSigner, _account, _ids, _signature),
                 "Invalid Quest Signer Signature"
@@ -295,8 +300,8 @@ contract QuestManager is IQuestManager, Initializable, ContextUpgradeable, Immut
             questMultiplier += quest.multiplier;
 
             uint256 len2 = _stakedTokens.length;
-            for (uint256 i = 0; i < len2; i++) {
-                IStakedToken(_stakedTokens[i]).applyQuestMultiplier(_accounts[i], questMultiplier);
+            for (uint256 j = 0; j < len2; j++) {
+                IStakedToken(_stakedTokens[j]).applyQuestMultiplier(_accounts[j], questMultiplier);
             }
         }
 

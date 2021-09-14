@@ -52,6 +52,8 @@ abstract contract GamifiedToken is
     /**
      * @param _nexus System nexus
      * @param _rewardsToken Token that is being distributed as a reward. eg MTA
+     * @param _questManager Centralised manager of quests
+     * @param _hasPriceCoeff true if raw staked amount is multiplied by price coeff to get staked amount. eg BPT Staked Token
      */
     constructor(
         address _nexus,
@@ -248,7 +250,7 @@ abstract contract GamifiedToken is
         Balance memory _oldBalance,
         uint256 _oldScaledBalance,
         uint8 _newMultiplier
-    ) internal updateReward(_account) {
+    ) private updateReward(_account) {
         // 1. Set the questMultiplier
         _balances[_account].questMultiplier = _newMultiplier;
 
@@ -551,5 +553,5 @@ abstract contract GamifiedToken is
         return string(bytesArray);
     }
 
-    uint256[45] private __gap;
+    uint256[46] private __gap;
 }

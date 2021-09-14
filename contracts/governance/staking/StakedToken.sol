@@ -70,6 +70,7 @@ contract StakedToken is GamifiedVotingToken {
      * @param _stakedToken Core token that is staked and tracked (e.g. MTA)
      * @param _cooldownSeconds Seconds a user must wait after she initiates her cooldown before withdrawal is possible
      * @param _unstakeWindow Window in which it is possible to withdraw, following the cooldown period
+     * @param _hasPriceCoeff true if raw staked amount is multiplied by price coeff to get staked amount. eg BPT Staked Token
      */
     constructor(
         address _nexus,
@@ -205,8 +206,9 @@ contract StakedToken is GamifiedVotingToken {
         Balance memory oldBalance = _balances[_msgSender()];
         //      If we have missed the unstake window, or the user has chosen to exit the cooldown,
         //      then reset the timestamp to 0
-        bool exitCooldown = _exitCooldown ||
-            block.timestamp > (oldBalance.cooldownTimestamp + COOLDOWN_SECONDS + UNSTAKE_WINDOW);
+        bool exitCooldown = _exitCooldown || (
+            oldBalance.cooldownTimestamp > 0 &&
+            block.timestamp > (oldBalance.cooldownTimestamp + COOLDOWN_SECONDS + UNSTAKE_WINDOW) );
         if (exitCooldown) {
             emit CooldownExited(_msgSender());
         }
@@ -429,15 +431,6 @@ contract StakedToken is GamifiedVotingToken {
     function increaseLockAmount(uint256 _value) external {
         require(balanceOf(_msgSender()) != 0, "Nothing to increase");
         _transferAndStake(_value, address(0), false);
-    }
-
-    /**
-     * @dev Does nothing, because there is no lockup here.
-     **/
-    function increaseLockLength(
-        uint256 /* _unlockTime */
-    ) external virtual {
-        return;
     }
 
     /**
