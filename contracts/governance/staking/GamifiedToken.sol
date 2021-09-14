@@ -344,7 +344,7 @@ abstract contract GamifiedToken is
         address _account,
         uint256 _rawAmount,
         bool _exitCooldown
-    ) internal virtual updateReward(_account) {
+    ) internal updateReward(_account) {
         require(_account != address(0), "ERC20: mint to the zero address");
 
         // 1. Get and update current balance
@@ -393,7 +393,7 @@ abstract contract GamifiedToken is
         uint256 _rawAmount,
         bool _exitCooldown,
         bool _finalise
-    ) internal virtual updateReward(_account) {
+    ) internal updateReward(_account) {
         require(_account != address(0), "ERC20: burn from zero address");
 
         // 1. Get and update current balance

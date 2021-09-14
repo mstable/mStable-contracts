@@ -12,15 +12,16 @@ import {
     PlatformTokenVendorFactory__factory,
     QuestManager__factory,
     SignatureVerifier__factory,
-    StakedToken,
+    StakedTokenMTA,
     StakedTokenMTA__factory,
+    UserStakingData,
 } from "types"
 import { DEAD_ADDRESS } from "index"
 import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { expect } from "chai"
 import { getTimestamp, increaseTime } from "@utils/time"
-import { assertBNClose } from "@utils/assertions"
+import { assertBNClose, assertBNClosePercent } from "@utils/assertions"
 import { formatBytes32String } from "ethers/lib/utils"
 
 export interface SnapData {
@@ -38,7 +39,7 @@ describe("Staked Token MTA rewards", () => {
     let deployTime: BN
     let nexus: MockNexus
     let rewardToken: MockERC20
-    let stakedToken: StakedToken
+    let stakedToken: StakedTokenMTA
     let rewardsVendorAddress: string
     const startingMintAmount = simpleToExactAmount(10000000)
 
@@ -109,6 +110,27 @@ describe("Staked Token MTA rewards", () => {
         }
     }
 
+    const snapshotUserStakingData = async (user = sa.default.address): Promise<UserStakingData> => {
+        const scaledBalance = await stakedToken.balanceOf(user)
+        const votes = await stakedToken.getVotes(user)
+        const earnedRewards = await stakedToken.earned(user)
+        const numCheckpoints = await stakedToken.numCheckpoints(user)
+        const rewardTokenBalance = await rewardToken.balanceOf(user)
+        const rawBalance = await stakedToken.balanceData(user)
+        const userPriceCoeff = await stakedToken.userPriceCoeff(user)
+
+        return {
+            scaledBalance,
+            votes,
+            earnedRewards,
+            numCheckpoints,
+            rewardTokenBalance,
+            rawBalance,
+            userPriceCoeff,
+            questBalance: null,
+        }
+    }
+
     before("Create test accounts", async () => {
         const accounts = await ethers.getSigners()
         const mAssetMachine = await new MassetMachine().initAccounts(accounts)
@@ -145,7 +167,24 @@ describe("Staked Token MTA rewards", () => {
     // '''..................................................................'''
 
     context("compound rewards", () => {
-        it("should compound a users rewards")
+        before(async () => {
+            await redeployStakedToken()
+            await rewardToken.connect(sa.mockRewardsDistributor.signer).transfer(stakedToken.address, simpleToExactAmount(20000))
+            await stakedToken.connect(sa.mockRewardsDistributor.signer).notifyRewardAmount(simpleToExactAmount(20000))
+
+            await stakedToken.connect(sa.dummy1.signer)["stake(uint256)"](simpleToExactAmount(100))
+        })
+        it("should compound a users rewards", async () => {
+            await increaseTime(ONE_WEEK)
+            const data = await snapshotUserStakingData(sa.dummy1.address)
+            assertBNClosePercent(data.earnedRewards, simpleToExactAmount(20000), "0.0001")
+
+            await stakedToken.connect(sa.dummy1.signer).compoundRewards()
+            const dataAfter = await snapshotUserStakingData(sa.dummy1.address)
+            expect(dataAfter.rawBalance.raw).eq(simpleToExactAmount(100).add(data.earnedRewards))
+
+            expect(await stakedToken.totalSupply()).eq(await rewardToken.balanceOf(stakedToken.address))
+        })
     })
 
     // '''..................................................................'''
@@ -153,8 +192,32 @@ describe("Staked Token MTA rewards", () => {
     // '''..................................................................'''
 
     context("collecting fees in $MTA", () => {
-        it("should collect the fees and notify as part of notification")
-        it("should add the correct amount of fees, and deposit to the vendor")
+        const stakingAmount = simpleToExactAmount(10000)
+        const redemptionFee = stakingAmount.sub(stakingAmount.mul(1000).div(1075))
+        before(async () => {
+            await redeployStakedToken()
+            await stakedToken.connect(sa.dummy1.signer)["stake(uint256)"](stakingAmount)
+            await stakedToken.connect(sa.dummy1.signer).startCooldown(stakingAmount)
+            await increaseTime(ONE_WEEK)
+        })
+        it("should collect and store the fees", async () => {
+            await stakedToken.connect(sa.dummy1.signer).withdraw(stakingAmount, sa.dummy1.address, true, false)
+            expect(await stakedToken.pendingAdditionalReward()).eq(redemptionFee)
+            expect(await rewardToken.balanceOf(stakedToken.address)).eq(redemptionFee)
+            expect(await stakedToken.totalSupply()).eq(0)
+        })
+        it("should deposit to the vendor during notification", async () => {
+            // Notify
+            await rewardToken.connect(sa.mockRewardsDistributor.signer).transfer(stakedToken.address, 1)
+            await stakedToken.connect(sa.mockRewardsDistributor.signer).notifyRewardAmount(1)
+
+            // Check all gone to platformVendor
+            expect(await rewardToken.balanceOf(await stakedToken.rewardTokenVendor())).eq(redemptionFee)
+
+            // Check 1 remaining
+            expect(await stakedToken.pendingAdditionalReward()).eq(1)
+            expect(await rewardToken.balanceOf(stakedToken.address)).eq(1)
+        })
     })
 
     context("distribute rewards", () => {
