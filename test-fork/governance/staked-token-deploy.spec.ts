@@ -493,7 +493,6 @@ context("StakedToken deployments and vault upgrades", () => {
 
             await deployedContracts.stakedTokenBPT.connect(staker1signer).withdraw(staker1bpt, staker1, true, true)
             await deployedContracts.stakedTokenMTA.connect(staker2signer).withdraw(simpleToExactAmount(40000), staker2, false, true)
-
             const staker1balend = await snapshotUserStakingData(
                 deployedContracts.stakedTokenBPT,
                 deployedContracts.questManager,
