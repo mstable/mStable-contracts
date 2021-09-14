@@ -168,20 +168,20 @@ describe("Staked Token BPT", () => {
     }
 
     const snapshotUserStakingData = async (user = sa.default.address, skipBalData = false): Promise<UserStakingData> => {
-        const stakedBalance = await stakedToken.balanceOf(user)
+        const scaledBalance = await stakedToken.balanceOf(user)
         const votes = await stakedToken.getVotes(user)
         const earnedRewards = await stakedToken.earned(user)
-        const rewardsBalance = await rewardToken.balanceOf(user)
-        const userBalances = await stakedToken.balanceData(user)
+        const rewardTokenBalance = await rewardToken.balanceOf(user)
+        const rawBalance = await stakedToken.balanceData(user)
         const userPriceCoeff = await stakedToken.userPriceCoeff(user)
         const questBalance = await questManager.balanceData(user)
 
         return {
-            stakedBalance,
+            scaledBalance,
             votes,
             earnedRewards,
-            rewardsBalance,
-            userBalances,
+            rewardTokenBalance,
+            rawBalance,
             userPriceCoeff,
             questBalance,
             balData: skipBalData ? null : await snapBalData(),

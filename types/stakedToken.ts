@@ -1,6 +1,6 @@
 import { BN } from "@utils/math"
 
-export interface UserBalances {
+export interface UserBalance {
     raw: BN
     weightedTimestamp: number
     questMultiplier: number
@@ -16,11 +16,11 @@ export interface QuestBalance {
 }
 
 export interface UserStakingData {
-    stakedBalance: BN
+    scaledBalance: BN
     votes: BN
     earnedRewards: BN
-    rewardsBalance: BN
-    userBalances: UserBalances
+    rewardTokenBalance: BN
+    rawBalance: UserBalance
     userPriceCoeff: BN
     questBalance: QuestBalance
     balData?: BalConfig

@@ -30,6 +30,7 @@ export interface StakedTokenDeployAddresses {
     questManager: string
     signatureVerifier: string
     platformTokenVendorFactory: string
+    proxyAdminAddress?: string
 }
 
 export const deployStakingToken = async (
@@ -48,7 +49,9 @@ export const deployStakingToken = async (
     const questMasterAddress = getChainAddress("QuestMaster", chain)
     const questSignerAddress = overrideSigner ?? getChainAddress("QuestSigner", chain)
     const delayedProxyAdminAddress = getChainAddress("DelayedProxyAdmin", chain)
-    let proxyAdminAddress = getChainAddress("ProxyAdmin", chain)
+    let proxyAdminAddress = overrides
+        ? overrides.proxyAdminAddress ?? getChainAddress("ProxyAdmin", chain)
+        : getChainAddress("ProxyAdmin", chain)
 
     if (!proxyAdminAddress) {
         const proxyAdmin = await deployContract(new InstantProxyAdmin__factory(deployer.signer), "InstantProxyAdmin")
@@ -202,5 +205,6 @@ export const deployStakingToken = async (
         questManager: questManagerAddress,
         signatureVerifier: signatureVerifierAddress,
         platformTokenVendorFactory: platformTokenVendorFactoryAddress,
+        proxyAdminAddress,
     }
 }
