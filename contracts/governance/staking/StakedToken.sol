@@ -8,6 +8,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Root } from "../../shared/Root.sol";
+import { InitializableReentrancyGuard } from "../../shared/InitializableReentrancyGuard.sol";
 import "./deps/GamifiedTokenStructs.sol";
 
 /**
@@ -25,7 +26,7 @@ import "./deps/GamifiedTokenStructs.sol";
  * @dev Only whitelisted contracts can communicate with this contract, in order to avoid having tokenised wrappers that
  * could potentially circumvent our unstaking procedure.
  **/
-contract StakedToken is GamifiedVotingToken {
+contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
     using SafeERC20 for IERC20;
 
     /// @notice Core token that is staked and tracked (e.g. MTA)
@@ -97,6 +98,7 @@ contract StakedToken is GamifiedVotingToken {
         address _rewardsDistributorArg
     ) public initializer {
         __GamifiedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg);
+        _initializeReentrancyGuard();
         safetyData = SafetyData({ collateralisationRatio: 1e18, slashingPercentage: 0 });
     }
 
@@ -206,9 +208,10 @@ contract StakedToken is GamifiedVotingToken {
         Balance memory oldBalance = _balances[_msgSender()];
         //      If we have missed the unstake window, or the user has chosen to exit the cooldown,
         //      then reset the timestamp to 0
-        bool exitCooldown = _exitCooldown || (
-            oldBalance.cooldownTimestamp > 0 &&
-            block.timestamp > (oldBalance.cooldownTimestamp + COOLDOWN_SECONDS + UNSTAKE_WINDOW) );
+        bool exitCooldown = _exitCooldown ||
+            (oldBalance.cooldownTimestamp > 0 &&
+                block.timestamp >
+                (oldBalance.cooldownTimestamp + COOLDOWN_SECONDS + UNSTAKE_WINDOW));
         if (exitCooldown) {
             emit CooldownExited(_msgSender());
         }

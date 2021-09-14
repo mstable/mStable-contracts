@@ -53,7 +53,7 @@ contract StakedTokenMTA is StakedToken {
      * for example, with $MTA as both staking token and rewards token. Calls 'claimRewards' on the HeadlessStakingRewards
      * before executing a stake here
      */
-    function compoundRewards() external {
+    function compoundRewards() external nonReentrant {
         require(address(STAKED_TOKEN) == address(REWARDS_TOKEN), "Only for same pairs");
 
         // 1. claim rewards

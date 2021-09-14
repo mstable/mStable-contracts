@@ -137,7 +137,7 @@ contract StakedTokenBPT is StakedToken {
     /**
      * @dev Converts fees accrued in BPT into MTA, before depositing to the rewards contract
      */
-    function convertFees() external {
+    function convertFees() external nonReentrant {
         uint256 pendingBPT = pendingBPTFees;
         require(pendingBPT > 1, "Must have something to convert");
         pendingBPTFees = 1;
