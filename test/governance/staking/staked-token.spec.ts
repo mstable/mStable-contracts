@@ -1815,18 +1815,17 @@ describe("Staked Token", () => {
                     // Complete permanent quest
                     const signature = await signQuestUsers(newSeasonQuestId, [userAddress], sa.questSigner.signer)
                     await questManager.connect(sa.questSigner.signer).completeQuestUsers(newSeasonQuestId, [userAddress], signature)
-                    const completeQuestTimestamp = await getTimestamp()
 
                     const afterData = await snapshotUserStakingData(userAddress)
                     expect(afterData.rawBalance.raw, "staked raw balance after").to.eq(stakedAmount)
                     expect(afterData.rawBalance.weightedTimestamp, "weighted timestamp after").to.eq(stakedTimestamp)
-                    // expect(afterData.questBalance.lastAction, "last action after").to.eq(completeQuestTimestamp)
+                    expect(afterData.questBalance.lastAction, "last action after").to.eq(stakedTimestamp)
                     expect(afterData.questBalance.permMultiplier, "perm multiplier after").to.eq(0)
                     expect(afterData.questBalance.seasonMultiplier, "season multiplier after").to.eq(50)
                     expect(afterData.rawBalance.timeMultiplier, "time multiplier after").to.eq(20)
-                    const votesExpected = stakedAmount.mul(100 + 20 + 50).div(100)
-                    // expect(afterData.scaledBalance, "staked balance after").to.eq(votesExpected)
-                    // expect(afterData.votes, "staker votes after").to.eq(votesExpected)
+                    const votesExpected = stakedAmount.mul(120).mul(150).div(10000)
+                    expect(afterData.scaledBalance, "staked balance after").to.eq(votesExpected)
+                    expect(afterData.votes, "staker votes after").to.eq(votesExpected)
                 })
                 context("should fail", () => {
                     let userAddress: string
