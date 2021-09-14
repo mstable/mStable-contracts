@@ -153,6 +153,7 @@ context("StakedToken deployments and vault upgrades", () => {
             earnedRewards,
             rewardTokenBalance,
             rawBalance,
+            numCheckpoints: 0,
             userPriceCoeff,
             questBalance,
             balData: skipBalData ? null : await snapBalData(stakedToken as StakedTokenBPT),

@@ -248,7 +248,7 @@ abstract contract GamifiedToken is
         Balance memory _oldBalance,
         uint256 _oldScaledBalance,
         uint8 _newMultiplier
-    ) internal updateReward(_account) {
+    ) private updateReward(_account) {
         // 1. Set the questMultiplier
         _balances[_account].questMultiplier = _newMultiplier;
 
