@@ -1,12 +1,12 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address"
 import { formatUnits } from "@ethersproject/units"
-import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
-import { assertBNClose } from "@utils/assertions"
+import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS, DEAD_ADDRESS } from "@utils/constants"
+import { assertBNClose, assertBNClosePercent } from "@utils/assertions"
 import { impersonate } from "@utils/fork"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { increaseTime, getTimestamp } from "@utils/time"
 import { expect } from "chai"
-import { Signer } from "ethers"
+import { Signer, utils } from "ethers"
 import * as hre from "hardhat"
 import { deployStakingToken, StakedTokenData, StakedTokenDeployAddresses } from "tasks/utils/rewardsUtils"
 import { arrayify, formatBytes32String, solidityKeccak256 } from "ethers/lib/utils"
@@ -26,7 +26,14 @@ import {
     StakedTokenMTA__factory,
     StakedTokenBPT__factory,
     DelayedProxyAdmin__factory,
+    InstantProxyAdmin__factory,
+    DelayedProxyAdmin,
+    InstantProxyAdmin,
+    IMStableVoterProxy,
     IMStableVoterProxy__factory,
+    IncentivisedVotingLockup__factory,
+    BoostedVault,
+    BoostedVault__factory,
     StakedToken,
 } from "types/generated"
 import { RewardsDistributorEth__factory } from "types/generated/factories/RewardsDistributorEth__factory"
@@ -37,7 +44,6 @@ const governorAddress = "0xF6FF1F7FCEB2cE6d26687EaaB5988b445d0b94a2"
 const ethWhaleAddress = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 const mStableVoterProxy = "0x10d96b1fd46ce7ce092aa905274b8ed9d4585a6e"
 const sharedBadgerGov = "0xca045cc466f14c33a516d98abcab5c55c2f5112c"
-const badgerHarvester = "0x872213e29c85d7e30f1c8202fc47ed1ec124bb1d"
 const deployerAddress = "0xb81473f20818225302b8fffb905b53d58a793d84"
 
 const staker1 = "0x19F12C947D25Ff8a3b748829D8001cA09a28D46d"
@@ -62,6 +68,8 @@ interface StakedTokenDeployment {
     mta: IERC20
     bpt: IERC20
     boostDirector: BoostDirectorV2
+    proxyAdmin: InstantProxyAdmin
+    delayedProxyAdmin: DelayedProxyAdmin
 }
 
 // 1. Deploy core stkMTA, BPT variant & QuestManager
@@ -131,20 +139,20 @@ context("StakedToken deployments and vault upgrades", () => {
         user: string,
         skipBalData = false,
     ): Promise<UserStakingData> => {
-        const stakedBalance = await stakedToken.balanceOf(user)
+        const scaledBalance = await stakedToken.balanceOf(user)
         const votes = await stakedToken.getVotes(user)
         const earnedRewards = await stakedToken.earned(user)
-        const rewardsBalance = await rewardToken.balanceOf(user)
-        const userBalances = await stakedToken.balanceData(user)
+        const rewardTokenBalance = await rewardToken.balanceOf(user)
+        const rawBalance = await stakedToken.balanceData(user)
         const userPriceCoeff = await stakedToken.userPriceCoeff(user)
         const questBalance = await questManager.balanceData(user)
 
         return {
-            stakedBalance,
+            scaledBalance,
             votes,
             earnedRewards,
-            rewardsBalance,
-            userBalances,
+            rewardTokenBalance,
+            rawBalance,
             userPriceCoeff,
             questBalance,
             balData: skipBalData ? null : await snapBalData(stakedToken as StakedTokenBPT),
@@ -225,6 +233,8 @@ context("StakedToken deployments and vault upgrades", () => {
                 mta: IERC20__factory.connect(resolveAddress("MTA", 0), deployer),
                 bpt: IERC20__factory.connect(resolveAddress("BPT", 0), deployer),
                 boostDirector: BoostDirectorV2__factory.connect(resolveAddress("BoostDirector", 0), governor),
+                proxyAdmin: InstantProxyAdmin__factory.connect(stakedTokenMTA.proxyAdminAddress, governor),
+                delayedProxyAdmin: DelayedProxyAdmin__factory.connect(resolveAddress("DelayedProxyAdmin", 0), governor),
             }
         })
         it("verifies stakedTokenMTA config", async () => {
@@ -318,9 +328,7 @@ context("StakedToken deployments and vault upgrades", () => {
     })
 
     const signUserQuests = async (user: string, questIds: number[], signer: SignerWithAddress): Promise<string> => {
-        console.log("x")
         const messageHash = solidityKeccak256(["address", "uint256[]"], [user, questIds])
-        console.log("x")
         const signature = await signer.signMessage(arrayify(messageHash))
         return signature
     }
@@ -379,28 +387,135 @@ context("StakedToken deployments and vault upgrades", () => {
             expect(balAfter.questBalance.permMultiplier).eq(10)
             expect(balAfter.questBalance.lastAction).eq(0)
             expect(balAfter.earnedRewards).gt(0)
-            expect(balAfter.stakedBalance).eq(balBefore.stakedBalance.mul(110).div(100))
-            expect(balAfter.votes).eq(balAfter.stakedBalance)
+            expect(balAfter.scaledBalance).eq(balBefore.scaledBalance.mul(110).div(100))
+            expect(balAfter.votes).eq(balAfter.scaledBalance)
             expect(await deployedContracts.questManager.hasCompleted(staker1, 0)).eq(true)
         })
+        const calcBoost = (raw: BN, vMTA: BN, priceCoefficient = simpleToExactAmount(1)): BN => {
+            const maxVMTA = simpleToExactAmount(600000, 18)
+            const maxBoost = simpleToExactAmount(3, 18)
+            const minBoost = simpleToExactAmount(1, 18)
+            const floor = simpleToExactAmount(98, 16)
+            const coeff = BN.from(9)
+            // min(m, max(d, (d * 0.95) + c * min(vMTA, f) / USD^b))
+            const scaledBalance = raw.mul(priceCoefficient).div(simpleToExactAmount(1, 18))
 
-        // staker 1 just call staticBalance on the boost director
-        // staker 2 poke boost on the gusd fPool and check the multiplier
-        // staker 3 (no stake) poke boost and see it go to 0 multiplier
+            if (scaledBalance.lt(simpleToExactAmount(1, 18))) return simpleToExactAmount(1)
+
+            let denom = parseFloat(utils.formatUnits(scaledBalance))
+            denom **= 0.75
+            const flooredMTA = vMTA.gt(maxVMTA) ? maxVMTA : vMTA
+            let rhs = floor.add(flooredMTA.mul(coeff).div(10).mul(simpleToExactAmount(1)).div(simpleToExactAmount(denom)))
+            rhs = rhs.gt(minBoost) ? rhs : minBoost
+            return rhs.gt(maxBoost) ? maxBoost : rhs
+        }
         it("should fetch the correct balances from the BoostDirector", async () => {
-            // TODO
+            // staker 1 just call staticBalance on the boost director
+            await deployedContracts.boostDirector.whitelistVaults([deployerAddress])
+            const bal1 = await deployedContracts.boostDirector.connect(deployer).callStatic.getBalance(staker1)
+            const staker1bal1 = await snapshotUserStakingData(
+                deployedContracts.stakedTokenMTA,
+                deployedContracts.questManager,
+                deployedContracts.mta,
+                staker1,
+                true,
+            )
+            const staker1bal2 = await snapshotUserStakingData(
+                deployedContracts.stakedTokenBPT,
+                deployedContracts.questManager,
+                deployedContracts.mta,
+                staker1,
+                true,
+            )
+            expect(bal1).eq(staker1bal1.scaledBalance.add(staker1bal2.scaledBalance).div(12))
+
+            // staker 2 poke boost on the gusd fPool and check the multiplier
+            const gusdPool = BoostedVault__factory.connect("0xAdeeDD3e5768F7882572Ad91065f93BA88343C99", staker2signer)
+            const boost2 = await gusdPool.getBoost(staker2)
+            const rawBal2 = await gusdPool.rawBalanceOf(staker2)
+            await gusdPool.pokeBoost(staker2)
+            const boost2after = await gusdPool.getBoost(staker2)
+            expect(boost2after).not.eq(boost2)
+            assertBNClosePercent(boost2after, calcBoost(rawBal2, simpleToExactAmount(100000).div(12)), "0.001")
+
+            // staker 3 (no stake) poke boost and see it go to 0 multiplier
+            const btcPool = BoostedVault__factory.connect("0xF38522f63f40f9Dd81aBAfD2B8EFc2EC958a3016", staker2signer)
+            const boost3 = await btcPool.getBoost("0x25953c127efd1e15f4d2be82b753d49b12d626d7")
+            await btcPool.pokeBoost("0x25953c127efd1e15f4d2be82b753d49b12d626d7")
+            const boost3after = await btcPool.getBoost("0x25953c127efd1e15f4d2be82b753d49b12d626d7")
+            expect(boost3).gt(simpleToExactAmount(2))
+            expect(boost3after).eq(simpleToExactAmount(1))
         })
         // staker 1 withdraws from BPT
         // staker 2 withdraws from MTA
-        // TODO - add light balance verification here
         it("should allow users to enter cooldown and withdraw", async () => {
+            const staker1balbefore = await snapshotUserStakingData(
+                deployedContracts.stakedTokenBPT,
+                deployedContracts.questManager,
+                deployedContracts.mta,
+                staker1,
+                false,
+            )
+            const staker2balbefore = await snapshotUserStakingData(
+                deployedContracts.stakedTokenMTA,
+                deployedContracts.questManager,
+                deployedContracts.mta,
+                staker2,
+                true,
+            )
             await deployedContracts.stakedTokenBPT.connect(staker1signer).startCooldown(staker1bpt)
             await deployedContracts.stakedTokenMTA.connect(staker2signer).startCooldown(simpleToExactAmount(50000))
+
+            const staker1balmid = await snapshotUserStakingData(
+                deployedContracts.stakedTokenBPT,
+                deployedContracts.questManager,
+                deployedContracts.mta,
+                staker1,
+                false,
+            )
+            const staker2balmid = await snapshotUserStakingData(
+                deployedContracts.stakedTokenMTA,
+                deployedContracts.questManager,
+                deployedContracts.mta,
+                staker2,
+                true,
+            )
+
+            expect(staker1balmid.scaledBalance).eq(0)
+            expect(staker1balmid.rawBalance.raw).eq(0)
+            expect(staker1balmid.rawBalance.cooldownUnits).eq(staker1bpt)
+
+            expect(staker2balmid.scaledBalance).eq(staker2balbefore.scaledBalance.div(2))
+            expect(staker2balmid.rawBalance.raw).eq(simpleToExactAmount(50000))
+            expect(staker2balmid.rawBalance.cooldownUnits).eq(simpleToExactAmount(50000))
 
             await increaseTime(ONE_WEEK.mul(3).add(1))
 
             await deployedContracts.stakedTokenBPT.connect(staker1signer).withdraw(staker1bpt, staker1, true, true)
             await deployedContracts.stakedTokenMTA.connect(staker2signer).withdraw(simpleToExactAmount(40000), staker2, false, true)
+            const staker1balend = await snapshotUserStakingData(
+                deployedContracts.stakedTokenBPT,
+                deployedContracts.questManager,
+                deployedContracts.mta,
+                staker1,
+                false,
+            )
+            const staker2balend = await snapshotUserStakingData(
+                deployedContracts.stakedTokenMTA,
+                deployedContracts.questManager,
+                deployedContracts.mta,
+                staker2,
+                true,
+            )
+
+            expect(staker1balend.scaledBalance).eq(0)
+            expect(staker1balend.rawBalance.raw).eq(0)
+            expect(staker1balend.rawBalance.cooldownUnits).eq(0)
+
+            assertBNClosePercent(staker2balend.scaledBalance, BN.from("57000009920800000000000"), "0.001")
+            assertBNClosePercent(staker2balend.rawBalance.raw, BN.from("57000009920800000000000"), "0.001")
+            expect(staker2balend.rawBalance.cooldownUnits).eq(0)
+            expect(staker2balend.rawBalance.cooldownTimestamp).eq(0)
         })
         it("should allow recycling of BPT redemption fees", async () => {
             const fees = await deployedContracts.stakedTokenBPT.pendingBPTFees()
@@ -415,36 +530,74 @@ context("StakedToken deployments and vault upgrades", () => {
             expect(priceCoeff).lt(await deployedContracts.stakedTokenBPT.priceCoefficient())
         })
         it("should allow immediate upgrades of staking tokens", async () => {
-            // TODO:
             //  - get impl addr from ProxyAdmin and check (this verifies that its owned by ProxyAdmin)
+            expect(await deployedContracts.proxyAdmin.getProxyAdmin(deployedContracts.stakedTokenMTA.address)).eq(
+                deployedContracts.proxyAdmin.address,
+            )
+            expect(await deployedContracts.proxyAdmin.getProxyAdmin(deployedContracts.stakedTokenBPT.address)).eq(
+                deployedContracts.proxyAdmin.address,
+            )
             //  - Propose it again through the ProxyAdmin
+            await deployedContracts.proxyAdmin.changeProxyAdmin(deployedContracts.stakedTokenMTA.address, DEAD_ADDRESS)
         })
         it("should allow proposal of upgrades for questManager", async () => {
-            // TODO:
             //  - get impl addr from DelayedProxyAdmin and check (this verifies that its owned by DelayedProxyAdmin)
+            expect(await deployedContracts.delayedProxyAdmin.getProxyAdmin(deployedContracts.questManager.address)).eq(
+                deployedContracts.delayedProxyAdmin.address,
+            )
             //  - Propose it again through the DelayedProxyAdmin
+            await deployedContracts.delayedProxyAdmin
+                .connect(governor)
+                .proposeUpgrade(deployedContracts.questManager.address, DEAD_ADDRESS, "0x")
         })
     })
     context("5. Finalise", () => {
         it("should add all launch rewards", async () => {
-            // TODO:
             //  - Add the rewards (32.5k, 20k) to each stakedtoken
+            const fundManager = await impersonate(resolveAddress("FundManager", 0))
+            const rewardsDistributor = RewardsDistributorEth__factory.connect(resolveAddress("RewardsDistributor", 0), fundManager)
+            await rewardsDistributor
+                .connect(fundManager)
+                .distributeRewards(
+                    [deployedContracts.stakedTokenMTA.address, deployedContracts.stakedTokenBPT.address],
+                    [simpleToExactAmount(32500), simpleToExactAmount(20000)],
+                )
         })
         it("should expire the old staking contract", async () => {
-            // TODO
             //  - Expire old staking contract
+            const votingLockup = IncentivisedVotingLockup__factory.connect(resolveAddress("IncentivisedVotingLockup", 0), governor)
+            await votingLockup.expireContract()
             //  - Check that it's possible to exit for all users
+            expect(await votingLockup.expired()).eq(true)
+
+            const activeUser = await impersonate("0xd4e692eb01861f2bc0534b9a1afd840719648c49")
+            await votingLockup.connect(activeUser).exit()
         })
     })
     context("6. Test Badger migration", () => {
         it("should allow badger to stake in new contract", async () => {
-            // TODO:
-            // 1. it should fail to change addr unless exited
+            const badgerGovSigner = await impersonate(sharedBadgerGov)
+            const voterProxy = IMStableVoterProxy__factory.connect(mStableVoterProxy, badgerGovSigner)
+            // 1. it should fail to change addr unless exited - this can be skipped as bias is now 0
+            // await expect(voterProxy.changeLockAddress(deployedContracts.stakedTokenMTA.address)).to.be.revertedWith("Active lockup")
             // 2. Exit from old (exit)
+            await voterProxy.connect(governor).exitLock()
             // 3. Update address ()
+            await voterProxy.changeLockAddress(deployedContracts.stakedTokenMTA.address)
             // 4. fail when calling harvestMta or increaseLockAmount/length
+            await expect(voterProxy.connect(governor).harvestMta()).to.be.revertedWith("Nothing to increase")
+            await expect(voterProxy.extendLock(BN.from(5000000))).to.be.reverted
             // 5. call createLock
+            await voterProxy.createLock(BN.from(5000000))
             // 6. Check output
+            const userData = await snapshotUserStakingData(
+                deployedContracts.stakedTokenMTA,
+                deployedContracts.questManager,
+                deployedContracts.mta,
+                voterProxy.address,
+                true,
+            )
+            expect(userData.rawBalance.raw).gt(simpleToExactAmount(500000))
         })
     })
 })
