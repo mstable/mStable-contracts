@@ -1556,7 +1556,7 @@ describe("Staked Token", () => {
 
                 const signature = await signUserQuests(sa.dummy1.address, [id], sa.questSigner.signer)
                 const tx = questManager.connect(sa.default.signer).completeUserQuests(sa.dummy1.address, [id], signature)
-                await expect(tx).revertedWith("Err: Invalid Quest")
+                await expect(tx).revertedWith("Invalid Quest ID")
             })
             it("should expire quest after expiry", async () => {
                 const tx0 = await questManager.connect(sa.governor.signer).addQuest(QuestType.PERMANENT, 5, expiry)
@@ -1706,44 +1706,60 @@ describe("Staked Token", () => {
                 await increaseTime(ONE_DAY)
             })
             context("complete multiple users of a quest", () => {
-                it("should complete a permanent quest for 4 users", async () => {
-                    const user1Address = sa.dummy1.address
-                    const user2Address = sa.dummy2.address
-                    const user3Address = sa.dummy3.address
-                    const user4Address = sa.dummy4.address
-                    expect(await questManager.hasCompleted(user1Address, permanentQuestId), "user 1 quest completed before").to.be.false
-                    expect(await questManager.hasCompleted(user2Address, permanentQuestId), "user 2 quest completed before").to.be.false
-                    expect(await questManager.hasCompleted(user3Address, permanentQuestId), "user 3 quest completed before").to.be.false
-                    expect(await questManager.hasCompleted(user4Address, permanentQuestId), "user 4 quest completed before").to.be.false
+                const tests: ("permanent" | "season")[] = ["permanent", "season"]
+                tests.forEach((questType, i) => {
+                    it(`should complete ${questType} quest for 4 users`, async () => {
+                        const questId = permanentQuestId.add(i)
+                        const user1Address = sa.dummy1.address
+                        const user2Address = sa.dummy2.address
+                        const user3Address = sa.dummy3.address
+                        const user4Address = sa.dummy4.address
+                        expect(await questManager.hasCompleted(user1Address, questId), "user 1 quest completed before").to.be.false
+                        expect(await questManager.hasCompleted(user2Address, questId), "user 2 quest completed before").to.be.false
+                        expect(await questManager.hasCompleted(user3Address, questId), "user 3 quest completed before").to.be.false
+                        expect(await questManager.hasCompleted(user4Address, questId), "user 4 quest completed before").to.be.false
 
-                    // Complete User Permanent and Seasonal Quests
-                    const signature = await signQuestUsers(
-                        permanentQuestId,
-                        [user1Address, user2Address, user3Address, user4Address],
-                        sa.questSigner.signer,
-                    )
-                    const tx = await questManager
-                        .connect(sa.questSigner.signer)
-                        .completeQuestUsers(permanentQuestId, [user1Address, user2Address, user3Address, user4Address], signature)
+                        // Complete User Permanent and Seasonal Quests
+                        const signature = await signQuestUsers(
+                            questId,
+                            [user1Address, user2Address, user3Address, user4Address],
+                            sa.questSigner.signer,
+                        )
+                        const tx = await questManager
+                            .connect(sa.questSigner.signer)
+                            .completeQuestUsers(questId, [user1Address, user2Address, user3Address, user4Address], signature)
 
-                    const completeQuestTimestamp = await getTimestamp()
+                        const completeQuestTimestamp = await getTimestamp()
 
-                    // Check events
-                    await expect(tx)
-                        .to.emit(questManager, "QuestCompleteUsers")
-                        .withArgs(permanentQuestId, [user1Address, user2Address, user3Address, user4Address])
+                        // Check events
+                        await expect(tx)
+                            .to.emit(questManager, "QuestCompleteUsers")
+                            .withArgs(questId, [user1Address, user2Address, user3Address, user4Address])
 
-                    // Check data
-                    expect(await questManager.hasCompleted(user1Address, permanentQuestId), "user 1 quest completed after").to.be.true
-                    expect(await questManager.hasCompleted(user2Address, permanentQuestId), "user 2 quest completed after").to.be.true
-                    const user1DataAfter = await snapshotUserStakingData(user1Address)
-                    expect(user1DataAfter.questBalance.lastAction, "user 1 last action after").to.eq(completeQuestTimestamp)
-                    expect(user1DataAfter.questBalance.permMultiplier, "user 1 perm multiplier after").to.eq(permanentMultiplier)
-                    expect(user1DataAfter.questBalance.seasonMultiplier, "user 1 season multiplier after").to.eq(0)
-                    const user2DataAfter = await snapshotUserStakingData(user2Address)
-                    expect(user2DataAfter.questBalance.lastAction, "user 2 last action after").to.eq(completeQuestTimestamp)
-                    expect(user2DataAfter.questBalance.permMultiplier, "user 2 perm multiplier after").to.eq(permanentMultiplier)
-                    expect(user2DataAfter.questBalance.seasonMultiplier, "user 2 season multiplier after").to.eq(0)
+                        // Check data
+                        expect(await questManager.hasCompleted(user1Address, questId), "user 1 quest completed after").to.be.true
+                        expect(await questManager.hasCompleted(user2Address, questId), "user 2 quest completed after").to.be.true
+                        // User 1
+                        const user1DataAfter = await snapshotUserStakingData(user1Address)
+                        expect(user1DataAfter.questBalance.lastAction, "user 1 last action after").to.eq(completeQuestTimestamp)
+                        if (questType === "permanent") {
+                            expect(user1DataAfter.questBalance.permMultiplier, "user 1 perm multiplier after").to.eq(permanentMultiplier)
+                            expect(user1DataAfter.questBalance.seasonMultiplier, "user 1 season multiplier after").to.eq(0)
+                        } else {
+                            expect(user1DataAfter.questBalance.permMultiplier, "user 1 perm multiplier after").to.eq(0)
+                            expect(user1DataAfter.questBalance.seasonMultiplier, "user 1 season multiplier after").to.eq(seasonMultiplier)
+                        }
+                        // User 2
+                        const user2DataAfter = await snapshotUserStakingData(user2Address)
+                        expect(user2DataAfter.questBalance.lastAction, "user 2 last action after").to.eq(completeQuestTimestamp)
+                        if (questType === "permanent") {
+                            expect(user2DataAfter.questBalance.permMultiplier, "user 2 perm multiplier after").to.eq(permanentMultiplier)
+                            expect(user2DataAfter.questBalance.seasonMultiplier, "user 2 season multiplier after").to.eq(0)
+                        } else {
+                            expect(user2DataAfter.questBalance.permMultiplier, "user 2 perm multiplier after").to.eq(0)
+                            expect(user2DataAfter.questBalance.seasonMultiplier, "user 2 season multiplier after").to.eq(seasonMultiplier)
+                        }
+                    })
                 })
                 context("should fail", () => {
                     let userAddress: string
