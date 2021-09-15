@@ -46,6 +46,7 @@ const ethWhaleAddress = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 
 const staker1 = "0x19F12C947D25Ff8a3b748829D8001cA09a28D46d"
 const staker2 = "0x0fc4b69958cb2fa320a96d54168b89953a953fbf"
+const staker3 = "0x25953c127efd1e15f4d2be82b753d49b12d626d7"
 
 const vaultAddresses = [
     resolveAddress("mUSD", Chain.mainnet, "vault"),
@@ -165,7 +166,7 @@ context("StakedToken deployments and vault upgrades", () => {
                 {
                     forking: {
                         jsonRpcUrl: process.env.NODE_URL,
-                        blockNumber: 13198333,
+                        // blockNumber: 13198333,
                     },
                 },
             ],
@@ -229,11 +230,11 @@ context("StakedToken deployments and vault upgrades", () => {
                     stakedTokenMTA.platformTokenVendorFactory,
                     deployer,
                 ),
-                mta: IERC20__factory.connect(resolveAddress("MTA", 0), deployer),
-                bpt: IERC20__factory.connect(resolveAddress("BPT", 0), deployer),
-                boostDirector: BoostDirectorV2__factory.connect(resolveAddress("BoostDirector", 0), governor),
+                mta: IERC20__factory.connect(resolveAddress("MTA"), deployer),
+                bpt: IERC20__factory.connect(resolveAddress("BPT"), deployer),
+                boostDirector: BoostDirectorV2__factory.connect(resolveAddress("BoostDirector"), governor),
                 proxyAdmin: InstantProxyAdmin__factory.connect(stakedTokenMTA.proxyAdminAddress, governor),
-                delayedProxyAdmin: DelayedProxyAdmin__factory.connect(resolveAddress("DelayedProxyAdmin", 0), governor),
+                delayedProxyAdmin: DelayedProxyAdmin__factory.connect(resolveAddress("DelayedProxyAdmin"), governor),
             }
         })
         it("verifies stakedTokenMTA config", async () => {
@@ -241,10 +242,10 @@ context("StakedToken deployments and vault upgrades", () => {
             expect(config.name).eq("StakedTokenMTA")
             expect(config.symbol).eq("stkMTA")
             expect(config.decimals).eq(18)
-            expect(config.rewardsDistributor).eq(resolveAddress("RewardsDistributor", 0))
-            expect(config.nexus).eq(resolveAddress("Nexus", 0))
-            expect(config.stakingToken).eq(resolveAddress("MTA", 0))
-            expect(config.rewardToken).eq(resolveAddress("MTA", 0))
+            expect(config.rewardsDistributor).eq(resolveAddress("RewardsDistributor"))
+            expect(config.nexus).eq(resolveAddress("Nexus"))
+            expect(config.stakingToken).eq(resolveAddress("MTA"))
+            expect(config.rewardToken).eq(resolveAddress("MTA"))
             expect(config.cooldown).eq(ONE_WEEK.mul(3))
             expect(config.unstake).eq(ONE_WEEK.mul(2))
             expect(config.questManager).eq(deployedContracts.questManager.address)
@@ -257,10 +258,10 @@ context("StakedToken deployments and vault upgrades", () => {
             expect(config.name).eq("StakedTokenBPT")
             expect(config.symbol).eq("stkBPT")
             expect(config.decimals).eq(18)
-            expect(config.rewardsDistributor).eq(resolveAddress("RewardsDistributor", 0))
-            expect(config.nexus).eq(resolveAddress("Nexus", 0))
-            expect(config.stakingToken).eq(resolveAddress("BPT", 0))
-            expect(config.rewardToken).eq(resolveAddress("MTA", 0))
+            expect(config.rewardsDistributor).eq(resolveAddress("RewardsDistributor"))
+            expect(config.nexus).eq(resolveAddress("Nexus"))
+            expect(config.stakingToken).eq(resolveAddress("BPT"))
+            expect(config.rewardToken).eq(resolveAddress("MTA"))
             expect(config.cooldown).eq(ONE_WEEK.mul(3))
             expect(config.unstake).eq(ONE_WEEK.mul(2))
             expect(config.questManager).eq(deployedContracts.questManager.address)
@@ -268,10 +269,10 @@ context("StakedToken deployments and vault upgrades", () => {
             expect(config.colRatio).eq(simpleToExactAmount(1))
             expect(config.slashingPercentage).eq(0)
             const data = await snapBalData(deployedContracts.stakedTokenBPT)
-            expect(await deployedContracts.stakedTokenBPT.BAL()).eq(resolveAddress("BAL", 0))
-            expect(await deployedContracts.stakedTokenBPT.balancerVault()).eq(resolveAddress("BalancerVault", 0))
-            expect(await deployedContracts.stakedTokenBPT.poolId()).eq(resolveAddress("BalancerStakingPoolId", 0))
-            expect(data.balRecipient).eq(resolveAddress("FundManager", 0))
+            expect(await deployedContracts.stakedTokenBPT.BAL()).eq(resolveAddress("BAL"))
+            expect(await deployedContracts.stakedTokenBPT.balancerVault()).eq(resolveAddress("BalancerVault"))
+            expect(await deployedContracts.stakedTokenBPT.poolId()).eq(resolveAddress("BalancerStakingPoolId"))
+            expect(data.balRecipient).eq(resolveAddress("FundManager"))
             expect(data.keeper).eq(ZERO_ADDRESS)
             expect(data.pendingBPTFees).eq(0)
             expect(data.priceCoefficient).eq(42550)
@@ -285,8 +286,8 @@ context("StakedToken deployments and vault upgrades", () => {
 
             expect(seasonEpoch).eq(0)
             expect(startTime).gt(1631197683)
-            expect(questMaster).eq(resolveAddress("QuestMaster", 0))
-            expect(nexus).eq(resolveAddress("Nexus", 0))
+            expect(questMaster).eq(resolveAddress("QuestMaster"))
+            expect(nexus).eq(resolveAddress("Nexus"))
         })
     })
     context("2. Sending Gov Tx's", () => {
@@ -305,8 +306,8 @@ context("StakedToken deployments and vault upgrades", () => {
             await deployedContracts.questManager.connect(governor).addQuest(QuestType.SEASONAL, 25, currentTime.add(ONE_WEEK).add(2))
         })
         it("adds small amount of rewards to both reward contracts", async () => {
-            const fundManager = await impersonate(resolveAddress("FundManager", 0))
-            const rewardsDistributor = RewardsDistributorEth__factory.connect(resolveAddress("RewardsDistributor", 0), fundManager)
+            const fundManager = await impersonate(resolveAddress("OperationsSigner"))
+            const rewardsDistributor = RewardsDistributorEth__factory.connect(resolveAddress("RewardsDistributor"), fundManager)
             await rewardsDistributor
                 .connect(fundManager)
                 .distributeRewards(
@@ -321,7 +322,7 @@ context("StakedToken deployments and vault upgrades", () => {
     // TODO
     context("3. Vault upgrades", () => {
         it("should upgrade all vaults", async () => {
-            const proxyAdmin = await DelayedProxyAdmin__factory.connect(resolveAddress("DelayedProxyAdmin", 0), governor)
+            const proxyAdmin = await DelayedProxyAdmin__factory.connect(resolveAddress("DelayedProxyAdmin"), governor)
             await Promise.all(vaultAddresses.map((v) => proxyAdmin.acceptUpgradeRequest(v)))
         })
         it("should verify the vault upgrades have executed successfully and all behaviour is in tact")
@@ -430,7 +431,8 @@ context("StakedToken deployments and vault upgrades", () => {
             expect(bal1).eq(staker1bal1.scaledBalance.add(staker1bal2.scaledBalance).div(12))
 
             // staker 2 poke boost on the gusd fPool and check the multiplier
-            const gusdPool = BoostedVault__factory.connect("0xAdeeDD3e5768F7882572Ad91065f93BA88343C99", staker2signer)
+            const gusdVaultAddress = resolveAddress("GUSD", Chain.mainnet, "vault")
+            const gusdPool = BoostedVault__factory.connect(gusdVaultAddress, staker2signer)
             const boost2 = await gusdPool.getBoost(staker2)
             const rawBal2 = await gusdPool.rawBalanceOf(staker2)
             await gusdPool.pokeBoost(staker2)
@@ -439,10 +441,11 @@ context("StakedToken deployments and vault upgrades", () => {
             assertBNClosePercent(boost2after, calcBoost(rawBal2, simpleToExactAmount(100000).div(12)), "0.001")
 
             // staker 3 (no stake) poke boost and see it go to 0 multiplier
-            const btcPool = BoostedVault__factory.connect("0xF38522f63f40f9Dd81aBAfD2B8EFc2EC958a3016", staker2signer)
-            const boost3 = await btcPool.getBoost("0x25953c127efd1e15f4d2be82b753d49b12d626d7")
-            await btcPool.pokeBoost("0x25953c127efd1e15f4d2be82b753d49b12d626d7")
-            const boost3after = await btcPool.getBoost("0x25953c127efd1e15f4d2be82b753d49b12d626d7")
+            const mbtcVaultAddress = resolveAddress("mBTC", Chain.mainnet, "vault")
+            const btcPool = BoostedVault__factory.connect(mbtcVaultAddress, staker2signer)
+            const boost3 = await btcPool.getBoost(staker3)
+            await btcPool.pokeBoost(staker3)
+            const boost3after = await btcPool.getBoost(staker3)
             expect(boost3).gt(simpleToExactAmount(2))
             expect(boost3after).eq(simpleToExactAmount(1))
         })
@@ -554,8 +557,8 @@ context("StakedToken deployments and vault upgrades", () => {
     context("5. Finalise", () => {
         it("should add all launch rewards", async () => {
             //  - Add the rewards (32.5k, 20k) to each stakedtoken
-            const fundManager = await impersonate(resolveAddress("FundManager", 0))
-            const rewardsDistributor = RewardsDistributorEth__factory.connect(resolveAddress("RewardsDistributor", 0), fundManager)
+            const fundManager = await impersonate(resolveAddress("OperationsSigner"))
+            const rewardsDistributor = RewardsDistributorEth__factory.connect(resolveAddress("RewardsDistributor"), fundManager)
             await rewardsDistributor
                 .connect(fundManager)
                 .distributeRewards(
@@ -565,7 +568,8 @@ context("StakedToken deployments and vault upgrades", () => {
         })
         it("should expire the old staking contract", async () => {
             //  - Expire old staking contract
-            const votingLockup = IncentivisedVotingLockup__factory.connect(resolveAddress("IncentivisedVotingLockup", 0), governor)
+            const mtaVaultAddress = resolveAddress("MTA", Chain.mainnet, "vault")
+            const votingLockup = IncentivisedVotingLockup__factory.connect(mtaVaultAddress, governor)
             await votingLockup.expireContract()
             //  - Check that it's possible to exit for all users
             expect(await votingLockup.expired()).eq(true)
