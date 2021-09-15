@@ -1272,7 +1272,7 @@ describe("Staked Token", () => {
                         .sub(withdrawAmount)
                         .toString()}`,
                 )
-                // expect(await stakedToken.totalSupply(), "total staked after").to.eq(otherStakedAmount.sub(withdrawAmount))
+                expect(await stakedToken.totalSupply(), "total staked after").to.eq(otherStakedAmount)
             })
         })
     })
@@ -1504,6 +1504,7 @@ describe("Staked Token", () => {
 
     context("recollateralisation", () => {
         const stakedAmount = simpleToExactAmount(10000)
+        const totalStaked = stakedAmount.mul(5)
         beforeEach(async () => {
             ;({ stakedToken, questManager } = await redeployStakedToken())
             const users = [sa.default, sa.dummy1, sa.dummy2, sa.dummy3, sa.dummy4]
@@ -1512,7 +1513,7 @@ describe("Staked Token", () => {
                 await rewardToken.connect(user.signer).approve(stakedToken.address, stakedAmount)
                 await stakedToken.connect(user.signer)["stake(uint256,address)"](stakedAmount, user.address)
             }
-            expect(await stakedToken.totalSupply(), "total staked before").to.eq(stakedAmount.mul(5))
+            expect(await stakedToken.totalSupply(), "total staked before").to.eq(totalStaked)
         })
         it("should allow governor to set 25% slashing", async () => {
             const slashingPercentage = simpleToExactAmount(25, 16)
@@ -1523,7 +1524,7 @@ describe("Staked Token", () => {
             expect(await safetyDataAfter.slashingPercentage, "slashing percentage after").to.eq(slashingPercentage)
             expect(await safetyDataAfter.collateralisationRatio, "collateralisation ratio after").to.eq(simpleToExactAmount(1))
 
-            expect(await stakedToken.totalSupply(), "total staked after").to.eq(stakedAmount.mul(5))
+            expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalStaked)
         })
         it("should allow governor to slash a second time before recollateralisation", async () => {
             const firstSlashingPercentage = simpleToExactAmount(10, 16)
@@ -1536,7 +1537,7 @@ describe("Staked Token", () => {
             expect(await safetyDataAfter.slashingPercentage, "slashing percentage after").to.eq(secondSlashingPercentage)
             expect(await safetyDataAfter.collateralisationRatio, "collateralisation ratio after").to.eq(simpleToExactAmount(1))
 
-            expect(await stakedToken.totalSupply(), "total staked after").to.eq(stakedAmount.mul(5))
+            expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalStaked)
         })
         it("should allow recollateralisation", async () => {
             const slashingPercentage = simpleToExactAmount(25, 16)
@@ -1557,9 +1558,13 @@ describe("Staked Token", () => {
                 simpleToExactAmount(1).sub(slashingPercentage),
             )
 
-            expect(await stakedToken.totalSupply(), "total staked after").to.eq(stakedAmount.mul(5))
+            expect(await stakedToken.totalSupply(), "total staked after").to.eq(totalStaked)
 
-            // TODO - withdrawal should return 75%
+            // withdrawal should return 75%
+            const tx2 = await stakedToken.withdraw(stakedAmount, sa.default.address, true, false)
+
+            await expect(tx2).to.emit(stakedToken, "Withdraw").withArgs(sa.default.address, sa.default.address, stakedAmount)
+            await expect(tx2).to.emit(rewardToken, "Transfer").withArgs(stakedToken.address, sa.default.address, stakedAmount.mul(3).div(4))
         })
         context("should not allow", () => {
             const slashingPercentage = simpleToExactAmount(10, 16)
@@ -2995,9 +3000,19 @@ describe("Staked Token", () => {
             })
         })
     })
-    // TODO
     context("triggering the governance hook", () => {
-        it("should allow governor to add a governanceHook")
+        beforeEach(async () => {
+            ;({ stakedToken, questManager } = await redeployStakedToken())
+        })
+        it("should allow governor to add a governanceHook", async () => {
+            const tx = await stakedToken.connect(sa.governor.signer).setGovernanceHook(sa.dummy7.address)
+            await expect(tx).to.emit(stakedToken, "GovernanceHookChanged").withArgs(sa.dummy7.address)
+        })
+        it("should fail to add a governanceHook if not governor", async () => {
+            const tx = stakedToken.setGovernanceHook(sa.dummy7.address)
+            await expect(tx).to.revertedWith("Only governor can execute")
+        })
+        // TODO
         it("should trigger governanceHook each time voting weight changes")
         // WE should write a mock IGovernanceHook here.. and project how much it's going to cost.
         // If the flow is:
