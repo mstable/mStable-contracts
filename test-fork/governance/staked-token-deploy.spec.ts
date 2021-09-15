@@ -1,5 +1,4 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address"
-import { formatUnits } from "@ethersproject/units"
 import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS, DEAD_ADDRESS } from "@utils/constants"
 import { assertBNClose, assertBNClosePercent } from "@utils/assertions"
 import { impersonate } from "@utils/fork"
@@ -8,8 +7,8 @@ import { increaseTime, getTimestamp } from "@utils/time"
 import { expect } from "chai"
 import { Signer, utils } from "ethers"
 import * as hre from "hardhat"
-import { deployStakingToken, StakedTokenData, StakedTokenDeployAddresses } from "tasks/utils/rewardsUtils"
-import { arrayify, formatBytes32String, solidityKeccak256 } from "ethers/lib/utils"
+import { deployStakingToken } from "tasks/utils/rewardsUtils"
+import { arrayify, solidityKeccak256 } from "ethers/lib/utils"
 import {
     IERC20,
     IERC20__factory,
@@ -29,34 +28,33 @@ import {
     InstantProxyAdmin__factory,
     DelayedProxyAdmin,
     InstantProxyAdmin,
-    IMStableVoterProxy,
     IMStableVoterProxy__factory,
     IncentivisedVotingLockup__factory,
-    BoostedVault,
     BoostedVault__factory,
     StakedToken,
 } from "types/generated"
 import { RewardsDistributorEth__factory } from "types/generated/factories/RewardsDistributorEth__factory"
-import { Account, QuestType, QuestStatus, BalConfig, UserStakingData } from "types"
-import { getChain, getChainAddress, resolveAddress } from "../../tasks/utils/networkAddressFactory"
+import { QuestType, BalConfig, UserStakingData } from "types"
+import { Chain } from "tasks/utils/tokens"
+import { resolveAddress } from "../../tasks/utils/networkAddressFactory"
 
-const governorAddress = "0xF6FF1F7FCEB2cE6d26687EaaB5988b445d0b94a2"
+const governorAddress = resolveAddress("Governor")
+const deployerAddress = resolveAddress("OperationsSigner")
+const mStableVoterProxy = resolveAddress("VoterProxy")
+const sharedBadgerGov = resolveAddress("BadgerSafe")
 const ethWhaleAddress = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
-const mStableVoterProxy = "0x10d96b1fd46ce7ce092aa905274b8ed9d4585a6e"
-const sharedBadgerGov = "0xca045cc466f14c33a516d98abcab5c55c2f5112c"
-const deployerAddress = "0xb81473f20818225302b8fffb905b53d58a793d84"
 
 const staker1 = "0x19F12C947D25Ff8a3b748829D8001cA09a28D46d"
 const staker2 = "0x0fc4b69958cb2fa320a96d54168b89953a953fbf"
 
 const vaultAddresses = [
-    "0xAdeeDD3e5768F7882572Ad91065f93BA88343C99",
-    "0xF38522f63f40f9Dd81aBAfD2B8EFc2EC958a3016",
-    "0x78BefCa7de27d07DC6e71da295Cc2946681A6c7B",
-    "0x760ea8CfDcC4e78d8b9cA3088ECD460246DC0731",
-    "0xF65D53AA6e2E4A5f4F026e73cb3e22C22D75E35C",
-    "0x0997dDdc038c8A958a3A3d00425C16f8ECa87deb",
-    "0xD124B55f70D374F58455c8AEdf308E52Cf2A6207",
+    resolveAddress("mUSD", Chain.mainnet, "vault"),
+    resolveAddress("mBTC", Chain.mainnet, "vault"),
+    resolveAddress("GUSD", Chain.mainnet, "vault"),
+    resolveAddress("BUSD", Chain.mainnet, "vault"),
+    resolveAddress("HBTC", Chain.mainnet, "vault"),
+    resolveAddress("TBTC", Chain.mainnet, "vault"),
+    resolveAddress("alUSD", Chain.mainnet, "vault"),
 ]
 
 interface StakedTokenDeployment {
@@ -320,12 +318,13 @@ context("StakedToken deployments and vault upgrades", () => {
             await deployedContracts.stakedTokenMTA.connect(governor).whitelistWrapper(mStableVoterProxy)
         })
     })
+    // TODO
     context("3. Vault upgrades", () => {
         it("should upgrade all vaults", async () => {
             const proxyAdmin = await DelayedProxyAdmin__factory.connect(resolveAddress("DelayedProxyAdmin", 0), governor)
             await Promise.all(vaultAddresses.map((v) => proxyAdmin.acceptUpgradeRequest(v)))
         })
-        it("should verify the vault upgrades have executed succesfully and all behaviour is in tact")
+        it("should verify the vault upgrades have executed successfully and all behaviour is in tact")
     })
 
     const signUserQuests = async (user: string, questIds: number[], signer: SignerWithAddress): Promise<string> => {
