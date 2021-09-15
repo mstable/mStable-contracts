@@ -8,7 +8,6 @@ import { expect } from "chai"
 import { Signer, utils } from "ethers"
 import * as hre from "hardhat"
 import { deployStakingToken } from "tasks/utils/rewardsUtils"
-import { arrayify, solidityKeccak256 } from "ethers/lib/utils"
 import {
     IERC20,
     IERC20__factory,
@@ -36,6 +35,7 @@ import {
 import { RewardsDistributorEth__factory } from "types/generated/factories/RewardsDistributorEth__factory"
 import { QuestType, BalConfig, UserStakingData } from "types"
 import { Chain } from "tasks/utils/tokens"
+import { signUserQuests } from "tasks/utils/quest-utils"
 import { resolveAddress } from "../../tasks/utils/networkAddressFactory"
 
 const governorAddress = resolveAddress("Governor")
@@ -195,7 +195,7 @@ context("StakedToken deployments and vault upgrades", () => {
                     stakedTokenSymbol: "MTA",
                     cooldown: ONE_WEEK.mul(3).toNumber(),
                     unstakeWindow: ONE_WEEK.mul(2).toNumber(),
-                    name: "StakedTokenMTA",
+                    name: "Staked Token MTA",
                     symbol: "stkMTA",
                 },
                 { signer: deployer, address: deployerAddress },
@@ -212,7 +212,7 @@ context("StakedToken deployments and vault upgrades", () => {
                     balTokenSymbol: "BAL",
                     cooldown: ONE_WEEK.mul(3).toNumber(),
                     unstakeWindow: ONE_WEEK.mul(2).toNumber(),
-                    name: "StakedTokenBPT",
+                    name: "Staked Token BPT",
                     symbol: "stkBPT",
                 },
                 { signer: deployer, address: deployerAddress },
@@ -239,7 +239,7 @@ context("StakedToken deployments and vault upgrades", () => {
         })
         it("verifies stakedTokenMTA config", async () => {
             const config = await snapConfig(deployedContracts.stakedTokenMTA)
-            expect(config.name).eq("StakedTokenMTA")
+            expect(config.name).eq("Staked Token MTA")
             expect(config.symbol).eq("stkMTA")
             expect(config.decimals).eq(18)
             expect(config.rewardsDistributor).eq(resolveAddress("RewardsDistributor"))
@@ -255,7 +255,7 @@ context("StakedToken deployments and vault upgrades", () => {
         })
         it("verifies stakedTokenBPT config", async () => {
             const config = await snapConfig(deployedContracts.stakedTokenBPT)
-            expect(config.name).eq("StakedTokenBPT")
+            expect(config.name).eq("Staked Token BPT")
             expect(config.symbol).eq("stkBPT")
             expect(config.decimals).eq(18)
             expect(config.rewardsDistributor).eq(resolveAddress("RewardsDistributor"))
@@ -328,11 +328,6 @@ context("StakedToken deployments and vault upgrades", () => {
         it("should verify the vault upgrades have executed successfully and all behaviour is in tact")
     })
 
-    const signUserQuests = async (user: string, questIds: number[], signer: SignerWithAddress): Promise<string> => {
-        const messageHash = solidityKeccak256(["address", "uint256[]"], [user, questIds])
-        const signature = await signer.signMessage(arrayify(messageHash))
-        return signature
-    }
     // deployer transfers 50k MTA to Staker1 & 100k to Staker2
     // staker1 stakes in both
     // staker2 stakes in MTA
