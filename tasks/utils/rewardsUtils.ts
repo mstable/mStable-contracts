@@ -1,10 +1,10 @@
-import { InstantProxyAdmin__factory } from "./../../types/generated/factories/InstantProxyAdmin__factory"
 import { BigNumberish } from "@ethersproject/bignumber"
 import { Contract } from "@ethersproject/contracts"
 import { formatBytes32String } from "@ethersproject/strings"
 import { Account } from "types/common"
 import {
     AssetProxy__factory,
+    InstantProxyAdmin__factory,
     PlatformTokenVendorFactory__factory,
     QuestManager__factory,
     SignatureVerifier__factory,
@@ -49,17 +49,15 @@ export const deployStakingToken = async (
     const questMasterAddress = getChainAddress("QuestMaster", chain)
     const questSignerAddress = overrideSigner ?? getChainAddress("QuestSigner", chain)
     const delayedProxyAdminAddress = getChainAddress("DelayedProxyAdmin", chain)
-    let proxyAdminAddress = overrides
-        ? overrides.proxyAdminAddress ?? getChainAddress("ProxyAdmin", chain)
-        : getChainAddress("ProxyAdmin", chain)
 
+    let proxyAdminAddress = overrides?.proxyAdminAddress ?? getChainAddress("ProxyAdmin", chain)
     if (!proxyAdminAddress) {
         const proxyAdmin = await deployContract(new InstantProxyAdmin__factory(deployer.signer), "InstantProxyAdmin")
         await proxyAdmin.transferOwnership(getChainAddress("ProtocolDAO", chain))
         proxyAdminAddress = proxyAdmin.address
     }
 
-    let signatureVerifierAddress = overrides ? overrides.signatureVerifier : getChainAddress("SignatureVerifier", chain)
+    let signatureVerifierAddress = overrides?.signatureVerifier ?? getChainAddress("SignatureVerifier", chain)
     if (!signatureVerifierAddress) {
         const signatureVerifier = await deployContract(new SignatureVerifier__factory(deployer.signer), "SignatureVerifier")
         signatureVerifierAddress = signatureVerifier.address
@@ -70,7 +68,7 @@ export const deployStakingToken = async (
         })
     }
 
-    let questManagerAddress = overrides ? overrides.questManager : getChainAddress("QuestManager", chain)
+    let questManagerAddress = overrides?.questManager ?? getChainAddress("QuestManager", chain)
     if (!questManagerAddress) {
         const questManagerLibraryAddresses = {
             "contracts/governance/staking/deps/SignatureVerifier.sol:SignatureVerifier": signatureVerifierAddress,
@@ -102,9 +100,7 @@ export const deployStakingToken = async (
         })
     }
 
-    let platformTokenVendorFactoryAddress = overrides
-        ? overrides.platformTokenVendorFactory
-        : getChainAddress("PlatformTokenVendorFactory", chain)
+    let platformTokenVendorFactoryAddress = overrides?.platformTokenVendorFactory ?? getChainAddress("PlatformTokenVendorFactory", chain)
     if (!platformTokenVendorFactoryAddress) {
         const platformTokenVendorFactory = await deployContract(
             new PlatformTokenVendorFactory__factory(deployer.signer),

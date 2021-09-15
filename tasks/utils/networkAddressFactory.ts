@@ -50,7 +50,6 @@ export const contractNames = [
     "OperationsSigner",
     "ENSRegistrarController",
     "ENSResolver",
-    "IncentivisedVotingLockup",
 ] as const
 export type ContractNames = typeof contractNames[number]
 
@@ -147,8 +146,6 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x283Af0B28c62C092C9727F1Ee09c02CA627EB7F5"
             case "ENSResolver":
                 return "0x4976fb03c32e5b8cfe2b6ccb31c09ba78ebaba41"
-            case "IncentivisedVotingLockup":
-                return "0xae8bc96da4f9a9613c323478be181fdb2aa0e1bf"
             default:
         }
     } else if (chain === Chain.polygon) {
