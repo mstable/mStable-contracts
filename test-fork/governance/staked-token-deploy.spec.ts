@@ -521,7 +521,7 @@ context("StakedToken deployments and vault upgrades", () => {
 
             await deployedContracts.stakedTokenBPT.connect(governor).convertFees()
 
-            expect(await deployedContracts.stakedTokenBPT.pendingAdditionalReward()).gt(600)
+            expect(await deployedContracts.stakedTokenBPT.pendingAdditionalReward()).gt(simpleToExactAmount(600))
 
             const priceCoeff = await deployedContracts.stakedTokenBPT.getProspectivePriceCoefficient()
             console.log(priceCoeff.toString())
