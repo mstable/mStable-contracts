@@ -10,10 +10,12 @@ export const contractNames = [
     "Governor",
     "FundManager",
     "mStableDAO",
+    "BadgerSafe",
     "SavingsManager",
     "Liquidator",
     "RewardsDistributor",
     "BoostDirector",
+    "VoterProxy",
     "Collector",
     "Ejector",
     "Poker",
@@ -74,6 +76,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "ProtocolDAO":
             case "Governor":
                 return "0xF6FF1F7FCEB2cE6d26687EaaB5988b445d0b94a2"
+            case "BadgerSafe":
+                return "0xCa045cC466f14C33a516D98abcab5C55C2f5112c"
             case "BalancerRecipient":
             case "FundManager":
                 return "0x437E8C54Db5C66Bb3D80D2FF156e9bfe31a017db"
@@ -87,6 +91,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x04dfDfa471b79cc9E6E8C355e6C71F8eC4916C50"
             case "BoostDirector":
                 return "0xBa05FD2f20AE15B0D3f20DDc6870FeCa6ACd3592"
+            case "VoterProxy":
+                return "0x10D96b1Fd46Ce7cE092aA905274B8eD9d4585A6E"
             case "Collector":
                 return "0x3F63e5bbB53e46F8B21F67C25Bf2dd78BC6C0e43"
             case "Ejector":
