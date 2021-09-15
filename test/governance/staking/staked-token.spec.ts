@@ -266,6 +266,39 @@ describe("Staked Token", () => {
 
             expect(await stakedToken.totalSupply(), "total staked after").to.eq(stakedAmount)
         })
+        it("should explicitly delegate to self", async () => {
+            const stakerAddress = sa.default.address
+            const tx = await stakedToken["stake(uint256,address)"](stakedAmount, stakerAddress)
+
+            const stakedTimestamp = await getTimestamp()
+
+            await expect(tx).to.emit(stakedToken, "Staked").withArgs(stakerAddress, stakedAmount, stakerAddress)
+            await expect(tx).to.emit(stakedToken, "DelegateChanged").withArgs(stakerAddress, stakerAddress, stakerAddress)
+            await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(stakerAddress, 0, stakedAmount)
+            await expect(tx).to.emit(rewardToken, "Transfer").withArgs(stakerAddress, stakedToken.address, stakedAmount)
+            await expect(tx).to.not.emit(stakedToken, "CooldownExited")
+
+            const afterData = await snapshotUserStakingData(stakerAddress)
+            expect(afterData.rawBalance.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
+            expect(afterData.rawBalance.cooldownUnits, "cooldown units after").to.eq(0)
+            expect(afterData.rawBalance.raw, "staked raw balance after").to.eq(stakedAmount)
+            expect(afterData.rawBalance.weightedTimestamp, "weighted timestamp after").to.eq(stakedTimestamp)
+            expect(afterData.rawBalance.questMultiplier, "quest multiplier").to.eq(0)
+            expect(afterData.questBalance.lastAction, "last action after").to.eq(0)
+            expect(afterData.questBalance.permMultiplier, "perm multiplier after").to.eq(0)
+            expect(afterData.questBalance.seasonMultiplier, "season multiplier after").to.eq(0)
+            expect(afterData.rawBalance.timeMultiplier, "time multiplier after").to.eq(0)
+            expect(afterData.scaledBalance, "staked balance after").to.eq(stakedAmount)
+            expect(afterData.votes, "staker votes after").to.eq(stakedAmount)
+            // Staker checkpoint
+            expect(afterData.numCheckpoints, "staked checkpoints after").to.eq(1)
+            const checkpoint = await stakedToken.checkpoints(stakerAddress, 0)
+            const receipt = await tx.wait()
+            expect(checkpoint.fromBlock, "staked checkpoint block").to.eq(receipt.blockNumber)
+            expect(checkpoint.votes, "staked checkpoint votes").to.eq(stakedAmount)
+
+            expect(await stakedToken.totalSupply(), "total staked after").to.eq(stakedAmount)
+        })
         it("should assign delegate", async () => {
             const stakerAddress = sa.default.address
             const delegateAddress = sa.dummy1.address
