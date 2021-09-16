@@ -1,10 +1,12 @@
+/* eslint-disable no-restricted-syntax */
+/* eslint-disable no-await-in-loop */
 import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS, DEAD_ADDRESS } from "@utils/constants"
 import { assertBNClose, assertBNClosePercent } from "@utils/assertions"
 import { impersonate, impersonateAccount } from "@utils/fork"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { increaseTime, getTimestamp } from "@utils/time"
 import { expect } from "chai"
-import { Signer, utils } from "ethers"
+import { BigNumberish, Signer, utils } from "ethers"
 import * as hre from "hardhat"
 import { deployStakingToken, StakedTokenDeployAddresses } from "tasks/utils/rewardsUtils"
 import {
@@ -30,6 +32,7 @@ import {
     IncentivisedVotingLockup__factory,
     BoostedVault__factory,
     StakedToken,
+    BoostedDualVault__factory,
 } from "types/generated"
 import { RewardsDistributorEth__factory } from "types/generated/factories/RewardsDistributorEth__factory"
 import { QuestType, BalConfig, UserStakingData, Account } from "types"
@@ -334,13 +337,44 @@ context("StakedToken deployments and vault upgrades", () => {
             await deployedContracts.stakedTokenMTA.connect(governor).whitelistWrapper(mStableVoterProxy)
         })
     })
-    // TODO
     context("3. Vault upgrades", () => {
         it("should upgrade all vaults", async () => {
             const proxyAdmin = await DelayedProxyAdmin__factory.connect(resolveAddress("DelayedProxyAdmin"), governor)
             await Promise.all(vaultAddresses.map((v) => proxyAdmin.acceptUpgradeRequest(v)))
         })
-        it("should verify the vault upgrades have executed successfully and all behaviour is in tact")
+        it("should verify the vault upgrades have executed successfully and all behaviour is in tact", async () => {
+            const nexusAddress = resolveAddress("Nexus")
+            const boostDirectorAddress = resolveAddress("BoostDirector")
+            const rewardTokenAddress = resolveAddress("MTA")
+
+            for (const vault of vaults) {
+                const vaultProxyAddress = resolveAddress(vault.underlyingTokenSymbol, Chain.mainnet, "vault")
+                const proxy = BoostedDualVault__factory.connect(vaultProxyAddress, deployer.signer)
+
+                console.log(`About to verify the ${vault.underlyingTokenSymbol} vault`)
+
+                if (vault.underlyingTokenSymbol !== "mUSD") {
+                    expect(await proxy.name(), `${vault.underlyingTokenSymbol} vault name`).to.eq(vault.name)
+                    expect(await proxy.symbol(), `${vault.underlyingTokenSymbol} vault symbol`).to.eq(vault.symbol)
+                    expect(await proxy.decimals(), `${vault.underlyingTokenSymbol} decimals`).to.eq(18)
+                }
+                expect(await proxy.nexus(), `${vault.underlyingTokenSymbol} vault nexus`).to.eq(nexusAddress)
+                expect(await proxy.boostDirector(), `${vault.underlyingTokenSymbol} vault boost director`).to.eq(boostDirectorAddress)
+                expect(await proxy.getRewardToken(), `${vault.underlyingTokenSymbol} vault reward token`).to.eq(rewardTokenAddress)
+                expect(await proxy.priceCoeff(), `${vault.underlyingTokenSymbol} vault priceCoeff`).to.eq(
+                    vault.priceCoeff ? vault.priceCoeff : simpleToExactAmount(1),
+                )
+                if (vault.underlyingTokenSymbol === "alUSD") {
+                    expect(await proxy.getPlatformToken(), `${vault.underlyingTokenSymbol} vault platform token`).to.eq(
+                        resolveAddress(vault.platformToken),
+                    )
+                }
+                expect(await proxy.balanceOf(vault.userBal.user), `${vault.underlyingTokenSymbol} vault user balance`).to.gt(
+                    vault.userBal.balance,
+                )
+                expect(await proxy.totalSupply(), `${vault.underlyingTokenSymbol} vault total supply`).to.gt(0)
+            }
+        })
     })
 
     // deployer transfers 50k MTA to Staker1 & 100k to Staker2
@@ -615,3 +649,96 @@ context("StakedToken deployments and vault upgrades", () => {
         })
     })
 })
+
+interface UserBalance {
+    user: string
+    balance: BigNumberish
+}
+interface VaultData {
+    underlyingTokenSymbol: string
+    stakingTokenType: "savings" | "feederPool"
+    priceCoeff?: BN
+    platformToken?: string
+    name: string
+    symbol: string
+    userBal: UserBalance
+}
+
+const btcPriceCoeff = simpleToExactAmount(48000)
+const vaults: VaultData[] = [
+    {
+        underlyingTokenSymbol: "mBTC",
+        stakingTokenType: "savings",
+        priceCoeff: btcPriceCoeff.div(10),
+        name: "imBTC Vault",
+        symbol: "v-imBTC",
+        userBal: {
+            user: "0x25953c127efd1e15f4d2be82b753d49b12d626d7",
+            balance: simpleToExactAmount(172),
+        },
+    },
+    {
+        underlyingTokenSymbol: "GUSD",
+        stakingTokenType: "feederPool",
+        name: "mUSD/GUSD fPool Vault",
+        symbol: "v-fPmUSD/GUSD",
+        userBal: {
+            user: "0xf794CF2d946BC6eE6eD905F47db211EBd451Aa5F",
+            balance: simpleToExactAmount(425000),
+        },
+    },
+    {
+        underlyingTokenSymbol: "BUSD",
+        stakingTokenType: "feederPool",
+        name: "mUSD/BUSD fPool Vault",
+        symbol: "v-fPmUSD/BUSD",
+        userBal: {
+            user: "0xc09111f9d094d07fc013fd45c4081510ca4275cf",
+            balance: simpleToExactAmount(1400000),
+        },
+    },
+    {
+        underlyingTokenSymbol: "HBTC",
+        stakingTokenType: "feederPool",
+        priceCoeff: btcPriceCoeff,
+        name: "mBTC/HBTC fPool Vault",
+        symbol: "v-fPmBTC/HBTC",
+        userBal: {
+            user: "0x8d0f5678557192e23d1da1c689e40f25c063eaa5",
+            balance: simpleToExactAmount(2.4),
+        },
+    },
+    {
+        underlyingTokenSymbol: "TBTC",
+        stakingTokenType: "feederPool",
+        priceCoeff: btcPriceCoeff,
+        name: "mBTC/TBTC fPool Vault",
+        symbol: "v-fPmBTC/TBTC",
+        userBal: {
+            user: "0x8d0f5678557192e23d1da1c689e40f25c063eaa5",
+            balance: simpleToExactAmount(6.5),
+        },
+    },
+    {
+        underlyingTokenSymbol: "alUSD",
+        stakingTokenType: "feederPool",
+        name: "mUSD/alUSD fPool Vault",
+        symbol: "v-fPmUSD/alUSD",
+        platformToken: "ALCX",
+        userBal: {
+            user: "0x97020c9ec66e0f59231918b1d2f167a66026aff2",
+            balance: simpleToExactAmount(1200000),
+        },
+    },
+    {
+        underlyingTokenSymbol: "mUSD",
+        stakingTokenType: "savings",
+        priceCoeff: simpleToExactAmount(1, 17),
+        name: "imUSD Vault",
+        symbol: "v-imUSD",
+        userBal: {
+            user: "0x7606ccf1c5f2a908423eb8dd2fa5d82a12255700",
+            balance: simpleToExactAmount(68000),
+        },
+    },
+]
