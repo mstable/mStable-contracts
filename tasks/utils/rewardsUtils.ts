@@ -92,12 +92,6 @@ export const deployStakingToken = async (
         const constructorArguments = [questManagerImpl.address, delayedProxyAdminAddress, data]
         const questManagerProxy = await deployContract(new AssetProxy__factory(deployer.signer), "AssetProxy", constructorArguments)
         questManagerAddress = questManagerProxy.address
-
-        await verifyEtherscan(hre, {
-            address: questManagerAddress,
-            contract: "contracts/upgradability/Proxies.sol:AssetProxy",
-            constructorArguments,
-        })
     }
 
     let platformTokenVendorFactoryAddress = overrides?.platformTokenVendorFactory ?? getChainAddress("PlatformTokenVendorFactory", chain)
@@ -189,12 +183,6 @@ export const deployStakingToken = async (
         proxyAdminAddress,
         data,
     ])
-
-    await verifyEtherscan(hre, {
-        address: proxy.address,
-        contract: "contracts/upgradability/Proxies.sol:AssetProxy",
-        constructorArguments: [stakedTokenImpl.address, deployer.address, data],
-    })
 
     return {
         stakedToken: proxy.address,

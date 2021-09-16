@@ -128,10 +128,10 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x861f12764780896FD783eA615Dd55Df0FF865752"
             case "PlatformTokenVendorFactory":
                 return "0xfB73476911c5E84556a5bf953644B7ef50F6CBC5"
-            // case "StakedTokenMTA":
-            //     return null
-            // case "StakedTokenBPT":
-            //     return null
+            case "StakedTokenMTA":
+                return "0x8f2326316eC696F6d023E37A9931c2b2C177a3D7"
+            case "StakedTokenBPT":
+                return "0xeFbe22085D9f29863Cfb77EEd16d3cC0D927b011"
             case "AaveIncentivesController":
                 return "0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5"
             case "AaveLendingPoolAddressProvider":

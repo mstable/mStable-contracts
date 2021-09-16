@@ -6,7 +6,7 @@ import { increaseTime, getTimestamp } from "@utils/time"
 import { expect } from "chai"
 import { Signer, utils } from "ethers"
 import * as hre from "hardhat"
-import { deployStakingToken } from "tasks/utils/rewardsUtils"
+import { deployStakingToken, StakedTokenDeployAddresses } from "tasks/utils/rewardsUtils"
 import {
     IERC20,
     IERC20__factory,
@@ -36,7 +36,7 @@ import { QuestType, BalConfig, UserStakingData, Account } from "types"
 import { Chain } from "tasks/utils/tokens"
 import { signUserQuests } from "tasks/utils/quest-utils"
 import { getSigner } from "tasks/utils/signerFactory"
-import { resolveAddress } from "../../tasks/utils/networkAddressFactory"
+import { getChainAddress, resolveAddress } from "../../tasks/utils/networkAddressFactory"
 
 const governorAddress = resolveAddress("Governor")
 const deployerAddress = resolveAddress("OperationsSigner")
@@ -190,94 +190,108 @@ context("StakedToken deployments and vault upgrades", () => {
     context("1. Deploying", () => {
         it("deploys the contracts", async () => {
             // Deploy StakedTokenMTA
-            const stakedTokenMTA = await deployStakingToken(
-                {
-                    rewardsTokenSymbol: "MTA",
-                    stakedTokenSymbol: "MTA",
-                    cooldown: ONE_WEEK.mul(3).toNumber(),
-                    unstakeWindow: ONE_WEEK.mul(2).toNumber(),
-                    name: "Staked Token MTA",
-                    symbol: "stkMTA",
-                },
-                deployer,
-                hre,
-                undefined,
-                questSignerAddress,
-            )
+            let stakedTokenAddresses: StakedTokenDeployAddresses = {
+                proxyAdminAddress: getChainAddress("ProxyAdmin", Chain.mainnet),
+                questManager: getChainAddress("QuestManager", Chain.mainnet),
+                signatureVerifier: getChainAddress("SignatureVerifier", Chain.mainnet),
+                platformTokenVendorFactory: getChainAddress("PlatformTokenVendorFactory", Chain.mainnet),
+                stakedToken: getChainAddress("StakedTokenMTA", Chain.mainnet),
+            }
+
+            if (!stakedTokenAddresses.questManager || !stakedTokenAddresses.stakedToken) {
+                stakedTokenAddresses = await deployStakingToken(
+                    {
+                        rewardsTokenSymbol: "MTA",
+                        stakedTokenSymbol: "MTA",
+                        cooldown: ONE_WEEK.mul(3).toNumber(),
+                        unstakeWindow: ONE_WEEK.mul(2).toNumber(),
+                        name: "Staked Token MTA",
+                        symbol: "stkMTA",
+                    },
+                    deployer,
+                    hre,
+                    undefined,
+                    questSignerAddress,
+                )
+            }
 
             // Deploy StakedTokenBPT
-            const stakedTokenBPT = await deployStakingToken(
-                {
-                    rewardsTokenSymbol: "MTA",
-                    stakedTokenSymbol: "BPT",
-                    balTokenSymbol: "BAL",
-                    cooldown: ONE_WEEK.mul(3).toNumber(),
-                    unstakeWindow: ONE_WEEK.mul(2).toNumber(),
-                    name: "Staked Token BPT",
-                    symbol: "stkBPT",
-                },
-                deployer,
-                hre,
-                stakedTokenMTA,
-                questSignerAddress,
-            )
+            let stakedTokenBPTAddress = getChainAddress("StakedTokenBPT", Chain.mainnet)
+            if (!stakedTokenBPTAddress) {
+                const stakedTokenBPT = await deployStakingToken(
+                    {
+                        rewardsTokenSymbol: "MTA",
+                        stakedTokenSymbol: "BPT",
+                        balTokenSymbol: "BAL",
+                        cooldown: ONE_WEEK.mul(3).toNumber(),
+                        unstakeWindow: ONE_WEEK.mul(2).toNumber(),
+                        name: "Staked Token BPT",
+                        symbol: "stkBPT",
+                    },
+                    deployer,
+                    hre,
+                    stakedTokenAddresses,
+                    questSignerAddress,
+                )
+                stakedTokenBPTAddress = stakedTokenBPT.stakedToken
+            }
 
             deployedContracts = {
-                stakedTokenBPT: StakedTokenBPT__factory.connect(stakedTokenBPT.stakedToken, deployer.signer),
-                stakedTokenMTA: StakedTokenMTA__factory.connect(stakedTokenMTA.stakedToken, deployer.signer),
-                questManager: QuestManager__factory.connect(stakedTokenMTA.questManager, deployer.signer),
-                signatureVerifier: SignatureVerifier__factory.connect(stakedTokenMTA.signatureVerifier, deployer.signer),
+                stakedTokenBPT: StakedTokenBPT__factory.connect(stakedTokenBPTAddress, deployer.signer),
+                stakedTokenMTA: StakedTokenMTA__factory.connect(stakedTokenAddresses.stakedToken, deployer.signer),
+                questManager: QuestManager__factory.connect(stakedTokenAddresses.questManager, deployer.signer),
+                signatureVerifier: SignatureVerifier__factory.connect(stakedTokenAddresses.signatureVerifier, deployer.signer),
                 platformTokenVendorFactory: PlatformTokenVendorFactory__factory.connect(
-                    stakedTokenMTA.platformTokenVendorFactory,
+                    stakedTokenAddresses.platformTokenVendorFactory,
                     deployer.signer,
                 ),
                 mta: IERC20__factory.connect(resolveAddress("MTA"), deployer.signer),
                 bpt: IERC20__factory.connect(resolveAddress("BPT"), deployer.signer),
                 boostDirector: BoostDirectorV2__factory.connect(resolveAddress("BoostDirector"), governor),
-                proxyAdmin: InstantProxyAdmin__factory.connect(stakedTokenMTA.proxyAdminAddress, governor),
+                proxyAdmin: InstantProxyAdmin__factory.connect(stakedTokenAddresses.proxyAdminAddress, governor),
                 delayedProxyAdmin: DelayedProxyAdmin__factory.connect(resolveAddress("DelayedProxyAdmin"), governor),
             }
         })
         it("verifies stakedTokenMTA config", async () => {
             const config = await snapConfig(deployedContracts.stakedTokenMTA)
-            expect(config.name).eq("Staked Token MTA")
-            expect(config.symbol).eq("stkMTA")
-            expect(config.decimals).eq(18)
-            expect(config.rewardsDistributor).eq(resolveAddress("RewardsDistributor"))
-            expect(config.nexus).eq(resolveAddress("Nexus"))
-            expect(config.stakingToken).eq(resolveAddress("MTA"))
-            expect(config.rewardToken).eq(resolveAddress("MTA"))
-            expect(config.cooldown).eq(ONE_WEEK.mul(3))
-            expect(config.unstake).eq(ONE_WEEK.mul(2))
-            expect(config.questManager).eq(deployedContracts.questManager.address)
-            expect(config.hasPriceCoeff).eq(false)
-            expect(config.colRatio).eq(simpleToExactAmount(1))
-            expect(config.slashingPercentage).eq(0)
+            expect(config.name, "name").eq("Staked MTA")
+            expect(config.symbol, "symbol").eq("stkMTA")
+            expect(config.decimals, "decimals").eq(18)
+            expect(config.rewardsDistributor, "rewardsDistributor").eq(resolveAddress("RewardsDistributor"))
+            expect(config.nexus, "nexus").eq(resolveAddress("Nexus"))
+            expect(config.stakingToken, "staking token symbol").eq(resolveAddress("MTA"))
+            expect(config.rewardToken, "reward token symbol").eq(resolveAddress("MTA"))
+            expect(config.cooldown, "cooldown").eq(ONE_WEEK.mul(3))
+            expect(config.unstake, "unstake").eq(ONE_WEEK.mul(2))
+            expect(config.questManager, "questManager").eq(deployedContracts.questManager.address)
+            expect(config.hasPriceCoeff, "hasPriceCoeff").eq(false)
+            expect(config.colRatio, "colRatio").eq(simpleToExactAmount(1))
+            expect(config.slashingPercentage, "slashingPercentage").eq(0)
         })
         it("verifies stakedTokenBPT config", async () => {
             const config = await snapConfig(deployedContracts.stakedTokenBPT)
-            expect(config.name).eq("Staked Token BPT")
-            expect(config.symbol).eq("stkBPT")
-            expect(config.decimals).eq(18)
-            expect(config.rewardsDistributor).eq(resolveAddress("RewardsDistributor"))
-            expect(config.nexus).eq(resolveAddress("Nexus"))
-            expect(config.stakingToken).eq(resolveAddress("BPT"))
-            expect(config.rewardToken).eq(resolveAddress("MTA"))
-            expect(config.cooldown).eq(ONE_WEEK.mul(3))
-            expect(config.unstake).eq(ONE_WEEK.mul(2))
-            expect(config.questManager).eq(deployedContracts.questManager.address)
-            expect(config.hasPriceCoeff).eq(true)
-            expect(config.colRatio).eq(simpleToExactAmount(1))
-            expect(config.slashingPercentage).eq(0)
+            expect(config.name, "name").eq("Staked Token BPT")
+            expect(config.symbol, "symbol").eq("stkBPT")
+            expect(config.decimals, "decimals").eq(18)
+            expect(config.rewardsDistributor, "rewardsDistributor").eq(resolveAddress("RewardsDistributor"))
+            expect(config.nexus, "nexus").eq(resolveAddress("Nexus"))
+            expect(config.stakingToken, "staking token symbol").eq(resolveAddress("BPT"))
+            expect(config.rewardToken, "reward token symbol").eq(resolveAddress("MTA"))
+            expect(config.cooldown, "cooldown").eq(ONE_WEEK.mul(3))
+            expect(config.unstake, "unstake").eq(ONE_WEEK.mul(2))
+            expect(config.questManager, "questManager").eq(deployedContracts.questManager.address)
+            expect(config.hasPriceCoeff, "hasPriceCoeff").eq(true)
+            expect(config.colRatio, "colRatio").eq(simpleToExactAmount(1))
+            expect(config.slashingPercentage, "slashingPercentage").eq(0)
             const data = await snapBalData(deployedContracts.stakedTokenBPT)
-            expect(await deployedContracts.stakedTokenBPT.BAL()).eq(resolveAddress("BAL"))
-            expect(await deployedContracts.stakedTokenBPT.balancerVault()).eq(resolveAddress("BalancerVault"))
-            expect(await deployedContracts.stakedTokenBPT.poolId()).eq(resolveAddress("BalancerStakingPoolId"))
+            expect(await deployedContracts.stakedTokenBPT.BAL(), "BAL token symbol").eq(resolveAddress("BAL"))
+            expect(await deployedContracts.stakedTokenBPT.balancerVault(), "BAL Vault").eq(resolveAddress("BalancerVault"))
+            expect(await deployedContracts.stakedTokenBPT.poolId(), "BAL pool ID").eq(resolveAddress("BalancerStakingPoolId"))
             expect(data.balRecipient).eq(resolveAddress("FundManager"))
-            expect(data.keeper).eq(ZERO_ADDRESS)
-            expect(data.pendingBPTFees).eq(0)
-            expect(data.priceCoefficient).eq(42550)
-            expect(data.lastPriceUpdateTime).eq(0)
+            expect(data.keeper, "keep").eq(ZERO_ADDRESS)
+            expect(data.pendingBPTFees, "pendingBPTFees").eq(0)
+            expect(data.priceCoefficient, "priceCoefficient").eq(42550)
+            expect(data.lastPriceUpdateTime, "lastPriceUpdateTime").eq(0)
         })
         it("verifies questManager config", async () => {
             const seasonEpoch = await deployedContracts.questManager.seasonEpoch()
@@ -285,10 +299,10 @@ context("StakedToken deployments and vault upgrades", () => {
             const questMaster = await deployedContracts.questManager.questMaster()
             const nexus = await deployedContracts.questManager.nexus()
 
-            expect(seasonEpoch).eq(0)
-            expect(startTime).gt(1631197683)
-            expect(questMaster).eq(resolveAddress("QuestMaster"))
-            expect(nexus).eq(resolveAddress("Nexus"))
+            expect(seasonEpoch, "seasonEpoch").eq(0)
+            expect(startTime, "startTime").gt(1631197683)
+            expect(questMaster, "questMaster").eq(resolveAddress("QuestMaster"))
+            expect(nexus, "nexus").eq(resolveAddress("Nexus"))
         })
     })
     context("2. Sending Gov Tx's", () => {
