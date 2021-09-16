@@ -9,7 +9,7 @@ export const deployContract = async <T extends Contract>(
 ): Promise<T> => {
     const contract = (await contractFactory.deploy(...contractorArgs, overrides)) as T
     console.log(
-        `Deployed ${contractName} contract with hash ${contract.deployTransaction.hash} from ${
+        `Deploying ${contractName} contract with hash ${contract.deployTransaction.hash} from ${
             contract.deployTransaction.from
         } with gas price ${contract.deployTransaction.gasPrice.toNumber() / 1e9} Gwei`,
     )
@@ -17,9 +17,9 @@ export const deployContract = async <T extends Contract>(
     const txCost = receipt.gasUsed.mul(contract.deployTransaction.gasPrice)
     const abiEncodedConstructorArgs = contract.interface.encodeDeploy(contractorArgs)
     console.log(
-        `Deploy ${contractName} to ${contract.address} in block ${receipt.blockNumber}, using ${receipt.gasUsed} gas costing ${formatUnits(
-            txCost,
-        )} ETH`,
+        `Deployed ${contractName} to ${contract.address} in block ${receipt.blockNumber}, using ${
+            receipt.gasUsed
+        } gas costing ${formatUnits(txCost)} ETH`,
     )
     console.log(`ABI encoded args: ${abiEncodedConstructorArgs.slice(2)}`)
     return contract

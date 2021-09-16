@@ -1,7 +1,6 @@
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address"
 import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS, DEAD_ADDRESS } from "@utils/constants"
 import { assertBNClose, assertBNClosePercent } from "@utils/assertions"
-import { impersonate } from "@utils/fork"
+import { impersonate, impersonateAccount } from "@utils/fork"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { increaseTime, getTimestamp } from "@utils/time"
 import { expect } from "chai"
@@ -33,15 +32,17 @@ import {
     StakedToken,
 } from "types/generated"
 import { RewardsDistributorEth__factory } from "types/generated/factories/RewardsDistributorEth__factory"
-import { QuestType, BalConfig, UserStakingData } from "types"
+import { QuestType, BalConfig, UserStakingData, Account } from "types"
 import { Chain } from "tasks/utils/tokens"
 import { signUserQuests } from "tasks/utils/quest-utils"
+import { getSigner } from "tasks/utils/signerFactory"
 import { resolveAddress } from "../../tasks/utils/networkAddressFactory"
 
 const governorAddress = resolveAddress("Governor")
 const deployerAddress = resolveAddress("OperationsSigner")
 const mStableVoterProxy = resolveAddress("VoterProxy")
 const sharedBadgerGov = resolveAddress("BadgerSafe")
+const questSignerAddress = resolveAddress("QuestSigner")
 const ethWhaleAddress = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 
 const staker1 = "0x19F12C947D25Ff8a3b748829D8001cA09a28D46d"
@@ -88,10 +89,10 @@ interface StakedTokenDeployment {
 //     1. 32.5k for stkMTA, 20k for stkMBPT
 // 6. Gov tx: Expire old Staking contract
 context("StakedToken deployments and vault upgrades", () => {
-    let deployer: Signer
+    let deployer: Account
     let governor: Signer
     let ethWhale: Signer
-    let questSigner: SignerWithAddress
+    let questSigner: Signer
 
     const { network } = hre
 
@@ -171,12 +172,12 @@ context("StakedToken deployments and vault upgrades", () => {
                 },
             ],
         })
-        deployer = await impersonate(deployerAddress)
+        deployer = await impersonateAccount(deployerAddress)
         governor = await impersonate(governorAddress)
         ethWhale = await impersonate(ethWhaleAddress)
 
-        const { ethers } = hre
-        ;[questSigner] = await ethers.getSigners()
+        // Need to export DEFENDER_API_KEY and DEFENDER_API_SECRET for the quest Relay account
+        questSigner = await getSigner(hre)
 
         // send some Ether to the impersonated multisig contract as it doesn't have Ether
         await ethWhale.sendTransaction({
@@ -198,10 +199,10 @@ context("StakedToken deployments and vault upgrades", () => {
                     name: "Staked Token MTA",
                     symbol: "stkMTA",
                 },
-                { signer: deployer, address: deployerAddress },
+                deployer,
                 hre,
                 undefined,
-                questSigner.address,
+                questSignerAddress,
             )
 
             // Deploy StakedTokenBPT
@@ -215,23 +216,23 @@ context("StakedToken deployments and vault upgrades", () => {
                     name: "Staked Token BPT",
                     symbol: "stkBPT",
                 },
-                { signer: deployer, address: deployerAddress },
+                deployer,
                 hre,
                 stakedTokenMTA,
-                questSigner.address,
+                questSignerAddress,
             )
 
             deployedContracts = {
-                stakedTokenBPT: StakedTokenBPT__factory.connect(stakedTokenBPT.stakedToken, deployer),
-                stakedTokenMTA: StakedTokenMTA__factory.connect(stakedTokenMTA.stakedToken, deployer),
-                questManager: QuestManager__factory.connect(stakedTokenMTA.questManager, deployer),
-                signatureVerifier: SignatureVerifier__factory.connect(stakedTokenMTA.signatureVerifier, deployer),
+                stakedTokenBPT: StakedTokenBPT__factory.connect(stakedTokenBPT.stakedToken, deployer.signer),
+                stakedTokenMTA: StakedTokenMTA__factory.connect(stakedTokenMTA.stakedToken, deployer.signer),
+                questManager: QuestManager__factory.connect(stakedTokenMTA.questManager, deployer.signer),
+                signatureVerifier: SignatureVerifier__factory.connect(stakedTokenMTA.signatureVerifier, deployer.signer),
                 platformTokenVendorFactory: PlatformTokenVendorFactory__factory.connect(
                     stakedTokenMTA.platformTokenVendorFactory,
-                    deployer,
+                    deployer.signer,
                 ),
-                mta: IERC20__factory.connect(resolveAddress("MTA"), deployer),
-                bpt: IERC20__factory.connect(resolveAddress("BPT"), deployer),
+                mta: IERC20__factory.connect(resolveAddress("MTA"), deployer.signer),
+                bpt: IERC20__factory.connect(resolveAddress("BPT"), deployer.signer),
                 boostDirector: BoostDirectorV2__factory.connect(resolveAddress("BoostDirector"), governor),
                 proxyAdmin: InstantProxyAdmin__factory.connect(stakedTokenMTA.proxyAdminAddress, governor),
                 delayedProxyAdmin: DelayedProxyAdmin__factory.connect(resolveAddress("DelayedProxyAdmin"), governor),
@@ -408,7 +409,7 @@ context("StakedToken deployments and vault upgrades", () => {
         it("should fetch the correct balances from the BoostDirector", async () => {
             // staker 1 just call staticBalance on the boost director
             await deployedContracts.boostDirector.whitelistVaults([deployerAddress])
-            const bal1 = await deployedContracts.boostDirector.connect(deployer).callStatic.getBalance(staker1)
+            const bal1 = await deployedContracts.boostDirector.connect(deployer.signer).callStatic.getBalance(staker1)
             const staker1bal1 = await snapshotUserStakingData(
                 deployedContracts.stakedTokenMTA,
                 deployedContracts.questManager,

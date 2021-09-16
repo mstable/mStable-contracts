@@ -26,10 +26,10 @@ export interface StakedTokenData {
 }
 
 export interface StakedTokenDeployAddresses {
-    stakedToken: string
-    questManager: string
-    signatureVerifier: string
-    platformTokenVendorFactory: string
+    stakedToken?: string
+    questManager?: string
+    signatureVerifier?: string
+    platformTokenVendorFactory?: string
     proxyAdminAddress?: string
 }
 
@@ -42,18 +42,18 @@ export const deployStakingToken = async (
 ): Promise<StakedTokenDeployAddresses> => {
     const chain = getChain(hre)
 
-    const nexusAddress = getChainAddress("Nexus", chain)
-    const rewardsDistributorAddress = getChainAddress("RewardsDistributor", chain)
+    const nexusAddress = resolveAddress("Nexus", chain)
+    const rewardsDistributorAddress = resolveAddress("RewardsDistributor", chain)
     const rewardsTokenAddress = resolveAddress(stakedTokenData.rewardsTokenSymbol, chain)
     const stakedTokenAddress = resolveAddress(stakedTokenData.stakedTokenSymbol, chain)
-    const questMasterAddress = getChainAddress("QuestMaster", chain)
-    const questSignerAddress = overrideSigner ?? getChainAddress("QuestSigner", chain)
-    const delayedProxyAdminAddress = getChainAddress("DelayedProxyAdmin", chain)
+    const questMasterAddress = resolveAddress("QuestMaster", chain)
+    const questSignerAddress = overrideSigner ?? resolveAddress("QuestSigner", chain)
+    const delayedProxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)
 
     let proxyAdminAddress = overrides?.proxyAdminAddress ?? getChainAddress("ProxyAdmin", chain)
     if (!proxyAdminAddress) {
         const proxyAdmin = await deployContract(new InstantProxyAdmin__factory(deployer.signer), "InstantProxyAdmin")
-        await proxyAdmin.transferOwnership(getChainAddress("ProtocolDAO", chain))
+        await proxyAdmin.transferOwnership(resolveAddress("ProtocolDAO", chain))
         proxyAdminAddress = proxyAdmin.address
     }
 

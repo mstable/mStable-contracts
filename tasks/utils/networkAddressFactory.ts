@@ -71,7 +71,7 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "DelayedProxyAdmin":
                 return "0x5C8eb57b44C1c6391fC7a8A0cf44d26896f92386"
             case "ProxyAdmin":
-                return null
+                return "0x3517F5a251d56C768789c22E989FAa7d906b5a13"
             case "ProtocolDAO":
             case "Governor":
                 return "0xF6FF1F7FCEB2cE6d26687EaaB5988b445d0b94a2"
@@ -122,6 +122,16 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xe2469f47ab58cf9cf59f9822e3c5de4950a41c49000200000000000000000089"
             case "BasketManager":
                 return "0x66126B4aA2a1C07536Ef8E5e8bD4EfDA1FdEA96D"
+            case "SignatureVerifier":
+                return "0xC973413fe4944682910b97b261456EB9633A4756"
+            case "QuestManager":
+                return "0x861f12764780896FD783eA615Dd55Df0FF865752"
+            case "PlatformTokenVendorFactory":
+                return "0xfB73476911c5E84556a5bf953644B7ef50F6CBC5"
+            // case "StakedTokenMTA":
+            //     return null
+            // case "StakedTokenBPT":
+            //     return null
             case "AaveIncentivesController":
                 return "0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5"
             case "AaveLendingPoolAddressProvider":
