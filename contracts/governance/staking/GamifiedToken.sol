@@ -6,7 +6,7 @@ import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/Co
 import { SafeCastExtended } from "../../shared/SafeCastExtended.sol";
 import { ILockedERC20 } from "./interfaces/ILockedERC20.sol";
 import { HeadlessStakingRewards } from "../../rewards/staking/HeadlessStakingRewards.sol";
-import { QuestManager } from "./QuestManager.sol";
+import { IQuestManager } from "./interfaces/IQuestManager.sol";
 import "./deps/GamifiedTokenStructs.sol";
 
 /**
@@ -41,7 +41,7 @@ abstract contract GamifiedToken is
     /// @notice Most recent price coefficients per user
     mapping(address => uint256) internal _userPriceCoeff;
     /// @notice Quest Manager
-    QuestManager public immutable questManager;
+    IQuestManager public immutable questManager;
     /// @notice Has variable price
     bool public immutable hasPriceCoeff;
 
@@ -61,7 +61,7 @@ abstract contract GamifiedToken is
         address _questManager,
         bool _hasPriceCoeff
     ) HeadlessStakingRewards(_nexus, _rewardsToken) {
-        questManager = QuestManager(_questManager);
+        questManager = IQuestManager(_questManager);
         hasPriceCoeff = _hasPriceCoeff;
     }
 
