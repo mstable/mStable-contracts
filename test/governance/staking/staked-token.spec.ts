@@ -589,6 +589,46 @@ describe("Staked Token", () => {
             ;({ stakedToken, questManager } = await redeployStakedToken())
             await rewardToken.connect(sa.default.signer).approve(stakedToken.address, stakedAmount)
         })
+        it("should delegate to self when delegating to 0", async () => {
+            await stakedToken["stake(uint256)"](stakedAmount)
+
+            const stakerDataBefore = await snapshotUserStakingData(sa.default.address)
+            expect(stakerDataBefore.rawBalance.raw, "staker raw bal before").eq(stakedAmount)
+            expect(stakerDataBefore.scaledBalance, "staker scaled bal before").eq(stakedAmount)
+            expect(stakerDataBefore.votes, "staker votes before").eq(stakedAmount)
+            expect(stakerDataBefore.numCheckpoints, "staker num checkpoints before").eq(1)
+
+            // Staker does not delegate to anyone
+            const tx1 = await stakedToken.delegate(ZERO_ADDRESS)
+
+            await expect(tx1).to.emit(stakedToken, "DelegateChanged").withArgs(sa.default.address, sa.default.address, sa.default.address)
+            await expect(tx1).to.not.emit(stakedToken, "DelegateVotesChanged")
+
+            const stakerDataMid = await snapshotUserStakingData(sa.default.address)
+            expect(stakerDataMid.rawBalance.raw, "staker raw bal after zero delegate").eq(stakedAmount)
+            expect(stakerDataMid.scaledBalance, "staker scaled bal after zero delegate").to.equal(stakedAmount)
+            expect(stakerDataMid.votes, "staker votes after zero delegate").eq(stakedAmount)
+            expect(stakerDataMid.numCheckpoints, "staker num checkpoints after zero delegate").eq(1)
+
+            // Staker delegates to a delegatee
+            const tx2 = await stakedToken.delegate(sa.dummy1.address)
+
+            await expect(tx2).to.emit(stakedToken, "DelegateChanged").withArgs(sa.default.address, sa.default.address, sa.dummy1.address)
+            await expect(tx2).to.emit(stakedToken, "DelegateVotesChanged").withArgs(sa.default.address, stakedAmount, 0)
+            await expect(tx2).to.emit(stakedToken, "DelegateVotesChanged").withArgs(sa.dummy1.address, 0, stakedAmount)
+
+            const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
+            expect(stakerDataAfter.rawBalance.raw, "staker raw bal after delegate").eq(stakedAmount)
+            expect(stakerDataAfter.scaledBalance, "staker scaled bal after delegate").to.equal(stakedAmount)
+            expect(stakerDataAfter.votes, "staker votes after delegate").eq(0)
+            expect(stakerDataAfter.numCheckpoints, "staker num checkpoints after delegate").eq(2)
+
+            const delegateeAfter = await snapshotUserStakingData(sa.dummy1.address)
+            expect(delegateeAfter.rawBalance.raw, "delegate raw bal after delegate").eq(0)
+            expect(delegateeAfter.scaledBalance, "delegate scaled bal after delegate").to.equal(0)
+            expect(delegateeAfter.votes, "delegatee votes after delegate").eq(stakedAmount)
+            expect(delegateeAfter.numCheckpoints, "delegate num checkpoints after delegate").eq(1)
+        })
         it("should change by staker from self to delegate", async () => {
             await stakedToken["stake(uint256)"](stakedAmount)
 

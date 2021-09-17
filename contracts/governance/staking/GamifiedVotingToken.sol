@@ -92,13 +92,16 @@ abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
     }
 
     /**
-     * @dev Get the address `account` is currently delegating to.
+     * @dev Get the address the `delegator` is currently delegating to.
+     * Return the `delegator` account if not delegating to anyone.
+     * @param delegator the account that is delegating the votes from
+     * @return delegatee that is receiving the delegated votes
      */
-    function delegates(address account) public view virtual returns (address) {
+    function delegates(address delegator) public view virtual returns (address) {
         // Override as per https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/master/contracts/token/ERC20/extensions/ERC20VotesUpgradeable.sol#L23
         // return _delegates[account];
-        address delegatee = _delegates[account];
-        return delegatee == address(0) ? account : delegatee;
+        address delegatee = _delegates[delegator];
+        return delegatee == address(0) ? delegator : delegatee;
     }
 
     /**
@@ -178,6 +181,8 @@ abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
 
     /**
      * @dev Delegate votes from the sender to `delegatee`.
+     * If `delegatee` is zero, the sender gets the voting power.
+     * @param delegatee account that gets the voting power.
      */
     function delegate(address delegatee) public virtual {
         return _delegate(_msgSender(), delegatee);
@@ -209,13 +214,15 @@ abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
      * Emits events {DelegateChanged} and {DelegateVotesChanged}.
      */
     function _delegate(address delegator, address delegatee) internal virtual {
-        address currentDelegate = delegates(delegator);
+        address currentDelegatee = delegates(delegator);
         uint256 delegatorBalance = balanceOf(delegator);
+
         _delegates[delegator] = delegatee;
+        delegatee = delegates(delegator);
 
-        emit DelegateChanged(delegator, currentDelegate, delegatee);
+        emit DelegateChanged(delegator, currentDelegatee, delegatee);
 
-        _moveVotingPower(currentDelegate, delegatee, delegatorBalance);
+        _moveVotingPower(currentDelegatee, delegatee, delegatorBalance);
     }
 
     function _moveVotingPower(
