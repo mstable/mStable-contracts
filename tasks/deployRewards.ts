@@ -74,13 +74,14 @@ task("Vault.deploy", "Deploys a vault contract")
 
 task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
     .addOptionalParam("rewardsToken", "Symbol of rewards token. eg MTA or RMTA for Ropsten", "MTA", types.string)
-    .addOptionalParam("stakedToken", "Symbol of staked token. eg MTA, RMTA, BPT or RBPT", "MTA", types.string)
+    .addOptionalParam("stakedToken", "Symbol of staked token. eg MTA, RMTA, mBPT or RmBPT", "MTA", types.string)
     .addOptionalParam("balToken", "Symbol of balancer token. eg BAL or RBAL", "BAL", types.string)
     .addOptionalParam("balPoolId", "Balancer Pool Id", "0001", types.string)
     .addOptionalParam("name", "Staked Token name", "Staked MTA", types.string)
     .addOptionalParam("symbol", "Staked Token symbol", "stkMTA", types.string)
     .addOptionalParam("cooldown", "Number of seconds for the cooldown period", ONE_WEEK.mul(3).toNumber(), types.int)
     .addOptionalParam("unstakeWindow", "Number of seconds for the unstake window", ONE_WEEK.mul(2).toNumber(), types.int)
+    .addOptionalParam("proxy", "Deploys a proxy contract", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         const deployer = await getSignerAccount(hre, taskArgs.speed)
 
@@ -93,7 +94,7 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
             name: taskArgs.name,
             symbol: taskArgs.symbol,
         }
-        await deployStakingToken(stakingTokenData, deployer, hre)
+        await deployStakingToken(stakingTokenData, deployer, hre, taskArgs.proxy)
     })
 
 export {}

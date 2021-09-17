@@ -222,7 +222,7 @@ describe("Staked Token", () => {
 
             expect(await stakedToken.totalSupply(), "total staked before").to.eq(0)
         })
-        it("should delegate to self by default", async () => {
+        it("should not delegate by default", async () => {
             const stakerAddress = sa.default.address
             const tx = await stakedToken["stake(uint256)"](stakedAmount)
 
@@ -288,7 +288,7 @@ describe("Staked Token", () => {
 
             expect(await stakedToken.totalSupply(), "total staked after").to.eq(stakedAmount)
         })
-        it("should assign delegate", async () => {
+        it("should stake and delegate", async () => {
             const stakerAddress = sa.default.address
             const delegateAddress = sa.dummy1.address
             const tx = await stakedToken["stake(uint256,address)"](stakedAmount, delegateAddress)
@@ -326,7 +326,7 @@ describe("Staked Token", () => {
 
             expect(await stakedToken.totalSupply(), "total staked after").to.eq(stakedAmount)
         })
-        it("should stake to a delegate after staking with self as delegate", async () => {
+        it("should stake to a delegate after staking with no delegate", async () => {
             const firstStakedAmount = simpleToExactAmount(100)
             const secondStakedAmount = simpleToExactAmount(200)
             const bothStakedAmounts = firstStakedAmount.add(secondStakedAmount)
@@ -391,6 +391,129 @@ describe("Staked Token", () => {
             expect(delegateCheckpoint.votes, "delegate checkpoint votes").to.eq(bothStakedAmounts)
 
             expect(await stakedToken.totalSupply(), "total staked after").to.eq(bothStakedAmounts)
+        })
+        context("restaking", () => {
+            const firstStakedAmount = simpleToExactAmount(100)
+            const firstBoostAmount = firstStakedAmount.mul(125).div(100)
+            const secondStakedAmount = simpleToExactAmount(200)
+            const afterRawBalance = firstStakedAmount.add(secondStakedAmount)
+            const afterBoostBalance = afterRawBalance.mul(125).div(100)
+            let stakerAddress: string
+            let delegateAddress: string
+            beforeEach(async () => {
+                stakerAddress = sa.default.address
+                delegateAddress = sa.dummy1.address
+
+                // Add quest
+                const expiry = deployTime.add(ONE_WEEK.mul(12))
+                await questManager.connect(sa.governor.signer).addQuest(QuestType.PERMANENT, 25, expiry)
+
+                // Complete quests
+                const signature = await signQuestUsers(0, [stakerAddress], sa.questSigner.signer)
+                await questManager.connect(sa.questSigner.signer).completeQuestUsers(0, [stakerAddress], signature)
+            })
+            context("first stake with no delegate", () => {
+                beforeEach(async () => {
+                    await stakedToken["stake(uint256)"](firstStakedAmount)
+                    const stakerBefore = await snapshotUserStakingData(stakerAddress)
+                    expect(stakerBefore.rawBalance.raw, "staker raw balance before").to.eq(firstStakedAmount)
+                    expect(stakerBefore.scaledBalance, "staker scaled bal before").to.eq(firstBoostAmount)
+                    expect(stakerBefore.votes, "staker votes before").to.eq(firstBoostAmount)
+                })
+                it("should stake with no delegate", async () => {
+                    const tx = await stakedToken["stake(uint256)"](secondStakedAmount)
+
+                    await expect(tx).to.emit(stakedToken, "Staked").withArgs(stakerAddress, secondStakedAmount, ZERO_ADDRESS)
+                    await expect(tx).to.not.emit(stakedToken, "DelegateChanged")
+                    await expect(tx)
+                        .to.emit(stakedToken, "DelegateVotesChanged")
+                        .withArgs(stakerAddress, firstBoostAmount, afterBoostBalance)
+
+                    const stakerAfter = await snapshotUserStakingData(stakerAddress)
+                    expect(stakerAfter.rawBalance.raw, "staker raw balance after").to.eq(afterRawBalance)
+                    expect(stakerAfter.scaledBalance, "staker scaled bal after").to.eq(afterBoostBalance)
+                    expect(stakerAfter.votes, "staker votes after").to.eq(afterBoostBalance)
+                })
+                it("should stake with a delegate", async () => {
+                    const tx = await stakedToken["stake(uint256,address)"](secondStakedAmount, delegateAddress)
+
+                    await expect(tx).to.emit(stakedToken, "Staked").withArgs(stakerAddress, secondStakedAmount, delegateAddress)
+                    await expect(tx).to.emit(stakedToken, "DelegateChanged").withArgs(stakerAddress, stakerAddress, delegateAddress)
+                    await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(stakerAddress, firstBoostAmount, 0)
+                    await expect(tx).to.emit(stakedToken, "DelegateVotesChanged").withArgs(delegateAddress, 0, firstBoostAmount)
+                    await expect(tx)
+                        .to.emit(stakedToken, "DelegateVotesChanged")
+                        .withArgs(delegateAddress, firstBoostAmount, afterBoostBalance)
+
+                    const stakerAfter = await snapshotUserStakingData(stakerAddress)
+                    expect(stakerAfter.rawBalance.raw, "staker raw balance after").to.eq(afterRawBalance)
+                    expect(stakerAfter.scaledBalance, "staker scaled bal after").to.eq(afterBoostBalance)
+                    expect(stakerAfter.votes, "staker votes after").to.eq(0)
+
+                    const delegatefter = await snapshotUserStakingData(delegateAddress)
+                    expect(delegatefter.rawBalance.raw, "staker raw balance after").to.eq(0)
+                    expect(delegatefter.scaledBalance, "staker scaled bal after").to.eq(0)
+                    expect(delegatefter.votes, "staker votes after").to.eq(afterBoostBalance)
+                })
+                it("should stake with zero delegate", async () => {
+                    const tx = await stakedToken["stake(uint256,address)"](secondStakedAmount, ZERO_ADDRESS)
+
+                    await expect(tx).to.emit(stakedToken, "Staked").withArgs(stakerAddress, secondStakedAmount, ZERO_ADDRESS)
+                    await expect(tx).to.not.emit(stakedToken, "DelegateChanged")
+                    await expect(tx)
+                        .to.emit(stakedToken, "DelegateVotesChanged")
+                        .withArgs(stakerAddress, firstBoostAmount, afterBoostBalance)
+
+                    const stakerAfter = await snapshotUserStakingData(stakerAddress)
+                    expect(stakerAfter.rawBalance.raw, "staker raw balance after").to.eq(afterRawBalance)
+                    expect(stakerAfter.scaledBalance, "staker scaled bal after").to.eq(afterBoostBalance)
+                    expect(stakerAfter.votes, "staker votes after").to.eq(afterBoostBalance)
+                })
+                it("should stake with self as delegate", async () => {
+                    const tx = await stakedToken["stake(uint256,address)"](secondStakedAmount, stakerAddress)
+
+                    await expect(tx).to.emit(stakedToken, "Staked").withArgs(stakerAddress, secondStakedAmount, stakerAddress)
+                    await expect(tx).to.emit(stakedToken, "DelegateChanged").withArgs(stakerAddress, stakerAddress, stakerAddress)
+                    await expect(tx)
+                        .to.emit(stakedToken, "DelegateVotesChanged")
+                        .withArgs(stakerAddress, firstBoostAmount, afterBoostBalance)
+
+                    const stakerAfter = await snapshotUserStakingData(stakerAddress)
+                    expect(stakerAfter.rawBalance.raw, "staker raw balance after").to.eq(afterRawBalance)
+                    expect(stakerAfter.scaledBalance, "staker scaled bal after").to.eq(afterBoostBalance)
+                    expect(stakerAfter.votes, "staker votes after").to.eq(afterBoostBalance)
+                })
+            })
+            context("first stake with a delegate", () => {
+                beforeEach(async () => {
+                    await stakedToken["stake(uint256,address)"](firstStakedAmount, delegateAddress)
+                    const stakerBefore = await snapshotUserStakingData(stakerAddress)
+                    expect(stakerBefore.rawBalance.raw, "staker raw balance before").to.eq(firstStakedAmount)
+                    expect(stakerBefore.scaledBalance, "staker scaled bal before").to.eq(firstBoostAmount)
+                    expect(stakerBefore.votes, "staker votes before").to.eq(firstBoostAmount)
+
+                    const delegateBefore = await snapshotUserStakingData(delegateAddress)
+                    expect(delegateBefore.rawBalance.raw, "staker raw balance before").to.eq(0)
+                    expect(delegateBefore.scaledBalance, "staker scaled bal before").to.eq(0)
+                    expect(delegateBefore.votes, "staker votes before").to.eq(afterBoostBalance)
+                })
+                it("should stake with no delegate")
+                it("should stake with a delegate")
+                it("should stake with zero delegate")
+                it("should stake with self as delegate")
+            })
+            context("first stake with zero delegate", () => {
+                it("should stake with no delegate")
+                it("should stake with a delegate")
+                it("should stake with zero delegate")
+                it("should stake with self as delegate")
+            })
+            context("first stake with self as delegate", () => {
+                it("should stake with no delegate")
+                it("should stake with a delegate")
+                it("should stake with zero delegate")
+                it("should stake with self as delegate")
+            })
         })
         it("should not chain delegate votes", async () => {
             const delegateStakedAmount = simpleToExactAmount(2000)

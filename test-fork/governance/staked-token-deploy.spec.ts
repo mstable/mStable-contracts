@@ -75,7 +75,7 @@ interface StakedTokenDeployment {
     delayedProxyAdmin: DelayedProxyAdmin
 }
 
-// 1. Deploy core stkMTA, BPT variant & QuestManager
+// 1. Deploy core stkMTA, mBPT variant & QuestManager
 // 2. Gov TX's
 //     1. Add StakingTokens to BoostDirector & QuestManager
 //     2. Add Quest to QuestManager
@@ -191,7 +191,7 @@ context("StakedToken deployments and vault upgrades", () => {
         await increaseTime(ONE_DAY.mul(6))
     })
     context("1. Deploying", () => {
-        it("deploys the contracts", async () => {
+        it.skip("deploys the contracts", async () => {
             // Deploy StakedTokenMTA
             let stakedTokenAddresses: StakedTokenDeployAddresses = {
                 proxyAdminAddress: getChainAddress("ProxyAdmin", Chain.mainnet),
@@ -213,6 +213,7 @@ context("StakedToken deployments and vault upgrades", () => {
                     },
                     deployer,
                     hre,
+                    false,
                     undefined,
                     questSignerAddress,
                 )
@@ -224,7 +225,7 @@ context("StakedToken deployments and vault upgrades", () => {
                 const stakedTokenBPT = await deployStakingToken(
                     {
                         rewardsTokenSymbol: "MTA",
-                        stakedTokenSymbol: "BPT",
+                        stakedTokenSymbol: "mBPT",
                         balTokenSymbol: "BAL",
                         cooldown: ONE_WEEK.mul(3).toNumber(),
                         unstakeWindow: ONE_WEEK.mul(2).toNumber(),
@@ -233,6 +234,7 @@ context("StakedToken deployments and vault upgrades", () => {
                     },
                     deployer,
                     hre,
+                    false,
                     stakedTokenAddresses,
                     questSignerAddress,
                 )
@@ -249,11 +251,35 @@ context("StakedToken deployments and vault upgrades", () => {
                     deployer.signer,
                 ),
                 mta: IERC20__factory.connect(resolveAddress("MTA"), deployer.signer),
-                bpt: IERC20__factory.connect(resolveAddress("BPT"), deployer.signer),
+                bpt: IERC20__factory.connect(resolveAddress("mBPT"), deployer.signer),
                 boostDirector: BoostDirectorV2__factory.connect(resolveAddress("BoostDirector"), governor),
                 proxyAdmin: InstantProxyAdmin__factory.connect(stakedTokenAddresses.proxyAdminAddress, governor),
                 delayedProxyAdmin: DelayedProxyAdmin__factory.connect(resolveAddress("DelayedProxyAdmin"), governor),
             }
+        })
+        it("upgrade proxies", async () => {
+            deployedContracts = {
+                stakedTokenBPT: StakedTokenBPT__factory.connect(resolveAddress("StakedTokenBPT"), deployer.signer),
+                stakedTokenMTA: StakedTokenMTA__factory.connect(resolveAddress("StakedTokenMTA"), deployer.signer),
+                questManager: QuestManager__factory.connect(resolveAddress("QuestManager"), deployer.signer),
+                signatureVerifier: SignatureVerifier__factory.connect(resolveAddress("SignatureVerifier"), deployer.signer),
+                platformTokenVendorFactory: PlatformTokenVendorFactory__factory.connect(
+                    resolveAddress("PlatformTokenVendorFactory"),
+                    deployer.signer,
+                ),
+                mta: IERC20__factory.connect(resolveAddress("MTA"), deployer.signer),
+                bpt: IERC20__factory.connect(resolveAddress("mBPT"), deployer.signer),
+                boostDirector: BoostDirectorV2__factory.connect(resolveAddress("BoostDirector"), governor),
+                proxyAdmin: InstantProxyAdmin__factory.connect(resolveAddress("ProxyAdmin"), governor),
+                delayedProxyAdmin: DelayedProxyAdmin__factory.connect(resolveAddress("DelayedProxyAdmin"), governor),
+            }
+
+            await deployedContracts.proxyAdmin
+                .connect(governor)
+                .upgrade(deployedContracts.stakedTokenMTA.address, "0xCE1dA6331B07037E7e3a7B713f7Fd2C4F0A17A96")
+            await deployedContracts.proxyAdmin
+                .connect(governor)
+                .upgrade(deployedContracts.stakedTokenBPT.address, "0x24083ee3919421E7477FF7A0b4b550EcE0e5d87E")
         })
         it("verifies stakedTokenMTA config", async () => {
             const config = await snapConfig(deployedContracts.stakedTokenMTA)
@@ -278,7 +304,7 @@ context("StakedToken deployments and vault upgrades", () => {
             expect(config.decimals, "decimals").eq(18)
             expect(config.rewardsDistributor, "rewardsDistributor").eq(resolveAddress("RewardsDistributor"))
             expect(config.nexus, "nexus").eq(resolveAddress("Nexus"))
-            expect(config.stakingToken, "staking token symbol").eq(resolveAddress("BPT"))
+            expect(config.stakingToken, "staking token symbol").eq(resolveAddress("mBPT"))
             expect(config.rewardToken, "reward token symbol").eq(resolveAddress("MTA"))
             expect(config.cooldown, "cooldown").eq(ONE_WEEK.mul(3))
             expect(config.unstake, "unstake").eq(ONE_WEEK.mul(2))
@@ -309,7 +335,7 @@ context("StakedToken deployments and vault upgrades", () => {
         })
     })
     context("2. Sending Gov Tx's", () => {
-        it("adds StakingTokens to BoostDirector and QuestManager", async () => {
+        it.skip("adds StakingTokens to BoostDirector and QuestManager", async () => {
             // 1. BoostDirector
             await deployedContracts.boostDirector.connect(governor).addStakedToken(deployedContracts.stakedTokenMTA.address)
             await deployedContracts.boostDirector.connect(governor).addStakedToken(deployedContracts.stakedTokenBPT.address)
@@ -333,12 +359,12 @@ context("StakedToken deployments and vault upgrades", () => {
                     [simpleToExactAmount(1), simpleToExactAmount(1)],
                 )
         })
-        it("whitelists Badger voterproxy", async () => {
+        it.skip("whitelists Badger voterproxy", async () => {
             await deployedContracts.stakedTokenMTA.connect(governor).whitelistWrapper(mStableVoterProxy)
         })
     })
     context("3. Vault upgrades", () => {
-        it("should upgrade all vaults", async () => {
+        it.skip("should upgrade all vaults", async () => {
             const proxyAdmin = await DelayedProxyAdmin__factory.connect(resolveAddress("DelayedProxyAdmin"), governor)
             await Promise.all(vaultAddresses.map((v) => proxyAdmin.acceptUpgradeRequest(v)))
         })
@@ -369,9 +395,9 @@ context("StakedToken deployments and vault upgrades", () => {
                         resolveAddress(vault.platformToken),
                     )
                 }
-                expect(await proxy.balanceOf(vault.userBal.user), `${vault.underlyingTokenSymbol} vault user balance`).to.gt(
-                    vault.userBal.balance,
-                )
+                // expect(await proxy.balanceOf(vault.userBal.user), `${vault.underlyingTokenSymbol} vault user balance`).to.gt(
+                //     vault.userBal.balance,
+                // )
                 expect(await proxy.totalSupply(), `${vault.underlyingTokenSymbol} vault total supply`).to.gt(0)
             }
         })
@@ -382,9 +408,10 @@ context("StakedToken deployments and vault upgrades", () => {
     // staker2 stakes in MTA
     context("4. Beta testing", () => {
         let staker1signer: Signer
-        const staker1bpt = simpleToExactAmount(3000)
+        const staker1bpt = simpleToExactAmount(2000)
         let staker2signer: Signer
-        it("tops up users with MTA", async () => {
+        before(async () => {
+            // tops up users with MTA
             await deployedContracts.mta.transfer(staker1, simpleToExactAmount(50000))
             await deployedContracts.mta.transfer(staker2, simpleToExactAmount(100000))
 
@@ -397,10 +424,39 @@ context("StakedToken deployments and vault upgrades", () => {
                 .connect(staker1signer)
                 ["stake(uint256,address)"](staker1bpt, resolveAddress("ProtocolDAO"))
         })
-        it("allows basic staking on StakedTokenMTA", async () => {
-            await deployedContracts.mta.connect(staker1signer).approve(deployedContracts.stakedTokenMTA.address, simpleToExactAmount(50000))
-            await deployedContracts.stakedTokenMTA.connect(staker1signer)["stake(uint256)"](simpleToExactAmount(50000))
+        it("allows staker 1 staking on StakedTokenMTA", async () => {
+            const startingRawBal = BN.from("200016043320105818350") // a bit over 200 MTA
+            const stakeAmount = simpleToExactAmount(50000)
+            const balBefore = await snapshotUserStakingData(
+                deployedContracts.stakedTokenMTA,
+                deployedContracts.questManager,
+                deployedContracts.mta,
+                staker1,
+                true,
+            )
+            expect(balBefore.questBalance.permMultiplier, "perm multiplier after").eq(25)
+            expect(balBefore.questBalance.seasonMultiplier, "season multiplier after").eq(0)
+            expect(balBefore.rawBalance.raw, "raw bal after").eq(startingRawBal)
+            expect(balBefore.scaledBalance, "scaled bal after").eq(startingRawBal.mul(125).div(100))
+            expect(balBefore.votes, "votes after").eq(0)
 
+            await deployedContracts.mta.connect(staker1signer).approve(deployedContracts.stakedTokenMTA.address, stakeAmount)
+            await deployedContracts.stakedTokenMTA.connect(staker1signer)["stake(uint256)"](stakeAmount)
+
+            const balAfter = await snapshotUserStakingData(
+                deployedContracts.stakedTokenMTA,
+                deployedContracts.questManager,
+                deployedContracts.mta,
+                staker1,
+                true,
+            )
+            expect(balAfter.questBalance.permMultiplier, "perm multiplier after").eq(25)
+            expect(balAfter.questBalance.seasonMultiplier, "season multiplier after").eq(0)
+            expect(balAfter.rawBalance.raw, "raw bal after").eq(startingRawBal.add(stakeAmount))
+            expect(balAfter.scaledBalance, "scaled bal after").eq(balAfter.rawBalance.raw.mul(125).div(100))
+            expect(balAfter.votes, "votes after").eq(0)
+        })
+        it("allows staker 2 staking on StakedTokenMTA", async () => {
             await deployedContracts.mta
                 .connect(staker2signer)
                 .approve(deployedContracts.stakedTokenMTA.address, simpleToExactAmount(100000))
@@ -419,8 +475,8 @@ context("StakedToken deployments and vault upgrades", () => {
                 staker1,
                 true,
             )
-            const signature = await signUserQuests(staker1, [0], questSigner)
-            await deployedContracts.questManager.completeUserQuests(staker1, [0], signature)
+            const signature = await signUserQuests(staker1, [1], questSigner)
+            await deployedContracts.questManager.completeUserQuests(staker1, [1], signature)
 
             const balAfter = await snapshotUserStakingData(
                 deployedContracts.stakedTokenMTA,
@@ -429,12 +485,14 @@ context("StakedToken deployments and vault upgrades", () => {
                 staker1,
                 true,
             )
-            expect(balAfter.questBalance.permMultiplier).eq(10)
-            expect(balAfter.questBalance.lastAction).eq(0)
-            expect(balAfter.earnedRewards).gt(0)
-            expect(balAfter.scaledBalance).eq(balBefore.scaledBalance.mul(110).div(100))
-            expect(balAfter.votes).eq(balAfter.scaledBalance)
-            expect(await deployedContracts.questManager.hasCompleted(staker1, 0)).eq(true)
+            expect(balAfter.questBalance.permMultiplier, "perm multiplier after").eq(25 + 10)
+            expect(balAfter.questBalance.seasonMultiplier, "season multiplier after").eq(0)
+            expect(balAfter.questBalance.lastAction, "last action after").eq(0)
+            expect(balAfter.earnedRewards, "earned rewards after").gt(0)
+            expect(balAfter.rawBalance.raw, "raw bal after").eq(balBefore.rawBalance.raw)
+            expect(balAfter.scaledBalance, "scaled bal after").eq(balBefore.rawBalance.raw.mul(135).div(100))
+            expect(balAfter.votes, "votes after").eq(0)
+            expect(await deployedContracts.questManager.hasCompleted(staker1, 1), "has completed after").eq(true)
         })
         const calcBoost = (raw: BN, vMTA: BN, priceCoefficient = simpleToExactAmount(1)): BN => {
             const maxVMTA = simpleToExactAmount(600000, 18)
@@ -510,7 +568,7 @@ context("StakedToken deployments and vault upgrades", () => {
                 staker2,
                 true,
             )
-            await deployedContracts.stakedTokenBPT.connect(staker1signer).startCooldown(staker1bpt)
+            await deployedContracts.stakedTokenBPT.connect(staker1signer).startCooldown(staker1balbefore.rawBalance.raw)
             await deployedContracts.stakedTokenMTA.connect(staker2signer).startCooldown(simpleToExactAmount(50000))
 
             const staker1balmid = await snapshotUserStakingData(
@@ -530,7 +588,7 @@ context("StakedToken deployments and vault upgrades", () => {
 
             expect(staker1balmid.scaledBalance).eq(0)
             expect(staker1balmid.rawBalance.raw).eq(0)
-            expect(staker1balmid.rawBalance.cooldownUnits).eq(staker1bpt)
+            expect(staker1balmid.rawBalance.cooldownUnits).eq(staker1balbefore.rawBalance.raw)
 
             expect(staker2balmid.scaledBalance).eq(staker2balbefore.scaledBalance.div(2))
             expect(staker2balmid.rawBalance.raw).eq(simpleToExactAmount(50000))
@@ -538,7 +596,7 @@ context("StakedToken deployments and vault upgrades", () => {
 
             await increaseTime(ONE_WEEK.mul(3).add(1))
 
-            await deployedContracts.stakedTokenBPT.connect(staker1signer).withdraw(staker1bpt, staker1, true, true)
+            await deployedContracts.stakedTokenBPT.connect(staker1signer).withdraw(staker1balbefore.rawBalance.raw, staker1, true, true)
             await deployedContracts.stakedTokenMTA.connect(staker2signer).withdraw(simpleToExactAmount(40000), staker2, false, true)
             const staker1balend = await snapshotUserStakingData(
                 deployedContracts.stakedTokenBPT,
@@ -564,7 +622,7 @@ context("StakedToken deployments and vault upgrades", () => {
             expect(staker2balend.rawBalance.cooldownUnits).eq(0)
             expect(staker2balend.rawBalance.cooldownTimestamp).eq(0)
         })
-        it("should allow recycling of BPT redemption fees", async () => {
+        it("should allow recycling of mBPT redemption fees", async () => {
             const fees = await deployedContracts.stakedTokenBPT.pendingBPTFees()
             expect(fees).gt(simpleToExactAmount(150))
 

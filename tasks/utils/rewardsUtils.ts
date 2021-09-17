@@ -37,6 +37,7 @@ export const deployStakingToken = async (
     stakedTokenData: StakedTokenData,
     deployer: Account,
     hre: any,
+    deployProxy = false,
     overrides?: StakedTokenDeployAddresses,
     overrideSigner?: string,
 ): Promise<StakedTokenDeployAddresses> => {
@@ -178,14 +179,17 @@ export const deployStakingToken = async (
         },
     })
 
-    const proxy = await deployContract(new AssetProxy__factory(deployer.signer), "AssetProxy", [
-        stakedTokenImpl.address,
-        proxyAdminAddress,
-        data,
-    ])
+    let proxy: Contract
+    if (deployProxy) {
+        proxy = await deployContract(new AssetProxy__factory(deployer.signer), "AssetProxy", [
+            stakedTokenImpl.address,
+            proxyAdminAddress,
+            data,
+        ])
+    }
 
     return {
-        stakedToken: proxy.address,
+        stakedToken: proxy?.address,
         questManager: questManagerAddress,
         signatureVerifier: signatureVerifierAddress,
         platformTokenVendorFactory: platformTokenVendorFactoryAddress,
