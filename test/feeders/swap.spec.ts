@@ -20,8 +20,10 @@ describe("Feeder - Swap", () => {
         feederWeights?: Array<BN | number>,
         mAssetWeights?: Array<BN | number>,
         use2dp = false,
+        useRedemptionPrice = false,
     ): Promise<void> => {
-        details = await feederMachine.deployFeeder(feederWeights, mAssetWeights, useLendingMarkets, useInterestValidator, use2dp)
+        details = await feederMachine.deployFeeder(feederWeights, mAssetWeights, useLendingMarkets,
+            useInterestValidator, use2dp, useRedemptionPrice)
     }
 
     before("Init contract", async () => {
@@ -230,6 +232,30 @@ describe("Feeder - Swap", () => {
                     })
                 })
             })
+            context("and different RPs", () => {
+                before(async () => {
+                    await runSetup(undefined, undefined, undefined,
+                        undefined, undefined, true)
+                })
+                it("swap with RP of 0.75", async () => {
+                    const { bAssets, redemptionPriceSnap } = details
+                    await redemptionPriceSnap.setRedemptionPriceSnap("750000000000000000000000000")
+                    // swapping less valuable fAsset for mAsset, expect input * redemption price, about 0.75
+                    await assertSwap(details, bAssets[1], bAssets[0], simpleToExactAmount(10), "7512443560746939199")
+                })
+                it("swap with RP of 1.0", async () => {
+                    const { bAssets, redemptionPriceSnap } = details
+                    await redemptionPriceSnap.setRedemptionPriceSnap("1000000000000000000000000000")
+                    // should be close to 1:1 with slight difference from rounding and slippage.
+                    await assertSwap(details, bAssets[1], bAssets[0], simpleToExactAmount(10), "9990856221919260167")
+                })
+                it("swap with RP of 1.2", async () => {
+                    const { bAssets, redemptionPriceSnap } = details
+                    await redemptionPriceSnap.setRedemptionPriceSnap("1200000000000000000000000000")
+                    // swapping more valuable fAsset for mAsset, expect input * redemption price, about 1.25
+                    await assertSwap(details, bAssets[1], bAssets[0], simpleToExactAmount(10), "11963626285730206459")
+                })
+            })
             context("swapping different assets", () => {
                 beforeEach(async () => {
                     await runSetup()
@@ -274,7 +300,100 @@ describe("Feeder - Swap", () => {
                     )
                 })
             })
-
+            context("swapping different assets using redemption price of 2", () => {
+                beforeEach(async () => {
+                    await runSetup(undefined, undefined, undefined,
+                        undefined, undefined, true)
+                    const { redemptionPriceSnap } = details
+                    await redemptionPriceSnap.setRedemptionPriceSnap("2000000000000000000000000000")
+                })
+                it("should swap feeder asset for mStable asset", async () => {
+                    const { fAsset, mAsset } = details
+                    await assertSwap(details, fAsset, mAsset, simpleToExactAmount(10), "19870781263316757727")
+                })
+                it("should swap mStable asset for feeder asset", async () => {
+                    const { fAsset, mAsset } = details
+                    await assertSwap(details, mAsset, fAsset, simpleToExactAmount(10), "5023929440671813130")
+                })
+                it("should swap feeder asset for main pool asset with 18 decimals", async () => {
+                    const { mAssetDetails, fAsset } = details
+                    await assertSwap(
+                        details,
+                        fAsset,
+                        mAssetDetails.bAssets[0],
+                        simpleToExactAmount(10),
+                        "19858270000000000000",
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        true,
+                        true,
+                    )
+                })
+                it("should swap feeder asset for main pool asset with 6 decimals", async () => {
+                    const { mAssetDetails, fAsset } = details
+                    await assertSwap(
+                        details,
+                        fAsset,
+                        mAssetDetails.bAssets[1],
+                        simpleToExactAmount(10),
+                        "19858270",
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        true,
+                    )
+                })
+            })
+            context("swapping different assets using redemption price of 0.5", () => {
+                beforeEach(async () => {
+                    await runSetup(undefined, undefined, undefined,
+                        undefined, undefined, true)
+                    const { redemptionPriceSnap } = details
+                    await redemptionPriceSnap.setRedemptionPriceSnap("500000000000000000000000000")
+                })
+                it("should swap feeder asset for mStable asset", async () => {
+                    const { fAsset, mAsset } = details
+                    await assertSwap(details, fAsset, mAsset, simpleToExactAmount(10), "5025939724942443350")
+                })
+                it("should swap mStable asset for feeder asset", async () => {
+                    const { fAsset, mAsset } = details
+                    await assertSwap(details, mAsset, fAsset, simpleToExactAmount(10), "19862836775669060034")
+                })
+                it("should swap feeder asset for main pool asset with 18 decimals", async () => {
+                    const { mAssetDetails, fAsset } = details
+                    await assertSwap(
+                        details,
+                        fAsset,
+                        mAssetDetails.bAssets[0],
+                        simpleToExactAmount(10),
+                        "5023929440671813130",
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        true,
+                        true,
+                    )
+                })
+                it("should swap feeder asset for main pool asset with 6 decimals", async () => {
+                    const { mAssetDetails, fAsset } = details
+                    await assertSwap(
+                        details,
+                        fAsset,
+                        mAssetDetails.bAssets[1],
+                        simpleToExactAmount(10),
+                        "5022886",
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        true,
+                    )
+                })
+            })
             context("with a bAsset with 2 dp", () => {
                 beforeEach(async () => {
                     await runSetup(false, false, [50, 50], undefined, true)

@@ -16,6 +16,8 @@ import {
     MockAaveV2__factory,
     Masset,
     MockERC20__factory,
+    RedemptionPriceSnapMock,
+    RedemptionPriceSnapMock__factory,
 } from "types/generated"
 import { BN, minimum, simpleToExactAmount } from "@utils/math"
 import { ratioScale, ZERO_ADDRESS, DEAD_ADDRESS, fullScale } from "@utils/constants"
@@ -36,6 +38,7 @@ export interface FeederDetails {
     bAssets?: MockERC20[]
     pTokens?: Array<string>
     mAssetDetails?: MassetDetails
+    redemptionPriceSnap?: RedemptionPriceSnapMock
 }
 
 export class FeederMachine {
@@ -59,6 +62,7 @@ export class FeederMachine {
         useLendingMarkets = false,
         useInterestValidator = false,
         use2dp = false,
+        useRedemptionPrice = false,
     ): Promise<FeederDetails> {
         const mAssetDetails = await this.mAssetMachine.deployMasset(useLendingMarkets, false)
         // Mints 10k mAsset to begin with
@@ -78,6 +82,14 @@ export class FeederMachine {
         if (useInterestValidator) {
             interestValidator = await new InterestValidator__factory(this.sa.default.signer).deploy(mAssetDetails.nexus.address)
             await mAssetDetails.nexus.setInterestValidator(interestValidator.address)
+        }
+
+        // - Deploy RedemptionPriceSnapMock contract
+        let redemptionPriceSnap: RedemptionPriceSnapMock
+        let redemptionPriceSnapAddress: string = "0x0000000000000000000000000000000000000000";
+        if (useRedemptionPrice) {
+            redemptionPriceSnap = await new RedemptionPriceSnapMock__factory(this.sa.default.signer).deploy()
+            redemptionPriceSnapAddress = redemptionPriceSnap.address
         }
 
         // - Add fAsset to lending markets
@@ -107,6 +119,7 @@ export class FeederMachine {
         const impl = await new FeederPool__factory(linkedAddress, this.sa.default.signer).deploy(
             mAssetDetails.nexus.address,
             mAssetDetails.mAsset.address,
+            redemptionPriceSnapAddress,
         )
         const data = impl.interface.encodeFunctionData("initialize", [
             "mStable mBTC/bBTC Feeder",
@@ -163,6 +176,7 @@ export class FeederMachine {
             bAssets,
             pTokens,
             mAssetDetails,
+            redemptionPriceSnap,
         }
     }
 

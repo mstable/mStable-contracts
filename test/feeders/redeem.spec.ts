@@ -28,8 +28,10 @@ describe("Feeder - Redeem", () => {
         feederWeights?: Array<BN | number>,
         mAssetWeights?: Array<BN | number>,
         use2dp = false,
+        useRedemptionPrice = false,
     ): Promise<void> => {
-        details = await feederMachine.deployFeeder(feederWeights, mAssetWeights, useLendingMarkets, useInterestValidator, use2dp)
+        details = await feederMachine.deployFeeder(feederWeights, mAssetWeights, useLendingMarkets,
+            useInterestValidator, use2dp, useRedemptionPrice)
     }
 
     before("Init contract", async () => {
@@ -506,7 +508,46 @@ describe("Feeder - Redeem", () => {
                     await assertBasicRedeem(details, mAssetDetails.bAssets[0], simpleToExactAmount(1))
                 })
             })
-
+            context("scale fAsset by setting redemption price to 2", () => {
+                beforeEach(async () => {
+                    await runSetup(undefined, undefined, undefined,
+                        undefined, undefined, true)
+                    const {redemptionPriceSnap} = details
+                    await redemptionPriceSnap.setRedemptionPriceSnap("2000000000000000000000000000")
+                })
+                it("redeem 1 pool token for scaled mAsset quantity", async () => {
+                    const {mAsset} = details
+                    // TVL is 50% higher so 1 pool token should give about 1.5 mAssets.
+                    await assertBasicRedeem(details, mAsset, simpleToExactAmount(1), "1493800546589159674")
+                })
+                it("redeem 1 pool token for scaled fAsset quantity", async () => {
+                    const {fAsset} = details
+                    // TVL is 50% higher and value of fAssets has doubled so should give about 1.5 / 2 per pool token.
+                    await assertBasicRedeem(details, fAsset, simpleToExactAmount(1), "751092003565206370")
+                })
+                it("should redeem a single main pool asset independent of redemption price", async () => {
+                    const {mAssetDetails} = details
+                    await assertBasicRedeem(details, mAssetDetails.bAssets[0], simpleToExactAmount(1))
+                })
+            })
+            context("enable using redemption price", () => {
+                beforeEach(async () => {
+                    await runSetup(undefined, undefined, undefined,
+                        undefined, undefined, true)
+                })
+                it("Set RP so mAsset should fail redeem", async () => {
+                    const {mAsset, pool, redemptionPriceSnap} = details
+                    await redemptionPriceSnap.setRedemptionPriceSnap("4500000000000000000000000000")
+                    // Due to the RP fAsset is now overweight and redeeming mAsset should fail
+                    await assertFailedRedeem("Exceeds weight limits", pool, mAsset, simpleToExactAmount(1))
+                })
+                it("Set RP so fAsset should fail redeem", async () => {
+                    const {fAsset, pool, redemptionPriceSnap} = details
+                    await redemptionPriceSnap.setRedemptionPriceSnap("240000000000000000000000000")
+                    // Due to the RP fAsset is now overweight and redeeming mAsset should fail
+                    await assertFailedRedeem("Exceeds weight limits", pool, fAsset, simpleToExactAmount(1))
+                })
+            })
             context("with a bAsset with 2 dp", () => {
                 beforeEach(async () => {
                     await runSetup(false, false, [50, 50], undefined, true)
@@ -751,6 +792,28 @@ describe("Feeder - Redeem", () => {
                     await assertFailedRedeemExact("Must redeem > 1e6 units", details.pool, [fAsset], [1])
                 })
             })
+            context("reset and set redemption to 2 before each", () => {
+                beforeEach(async () => {
+                    await runSetup(undefined, undefined, undefined,
+                        undefined, undefined, true)
+                    const {redemptionPriceSnap} = details
+                    await redemptionPriceSnap.setRedemptionPriceSnap("2000000000000000000000000000")
+                })
+                it("should redeem exact two thirds mStable asset", async () => {
+                    const { mAsset } = details
+                    // TVL has increased so 1 mAsset will cost less than 1 fptoken, expect 1/1.5
+                    await assertRedeemExact(details, [mAsset], [simpleToExactAmount(1)], "669427234744509357", simpleToExactAmount(11, 17))
+                })
+                it("should redeem exact four thirds of feeder asset", async () => {
+                    const { fAsset } = details
+                    // fAssets have doubled in value and will cost more than 1 fptoken. Expect 1 / 0.75
+                    await assertRedeemExact(details, [fAsset], [simpleToExactAmount(1)], "1331397899776025778", simpleToExactAmount(14, 17))
+                })
+                it("should redeem smallest bAsset unit, quantity independent of redemption price", async () => {
+                    const { fAsset } = details
+                    await assertFailedRedeemExact("Must redeem > 1e6 units", details.pool, [fAsset], [1])
+                })
+            })
             context("with a bAsset with 2 dp", () => {
                 beforeEach(async () => {
                     await runSetup(false, false, [50, 50], undefined, true)
@@ -877,6 +940,22 @@ describe("Feeder - Redeem", () => {
                     await runSetup()
                 })
                 it("should redeem proportionately", async () => {
+                    await assertRedeemProportionately(details, simpleToExactAmount(1), ["499799999999999998", "499799999999999998"])
+                })
+            })
+            context("using redemption getter", () => {
+                beforeEach(async () => {
+                    await runSetup(undefined, undefined, undefined,
+                        undefined, undefined, true)
+                })
+                it("redeem proportionately. RP doubling should have no effect", async () => {
+                    const { redemptionPriceSnap } = details
+                    await redemptionPriceSnap.setRedemptionPriceSnap("2000000000000000000000000000")
+                    await assertRedeemProportionately(details, simpleToExactAmount(1), ["499799999999999998", "499799999999999998"])
+                })
+                it("redeem proportionately. RP halving should have no effect", async () => {
+                    const { redemptionPriceSnap } = details
+                    await redemptionPriceSnap.setRedemptionPriceSnap("500000000000000000000000000")
                     await assertRedeemProportionately(details, simpleToExactAmount(1), ["499799999999999998", "499799999999999998"])
                 })
             })

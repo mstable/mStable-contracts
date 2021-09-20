@@ -28,8 +28,10 @@ describe("Feeder - Mint", () => {
         feederWeights?: Array<BN | number>,
         mAssetWeights?: Array<BN | number>,
         use2dp = false,
+        useRedemptionPrice = false,
     ): Promise<void> => {
-        details = await feederMachine.deployFeeder(feederWeights, mAssetWeights, useLendingMarkets, useInterestValidator, use2dp)
+        details = await feederMachine.deployFeeder(feederWeights, mAssetWeights, useLendingMarkets,
+            useInterestValidator, use2dp, useRedemptionPrice)
     }
 
     before("Init contract", async () => {
@@ -458,6 +460,66 @@ describe("Feeder - Mint", () => {
                 })
             })
         })
+        context("when the basket is initially 75% mAsset and 25% fAsset and then f is drastically scaled by the redemption price", () => {
+            beforeEach(async () => {
+                await runSetup(false, false, [75, 25], undefined, false, true)
+            })
+            it("set RP to 3 and mint with mAsset", async () => {
+                const { redemptionPriceSnap } = details
+                await redemptionPriceSnap.setRedemptionPriceSnap("3000000000000000000000000000")
+                // fAsset is now worth 3 times as much as mAsset so total value in pool has increased by 50%. Now adding
+                // one mAsset should return about two thirds of a pool token
+                await assertBasicMint(details, details.mAsset, simpleToExactAmount(10), "6657940946958219439", "0")
+            })
+            it("set RP to 3 and mint with fAsset", async () => {
+                const { redemptionPriceSnap } = details
+                await redemptionPriceSnap.setRedemptionPriceSnap("3000000000000000000000000000")
+                // TVL is up 50% and fAsset is up 300%, expect about 2 pool tokens back per fAsset.
+                await assertBasicMint(details, details.fAsset, simpleToExactAmount(10), "19966635220839870324", "0")
+            })
+        })
+        context("when the basket is initially 33% mAsset and 67% fAsset and then RP drops to half", () => {
+            beforeEach(async () => {
+                await runSetup(false, false, [33, 67], undefined, false, true)
+            })
+            it("set RP to 0.5 and mint with mAsset", async () => {
+                const { redemptionPriceSnap } = details
+                await redemptionPriceSnap.setRedemptionPriceSnap("500000000000000000000000000")
+                // mAsset is worth double fAsset and TVL has dropped by a third, so expect 1 mAsset to return 1 / (2/3)
+                await assertBasicMint(details, details.mAsset, simpleToExactAmount(10), "15025149508501158974", "0")
+            })
+            it("set RP to 0.5 and mint with fAsset", async () => {
+                const { redemptionPriceSnap } = details
+                await redemptionPriceSnap.setRedemptionPriceSnap("500000000000000000000000000")
+                // TVL is down 33% and fAsset is down 50%, expect about 0.75 pool tokens back per fAsset.
+                await assertBasicMint(details, details.fAsset, simpleToExactAmount(10), "7513447491735960279", "0")
+            })
+        })
+        context("when initially liquidity is split 50/50", () => {
+            beforeEach(async () => {
+                await runSetup(false, false, [50, 50], undefined, false, true)
+            })
+            it("set RP to make mAsset overweight", async () => {
+                const { redemptionPriceSnap } = details
+                await redemptionPriceSnap.setRedemptionPriceSnap("240000000000000000000000000")
+                // mAsset is now over 80% and mint should fail
+                await assertFailedMint("Exceeds weight limits", details.pool, details.mAsset, simpleToExactAmount(10))
+
+                await redemptionPriceSnap.setRedemptionPriceSnap("300000000000000000000000000")
+                // mAsset is now just ok and small mint should succeed
+                await assertBasicMint(details, details.mAsset, simpleToExactAmount(10), "15326009964632835267", "0")
+            })
+            it("set RP to make fAsset overweight", async () => {
+                const { redemptionPriceSnap } = details
+                await redemptionPriceSnap.setRedemptionPriceSnap("4500000000000000000000000000")
+                // fAsset is now over 80% and mint with it should fail
+                await assertFailedMint("Exceeds weight limits", details.pool, details.fAsset, simpleToExactAmount(10))
+
+                await redemptionPriceSnap.setRedemptionPriceSnap("3500000000000000000000000000")
+                // At this RP it is still heavy but now underweight
+                await assertBasicMint(details, details.fAsset, simpleToExactAmount(1), "1550166099074645992", "0")
+            })
+        })
         context("when the basket is 75% mAsset, 25% fAsset", () => {
             beforeEach(async () => {
                 await runSetup(false, false, [75, 25])
@@ -720,6 +782,47 @@ describe("Feeder - Mint", () => {
                         await assertMintMulti(details, details.bAssets, [1, 1], 2, 0, false)
                     })
                 })
+            })
+        })
+        context("when the initial ratio is 50/50 and the redemption price is modified", () => {
+            beforeEach(async () => {
+                await runSetup(false, false, [50, 50], undefined, false, true)
+            })
+            it("set RP to make mAsset overweight", async () => {
+                const { redemptionPriceSnap } = details
+                await redemptionPriceSnap.setRedemptionPriceSnap("240000000000000000000000000")
+                // mAsset is now over 80% and mint should fail
+                await assertFailedMintMulti(
+                    "Exceeds weight limits",
+                    details.pool,
+                    [details.mAsset],
+                    [simpleToExactAmount(15)],
+                    undefined,
+                    0,
+                    true,
+                )
+
+                await redemptionPriceSnap.setRedemptionPriceSnap("300000000000000000000000000")
+                // mAsset is now just ok and small mint should succeed
+                await assertMintMulti(details, [details.mAsset], [simpleToExactAmount(10)], "15326009964632835267")
+            })
+            it("set RP to make fAsset overweight", async () => {
+                const { redemptionPriceSnap } = details
+                await redemptionPriceSnap.setRedemptionPriceSnap("4500000000000000000000000000")
+                // fAsset is now over 80% and mint with it should fail
+                await assertFailedMintMulti(
+                    "Exceeds weight limits",
+                    details.pool,
+                    [details.fAsset],
+                    [simpleToExactAmount(15)],
+                    undefined,
+                    0,
+                    true,
+                )
+
+                await redemptionPriceSnap.setRedemptionPriceSnap("3500000000000000000000000000")
+                // At this RP it is still heavy but now underweight
+                await assertMintMulti(details, [details.fAsset], [simpleToExactAmount(1)], "1550166099074645992")
             })
         })
         context("when the basket is 21% mAsset, 79% fAsset", () => {
