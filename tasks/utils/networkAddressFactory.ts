@@ -50,6 +50,7 @@ export const contractNames = [
     "OperationsSigner",
     "ENSRegistrarController",
     "ENSResolver",
+    "FraxVault",
     "VisorRouter",
 ] as const
 export type ContractNames = typeof contractNames[number]
@@ -197,6 +198,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x13bA0402f5047324B4279858298F56c30EA98753"
             case "OperationsSigner":
                 return "0xdccb7a6567603af223c090be4b9c83eced210f18"
+            case "FraxVault":
+                return "0xc425Fd9Ed3C892d849C9E1a971516da1C1B29696"
             default:
         }
     } else if (chain === Chain.mumbai) {
