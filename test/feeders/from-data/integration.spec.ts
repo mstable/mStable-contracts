@@ -60,7 +60,7 @@ describe("Feeder Validation - One basket many tests", () => {
             })
         ).connect(sa.default.signer) as ExposedFeederPool__factory
 
-        feederPool = (await FeederFactory.deploy(mAssetDetails.nexus.address, bAssets[0].address)) as ExposedFeederPool
+        feederPool = (await FeederFactory.deploy(mAssetDetails.nexus.address, bAssets[0].address, "0x0000000000000000000000000000000000000000")) as ExposedFeederPool
         await feederPool.initialize(
             "mStable mBTC/bBTC Feeder",
             "bBTC fPool",
