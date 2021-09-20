@@ -5,5 +5,6 @@ import "../../masset/MassetStructs.sol";
 import { FeederPool } from "../../feeders/FeederPool.sol";
 
 contract ExposedFeederPool is FeederPool {
-    constructor(address _nexus, address _mAsset) FeederPool(_nexus, _mAsset) {}
+    constructor(address _nexus, address _mAsset, address _fAssetRedemptionPrice)
+            FeederPool(_nexus, _mAsset, _fAssetRedemptionPrice) {}
 }
