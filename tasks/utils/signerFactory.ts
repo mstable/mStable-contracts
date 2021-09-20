@@ -26,9 +26,9 @@ export const getDefenderSigner = async (speed: Speed = "fast"): Promise<Signer> 
 
 let signerInstance: Signer
 
-export const getSigner = async (hre: HardhatRuntime = {}, speed: Speed = "fast", privateKey?: string): Promise<Signer> => {
+export const getSigner = async (hre: HardhatRuntime = {}, speed: Speed = "fast", useCache = true, privateKey?: string): Promise<Signer> => {
     // If already initiated a signer, just return the singleton instance
-    if (signerInstance) return signerInstance
+    if (useCache && signerInstance) return signerInstance
 
     if (privateKey) {
         const wallet = new Wallet(privateKey, hre.ethers.provider)

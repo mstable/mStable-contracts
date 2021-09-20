@@ -15,31 +15,6 @@ import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getBlockRange } from "./utils/snap-utils"
 
-task("eject-stakers", "Ejects expired stakers from Meta staking contract (vMTA)")
-    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
-    .setAction(async (taskArgs, hre) => {
-        const signer = await getSigner(hre, taskArgs.speed)
-        const chain = getChain(hre)
-
-        const ejectorAddress = getChainAddress("Ejector", chain)
-        console.log(`Ejector address ${ejectorAddress}`)
-        const ejector = IEjector__factory.connect(ejectorAddress, signer)
-        // TODO check the last time the eject was run
-        // Check it's been more than 7 days since the last eject has been run
-
-        // get stakers from API
-        const response = await axios.get("https://api-dot-mstable.appspot.com/stakers")
-        const stakers = response.data.ejected
-
-        if (stakers.length === 0) {
-            console.error(`No stakers to eject`)
-            process.exit(0)
-        }
-        console.log(`${stakers.length} stakers to be ejected: ${stakers}`)
-        const tx = await ejector.ejectMany(stakers)
-        await logTxDetails(tx, "ejectMany")
-    })
-
 task("collect-interest", "Collects and streams interest from platforms")
     .addParam(
         "asset",
