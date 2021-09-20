@@ -3,6 +3,7 @@ pragma solidity 0.8.6;
 
 // External
 import { IMasset } from "../interfaces/IMasset.sol";
+import { IFAssetRedemptionPriceGetter } from "../interfaces/IFAssetRedemptionPriceGetter.sol";
 
 // Internal
 import "../masset/MassetStructs.sol";
@@ -92,7 +93,13 @@ contract FeederPool is
     // Constants
     uint256 private constant MAX_FEE = 1e16;
     uint256 private constant A_PRECISION = 100;
+    uint256 private constant M_INDEX = 0;
+    uint256 private constant F_INDEX = 1;
+    uint256 private constant NUM_ASSETS = 2;
+    uint256 private constant RAY = 10 ** 27;
+    uint128 private fAssetBaseRatio;
     address public immutable override mAsset;
+    address public immutable fAssetRedemptionPriceGetter;
 
     // Core data storage
     FeederData public data;
@@ -101,9 +108,11 @@ contract FeederPool is
      * @dev Constructor to set immutable bytecode
      * @param _nexus   Nexus address
      * @param _mAsset  Immutable mAsset address
+     * @param _mAsset  Immutable address of fAsset redemption price getter
      */
-    constructor(address _nexus, address _mAsset) PausableModule(_nexus) {
+    constructor(address _nexus, address _mAsset, address _fAssetRedemptionPriceGetter) PausableModule(_nexus) {
         mAsset = _mAsset;
+        fAssetRedemptionPriceGetter = _fAssetRedemptionPriceGetter;
     }
 
     /**
@@ -129,6 +138,7 @@ contract FeederPool is
         _initializeReentrancyGuard();
 
         require(_mAsset.addr == mAsset, "mAsset incorrect");
+        fAssetBaseRatio = SafeCast.toUint128(10**(26 - IBasicToken(_fAsset.addr).decimals()));
         data.bAssetPersonal.push(
             BassetPersonal(_mAsset.addr, _mAsset.integrator, false, BassetStatus.Normal)
         );
@@ -137,7 +147,7 @@ contract FeederPool is
             BassetPersonal(_fAsset.addr, _fAsset.integrator, _fAsset.hasTxFee, BassetStatus.Normal)
         );
         data.bAssetData.push(
-            BassetData(SafeCast.toUint128(10**(26 - IBasicToken(_fAsset.addr).decimals())), 0)
+            BassetData(fAssetBaseRatio, 0)
         );
         for (uint256 i = 0; i < _mpAssets.length; i++) {
             // Call will fail if bAsset does not exist
@@ -186,7 +196,7 @@ contract FeederPool is
      * @param _input                Address of the bAsset to deposit.
      * @param _inputQuantity        Quantity in input token units.
      * @param _minOutputQuantity    Minimum fpToken quantity to be minted. This protects against slippage.
-     * @param _recipient            Receipient of the newly minted fpTokens
+     * @param _recipient            Recipient of the newly minted fpTokens
      * @return mintOutput           Quantity of fpToken minted from the deposited bAsset.
      */
     function mint(
@@ -200,6 +210,7 @@ contract FeederPool is
 
         Asset memory input = _getAsset(_input);
 
+        _updateBassetData();
         mintOutput = FeederLogic.mint(
             data,
             _getConfig(),
@@ -219,7 +230,7 @@ contract FeederPool is
      * @param _inputs               Address of the bAssets to deposit.
      * @param _inputQuantities      Quantity in input token units.
      * @param _minOutputQuantity    Minimum fpToken quantity to be minted. This protects against slippage.
-     * @param _recipient            Receipient of the newly minted fpTokens
+     * @param _recipient            Recipient of the newly minted fpTokens
      * @return mintOutput           Quantity of fpToken minted from the deposited bAssets.
      */
     function mintMulti(
@@ -233,6 +244,7 @@ contract FeederPool is
         require(len > 0 && len == _inputs.length, "Input array mismatch");
 
         uint8[] memory indexes = _getAssets(_inputs);
+        _updateBassetData();
         mintOutput = FeederLogic.mintMulti(
             data,
             _getConfig(),
@@ -263,14 +275,14 @@ contract FeederPool is
 
         if (input.exists) {
             mintOutput = FeederLogic.computeMint(
-                data.bAssetData,
+                _getMemBassetData(),
                 input.idx,
                 _inputQuantity,
                 _getConfig()
             );
         } else {
             uint256 estimatedMasset = IMasset(mAsset).getMintOutput(_input, _inputQuantity);
-            mintOutput = FeederLogic.computeMint(data.bAssetData, 0, estimatedMasset, _getConfig());
+            mintOutput = FeederLogic.computeMint(_getMemBassetData(), 0, estimatedMasset, _getConfig());
         }
     }
 
@@ -290,7 +302,7 @@ contract FeederPool is
         require(len > 0 && len == _inputs.length, "Input array mismatch");
         uint8[] memory indexes = _getAssets(_inputs);
         return
-            FeederLogic.computeMintMulti(data.bAssetData, indexes, _inputQuantities, _getConfig());
+            FeederLogic.computeMintMulti(_getMemBassetData(), indexes, _inputQuantities, _getConfig());
     }
 
     /***************************************
@@ -323,6 +335,7 @@ contract FeederPool is
         require(_pathIsValid(input, output), "Invalid pair");
 
         uint256 localFee;
+        _updateBassetData();
         (swapOutput, localFee) = FeederLogic.swap(
             data,
             _getConfig(),
@@ -364,7 +377,7 @@ contract FeederPool is
         // Internal swap between fAsset and mAsset
         if (input.exists && output.exists) {
             (swapOutput, ) = FeederLogic.computeSwap(
-                data.bAssetData,
+                _getMemBassetData(),
                 input.idx,
                 output.idx,
                 _inputQuantity,
@@ -378,7 +391,7 @@ contract FeederPool is
         if (input.exists) {
             // Swap into mAsset > Redeem into mpAsset
             (swapOutput, ) = FeederLogic.computeSwap(
-                data.bAssetData,
+                _getMemBassetData(),
                 1,
                 0,
                 _inputQuantity,
@@ -392,7 +405,7 @@ contract FeederPool is
             // Mint mAsset from mp > Swap into fAsset here
             swapOutput = IMasset(mAsset).getMintOutput(_input, _inputQuantity);
             (swapOutput, ) = FeederLogic.computeSwap(
-                data.bAssetData,
+                _getMemBassetData(),
                 0,
                 1,
                 swapOutput,
@@ -451,6 +464,7 @@ contract FeederPool is
         _burn(msg.sender, _fpTokenQuantity);
 
         uint256 localFee;
+        _updateBassetData();
         (outputQuantity, localFee) = FeederLogic.redeem(
             data,
             config,
@@ -497,6 +511,7 @@ contract FeederPool is
 
         address[] memory outputs;
         uint256 scaledFee;
+        _updateBassetData();
         (scaledFee, outputs, outputQuantities) = FeederLogic.redeemProportionately(
             data,
             config,
@@ -543,6 +558,7 @@ contract FeederPool is
         uint8[] memory indexes = _getAssets(_outputs);
 
         uint256 localFee;
+        _updateBassetData();
         (fpTokenQuantity, localFee) = FeederLogic.redeemExactBassets(
             data,
             _getConfig(),
@@ -586,7 +602,7 @@ contract FeederPool is
         uint256 scaledFee = _fpTokenQuantity.mulTruncate(data.redemptionFee);
 
         bAssetOutput = FeederLogic.computeRedeem(
-            data.bAssetData,
+            _getMemBassetData(),
             output.exists ? output.idx : 0,
             _fpTokenQuantity - scaledFee,
             _getConfig()
@@ -613,7 +629,7 @@ contract FeederPool is
         uint8[] memory indexes = _getAssets(_outputs);
 
         uint256 mAssetRedeemed = FeederLogic.computeRedeemExact(
-            data.bAssetData,
+            _getMemBassetData(),
             indexes,
             _outputQuantities,
             _getConfig()
@@ -632,7 +648,7 @@ contract FeederPool is
      * @return k        Total value of basket, k
      */
     function getPrice() public view override returns (uint256 price, uint256 k) {
-        return FeederLogic.computePrice(data.bAssetData, _getConfig());
+        return FeederLogic.computePrice(_getMemBassetData(), _getConfig());
     }
 
     /**
@@ -657,7 +673,7 @@ contract FeederPool is
         Asset memory asset = _getAsset(_bAsset);
         require(asset.exists, "Invalid asset");
         personal = data.bAssetPersonal[asset.idx];
-        vaultData = data.bAssetData[asset.idx];
+        vaultData = _getMemBassetData()[asset.idx];
     }
 
     /**
@@ -671,7 +687,7 @@ contract FeederPool is
         override
         returns (BassetPersonal[] memory, BassetData[] memory vaultData)
     {
-        return (data.bAssetPersonal, data.bAssetData);
+        return (data.bAssetPersonal, _getMemBassetData());
     }
 
     /***************************************
@@ -727,7 +743,7 @@ contract FeederPool is
         uint64 endA = ampData_.targetA;
         uint64 endTime = ampData_.rampEndTime;
 
-        // If still changing, work out based on current timestmap
+        // If still changing, work out based on current timestamp
         if (block.timestamp < endTime) {
             uint64 startA = ampData_.initialA;
             uint64 startTime = ampData_.rampStartTime;
@@ -744,6 +760,19 @@ contract FeederPool is
         else {
             return endA;
         }
+    }
+
+    function _getMemBassetData() internal view returns (BassetData[] memory bAssetData) {
+        if (fAssetRedemptionPriceGetter == address(0)) return data.bAssetData;
+        bAssetData = new BassetData[](NUM_ASSETS);
+        bAssetData[M_INDEX] = data.bAssetData[M_INDEX];
+        bAssetData[F_INDEX].vaultBalance = data.bAssetData[F_INDEX].vaultBalance;
+        bAssetData[F_INDEX].ratio = _getRatioFromRedemptionPrice();
+    }
+
+    function _getRatioFromRedemptionPrice() internal view returns (uint128 ratio) {
+        uint256 rp_ray = IFAssetRedemptionPriceGetter(fAssetRedemptionPriceGetter).snappedRedemptionPrice();
+        return SafeCast.toUint128((uint256(fAssetBaseRatio) * rp_ray + RAY / 2) / RAY);
     }
 
     /***************************************
@@ -764,6 +793,7 @@ contract FeederPool is
         nonReentrant
         returns (uint256 mintAmount, uint256 newSupply)
     {
+        _updateBassetData();
         (uint8[] memory idxs, uint256[] memory gains) = FeederManager.calculatePlatformInterest(
             data.bAssetPersonal,
             data.bAssetData
@@ -819,7 +849,7 @@ contract FeederPool is
     }
 
     /**
-     * @dev Set the ecosystem fee for sewapping bAssets or redeeming specific bAssets
+     * @dev Set the ecosystem fee for swapping bAssets or redeeming specific bAssets
      * @param _swapFee       Fee calculated in (%/100 * 1e18)
      * @param _redemptionFee Fee calculated in (%/100 * 1e18)
      * @param _govFee        Fee calculated in (%/100 * 1e18)
@@ -883,5 +913,13 @@ contract FeederPool is
      */
     function stopRampA() external onlyGovernor {
         FeederManager.stopRampA(data.ampData, _getA());
+    }
+
+    /**
+     * @dev Updates the value ratio of fAsset if rate source had been set.
+     */
+    function _updateBassetData() internal {
+        if (fAssetRedemptionPriceGetter == address(0)) return;
+        data.bAssetData[F_INDEX].ratio = _getRatioFromRedemptionPrice();
     }
 }
