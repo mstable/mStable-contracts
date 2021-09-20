@@ -314,7 +314,7 @@ export const MTA: Token = {
     chain: Chain.mainnet,
     decimals: 18,
     quantityFormatter: "USD",
-    vault: "0xaE8bC96DA4F9A9613c323478BE181FDb2Aa0E1BF",
+    vault: "0x8f2326316eC696F6d023E37A9931c2b2C177a3D7", // MTA Staking V2
 }
 
 export const PMTA: Token = {
@@ -332,6 +332,16 @@ export const RMTA: Token = {
     decimals: 18,
     quantityFormatter: "USD",
     vault: "0x4d8E465ba7FACa907E8A5F39649e056bB14802D1",
+}
+
+// Old MTA staking contract
+// Was previously vault on MTA but that is now the MTA Staking V2 contract
+export const vMTA: Token = {
+    symbol: "vMTA",
+    address: "0xaE8bC96DA4F9A9613c323478BE181FDb2Aa0E1BF",
+    chain: Chain.mainnet,
+    decimals: 18,
+    quantityFormatter: "USD",
 }
 
 export const PWMATIC: Token = {
@@ -404,6 +414,7 @@ export const mBPT: Token = {
     chain: Chain.mainnet,
     decimals: 18,
     quantityFormatter: "USD",
+    vault: "0xeFbe22085D9f29863Cfb77EEd16d3cC0D927b011",
 }
 
 export const RmBPT: Token = {
@@ -418,6 +429,7 @@ export const tokens = [
     MTA,
     PMTA,
     RMTA,
+    vMTA,
     mUSD,
     mBTC,
     sUSD,
