@@ -1,7 +1,6 @@
 import axios from "axios"
 import { subtask, task, types } from "hardhat/config"
 import { IEjector__factory, IncentivisedVotingLockup__factory } from "types/generated"
-import { ONE_HOUR } from "@utils/constants"
 import { getSigner } from "./utils/signerFactory"
 import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
