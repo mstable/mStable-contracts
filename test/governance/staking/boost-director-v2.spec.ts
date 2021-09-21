@@ -4,7 +4,7 @@ import { ethers } from "hardhat"
 import { expect } from "chai"
 import { BN } from "@utils/math"
 import { StandardAccounts, MassetMachine } from "@utils/machines"
-import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
+import { DEAD_ADDRESS } from "@utils/constants"
 import {
     MockStakingContract,
     MockStakingContract__factory,
