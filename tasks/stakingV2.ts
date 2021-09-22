@@ -1,5 +1,5 @@
 import { subtask, task, types } from "hardhat/config"
-import { StakedTokenMTA__factory, StakedToken__factory } from "types/generated"
+import { StakedTokenBPT__factory, StakedTokenMTA__factory, StakedToken__factory } from "types/generated"
 import { simpleToExactAmount } from "@utils/math"
 import { formatUnits } from "@ethersproject/units"
 import { getSigner } from "./utils/signerFactory"
@@ -158,5 +158,56 @@ subtask("staked-delegate", "Delegate V2 Staking Tokens")
         await logTxDetails(tx, `Delegate voting power to ${taskArgs.delegate}`)
     })
 task("staked-delegate").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})
+
+subtask("staked-update-price-coeff", "Updates the price coefficient on the staked mBPT Token.")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed, false)
+        const chain = getChain(hre)
+
+        const stakingTokenAddress = resolveAddress("mBPT", chain, "vault")
+        const stakingToken = StakedTokenBPT__factory.connect(stakingTokenAddress, signer)
+        const tx = await stakingToken.fetchPriceCoefficient()
+        await logTxDetails(tx, `update price coefficient`)
+    })
+task("staked-update-price-coeff").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})
+
+subtask("staked-price-coeff", "Checks the price coefficient on the staked mBPT Token.").setAction(async (taskArgs, hre) => {
+    const signer = await getSigner(hre)
+    const chain = getChain(hre)
+
+    const stakingTokenAddress = resolveAddress("mBPT", chain, "vault")
+    const stakingToken = StakedTokenBPT__factory.connect(stakingTokenAddress, signer)
+    const oldPrice = (await stakingToken.priceCoefficient()).toNumber()
+    const newPrice = (await stakingToken.getProspectivePriceCoefficient()).toNumber()
+    const diffPercentage = ((newPrice - oldPrice) * 100) / oldPrice
+    console.log(`Old price ${oldPrice}, new price, diff ${newPrice} ${diffPercentage}%`)
+})
+task("staked-price-coeff").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})
+
+subtask("staked-fees", "Converts fees accrued in BPT to MTA, before depositing to the rewards contract.")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed, false)
+        const chain = getChain(hre)
+
+        const stakingTokenAddress = resolveAddress("mBPT", chain, "vault")
+        const stakingToken = StakedTokenBPT__factory.connect(stakingTokenAddress, signer)
+
+        const feesBPT = await stakingToken.pendingBPTFees()
+        if (feesBPT.lt(simpleToExactAmount(100))) {
+            console.log(`Only ${feesBPT} mBPT in fees so will not convert to MTA`)
+            return
+        }
+        const tx = await stakingToken.convertFees()
+        await logTxDetails(tx, `convert mBPT to fees`)
+    })
+task("staked-fees").setAction(async (_, __, runSuper) => {
     await runSuper()
 })
