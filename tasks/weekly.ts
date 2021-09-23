@@ -83,7 +83,7 @@ task("distribute-mta-polygon", "Distributes MTA and Matic rewards on Polygon")
         const platformRewardSymbol = PWMATIC.symbol
         const vaultsOrPools: Array<Token | ContractNames> = [PmUSD]
         const mtaAmounts = [17360]
-        const platformAmounts = [11335]
+        const platformAmounts = []
 
         // Create a comma separated list of token symbols and amounts
         const symbolOrNames = vaultsOrPools.map((v) => {
