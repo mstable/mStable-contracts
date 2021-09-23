@@ -13,6 +13,7 @@ import {
     IAlchemixStakingPools__factory,
     IUniswapV2Router02__factory,
     IUniswapV3Quoter__factory,
+    Liquidator__factory,
     Masset,
     SavingsContract__factory,
     SavingsManager,
@@ -757,6 +758,10 @@ export const getCompTokens = async (
     const compUsdc = await quoteSwap(signer, COMP, USDC, totalComp, toBlock)
     console.log(`Total       ${quantityFormatter(totalComp)} ${quantityFormatter(compUsdc.outAmount, USDC.decimals)} USDC`)
     console.log(`COMP/USDC exchange rate: ${compUsdc.exchangeRate}`)
+
+    const liquidator = await Liquidator__factory.connect(liquidatorAddress, signer)
+    const liqData = await liquidator.liquidations(USDC.integrator)
+    console.log(`Min COMP/USDC rate ${formatUnits(liqData.minReturn, USDC.decimals)}`)
 }
 
 export const getAaveTokens = async (
@@ -810,6 +815,13 @@ export const getAaveTokens = async (
     const totalUSDC = totalStkAave.mul(aaveUsdc.exchangeRate).div(simpleToExactAmount(1, AAVE.decimals - USDC.decimals))
     console.log(`Total      ${quantityFormatter(totalStkAave)} ${quantityFormatter(totalUSDC, USDC.decimals)} USDC`)
     console.log(`AAVE/USDC exchange rate: ${aaveUsdc.exchangeRate}`)
+
+    // Get AAVE/USDC exchange rate
+    const liquidator = await Liquidator__factory.connect(liquidatorAddress, signer)
+    const liqData = await liquidator.liquidations(USDT.integrator)
+    console.log(`Min AAVE/USDC rate ${formatUnits(liqData.minReturn, USDC.decimals)}`)
+
+    // Get next unlock window
     const cooldownStart = await stkAaveToken.stakersCooldowns(liquidatorAddress, { blockTag: toBlock.blockNumber })
     const cooldownEnd = cooldownStart.add(ONE_DAY.mul(10))
     const colldownEndDate = new Date(cooldownEnd.toNumber() * 1000)
