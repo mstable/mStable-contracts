@@ -503,11 +503,11 @@ describe("Feeder Admin", () => {
                 expect(ampDataAfter.targetA, "after targetA").to.eq(currentA)
                 expect(ampDataAfter.rampStartTime.toNumber(), "after rampStartTime").to.within(
                     currentTime.toNumber(),
-                    currentTime.add(2).toNumber(),
+                    currentTime.add(3).toNumber(),
                 )
                 expect(ampDataAfter.rampEndTime.toNumber(), "after rampEndTime").to.within(
                     currentTime.toNumber(),
-                    currentTime.add(2).toNumber(),
+                    currentTime.add(3).toNumber(),
                 )
 
                 // increment another 2 days

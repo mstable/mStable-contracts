@@ -1,7 +1,5 @@
-import axios from "axios"
 import { task, types } from "hardhat/config"
 import {
-    IEjector__factory,
     PAaveIntegration__factory,
     PLiquidator__factory,
     SavingsManager__factory,
@@ -14,31 +12,7 @@ import { getSigner } from "./utils/signerFactory"
 import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getBlockRange } from "./utils/snap-utils"
-
-task("eject-stakers", "Ejects expired stakers from Meta staking contract (vMTA)")
-    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
-    .setAction(async (taskArgs, hre) => {
-        const signer = await getSigner(hre, taskArgs.speed)
-        const chain = getChain(hre)
-
-        const ejectorAddress = getChainAddress("Ejector", chain)
-        console.log(`Ejector address ${ejectorAddress}`)
-        const ejector = IEjector__factory.connect(ejectorAddress, signer)
-        // TODO check the last time the eject was run
-        // Check it's been more than 7 days since the last eject has been run
-
-        // get stakers from API
-        const response = await axios.get("https://api-dot-mstable.appspot.com/stakers")
-        const stakers = response.data.ejected
-
-        if (stakers.length === 0) {
-            console.error(`No stakers to eject`)
-            process.exit(0)
-        }
-        console.log(`${stakers.length} stakers to be ejected: ${stakers}`)
-        const tx = await ejector.ejectMany(stakers)
-        await logTxDetails(tx, "ejectMany")
-    })
+import { getPrivateTxDetails } from "./utils/taichi"
 
 task("collect-interest", "Collects and streams interest from platforms")
     .addParam(
@@ -154,6 +128,12 @@ task("quest-add", "Adds a quest to the staked token")
         const expiry = Math.floor(Date.now() / 1000)
         const addQuestData = questManager.interface.encodeFunctionData("addQuest", [type, taskArgs.multiplier, expiry])
         console.log(`Destination ${questManagerAddress}, data: ${addQuestData}`)
-        // const tx = await questManager.addQuest(type, taskArgs.multiplier, expiry)
-        // await logTxDetails(tx, `Add ${taskArgs.type} quest with ${taskArgs.multiplier} multiplier`)
+        const tx = await questManager.addQuest(type, taskArgs.multiplier, expiry)
+        await logTxDetails(tx, `Add ${taskArgs.type} quest with ${taskArgs.multiplier} multiplier`)
+    })
+
+task("priv-status", "Gets the status of a private Taichi transaction.")
+    .addParam("hash", "Transaction hash", undefined, types.string, false)
+    .setAction(async (taskArgs) => {
+        await getPrivateTxDetails(taskArgs.hash)
     })
