@@ -10,6 +10,7 @@ import { Chain, logTxDetails, usdFormatter } from "./utils"
 import { getAaveTokens, getAlcxTokens, getBlock, getCompTokens } from "./utils/snap-utils"
 import { getSigner } from "./utils/signerFactory"
 import { getChain, getChainAddress, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
+import { sendPrivateTransaction } from "./utils/taichi"
 
 task("sum-rewards", "Totals the rewards in a disperse json file")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
@@ -145,8 +146,8 @@ task("liq-trig", "Triggers a liquidation of a integration contract")
 
         const liquidatorAddress = await resolveAddress("Liquidator", chain)
         const liquidator = Liquidator__factory.connect(liquidatorAddress, signer)
-        const tx = await liquidator.triggerLiquidation(bAsset.integrator)
-        await logTxDetails(tx, "trigger liquidation")
+        const tx = await liquidator.populateTransaction.triggerLiquidation(bAsset.integrator)
+        await sendPrivateTransaction(tx, signer)
     })
 
 task("liq-trig-aave", "Triggers a liquidation of stkAAVE")
@@ -157,8 +158,8 @@ task("liq-trig-aave", "Triggers a liquidation of stkAAVE")
 
         const liquidatorAddress = await resolveAddress("Liquidator", chain)
         const liquidator = Liquidator__factory.connect(liquidatorAddress, signer)
-        const tx1 = await liquidator.triggerLiquidationAave()
-        await logTxDetails(tx1, "trigger liquidation Aave")
+        const tx = await liquidator.populateTransaction.triggerLiquidationAave()
+        await sendPrivateTransaction(tx, signer)
     })
 
 task("liq-claim-aave", "Triggers a liquidation of stkAAVE")
