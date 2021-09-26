@@ -7,12 +7,15 @@ import {
     QuestManager__factory,
 } from "types/generated"
 import { QuestType } from "types/stakedToken"
+import axios from "axios"
+import { DefenderRelayProvider, DefenderRelaySigner } from "defender-relay-client/lib/ethers"
 import { PmUSD, PUSDC, tokens } from "./utils/tokens"
 import { getSigner } from "./utils/signerFactory"
 import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getBlockRange } from "./utils/snap-utils"
 import { getPrivateTxDetails } from "./utils/taichi"
+import { signQuestUsers } from "./utils/quest-utils"
 
 task("collect-interest", "Collects and streams interest from platforms")
     .addParam(
@@ -112,7 +115,7 @@ task("quest-add", "Adds a quest to the staked token")
     .addOptionalParam("pk", "Test private key", undefined, types.string)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
-        const signer = await getSigner(hre, taskArgs.speed, taskArgs.pk)
+        const signer = await getSigner(hre, taskArgs.speed, false, taskArgs.pk)
         const chain = getChain(hre)
 
         let type: QuestType
@@ -131,6 +134,58 @@ task("quest-add", "Adds a quest to the staked token")
         console.log(`Destination ${questManagerAddress}, data: ${addQuestData}`)
         const tx = await questManager.addQuest(type, taskArgs.multiplier, expiry)
         await logTxDetails(tx, `Add ${taskArgs.type} quest with ${taskArgs.multiplier} multiplier`)
+    })
+
+task("quest-complete-queue", "Completes all user quests in the quests queue")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .addParam("signerKey", "Signer API key", undefined, types.string, false)
+    .addParam("signerSecret", "Signer API secret", undefined, types.string, false)
+    .setAction(async (taskArgs, hre) => {
+        const opsSigner = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+        const questManagerAddress = await resolveAddress("QuestManager", chain)
+        const questManager = QuestManager__factory.connect(questManagerAddress, opsSigner)
+
+        // get users who have completed quests from the queue
+        const response = await axios.post("https://europe-west1-mstable-questbook.cloudfunctions.net/questbook", {
+            query: `query { queue { userId ethereumId } }`,
+        })
+        const { queue } = response?.data?.data
+        if (!queue) {
+            console.log(response?.data)
+            throw Error(`Failed to get quests from queue`)
+        }
+        if (queue.length === 0) {
+            console.error(`No user completed quests`)
+            process.exit(0)
+        }
+        // filter users to just the migration quest
+        const migrationQuestId = 0
+        const completedMigrationQuests = queue.filter((quest) => quest.ethereumId === migrationQuestId)
+        const completedMigrationUsers = completedMigrationQuests.map((quest) => quest.userId)
+
+        // Need to filter out any users that completed the quest themselves
+        const hasCompletedPromises = completedMigrationUsers.map((user) => questManager.hasCompleted(user, migrationQuestId))
+        const hasCompleted = await Promise.all(hasCompletedPromises)
+        const filteredUsers = completedMigrationUsers.filter((user, i) => hasCompleted[i] === false)
+        console.log(hasCompleted)
+
+        console.log(`About to complete ${filteredUsers.length} users: ${filteredUsers}`)
+
+        // Get Quest Signer from Defender
+        const credentials = {
+            apiKey: taskArgs.signerKey,
+            apiSecret: taskArgs.signerSecret,
+        }
+        const provider = new DefenderRelayProvider(credentials)
+        const questSigner = new DefenderRelaySigner(credentials, provider, { speed: taskArgs.speed })
+
+        // Quest Signer signs the users as having completed the migration quest
+        const sig = await signQuestUsers(0, filteredUsers, questSigner)
+
+        // Complete the quests in the Quest Manager contract
+        const tx = await questManager.completeQuestUsers(0, filteredUsers, sig)
+        await logTxDetails(tx, "complete quest users")
     })
 
 task("priv-status", "Gets the status of a private Taichi transaction.")
