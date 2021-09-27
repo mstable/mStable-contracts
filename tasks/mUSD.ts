@@ -158,7 +158,7 @@ task("mUSD-snap", "Snaps mUSD")
 
         await getCollectedInterest(bAssets, mAsset, savingsManager, fromBlock, toBlock, usdFormatter, balances.save)
 
-        await snapSave(signer, chain, toBlock.blockNumber)
+        await snapSave("mUSD", signer, chain, toBlock.blockNumber)
 
         outputFees(
             mintSummary,

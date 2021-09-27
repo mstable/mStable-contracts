@@ -26,7 +26,7 @@ import { Comptroller__factory } from "types/generated/factories/Comptroller__fac
 import { MusdLegacy } from "types/generated/MusdLegacy"
 import { QuantityFormatter, usdFormatter } from "./quantity-formatters"
 import { AAVE, ALCX, alUSD, Chain, COMP, DAI, GUSD, stkAAVE, sUSD, Token, USDC, USDT, WBTC } from "./tokens"
-import { getChainAddress } from "./networkAddressFactory"
+import { getChainAddress, resolveAddress } from "./networkAddressFactory"
 
 const comptrollerAddress = "0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B"
 const uniswapEthToken = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
@@ -132,10 +132,10 @@ export const snapConfig = async (asset: Masset | MusdEth | MusdLegacy | FeederPo
     console.log(`Weights: min ${formatUnits(conf.limits.min, 16)}% max ${formatUnits(conf.limits.max, 16)}%`)
 }
 
-export const snapSave = async (signer: Signer, chain: Chain, toBlock: number): Promise<void> => {
-    const savingManagerAddress = getChainAddress("SavingsManager", chain)
-    const savingsManager = new SavingsContract__factory(signer).attach(savingManagerAddress)
-    const exchangeRate = await savingsManager.exchangeRate({
+export const snapSave = async (symbol: string, signer: Signer, chain: Chain, toBlock: number): Promise<void> => {
+    const savingContractAddress = resolveAddress(symbol, chain, "savings")
+    const savingsContract = new SavingsContract__factory(signer).attach(savingContractAddress)
+    const exchangeRate = await savingsContract.exchangeRate({
         blockTag: toBlock,
     })
     console.log(`\nSave rate ${formatUnits(exchangeRate)}`)
@@ -771,18 +771,23 @@ export const getAaveTokens = async (
     chain = Chain.mainnet,
 ): Promise<void> => {
     const stkAaveToken = AaveStakedTokenV2__factory.connect(stkAAVE.address, signer)
+    const aaveToken = ERC20__factory.connect(AAVE.address, signer)
     const aaveIncentivesAddress = getChainAddress("AaveIncentivesController", chain)
     const aaveIncentives = IAaveIncentivesController__factory.connect(aaveIncentivesAddress, signer)
 
-    let totalStkAave = BN.from(0)
+    const liquidatorAddress = getChainAddress("Liquidator", chain)
+    const liquidator = await Liquidator__factory.connect(liquidatorAddress, signer)
+
+    let totalStkAaveAndAave = BN.from(0)
 
     if (toBlock.blockNumber <= 12319489) {
         console.log(`\nbefore stkAAVE`)
         return
     }
 
-    // Get accrued stkAave for each integration contract
-    console.log(`\nstkAAVE unclaimed + accrued`)
+    // Get accrued stkAave for each integration contract that is still to be claimed from the  controller
+    console.log(`\nstkAAVE accrued and unclaimed`)
+    let totalUnclaimed = BN.from(0)
     const integrationTokens = [[DAI, USDT], [GUSD], [WBTC]]
     for (const bAssets of integrationTokens) {
         const bAssetSymbols = bAssets.reduce((symbols, token) => `${symbols}${token.symbol} `, "")
@@ -790,14 +795,32 @@ export const getAaveTokens = async (
         const accruedBal = await aaveIncentives.getRewardsBalance(aTokens, bAssets[0].integrator, {
             blockTag: toBlock.blockNumber,
         })
-        totalStkAave = totalStkAave.add(accruedBal)
+        totalUnclaimed = totalUnclaimed.add(accruedBal)
         console.log(`${bAssetSymbols.padEnd(10)} ${quantityFormatter(accruedBal)}`)
     }
+    console.log(`Total      ${quantityFormatter(totalUnclaimed)}`)
+    totalStkAaveAndAave = totalStkAaveAndAave.add(totalUnclaimed)
+
+    // Get stkAAVE balances in liquidators
+    console.log(`\nstkAAVE claimed by integrations`)
+    let totalClaimedstkAave = BN.from(0)
+    for (const bAssets of integrationTokens) {
+        const bAssetSymbols = bAssets.reduce((symbols, token) => `${symbols}${token.symbol} `, "")
+        const integrationData = await liquidator.liquidations(bAssets[0].integrator, { blockTag: toBlock.blockNumber })
+        totalClaimedstkAave = totalClaimedstkAave.add(integrationData.aaveBalance)
+        console.log(`${bAssetSymbols.padEnd(10)} ${quantityFormatter(integrationData.aaveBalance)}`)
+    }
+    console.log(`Total              ${quantityFormatter(totalClaimedstkAave, 18, 6)}`)
+    const liquidatorTotalBalance = await liquidator.totalAaveBalance({ blockTag: toBlock.blockNumber })
+    console.log(`Total Aave Balance ${quantityFormatter(liquidatorTotalBalance, 18, 6)}`)
 
     // Get stkAave and AAVE in liquidity manager
-    const liquidatorAddress = getChainAddress("Liquidator", chain)
     const liquidatorStkAaveBal = await stkAaveToken.balanceOf(liquidatorAddress, { blockTag: toBlock.blockNumber })
-    totalStkAave = totalStkAave.add(liquidatorStkAaveBal)
+    const liquidatorAaveBal = await aaveToken.balanceOf(liquidatorAddress, { blockTag: toBlock.blockNumber })
+    console.log(`\nLiquidator actual stkAAVE ${quantityFormatter(liquidatorStkAaveBal)}`)
+    console.log(`Liquidator actual AAVE    ${quantityFormatter(liquidatorAaveBal)}`)
+    totalStkAaveAndAave = totalStkAaveAndAave.add(liquidatorStkAaveBal)
+    totalStkAaveAndAave = totalStkAaveAndAave.add(liquidatorAaveBal)
 
     let aaveUsdc: {
         outAmount: BN
@@ -805,20 +828,19 @@ export const getAaveTokens = async (
     }
     if (liquidatorStkAaveBal.gt(0)) {
         aaveUsdc = await quoteSwap(signer, AAVE, USDC, liquidatorStkAaveBal, toBlock)
-        console.log(`Liquidator ${quantityFormatter(liquidatorStkAaveBal)} ${quantityFormatter(aaveUsdc.outAmount, USDC.decimals)} USDC`)
+        console.log(`\nLiquidator ${quantityFormatter(liquidatorStkAaveBal)} ${quantityFormatter(aaveUsdc.outAmount, USDC.decimals)} USDC`)
     } else {
-        const reasonableAaveAmount = simpleToExactAmount(50)
+        const reasonableAaveAmount = simpleToExactAmount(25)
         aaveUsdc = await quoteSwap(signer, AAVE, USDC, reasonableAaveAmount, toBlock)
-        console.log(`Liquidator ${quantityFormatter(liquidatorStkAaveBal)}`)
+        console.log(`\nLiquidator ${quantityFormatter(liquidatorStkAaveBal)}`)
     }
 
-    const totalUSDC = totalStkAave.mul(aaveUsdc.exchangeRate).div(simpleToExactAmount(1, AAVE.decimals - USDC.decimals))
-    console.log(`Total      ${quantityFormatter(totalStkAave)} ${quantityFormatter(totalUSDC, USDC.decimals)} USDC`)
+    const totalUSDC = totalStkAaveAndAave.mul(aaveUsdc.exchangeRate).div(simpleToExactAmount(1, AAVE.decimals - USDC.decimals))
+    console.log(`Total      ${quantityFormatter(totalStkAaveAndAave)} ${quantityFormatter(totalUSDC, USDC.decimals)} USDC`)
     console.log(`AAVE/USDC exchange rate: ${aaveUsdc.exchangeRate}`)
 
     // Get AAVE/USDC exchange rate
-    const liquidator = await Liquidator__factory.connect(liquidatorAddress, signer)
-    const liqData = await liquidator.liquidations(USDT.integrator)
+    const liqData = await liquidator.liquidations(USDT.integrator, { blockTag: toBlock.blockNumber })
     console.log(`Min AAVE/USDC rate ${formatUnits(liqData.minReturn, USDC.decimals)}`)
 
     // Get next unlock window

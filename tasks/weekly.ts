@@ -13,7 +13,7 @@ task("distribute-mta-mainnet", "Distributes MTA rewards on Mainnet")
         const rewardSymbol = MTA.symbol
         const ownerTokenType: AssetAddressTypes = "vault"
         const vaultsOrPools: Array<Token | ContractNames> = [MTA, mBPT, mUSD, mBTC, alUSD, BUSD, GUSD, HBTC, TBTC]
-        const mtaAmounts = [25540, 15720, 17145.23, 6669.17, 11581.64, 36527.38, 21336.86, 12542.61, 13269.11]
+        const mtaAmounts = [32500, 20000, 15335.79, 6230.61, 11096.08, 15970.58, 26842.34, 21915.46, 10441.13]
         const vaultNames = [
             "Staking V2 MTA   ",
             "Staking V2 mBPT  ",

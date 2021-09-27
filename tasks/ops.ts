@@ -5,10 +5,13 @@ import {
     SavingsManager__factory,
     AssetProxy__factory,
     QuestManager__factory,
+    ERC20__factory,
+    RevenueRecipient__factory,
 } from "types/generated"
 import { QuestType } from "types/stakedToken"
 import axios from "axios"
 import { DefenderRelayProvider, DefenderRelaySigner } from "defender-relay-client/lib/ethers"
+import { BN, simpleToExactAmount } from "@utils/math"
 import { PmUSD, PUSDC, tokens } from "./utils/tokens"
 import { getSigner } from "./utils/signerFactory"
 import { logTxDetails } from "./utils/deploy-utils"
@@ -51,6 +54,40 @@ task("collect-interest", "Collects and streams interest from platforms")
 
         const tx = await savingsManager.collectAndStreamInterest(asset.address)
         await logTxDetails(tx, "collectAndStreamInterest")
+    })
+
+task("revenue-deposit", "Deposit mUSD and mBTC revenue into Balancer Pool using private transaction")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const chain = getChain(hre)
+        const signer = await getSigner(hre, taskArgs.speed)
+
+        const balancerPoolTokenAddress = "0x02ec2c01880a0673c76e12ebe6ff3aad0a8da968"
+        const scale = simpleToExactAmount(1)
+
+        // 1 - Get contracts
+        const mUSD = ERC20__factory.connect(resolveAddress("mUSD", chain), signer)
+        const mBTC = ERC20__factory.connect(resolveAddress("mBTC", chain), signer)
+        const RevenueRecipientAddress = resolveAddress("RevenueRecipient", chain)
+        const recipient = RevenueRecipient__factory.connect(RevenueRecipientAddress, signer)
+
+        // 2 - work out pcts
+        let assets = [mUSD, mBTC]
+        const balRecipient = await Promise.all(assets.map((a) => a.balanceOf(RevenueRecipientAddress)))
+        assets = assets.filter((b, i) => balRecipient[i].gt(BN.from(0)))
+        if (assets.length === 0) return
+
+        const balPool = await Promise.all(assets.map((a) => a.balanceOf(balancerPoolTokenAddress)))
+        const pcts = assets.map((a, i) => {
+            const maxPool = balPool[i].mul(10).div(35)
+            if (balRecipient[i].lt(maxPool)) return scale
+            return simpleToExactAmount(maxPool).div(balRecipient[i])
+        })
+        const tx = await recipient.depositToPool(
+            assets.map((a) => a.address),
+            pcts,
+        )
+        logTxDetails(tx, "deposit top")
     })
 
 task("polly-daily", "Runs the daily jobs against the contracts on Polygon mainnet")
