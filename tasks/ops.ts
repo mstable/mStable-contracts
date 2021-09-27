@@ -126,6 +126,7 @@ task("proxy-upgrades", "Proxy implementation changes")
         const logs = await proxy.queryFilter(filter, fromBlock.blockNumber, toBlock.blockNumber)
 
         console.log(`${asset.symbol} proxy ${asset.address}`)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         logs.forEach((log: any) => {
             console.log(`Upgraded at block ${log.blockNumber} to ${log.args.implementation} in tx in ${log.blockHash}`)
         })

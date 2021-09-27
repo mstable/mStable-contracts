@@ -157,15 +157,7 @@ task("feeder-snap", "Gets feeder transactions over a period of time")
 
         const balances = await getBalances(feederPool, toBlock.blockNumber, fAsset, quantityFormatter)
 
-        const collectedInterestSummary = await getCollectedInterest(
-            fpAssets,
-            feederPool,
-            savingsManager,
-            fromBlock,
-            toBlock,
-            quantityFormatter,
-            balances.save,
-        )
+        await getCollectedInterest(fpAssets, feederPool, savingsManager, fromBlock, toBlock, quantityFormatter, balances.save)
 
         const data = await feederPool.data()
         console.log(`\nPending gov fees ${quantityFormatter(data.pendingFees)}`)

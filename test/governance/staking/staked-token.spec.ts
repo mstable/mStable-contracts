@@ -1204,10 +1204,6 @@ describe("Staked Token", () => {
 
                     await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
 
-                    const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
-                    expect(stakerDataAfter.rawBalance.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
-                    expect(stakerDataAfter.rawBalance.cooldownUnits, "cooldown units after").to.eq(0)
-                    expect(stakerDataAfter.rawBalance.raw, "staked raw balance after").to.eq(stakedAmount)
                     expect(stakerDataAfter.rawBalance.weightedTimestamp, "weighted timestamp after").to.eq(stakedTimestamp)
                     expect(stakerDataAfter.questBalance.lastAction, "last action after").to.eq(0)
                     expect(stakerDataAfter.questBalance.permMultiplier, "perm multiplier after").to.eq(0)
@@ -1226,10 +1222,6 @@ describe("Staked Token", () => {
                     expect(stakerDataAfter.rawBalance.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
                     expect(stakerDataAfter.rawBalance.cooldownUnits, "cooldown units after").to.eq(0)
                     expect(stakerDataAfter.rawBalance.raw, "staked raw balance after").to.eq(stakedAmount)
-                    expect(stakerDataAfter.rawBalance.weightedTimestamp, "weighted timestamp after").to.eq(stakedTimestamp)
-                    expect(stakerDataAfter.questBalance.lastAction, "last action after").to.eq(0)
-                    expect(stakerDataAfter.questBalance.permMultiplier, "perm multiplier after").to.eq(0)
-                    expect(stakerDataAfter.questBalance.seasonMultiplier, "season multiplier after").to.eq(0)
                     expect(stakerDataAfter.rawBalance.timeMultiplier, "time multiplier after").to.eq(0)
                     expect(stakerDataAfter.scaledBalance, "staked balance after").to.eq(stakedAmount)
                     expect(stakerDataAfter.votes, "staked votes after").to.eq(stakedAmount)
@@ -1273,32 +1265,24 @@ describe("Staked Token", () => {
                     expect(stakerDataAfter.questBalance.lastAction, "last action after").to.eq(0)
                     expect(stakerDataAfter.questBalance.permMultiplier, "perm multiplier after").to.eq(0)
                     expect(stakerDataAfter.questBalance.seasonMultiplier, "season multiplier after").to.eq(0)
-                    expect(stakerDataAfter.rawBalance.timeMultiplier, "time multiplier after").to.eq(0)
-                    expect(stakerDataAfter.scaledBalance, "staked balance after").to.eq(stakedAmount)
-                    expect(stakerDataAfter.votes, "staked votes after").to.eq(stakedAmount)
-                })
-                it("in unstake window", async () => {
-                    await increaseTime(ONE_DAY.mul(8))
-                    const tx = await stakedToken.endCooldown()
+                    it("in unstake window", async () => {
+                        await increaseTime(ONE_DAY.mul(8))
+                        const tx = await stakedToken.endCooldown()
 
-                    await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
+                        await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
 
-                    const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
-                    expect(stakerDataAfter.rawBalance.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
-                    expect(stakerDataAfter.rawBalance.cooldownUnits, "cooldown units after").to.eq(0)
-                    expect(stakerDataAfter.rawBalance.raw, "staked raw balance after").to.eq(stakedAmount)
-                    expect(stakerDataAfter.rawBalance.weightedTimestamp, "weighted timestamp after").to.eq(stakedTimestamp)
-                    expect(stakerDataAfter.questBalance.lastAction, "last action after").to.eq(0)
-                    expect(stakerDataAfter.questBalance.permMultiplier, "perm multiplier after").to.eq(0)
-                    expect(stakerDataAfter.questBalance.seasonMultiplier, "season multiplier after").to.eq(0)
-                    expect(stakerDataAfter.rawBalance.timeMultiplier, "time multiplier after").to.eq(0)
-                    expect(stakerDataAfter.scaledBalance, "staked balance after").to.eq(stakedAmount)
-                    expect(stakerDataAfter.votes, "staked votes after").to.eq(stakedAmount)
-                })
-                it("after unstake window", async () => {
-                    await increaseTime(ONE_DAY.mul(12))
-                    const tx = await stakedToken.endCooldown()
-
+                        const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
+                        expect(stakerDataAfter.rawBalance.cooldownTimestamp, "cooldown timestamp after").to.eq(0)
+                        expect(stakerDataAfter.rawBalance.cooldownUnits, "cooldown units after").to.eq(0)
+                        expect(stakerDataAfter.rawBalance.raw, "staked raw balance after").to.eq(stakedAmount)
+                        expect(stakerDataAfter.rawBalance.weightedTimestamp, "weighted timestamp after").to.eq(stakedTimestamp)
+                        expect(stakerDataAfter.questBalance.lastAction, "last action after").to.eq(0)
+                        expect(stakerDataAfter.questBalance.permMultiplier, "perm multiplier after").to.eq(0)
+                        expect(stakerDataAfter.questBalance.seasonMultiplier, "season multiplier after").to.eq(0)
+                        expect(stakerDataAfter.rawBalance.timeMultiplier, "time multiplier after").to.eq(0)
+                        expect(stakerDataAfter.scaledBalance, "staked balance after").to.eq(stakedAmount)
+                        expect(stakerDataAfter.votes, "staked votes after").to.eq(stakedAmount)
+                    })
                     await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
 
                     const stakerDataAfter = await snapshotUserStakingData(sa.default.address)
@@ -1840,7 +1824,7 @@ describe("Staked Token", () => {
                 .to.emit(rewardToken, "Transfer")
                 .withArgs(stakedToken.address, sa.default.address, stakedAmount.sub(redemptionFee))
 
-            const withdrawTimestamp = await getTimestamp()
+            // const withdrawTimestamp = await getTimestamp()
             const afterData = await snapshotUserStakingData(sa.default.address)
             expect(afterData.scaledBalance, "staker stkRWD after").to.eq(0)
             expect(afterData.votes, "staker votes after").to.eq(0)
@@ -1863,10 +1847,10 @@ describe("Staked Token", () => {
             await rewardToken.transfer(stakedTokenWrapper.address, stakedAmount.mul(3))
         })
         it("should allow governor to whitelist a contract", async () => {
-            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper not whitelisted before").to.be.false
+            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper not whitelisted before").to.equal(false)
             const tx = await stakedToken.connect(sa.governor.signer).whitelistWrapper(stakedTokenWrapper.address)
             await expect(tx).to.emit(stakedToken, "WrapperWhitelisted").withArgs(stakedTokenWrapper.address)
-            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper whitelisted after").to.be.true
+            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper whitelisted after").to.equal(true)
 
             const tx2 = await stakedTokenWrapper["stake(uint256)"](stakedAmount)
             await expect(tx2).to.emit(stakedToken, "Staked").withArgs(stakedTokenWrapper.address, stakedAmount, ZERO_ADDRESS)
@@ -1874,11 +1858,11 @@ describe("Staked Token", () => {
         it("should allow governor to blacklist a contract", async () => {
             const tx = await stakedToken.connect(sa.governor.signer).whitelistWrapper(stakedTokenWrapper.address)
             await expect(tx).to.emit(stakedToken, "WrapperWhitelisted").withArgs(stakedTokenWrapper.address)
-            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper whitelisted").to.be.true
+            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper whitelisted").to.equal(true)
 
             const tx2 = await stakedToken.connect(sa.governor.signer).blackListWrapper(stakedTokenWrapper.address)
             await expect(tx2).to.emit(stakedToken, "WrapperBlacklisted").withArgs(stakedTokenWrapper.address)
-            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper not whitelisted").to.be.false
+            expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper not whitelisted").to.equal(false)
 
             await expect(stakedTokenWrapper["stake(uint256)"](stakedAmount)).to.revertedWith("Not a whitelisted contract")
         })

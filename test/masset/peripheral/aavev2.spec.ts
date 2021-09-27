@@ -299,7 +299,7 @@ describe("AaveIntegration", async () => {
             const bal2 = await bAsset.balanceOf(aaveIntegration.address)
             const receivedAmount = bal2.sub(bal1)
             // Ensure fee is being deducted
-            expect(receivedAmount).lt(amount as any)
+            expect(receivedAmount).lt(amount)
             // fee = initialAmount - receivedAmount
             const fee = amount.sub(receivedAmount)
             // feeRate = fee/amount (base 1e18)
@@ -308,7 +308,7 @@ describe("AaveIntegration", async () => {
             const expectedDeposit = receivedAmount.sub(receivedAmount.mul(feeRate).div(simpleToExactAmount(1)))
 
             // Step 2. call deposit
-            const tx = await aaveIntegration.connect(mAsset.signer).deposit(bAsset.address, receivedAmount.toString(), true)
+            await aaveIntegration.connect(mAsset.signer).deposit(bAsset.address, receivedAmount.toString(), true)
 
             // Step 3. Check for things:
             const aaveIntegrationBalAfter = await aToken.balanceOf(aaveIntegration.address)
@@ -344,7 +344,7 @@ describe("AaveIntegration", async () => {
             // Step 0. Choose tokens
             const bAsset = await new MockERC20__factory(sa.default.signer).attach(integrationDetails.aTokens[0].bAsset)
             const amount = BN.from(10).pow(BN.from(12))
-            const aToken = await new MockATokenV2__factory(sa.default.signer).attach(integrationDetails.aTokens[0].aToken)
+            await new MockATokenV2__factory(sa.default.signer).attach(integrationDetails.aTokens[0].aToken)
 
             // Step 2. call deposit
             await expect(aaveIntegration.connect(mAsset.signer).deposit(bAsset.address, amount.toString(), false)).to.be.revertedWith(
@@ -357,11 +357,11 @@ describe("AaveIntegration", async () => {
             const bAssetDecimals = await bAsset.decimals()
             const amount = BN.from(10).mul(BN.from(10).pow(bAssetDecimals))
             const amountHigh = BN.from(11).mul(BN.from(10).pow(bAssetDecimals))
-            const aToken = await new MockATokenV2__factory(sa.default.signer).attach(integrationDetails.aTokens[1].aToken)
+            await new MockATokenV2__factory(sa.default.signer).attach(integrationDetails.aTokens[1].aToken)
 
             // Step 1. xfer low tokens to integration
             await bAsset.transfer(aaveIntegration.address, amount.toString())
-            expect(await bAsset.balanceOf(aaveIntegration.address)).lte(amount as any)
+            expect(await bAsset.balanceOf(aaveIntegration.address)).lte(amount)
             // Step 2. call deposit with high tokens
             await expect(aaveIntegration.connect(mAsset.signer).deposit(bAsset.address, amountHigh.toString(), false)).to.be.revertedWith(
                 "ERC20: transfer amount exceeds balance",
@@ -395,7 +395,7 @@ describe("AaveIntegration", async () => {
                 "Must deposit something",
             )
             // Succeeds with Incorrect bool (defaults to false)
-            const tx = await aaveIntegration.connect(mAsset.signer).deposit(bAsset.address, amount.toString(), undefined)
+            await aaveIntegration.connect(mAsset.signer).deposit(bAsset.address, amount.toString(), undefined)
 
             // Step 3. Check for things:
             // 3.1 Check that lending pool has bAssets
@@ -439,12 +439,7 @@ describe("AaveIntegration", async () => {
             const aaveIntegrationBalBefore = await aToken.balanceOf(aaveIntegration.address)
 
             // Step 1. call withdraw
-            const tx = await aaveIntegration["withdraw(address,address,uint256,bool)"](
-                bAssetRecipient,
-                bAsset.address,
-                amount.toString(),
-                false,
-            )
+            await aaveIntegration["withdraw(address,address,uint256,bool)"](bAssetRecipient, bAsset.address, amount.toString(), false)
 
             // Step 2. Check for things:
             // 2.1 Check that the recipient receives the tokens
@@ -482,12 +477,7 @@ describe("AaveIntegration", async () => {
             const aaveIntegrationBalBefore = await aToken.balanceOf(aaveIntegration.address)
 
             // Step 1. call withdraw
-            const tx = await aaveIntegration["withdraw(address,address,uint256,bool)"](
-                bAssetRecipient,
-                bAsset.address,
-                amount.toString(),
-                true,
-            )
+            await aaveIntegration["withdraw(address,address,uint256,bool)"](bAssetRecipient, bAsset.address, amount.toString(), true)
             const bAssetRecipientBalAfter = await bAsset.balanceOf(bAssetRecipient)
             const aaveIntegrationBalAfter = await aToken.balanceOf(aaveIntegration.address)
 
@@ -496,9 +486,9 @@ describe("AaveIntegration", async () => {
             const amountScaled = amount.mul(scale)
             const expectedAmount = amountScaled.div(simpleToExactAmount(1))
             // Step 2. Validate recipient
-            expect(bAssetRecipientBalAfter).gte(bAssetRecipientBalBefore.add(expectedAmount) as any)
-            expect(bAssetRecipientBalAfter).lte(bAssetRecipientBalBefore.add(amount) as any)
-            expect(aaveIntegrationBalAfter).eq(aaveIntegrationBalBefore.sub(amount) as any)
+            expect(bAssetRecipientBalAfter).gte(bAssetRecipientBalBefore.add(expectedAmount))
+            expect(bAssetRecipientBalAfter).lte(bAssetRecipientBalBefore.add(amount))
+            expect(aaveIntegrationBalAfter).eq(aaveIntegrationBalBefore.sub(amount))
             const expectedBalance = aaveIntegrationBalBefore.sub(amount)
             assertBNSlightlyGT(aaveIntegrationBalAfter, expectedBalance, BN.from("100"))
             // Cross that match with the `checkBalance` call
@@ -555,12 +545,7 @@ describe("AaveIntegration", async () => {
                 aaveIntegration["withdraw(address,address,uint256,bool)"](sa.dummy1.address, bAsset.address, "0", false),
             ).to.be.revertedWith("Must withdraw something")
             // Succeeds with Incorrect bool (defaults to false)
-            const tx = await aaveIntegration["withdraw(address,address,uint256,bool)"](
-                sa.dummy1.address,
-                bAsset.address,
-                amount.toString(),
-                undefined,
-            )
+            await aaveIntegration["withdraw(address,address,uint256,bool)"](sa.dummy1.address, bAsset.address, amount.toString(), undefined)
 
             // 2.1 Check that the recipient receives the tokens
             expect(await bAsset.balanceOf(bAssetRecipient)).eq(bAssetRecipientBalBefore.add(amount))
@@ -597,7 +582,7 @@ describe("AaveIntegration", async () => {
                 const bAssetDecimals = await bAsset.decimals()
                 const amount = simpleToExactAmount(5, bAssetDecimals)
                 const totalAmount = amount.mul(2)
-                const aToken = await new MockATokenV2__factory(sa.default.signer).attach(integrationDetails.aTokens[0].aToken)
+                await new MockATokenV2__factory(sa.default.signer).attach(integrationDetails.aTokens[0].aToken)
                 // 0.1 Get balance before
                 const bAssetRecipient = sa.dummy1.address
                 const bAssetRecipientBalBefore = await bAsset.balanceOf(bAssetRecipient)
@@ -611,7 +596,7 @@ describe("AaveIntegration", async () => {
                         ["withdraw(address,address,uint256,uint256,bool)"](bAssetRecipient, bAsset.address, amount, totalAmount, false),
                 ).to.be.revertedWith("Only the LP can execute")
                 // send the amount
-                const tx = await aaveIntegration["withdraw(address,address,uint256,uint256,bool)"](
+                await aaveIntegration["withdraw(address,address,uint256,uint256,bool)"](
                     bAssetRecipient,
                     bAsset.address,
                     amount,
@@ -677,7 +662,7 @@ describe("AaveIntegration", async () => {
             const aaveIntegrationBalBefore = await bAsset.balanceOf(aaveIntegration.address)
             const aaveBalanceBefore = await aaveIntegration.callStatic.checkBalance(bAsset.address)
 
-            const tx = await aaveIntegration.connect(mAsset.signer).withdrawRaw(bAssetRecipient, bAsset.address, amount)
+            await aaveIntegration.connect(mAsset.signer).withdrawRaw(bAssetRecipient, bAsset.address, amount)
 
             const bAssetRecipientBalAfter = await bAsset.balanceOf(bAssetRecipient)
             const aaveIntegrationBalAfter = await bAsset.balanceOf(aaveIntegration.address)

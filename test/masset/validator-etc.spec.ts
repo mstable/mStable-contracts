@@ -2,7 +2,6 @@ import { ethers } from "hardhat"
 import { expect } from "chai"
 
 import { simpleToExactAmount, BN } from "@utils/math"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { ExposedMassetLogic } from "types/generated"
 
 const config = {
@@ -33,14 +32,6 @@ const getReserves = (simpleUnits: number[], decimals: number[] = simpleUnits.map
 
 describe("Invariant Validator", () => {
     let validator: ExposedMassetLogic
-    let sa: StandardAccounts
-
-    before(async () => {
-        const accounts = await ethers.getSigners()
-        const mAssetMachine = await new MassetMachine().initAccounts(accounts)
-        sa = mAssetMachine.sa
-        await redeployValidator()
-    })
 
     const redeployValidator = async () => {
         const LogicFactory = await ethers.getContractFactory("MassetLogic")
@@ -53,7 +44,9 @@ describe("Invariant Validator", () => {
         const massetFactory = await ethers.getContractFactory("ExposedMassetLogic", linkedAddress)
         validator = (await massetFactory.deploy()) as ExposedMassetLogic
     }
-
+    before(async () => {
+        await redeployValidator()
+    })
     describe("Validating bAssets with different ratios", () => {
         const x1 = getReserves([10, 10, 10, 10], [10, 18, 6, 18])
         const x2 = getReserves([10, 10, 10, 10], [18, 18, 6, 18])
