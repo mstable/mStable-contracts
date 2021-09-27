@@ -150,7 +150,7 @@ describe("Liquidator", () => {
         await redeployLiquidator()
 
         ctx.sa = sa
-        ctx.module = liquidator as any as ImmutableModule
+        ctx.module = liquidator as ImmutableModule
     })
 
     describe("verifying initialization", async () => {
@@ -200,7 +200,7 @@ describe("Liquidator", () => {
                 await paaveIntegration.claimRewards()
                 await liquidator.triggerLiquidation(paaveIntegration.address)
                 const after = await snapshotData()
-                expect(after.savingsManagerBal).gt(before.savingsManagerBal as any)
+                expect(after.savingsManagerBal).gt(before.savingsManagerBal)
             })
         })
     })

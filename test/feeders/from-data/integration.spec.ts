@@ -22,6 +22,7 @@ const maxAction = 100
 const feederFees = { swap: simpleToExactAmount(8, 14), redeem: simpleToExactAmount(6, 14), gov: simpleToExactAmount(1, 17) }
 
 const cv = (n: number | string): BN => BN.from(BigInt(n).toString())
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const getReserves = (data: any) =>
     [0, 1, 2, 3, 4, 5]
         .filter((i) => data[`reserve${i}`])

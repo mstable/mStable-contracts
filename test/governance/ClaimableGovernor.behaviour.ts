@@ -13,7 +13,7 @@ export interface IClaimableGovernableBehaviourContext {
 export function shouldBehaveLikeClaimable(ctx: IClaimableGovernableBehaviourContext): void {
     it("should have a governor", async () => {
         const governor = await ctx.claimable.governor()
-        expect(governor !== ZERO_ADDRESS).to.be.true
+        expect(governor !== ZERO_ADDRESS).to.equal(true)
     })
 
     it("changes pendingGovernor after transfer", async () => {
@@ -21,7 +21,7 @@ export function shouldBehaveLikeClaimable(ctx: IClaimableGovernableBehaviourCont
         await ctx.claimable.connect(ctx.governor.signer).requestGovernorChange(newGovernor.address)
         const proposedGovernor = await ctx.claimable.proposedGovernor()
 
-        expect(proposedGovernor === newGovernor.address).to.be.true
+        expect(proposedGovernor === newGovernor.address).to.equal(true)
     })
 
     it("should prevent cancelGovernor from non-governor", async () => {
@@ -29,12 +29,12 @@ export function shouldBehaveLikeClaimable(ctx: IClaimableGovernableBehaviourCont
         const newGovernor = ctx.other
         await ctx.claimable.connect(ctx.governor.signer).requestGovernorChange(newGovernor.address)
         const proposedGovernor = await ctx.claimable.proposedGovernor()
-        expect(proposedGovernor === newGovernor.address).to.be.true
+        expect(proposedGovernor === newGovernor.address).to.equal(true)
 
         // Try to Cancel governor
         await expect(ctx.claimable.connect(ctx.default.signer).cancelGovernorChange()).to.be.revertedWith("GOV: caller is not the Governor")
         const newProposedGovernor = await ctx.claimable.proposedGovernor()
-        expect(proposedGovernor === newProposedGovernor).to.be.true
+        expect(proposedGovernor === newProposedGovernor).to.equal(true)
     })
 
     it("should prevent cancelGovernor from pending-governor", async () => {
@@ -42,12 +42,12 @@ export function shouldBehaveLikeClaimable(ctx: IClaimableGovernableBehaviourCont
         const newGovernor = ctx.other
         await ctx.claimable.connect(ctx.governor.signer).requestGovernorChange(newGovernor.address)
         const proposedGovernor = await ctx.claimable.proposedGovernor()
-        expect(proposedGovernor === newGovernor.address).to.be.true
+        expect(proposedGovernor === newGovernor.address).to.equal(true)
 
         // Try to Cancel governor
         await expect(ctx.claimable.connect(ctx.other.signer).cancelGovernorChange()).to.be.revertedWith("GOV: caller is not the Governor")
         const newProposedGovernor = await ctx.claimable.proposedGovernor()
-        expect(proposedGovernor === newProposedGovernor).to.be.true
+        expect(proposedGovernor === newProposedGovernor).to.equal(true)
     })
 
     it("should allow cancelGovernor from Governor", async () => {
@@ -56,16 +56,16 @@ export function shouldBehaveLikeClaimable(ctx: IClaimableGovernableBehaviourCont
         const currentGovernor = await ctx.claimable.governor()
         await ctx.claimable.connect(ctx.governor.signer).requestGovernorChange(newGovernor.address)
         const proposedGovernor = await ctx.claimable.proposedGovernor()
-        expect(proposedGovernor === newGovernor.address).to.be.true
+        expect(proposedGovernor === newGovernor.address).to.equal(true)
 
         // Try to Cancel governor
         await ctx.claimable.connect(ctx.governor.signer).cancelGovernorChange()
         const newProposedGovernor = await ctx.claimable.proposedGovernor()
         const governor = await ctx.claimable.governor()
 
-        expect(proposedGovernor !== ZERO_ADDRESS).to.be.true
-        expect(newProposedGovernor === ZERO_ADDRESS).to.be.true
-        expect(governor === currentGovernor).to.be.true
+        expect(proposedGovernor !== ZERO_ADDRESS).to.equal(true)
+        expect(newProposedGovernor === ZERO_ADDRESS).to.equal(true)
+        expect(governor === currentGovernor).to.equal(true)
     })
 
     it("should prevent Others to call claimOwnership when there is no pendingGovernor", async () => {
@@ -79,7 +79,7 @@ export function shouldBehaveLikeClaimable(ctx: IClaimableGovernableBehaviourCont
     it("should prevent non-governors from transfering", async () => {
         const governor = await ctx.claimable.governor()
 
-        expect(governor !== ctx.other.address).to.be.true
+        expect(governor !== ctx.other.address).to.equal(true)
         await expect(ctx.claimable.connect(ctx.other.signer).requestGovernorChange(ctx.other.address)).to.be.revertedWith(
             "GOV: caller is not the Governor",
         )

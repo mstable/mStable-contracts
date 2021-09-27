@@ -376,7 +376,7 @@ describe("IncentivisedVotingLockup", () => {
 
                 expect(after.epoch).eq(before.epoch.add(1))
                 expect(after.totalStaticWeight).eq(before.totalStaticWeight)
-                expect(after.lastPoint.bias).lt(before.lastPoint.bias as any)
+                expect(after.lastPoint.bias).lt(before.lastPoint.bias)
                 expect(after.lastPoint.slope).eq(before.lastPoint.slope)
                 expect(after.lastPoint.blk).eq(BN.from((await latestBlock()).number))
             })

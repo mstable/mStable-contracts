@@ -23,9 +23,10 @@ import {
     StakedTokenBPT__factory,
     StakedTokenBPT,
 } from "types"
-import { assertBNClose, DEAD_ADDRESS } from "index"
+import { DEAD_ADDRESS } from "index"
 import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
-import { BN, simpleToExactAmount } from "@utils/math"
+import { assertBNClose } from "@utils/assertions"
+import { simpleToExactAmount, BN } from "@utils/math"
 import { expect } from "chai"
 import { getTimestamp, increaseTime } from "@utils/time"
 import { formatBytes32String } from "ethers/lib/utils"

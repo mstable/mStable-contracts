@@ -89,9 +89,10 @@ const getExpectedPoke = (data: Data, withdrawCredits: BN = BN.from(0)): Expected
     const connectorDerived = balances.contract.gt(totalCollat) ? BN.from(0) : totalCollat.sub(balances.contract)
     const max = totalCollat.mul(connector.fraction.add(simpleToExactAmount(2, 17))).div(fullScale)
     const ideal = totalCollat.mul(connector.fraction).div(fullScale)
+    const pokeType = connector.balance.gt(ideal) ? "withdraw" : "deposit"
     return {
         aboveMax: connectorDerived.gt(max),
-        type: connector.balance.eq(ideal) ? "none" : connector.balance.gt(ideal) ? "withdraw" : "deposit",
+        type: connector.balance.eq(ideal) ? "none" : pokeType,
         amount: connector.balance.gte(ideal) ? connector.balance.sub(ideal) : ideal.sub(connector.balance),
         ideal,
     }

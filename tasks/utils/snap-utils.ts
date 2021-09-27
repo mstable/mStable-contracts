@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-restricted-syntax */
 import { Signer } from "ethers"
@@ -77,6 +78,7 @@ export function isMusdLegacy(asset: Masset | MusdEth | MusdLegacy | FeederPool):
     return (asset as MusdLegacy).getBasketManager !== undefined
 }
 
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export const getBlock = async (ethers, _blockNumber?: number): Promise<BlockInfo> => {
     const blockNumber = _blockNumber || (await ethers.provider.getBlockNumber())
     const toBlock = await ethers.provider.getBlock(blockNumber)
@@ -88,6 +90,7 @@ export const getBlock = async (ethers, _blockNumber?: number): Promise<BlockInfo
     }
 }
 
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export const getBlockRange = async (ethers, fromBlockNumber: number, _toBlockNumber?: number): Promise<BlockRange> => {
     const toBlockNumber = _toBlockNumber || (await ethers.provider.getBlockNumber())
     // const toBlock = await ethers.provider.getBlock(toBlockNumber)

@@ -1,7 +1,7 @@
 import { ethers } from "hardhat"
 import { expect } from "chai"
 
-import { simpleToExactAmount, BN, applyRatio } from "@utils/math"
+import { simpleToExactAmount, BN } from "@utils/math"
 import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
 
 import { DEAD_ADDRESS, MAX_UINT256, ONE_DAY, ONE_HOUR, ONE_WEEK, TEN_MINS, ZERO_ADDRESS } from "@utils/constants"
@@ -181,36 +181,36 @@ describe("Masset Admin", () => {
             })
             it("when no integration balance", async () => {
                 const { personal } = await details.mAsset.getBasset(details.bAssets[3].address)
-                expect(personal.hasTxFee).to.be.false
+                expect(personal.hasTxFee).to.equal(false)
 
                 const tx = details.mAsset.connect(sa.governor.signer).setTransferFeesFlag(personal.addr, true)
                 await expect(tx).to.emit(details.wrappedManagerLib, "TransferFeeEnabled").withArgs(personal.addr, true)
                 const { personal: after } = await details.mAsset.getBasset(details.bAssets[3].address)
-                expect(after.hasTxFee).to.be.true
+                expect(after.hasTxFee).to.equal(true)
 
                 // restore the flag back to false
                 const tx2 = details.mAsset.connect(sa.governor.signer).setTransferFeesFlag(personal.addr, false)
                 await expect(tx2).to.emit(details.wrappedManagerLib, "TransferFeeEnabled").withArgs(personal.addr, false)
                 await tx2
                 const { personal: end } = await details.mAsset.getBasset(details.bAssets[3].address)
-                expect(end.hasTxFee).to.be.false
+                expect(end.hasTxFee).to.equal(false)
             })
             it("when an integration balance", async () => {
                 const { personal } = await details.mAsset.getBasset(details.bAssets[2].address)
-                expect(personal.hasTxFee).to.be.false
+                expect(personal.hasTxFee).to.equal(false)
 
                 const tx = details.mAsset.connect(sa.governor.signer).setTransferFeesFlag(personal.addr, true)
                 await expect(tx).to.emit(details.wrappedManagerLib, "TransferFeeEnabled").withArgs(personal.addr, true)
 
                 const { personal: after } = await details.mAsset.getBasset(details.bAssets[2].address)
-                expect(after.hasTxFee).to.be.true
+                expect(after.hasTxFee).to.equal(true)
 
                 // restore the flag back to false
                 const tx2 = details.mAsset.connect(sa.governor.signer).setTransferFeesFlag(personal.addr, false)
                 await expect(tx2).to.emit(details.wrappedManagerLib, "TransferFeeEnabled").withArgs(personal.addr, false)
 
                 const { personal: end } = await details.mAsset.getBasset(details.bAssets[2].address)
-                expect(end.hasTxFee).to.be.false
+                expect(end.hasTxFee).to.equal(false)
             })
         })
     })
@@ -230,7 +230,7 @@ describe("Masset Admin", () => {
             const { mAsset, bAssets } = details
             const bAsset = await mAsset.getBasset(bAssets[0].address)
             expect(bAsset.personal.addr).to.eq(bAsset[0].addr)
-            expect(bAsset.personal.hasTxFee).to.false
+            expect(bAsset.personal.hasTxFee).to.equal(false)
             expect(bAsset.personal.integrator).to.eq(bAsset[0].integrator)
             expect(bAsset.personal.status).to.eq(BassetStatus.Normal)
         })
@@ -316,7 +316,7 @@ describe("Masset Admin", () => {
             // 2.0 Get all balances and data before
             const mAssetBalBefore = await details.mAsset.balanceOf(sa.mockSavingsManager.address)
             const bassetsBefore = await mAssetMachine.getBassetsInMasset(details)
-            const sumOfVaultsBefore = bassetsBefore.reduce((p, c) => p.add(applyRatio(c.vaultBalance, c.ratio)), BN.from(0))
+            // const sumOfVaultsBefore = bassetsBefore.reduce((p, c) => p.add(applyRatio(c.vaultBalance, c.ratio)), BN.from(0))
             const totalSupplyBefore = await details.mAsset.totalSupply()
 
             // 3.0 Check the SavingsManager in the mock Nexus contract
@@ -541,11 +541,11 @@ describe("Masset Admin", () => {
         it("should skip when Normal (by governor)", async () => {
             const { bAssets, mAsset, wrappedManagerLib } = details
             const basketBefore = await mAsset.getBasket()
-            expect(basketBefore[0]).to.false
+            expect(basketBefore[0]).to.equal(false)
             const tx = mAsset.connect(sa.governor.signer).negateIsolation(bAssets[0].address)
             await expect(tx).to.emit(wrappedManagerLib, "BassetStatusChanged").withArgs(bAssets[0].address, BassetStatus.Normal)
             const afterBefore = await mAsset.getBasket()
-            expect(afterBefore[0]).to.false
+            expect(afterBefore[0]).to.equal(false)
         })
         it("should fail when called by default", async () => {
             const { bAssets, mAsset } = details
@@ -564,14 +564,14 @@ describe("Masset Admin", () => {
             const bAsset = bAssets[1]
 
             const basketBefore = await mAsset.getBasket()
-            expect(basketBefore[0], "before undergoingRecol").to.false
+            expect(basketBefore[0], "before undergoingRecol").to.equal(false)
             const bAssetStateBefore = await mAsset.getBasset(bAsset.address)
             expect(bAssetStateBefore.personal.status).to.eq(BassetStatus.Normal)
 
             await mAsset.connect(sa.governor.signer).handlePegLoss(bAsset.address, false)
 
             const basketAfterPegLoss = await mAsset.getBasket()
-            expect(basketAfterPegLoss[0], "after handlePegLoss undergoingRecol").to.true
+            expect(basketAfterPegLoss[0], "after handlePegLoss undergoingRecol").to.equal(true)
             const bAssetStateAfterPegLoss = await mAsset.getBasset(bAsset.address)
             expect(bAssetStateAfterPegLoss.personal.status, "after handlePegLoss personal.status").to.eq(BassetStatus.BrokenAbovePeg)
 
@@ -580,7 +580,7 @@ describe("Masset Admin", () => {
             await expect(tx).to.emit(wrappedManagerLib, "BassetStatusChanged").withArgs(bAsset.address, BassetStatus.Normal)
             await tx
             const basketAfterNegateIsolation = await mAsset.getBasket()
-            expect(basketAfterNegateIsolation[0], "after negateIsolation undergoingRecol").to.false
+            expect(basketAfterNegateIsolation[0], "after negateIsolation undergoingRecol").to.equal(false)
             const bAssetStateAfterNegateIsolation = await mAsset.getBasset(bAsset.address)
             expect(bAssetStateAfterNegateIsolation.personal.status, "after negateIsolation personal.status").to.eq(BassetStatus.Normal)
         })
@@ -588,13 +588,13 @@ describe("Masset Admin", () => {
             const { bAssets, mAsset, wrappedManagerLib } = details
 
             const basketBefore = await mAsset.getBasket()
-            expect(basketBefore[0], "before undergoingRecol").to.false
+            expect(basketBefore[0], "before undergoingRecol").to.equal(false)
 
             await mAsset.connect(sa.governor.signer).handlePegLoss(bAssets[2].address, true)
             await mAsset.connect(sa.governor.signer).handlePegLoss(bAssets[3].address, true)
 
             const basketAfterPegLoss = await mAsset.getBasket()
-            expect(basketAfterPegLoss[0], "after handlePegLoss undergoingRecol").to.true
+            expect(basketAfterPegLoss[0], "after handlePegLoss undergoingRecol").to.equal(true)
             const bAsset2StateAfterPegLoss = await mAsset.getBasset(bAssets[2].address)
             expect(bAsset2StateAfterPegLoss.personal.status, "after handlePegLoss personal.status 2").to.eq(BassetStatus.BrokenBelowPeg)
             const bAsset3StateAfterPegLoss = await mAsset.getBasset(bAssets[3].address)
@@ -605,7 +605,7 @@ describe("Masset Admin", () => {
             await expect(tx).to.emit(wrappedManagerLib, "BassetStatusChanged").withArgs(bAssets[3].address, BassetStatus.Normal)
             await tx
             const basketAfterNegateIsolation = await mAsset.getBasket()
-            expect(basketAfterNegateIsolation[0], "after negateIsolation undergoingRecol").to.true
+            expect(basketAfterNegateIsolation[0], "after negateIsolation undergoingRecol").to.equal(true)
             const bAsset2AfterNegateIsolation = await mAsset.getBasset(bAssets[2].address)
             expect(bAsset2AfterNegateIsolation.personal.status, "after negateIsolation personal.status 2").to.eq(
                 BassetStatus.BrokenBelowPeg,
@@ -659,47 +659,47 @@ describe("Masset Admin", () => {
                     // 60 * 60 * 24 * 10 / 2000 = 432
                     desc: "just under before increment",
                     elapsedSeconds: 431,
-                    expectedValaue: 10000,
+                    expectedValue: 10000,
                 },
                 {
                     desc: "just under after increment",
                     elapsedSeconds: 434,
-                    expectedValaue: 10001,
+                    expectedValue: 10001,
                 },
                 {
                     desc: "after 1 day",
                     elapsedSeconds: ONE_DAY.add(1),
-                    expectedValaue: 10200,
+                    expectedValue: 10200,
                 },
                 {
                     desc: "after 9 days",
                     elapsedSeconds: ONE_DAY.mul(9).add(1),
-                    expectedValaue: 11800,
+                    expectedValue: 11800,
                 },
                 {
                     desc: "just under 10 days",
                     elapsedSeconds: ONE_DAY.mul(10).sub(2),
-                    expectedValaue: 11999,
+                    expectedValue: 11999,
                 },
                 {
                     desc: "after 10 days",
                     elapsedSeconds: ONE_DAY.mul(10),
-                    expectedValaue: 12000,
+                    expectedValue: 12000,
                 },
                 {
                     desc: "after 11 days",
                     elapsedSeconds: ONE_DAY.mul(11),
-                    expectedValaue: 12000,
+                    expectedValue: 12000,
                 },
             ]
-            for (const testData of testsData) {
+            testsData.forEach((testData) =>
                 it(`should succeed getting A ${testData.desc}`, async () => {
                     const currentTime = await getTimestamp()
                     const incrementSeconds = startTime.add(testData.elapsedSeconds).sub(currentTime)
                     await increaseTime(incrementSeconds)
-                    assertBNClose(await mAsset.getA(), BN.from(testData.expectedValaue), 5)
-                })
-            }
+                    assertBNClose(await mAsset.getA(), BN.from(testData.expectedValue), 5)
+                }),
+            )
         })
         context("A target changes just in range", () => {
             let currentA: BN
@@ -749,47 +749,47 @@ describe("Masset Admin", () => {
                     // 60 * 60 * 24 * 5 / 5000 = 86
                     desc: "just under before increment",
                     elapsedSeconds: 84,
-                    expectedValaue: 10000,
+                    expectedValue: 10000,
                 },
                 {
                     desc: "just under after increment",
                     elapsedSeconds: 88,
-                    expectedValaue: 9999,
+                    expectedValue: 9999,
                 },
                 {
                     desc: "after 1 day",
                     elapsedSeconds: ONE_DAY.add(1),
-                    expectedValaue: 9000,
+                    expectedValue: 9000,
                 },
                 {
                     desc: "after 4 days",
                     elapsedSeconds: ONE_DAY.mul(4).add(1),
-                    expectedValaue: 6000,
+                    expectedValue: 6000,
                 },
                 {
                     desc: "just under 5 days",
                     elapsedSeconds: ONE_DAY.mul(5).sub(2),
-                    expectedValaue: 5001,
+                    expectedValue: 5001,
                 },
                 {
                     desc: "after 5 days",
                     elapsedSeconds: ONE_DAY.mul(5),
-                    expectedValaue: 5000,
+                    expectedValue: 5000,
                 },
                 {
                     desc: "after 6 days",
                     elapsedSeconds: ONE_DAY.mul(6),
-                    expectedValaue: 5000,
+                    expectedValue: 5000,
                 },
             ]
-            for (const testData of testsData) {
+            testsData.forEach((testData) =>
                 it(`should succeed getting A ${testData.desc}`, async () => {
                     const currentTime = await getTimestamp()
                     const incrementSeconds = startTime.add(testData.elapsedSeconds).sub(currentTime)
                     await increaseTime(incrementSeconds)
-                    expect(await mAsset.getA()).to.eq(testData.expectedValaue)
-                })
-            }
+                    expect(await mAsset.getA()).to.eq(testData.expectedValue)
+                }),
+            )
         })
         describe("should fail to start ramp A", () => {
             before(async () => {
