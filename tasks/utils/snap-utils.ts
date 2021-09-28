@@ -2,7 +2,7 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-restricted-syntax */
 import { Signer } from "ethers"
-import { fullScale, ONE_DAY, ONE_YEAR } from "@utils/constants"
+import { fullScale, ONE_DAY, ONE_WEEK, ONE_YEAR } from "@utils/constants"
 import { applyDecimals, applyRatio, BN, simpleToExactAmount } from "@utils/math"
 import { formatUnits } from "ethers/lib/utils"
 import {
@@ -762,6 +762,8 @@ export const getCompTokens = async (
     const liquidator = await Liquidator__factory.connect(liquidatorAddress, signer)
     const liqData = await liquidator.liquidations(USDC.integrator)
     console.log(`Min COMP/USDC rate ${formatUnits(liqData.minReturn, USDC.decimals)}`)
+    const nextRunFromTimestamp = liqData.lastTriggered.add(ONE_WEEK)
+    console.log(`Next run ${new Date(nextRunFromTimestamp.toNumber() * 1000)}`)
 }
 
 export const getAaveTokens = async (
@@ -852,7 +854,7 @@ export const getAaveTokens = async (
     // Get unclaimed rewards
     const integrations = [
         {
-            desc: "DAI & USDT",
+            desc: "DAI, USDT & sUSD",
             integrator: DAI.integrator,
         },
         {
