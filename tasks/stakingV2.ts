@@ -2,9 +2,52 @@ import { subtask, task, types } from "hardhat/config"
 import { StakedTokenBPT__factory, StakedTokenMTA__factory, StakedToken__factory } from "types/generated"
 import { simpleToExactAmount } from "@utils/math"
 import { formatUnits } from "@ethersproject/units"
+import { ONE_WEEK } from "@utils/constants"
 import { getSigner } from "./utils/signerFactory"
 import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
+import { usdFormatter } from "./utils/quantity-formatters"
+
+subtask("staked-snap", "Dumps a user's staking token details.")
+    .addOptionalParam("asset", "Symbol of staking token. MTA or mBPT", "MTA", types.string)
+    .addParam("user", "Address or contract name of user", undefined, types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre)
+        const chain = getChain(hre)
+
+        const userAddress = resolveAddress(taskArgs.user, chain)
+
+        const tokenType = taskArgs.asset === "MTA" ? "vault" : "address"
+        const stakingTokenAddress = resolveAddress(taskArgs.asset, chain, tokenType)
+        const stakingToken = StakedToken__factory.connect(stakingTokenAddress, signer)
+
+        const [rawBalance, cooldownBalance] = await stakingToken.rawBalanceOf(userAddress)
+        const boostedBalance = await stakingToken.balanceOf(userAddress)
+        const effectiveMultiplier = boostedBalance.mul(10000).div(rawBalance)
+        const balanceData = await stakingToken.balanceData(userAddress)
+        const delegatee = await stakingToken.delegates(userAddress)
+
+        console.log(`Raw balance          ${usdFormatter(rawBalance)}`)
+        console.log(`Boosted balance      ${usdFormatter(boostedBalance)}`)
+        console.log(`Cooldown balance     ${usdFormatter(cooldownBalance)}`)
+        console.log(`Effective multiplier ${formatUnits(effectiveMultiplier, 2).padStart(14)}`)
+
+        // Multipliers
+        console.log("\nMultipliers")
+        console.log(`Time  ${balanceData.timeMultiplier.toString().padStart(2)}`)
+        console.log(`Quest ${balanceData.questMultiplier.toString().padStart(2)}`)
+
+        if (balanceData.cooldownTimestamp > 0) {
+            const cooldownEnds = balanceData.cooldownTimestamp + ONE_WEEK.mul(3).toNumber()
+            console.log(`\nCooldown ends ${new Date(cooldownEnds * 1000)}`)
+            console.log(`Cooldown units ${usdFormatter(balanceData.cooldownUnits)}`)
+        }
+
+        console.log(`\nDelegatee ${delegatee}`)
+    })
+task("staked-snap").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})
 
 subtask("staked-stake", "Stake MTA or mBPT in V2 Staking Token")
     .addOptionalParam("asset", "Symbol of staking token. MTA or mBPT", "MTA", types.string)
