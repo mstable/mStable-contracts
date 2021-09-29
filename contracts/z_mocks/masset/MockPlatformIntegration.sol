@@ -228,7 +228,7 @@ contract MockPlatformIntegration is IPlatformIntegration, ImmutableModule {
      * @param _bAsset     Address of the bAsset
      * @return balance    Total value of the bAsset in the platform
      */
-    function checkBalance(address _bAsset) external override returns (uint256 balance) {
+    function checkBalance(address _bAsset) external view override returns (uint256 balance) {
         // balance is always with token aToken decimals
         IAaveATokenV2 aToken = _getATokenFor(_bAsset);
         return _checkBalance(aToken);

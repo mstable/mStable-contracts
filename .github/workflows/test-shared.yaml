@@ -21,4 +21,4 @@ jobs:
                       ${{ runner.os }}-yarn-
             - run: yarn
             - run: yarn compile
-            - run: yarn test:file ./test/buy-and-make/*.spec.ts ./test/meta-token/*.spec.ts ./test/nexus/*.spec.ts ./test/shared/*.spec.ts
+            - run: yarn test:file ./test/buy-and-make/*.spec.ts ./test/nexus/*.spec.ts ./test/shared/*.spec.ts

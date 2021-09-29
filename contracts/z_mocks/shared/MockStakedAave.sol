@@ -35,7 +35,10 @@ contract MockStakedAave is IStakedAave, ERC20 {
         _mint(to, amount);
     }
 
-    function redeem(address to, uint256 amount) external override {
+    function redeem(
+        address to,
+        uint256 /*amount*/
+    ) external override {
         require(
             block.timestamp > stakersCooldowns[msg.sender] + COOLDOWN_SECONDS,
             "INSUFFICIENT_COOLDOWN"

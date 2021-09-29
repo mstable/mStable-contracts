@@ -10,7 +10,7 @@ contract ExposedMassetLogic {
         uint8 _i,
         uint256 _rawInput,
         InvariantConfig memory _config
-    ) public view returns (uint256 mintAmount) {
+    ) public pure returns (uint256 mintAmount) {
         return MassetLogic.computeMint(_bAssets, _i, _rawInput, _config);
     }
 
@@ -19,7 +19,7 @@ contract ExposedMassetLogic {
         uint8[] memory _indices,
         uint256[] memory _rawInputs,
         InvariantConfig memory _config
-    ) public view returns (uint256 mintAmount) {
+    ) public pure returns (uint256 mintAmount) {
         return MassetLogic.computeMintMulti(_bAssets, _indices, _rawInputs, _config);
     }
 
@@ -30,7 +30,7 @@ contract ExposedMassetLogic {
         uint256 _rawInput,
         uint256 _feeRate,
         InvariantConfig memory _config
-    ) public view returns (uint256 bAssetOutputQuantity, uint256 scaledSwapFee) {
+    ) public pure returns (uint256 bAssetOutputQuantity, uint256 scaledSwapFee) {
         return MassetLogic.computeSwap(_bAssets, _i, _o, _rawInput, _feeRate, _config);
     }
 
@@ -40,7 +40,7 @@ contract ExposedMassetLogic {
         uint256 _netMassetQuantity,
         InvariantConfig memory _config,
         uint256 _feeRate
-    ) public view returns (uint256 rawOutputUnits, uint256 scaledFee) {
+    ) public pure returns (uint256 rawOutputUnits, uint256 scaledFee) {
         return MassetLogic.computeRedeem(_bAssets, _o, _netMassetQuantity, _config, _feeRate);
     }
 
@@ -50,13 +50,13 @@ contract ExposedMassetLogic {
         uint256[] memory _rawOutputs,
         InvariantConfig memory _config,
         uint256 _feeRate
-    ) public view returns (uint256 grossMasset, uint256 fee) {
+    ) public pure returns (uint256 grossMasset, uint256 fee) {
         return MassetLogic.computeRedeemExact(_bAssets, _indices, _rawOutputs, _config, _feeRate);
     }
 
     function getK(BassetData[] memory _bAssets, InvariantConfig memory _config)
         external
-        view
+        pure
         returns (uint256 k)
     {
         (, k) = MassetLogic.computePrice(_bAssets, _config);

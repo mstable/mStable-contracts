@@ -20,16 +20,16 @@ contract MockAaveIncentivesController is IAaveIncentivesController {
         return 1e20;
     }
 
-    function getRewardsBalance(address[] calldata assets, address user)
-        external
-        view
-        override
-        returns (uint256)
-    {
+    function getRewardsBalance(
+        address[] calldata, /*assets*/
+        address /*user*/
+    ) external pure override returns (uint256) {
         return 1e20;
     }
 
-    function getUserUnclaimedRewards(address user) external view override returns (uint256) {
+    function getUserUnclaimedRewards(
+        address /*user*/
+    ) external pure override returns (uint256) {
         return 1e20;
     }
 }

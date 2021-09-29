@@ -123,7 +123,7 @@ contract MockUniswapV3 is IUniswapV3SwapRouter, IUniswapV3Quoter {
         address tokenOut,
         uint24 fee,
         uint256 amountIn,
-        uint160 sqrtPriceLimitX96
+        uint160 /*sqrtPriceLimitX96*/
     ) external view override returns (uint256 amountOut) {
         uint256 rate = rates[tokenIn][tokenOut];
         amountOut = amountIn * rate * ((FEE_SCALE - fee) / FEE_SCALE);
@@ -147,8 +147,8 @@ contract MockUniswapV3 is IUniswapV3SwapRouter, IUniswapV3Quoter {
         address tokenOut,
         uint24 fee,
         uint256 amountOut,
-        uint160 sqrtPriceLimitX96
-    ) external override returns (uint256 amountIn) {
+        uint160 /*sqrtPriceLimitX96*/
+    ) external view override returns (uint256 amountIn) {
         uint256 rate = rates[tokenIn][tokenOut];
         amountIn = (amountOut * RATE_SCALE * FEE_SCALE) / (rate * (FEE_SCALE - fee));
     }

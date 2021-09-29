@@ -8,7 +8,7 @@ import { IRewardsDistributionRecipient } from "../interfaces/IRewardsDistributio
 /**
  * @title  RewardsDistributionRecipient
  * @author Originally: Synthetix (forked from /Synthetixio/synthetix/contracts/RewardsDistributionRecipient.sol)
- *         Changes by: Stability Labs Pty. Ltd.
+ *         Changes by: mStable
  * @notice RewardsDistributionRecipient gets notified of additional rewards by the rewardsDistributor
  * @dev    Changes: Addition of ImmutableModule and abstract `getRewardToken` func + cosmetic
  */

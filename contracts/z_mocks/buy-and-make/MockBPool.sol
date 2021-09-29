@@ -59,5 +59,6 @@ contract MockBPool is ERC20, IBPool {
         tokenAmountOut = (tokenAmountIn * inputToOutputRatio) / 1e18;
         require(tokenAmountOut > minAmountOut, "Invalid output amount");
         IERC20(tokenOut).transfer(msg.sender, tokenAmountOut);
+        return (tokenAmountOut, 0);
     }
 }

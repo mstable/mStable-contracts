@@ -6,16 +6,10 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { ERC20Burnable } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
 /**
- * @title  MetaToken
- * @author Stability Labs Pty. Ltd.
- * @dev    MetaToken is an ERC20 token, with mint privileges governed by mStable
- * governors
+ * @title  MintableToken
+ * @author mStable
  */
-contract MetaToken is ERC20, GovernedMinterRole, ERC20Burnable {
-    /**
-     * @dev MetaToken simply implements a detailed ERC20 token,
-     * and a governed list of minters
-     */
+contract MintableToken is ERC20, GovernedMinterRole, ERC20Burnable {
     constructor(address _nexus, address _initialRecipient)
         ERC20("Meta", "MTA")
         GovernedMinterRole(_nexus)
@@ -24,7 +18,6 @@ contract MetaToken is ERC20, GovernedMinterRole, ERC20Burnable {
         _mint(_initialRecipient, 100000000 * (10**18));
     }
 
-    // Forked from @openzeppelin
     /**
      * @dev See {ERC20-_mint}.
      *

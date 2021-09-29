@@ -511,7 +511,7 @@ library MassetLogic {
         uint8 _i,
         uint256 _rawInput,
         InvariantConfig memory _config
-    ) public view returns (uint256 mintAmount) {
+    ) public pure returns (uint256 mintAmount) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -540,7 +540,7 @@ library MassetLogic {
         uint8[] memory _indices,
         uint256[] memory _rawInputs,
         InvariantConfig memory _config
-    ) public view returns (uint256 mintAmount) {
+    ) public pure returns (uint256 mintAmount) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -580,7 +580,7 @@ library MassetLogic {
         uint256 _rawInput,
         uint256 _feeRate,
         InvariantConfig memory _config
-    ) public view returns (uint256 bAssetOutputQuantity, uint256 scaledSwapFee) {
+    ) public pure returns (uint256 bAssetOutputQuantity, uint256 scaledSwapFee) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -637,7 +637,7 @@ library MassetLogic {
         uint256 _grossMassetQuantity,
         InvariantConfig memory _config,
         uint256 _feeRate
-    ) public view returns (uint256 rawOutputUnits, uint256 scaledFee) {
+    ) public pure returns (uint256 rawOutputUnits, uint256 scaledFee) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant
@@ -685,7 +685,7 @@ library MassetLogic {
         uint256[] memory _rawOutputs,
         InvariantConfig memory _config,
         uint256 _feeRate
-    ) public view returns (uint256 grossMasset, uint256 fee) {
+    ) public pure returns (uint256 grossMasset, uint256 fee) {
         // 1. Get raw reserves
         (uint256[] memory x, uint256 sum) = _getReserves(_bAssets);
         // 2. Get value of reserves according to invariant

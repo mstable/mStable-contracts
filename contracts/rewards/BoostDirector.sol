@@ -144,7 +144,7 @@ contract BoostDirector is IBoostDirector, ImmutableModule {
         uint128 _bitmap,
         uint8 _pos,
         uint8 _id
-    ) internal returns (uint128 newMap) {
+    ) internal pure returns (uint128 newMap) {
         // bitmap          = ... 00000000 00000000 00000011 00001010
         // pos = 1, id = 1 = 00000001
         // step            = ... 00000000 00000000 00000001 00000000
@@ -166,7 +166,7 @@ contract BoostDirector is IBoostDirector, ImmutableModule {
      */
     function _indexExists(uint128 _bitmap, uint8 _target)
         internal
-        view
+        pure
         returns (
             bool isWhitelisted,
             uint8 count,

@@ -51,20 +51,18 @@ contract MockUniswap is IUniswapV2Router02 {
     }
 
     function swapExactETHForTokens(
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
+        uint256, /*amountOutMin*/
+        address[] calldata, /*path*/
+        address, /*to*/
+        uint256 /*deadline*/
     ) external payable override returns (uint256[] memory amounts) {
         return new uint256[](0);
     }
 
-    function getAmountsOut(uint256 amountIn, address[] calldata path)
-        external
-        view
-        override
-        returns (uint256[] memory amounts)
-    {
+    function getAmountsOut(
+        uint256, /*amountIn*/
+        address[] calldata /*path*/
+    ) external pure override returns (uint256[] memory amounts) {
         return new uint256[](0);
     }
 }

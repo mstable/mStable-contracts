@@ -84,9 +84,10 @@ contract MockBVault is IBVault {
         returns (
             address[] memory tokens,
             uint256[] memory balances,
-            uint256 /*lastChangeBlock*/
+            uint256 lastChangeBlock
         )
     {
+        lastChangeBlock = 0;
         MockBPT pool = pools[poolId];
         IERC20[] memory tokenDatas = tokenData[address(pool)];
         uint256 len = tokenDatas.length;
