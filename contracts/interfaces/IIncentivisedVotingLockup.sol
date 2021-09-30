@@ -29,4 +29,6 @@ abstract contract IIncentivisedVotingLockup is IERC20WithCheckpointing {
     function claimReward() public virtual;
 
     function earned(address _account) public view virtual returns (uint256);
+
+    function exit() external virtual;
 }
