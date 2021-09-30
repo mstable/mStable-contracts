@@ -9,7 +9,6 @@ import {
     RevenueRecipient__factory,
 } from "types/generated"
 import { QuestType } from "types/stakedToken"
-import axios from "axios"
 import { DefenderRelayProvider, DefenderRelaySigner } from "defender-relay-client/lib/ethers"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { PmUSD, PUSDC, tokens } from "./utils/tokens"
@@ -18,7 +17,7 @@ import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getBlockRange } from "./utils/snap-utils"
 import { getPrivateTxDetails } from "./utils/taichi"
-import { signQuestUsers } from "./utils/quest-utils"
+import { getQueuedUsersForQuest, hasUserCompletedQuest, signQuestUsers } from "./utils/quest-utils"
 
 task("collect-interest", "Collects and streams interest from platforms")
     .addParam(
@@ -184,30 +183,27 @@ task("quest-complete-queue", "Completes all user quests in the quests queue")
         const questManager = QuestManager__factory.connect(questManagerAddress, opsSigner)
 
         // get users who have completed quests from the queue
-        const response = await axios.post("https://europe-west1-mstable-questbook.cloudfunctions.net/questbook", {
-            query: `query { queue { userId ethereumId } }`,
-        })
-        const { queue } = response?.data?.data
-        if (!queue) {
-            console.log(response?.data)
-            throw Error(`Failed to get quests from queue`)
-        }
-        if (queue.length === 0) {
+        const migrationQuestId = 0
+        const queuedUsers = await getQueuedUsersForQuest(migrationQuestId)
+        if (queuedUsers.length === 0) {
             console.error(`No user completed quests`)
             process.exit(0)
         }
-        // filter users to just the migration quest
-        const migrationQuestId = 0
-        const completedMigrationQuests = queue.filter((quest) => quest.ethereumId === migrationQuestId)
-        const completedMigrationUsers = completedMigrationQuests.map((quest) => quest.userId)
+        console.log(`${queuedUsers.length} users in the completion queue.`)
 
         // Need to filter out any users that completed the quest themselves
-        const hasCompletedPromises = completedMigrationUsers.map((user) => questManager.hasCompleted(user, migrationQuestId))
+        const hasCompletedPromises = queuedUsers.map((user) => questManager.hasCompleted(user, migrationQuestId))
         const hasCompleted = await Promise.all(hasCompletedPromises)
-        const filteredUsers = completedMigrationUsers.filter((user, i) => hasCompleted[i] === false)
-        console.log(hasCompleted)
+        const usersUnclaimed = queuedUsers.filter((user, i) => hasCompleted[i] === false)
 
-        console.log(`About to complete ${filteredUsers.length} users: ${filteredUsers}`)
+        console.log(`${usersUnclaimed.length} users have not claimed the quest on-chain: ${usersUnclaimed}`)
+
+        // Filter out any user that have not completed the migration but in somehow in the queue
+        const usersCheckedPromises = usersUnclaimed.map((user) => hasUserCompletedQuest(user, "theGreatMigration"))
+        const usersChecked = await Promise.all(usersCheckedPromises)
+        const usersUnclaimedChecked = usersUnclaimed.filter((user, i) => usersChecked[i] === true)
+
+        console.log(`About to complete ${usersUnclaimedChecked.length} users: ${usersUnclaimedChecked}`)
 
         // Get Quest Signer from Defender
         const credentials = {
@@ -218,10 +214,10 @@ task("quest-complete-queue", "Completes all user quests in the quests queue")
         const questSigner = new DefenderRelaySigner(credentials, provider, { speed: taskArgs.speed })
 
         // Quest Signer signs the users as having completed the migration quest
-        const sig = await signQuestUsers(0, filteredUsers, questSigner)
+        const sig = await signQuestUsers(0, usersUnclaimedChecked, questSigner)
 
         // Complete the quests in the Quest Manager contract
-        const tx = await questManager.completeQuestUsers(0, filteredUsers, sig)
+        const tx = await questManager.completeQuestUsers(0, usersUnclaimedChecked, sig)
         await logTxDetails(tx, "complete quest users")
     })
 
