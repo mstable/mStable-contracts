@@ -524,7 +524,7 @@ contract IncentivisedVotingLockup is
     /**
      * @dev Withdraws and consequently claims rewards for the sender
      */
-    function exit() external {
+    function exit() external override {
         _withdraw(msg.sender);
         claimReward();
     }
