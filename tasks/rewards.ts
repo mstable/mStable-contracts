@@ -130,13 +130,7 @@ task("rewards", "Get Compound and Aave platform reward tokens")
     })
 
 task("liq-trig", "Triggers a liquidation of a integration contract")
-    .addParam(
-        "basset",
-        "Token symbol of bAsset that is integrated to a platform. eg USDC, WBTC, GUSD, alUSD",
-        undefined,
-        types.string,
-        false,
-    )
+    .addOptionalParam("basset", "Token symbol of bAsset that is integrated to a platform. eg USDC, WBTC, GUSD, alUSD", "USDC", types.string)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)
@@ -146,8 +140,14 @@ task("liq-trig", "Triggers a liquidation of a integration contract")
 
         const liquidatorAddress = await resolveAddress("Liquidator", chain)
         const liquidator = Liquidator__factory.connect(liquidatorAddress, signer)
-        const tx = await liquidator.populateTransaction.triggerLiquidation(bAsset.integrator)
-        await sendPrivateTransaction(tx, signer)
+        if (hre.network.name === "hatdhat") {
+            const tx = await liquidator.triggerLiquidation(bAsset.integrator)
+            await logTxDetails(tx, `trigger liquidation for ${taskArgs.basset}`)
+        } else {
+            // Send via TaiChi
+            const tx = await liquidator.populateTransaction.triggerLiquidation(bAsset.integrator)
+            await sendPrivateTransaction(tx, signer)
+        }
     })
 
 task("liq-trig-aave", "Triggers a liquidation of stkAAVE")
@@ -158,8 +158,14 @@ task("liq-trig-aave", "Triggers a liquidation of stkAAVE")
 
         const liquidatorAddress = await resolveAddress("Liquidator", chain)
         const liquidator = Liquidator__factory.connect(liquidatorAddress, signer)
-        const tx = await liquidator.populateTransaction.triggerLiquidationAave()
-        await sendPrivateTransaction(tx, signer)
+        if (hre.network.name === "hatdhat") {
+            const tx = await liquidator.triggerLiquidationAave()
+            await logTxDetails(tx, `trigger liquidation for Aave`)
+        } else {
+            // Send via TaiChi
+            const tx = await liquidator.populateTransaction.triggerLiquidationAave()
+            await sendPrivateTransaction(tx, signer)
+        }
     })
 
 task("liq-claim-aave", "Triggers a liquidation of stkAAVE")
