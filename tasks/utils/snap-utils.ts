@@ -917,15 +917,20 @@ export const getAlcxTokens = async (
     totalComp = totalComp.add(compLiquidatorBal)
     console.log(`Liquidator  ${quantityFormatter(compLiquidatorBal)}`)
 
-    const alcxUsdc = await quoteSwap(
-        signer,
-        ALCX,
-        alUSD,
-        totalComp,
-        toBlock,
-        [ALCX.address, uniswapEthToken, DAI.address, alUSD.address],
-        [10000, 3000, 500],
-    )
-    console.log(`Total       ${quantityFormatter(totalComp)} ${quantityFormatter(alcxUsdc.outAmount)} alUSD`)
-    console.log(`ALCX/USDC exchange rate: ${alcxUsdc.exchangeRate}`)
+    try {
+        const alcxUsdc = await quoteSwap(
+            signer,
+            ALCX,
+            alUSD,
+            totalComp,
+            toBlock,
+            [ALCX.address, uniswapEthToken, DAI.address, alUSD.address],
+            [10000, 3000, 500],
+        )
+        console.log(`Total       ${quantityFormatter(totalComp)} ${quantityFormatter(alcxUsdc.outAmount)} alUSD`)
+        console.log(`ALCX/USDC exchange rate: ${alcxUsdc.exchangeRate}`)
+    } catch (err) {
+        console.log(`Total       ${quantityFormatter(totalComp)}`)
+        console.error(`Failed to get ALCX to alUSD rate.`)
+    }
 }
