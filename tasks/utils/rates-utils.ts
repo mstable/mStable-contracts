@@ -77,7 +77,6 @@ export const getSwapRates = async (
     mAsset: Masset | MusdEth | MusdLegacy | FeederPool,
     toBlock: number,
     quantityFormatter: QuantityFormatter,
-    networkName: string,
     inputAmount: BN | number | string = BN.from("1000"),
     chain = Chain.mainnet,
 ): Promise<SwapRate[]> => {
@@ -107,7 +106,7 @@ export const getSwapRates = async (
     // Get Curve's best swap rate for each pair and the inverse swap
     const curveSwapsPromises = []
     pairs.forEach(({ inputToken, outputToken }, i) => {
-        if (networkName === "mainnet") {
+        if (chain === Chain.mainnet) {
             const curveRegistryExchangeAddress = getChainAddress("CurveRegistryExchange", chain)
             const curveRegistryExchange = CurveRegistryExchange__factory.connect(curveRegistryExchangeAddress, mAsset.signer)
             // Get the matching Curve swap rate
@@ -125,7 +124,7 @@ export const getSwapRates = async (
                 callOverride,
             )
             curveSwapsPromises.push(curveSwapPromise, curveInverseSwapPromise)
-        } else if (networkName === "polygon_mainnet") {
+        } else if (chain === Chain.polygon) {
             const curvePool = ICurve__factory.connect("0x445FE580eF8d70FF569aB36e80c647af338db351", mAsset.signer)
             // Just hard code the mapping for now
             const curveIndexMap = {
@@ -158,8 +157,8 @@ export const getSwapRates = async (
         outputToken,
         mOutputRaw: mAssetSwaps[i],
         // For mainnet, this first param of the Curve result is the pool address, the second is the output amount
-        curveOutputRaw: networkName === "mainnet" ? curveSwaps[i * 2][1] : curveSwaps[i * 2],
-        curveInverseOutputRaw: networkName === "mainnet" ? curveSwaps[i * 2 + 1][1] : curveSwaps[i * 2 + 1],
+        curveOutputRaw: chain === Chain.mainnet ? curveSwaps[i * 2][1] : curveSwaps[i * 2],
+        curveInverseOutputRaw: chain === Chain.mainnet ? curveSwaps[i * 2 + 1][1] : curveSwaps[i * 2 + 1],
     }))
     swaps.forEach((swap) => {
         outputSwapRate(swap, quantityFormatter)
