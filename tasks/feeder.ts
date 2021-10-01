@@ -181,6 +181,7 @@ task("feeder-rates", "Feeder rate comparison to Curve")
     .addParam("fasset", "Token symbol of the feeder pool asset. eg HBTC, TBTC, GUSD or BUSD", undefined, types.string, false)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre)
+        const chain = getChain(hre)
 
         const block = await getBlock(hre.ethers, taskArgs.block)
 
@@ -202,9 +203,9 @@ task("feeder-rates", "Feeder rate comparison to Curve")
         const { quantityFormatter, swapSize } = getQuantities(fAsset, taskArgs.swapSize)
 
         console.log("      Qty Input     Output      Qty Out    Rate             Output    Rate   Diff      Arb$")
-        await getSwapRates(fpAssets, fpAssets, feederPool, block.blockNumber, quantityFormatter, hre.network.name, swapSize)
-        await getSwapRates([fAsset], mpAssets, feederPool, block.blockNumber, quantityFormatter, hre.network.name, swapSize)
-        await getSwapRates(mpAssets, [fAsset], feederPool, block.blockNumber, quantityFormatter, hre.network.name, swapSize)
+        await getSwapRates(fpAssets, fpAssets, feederPool, block.blockNumber, quantityFormatter, swapSize, chain)
+        await getSwapRates([fAsset], mpAssets, feederPool, block.blockNumber, quantityFormatter, swapSize, chain)
+        await getSwapRates(mpAssets, [fAsset], feederPool, block.blockNumber, quantityFormatter, swapSize, chain)
         await snapConfig(feederPool, block.blockNumber)
     })
 

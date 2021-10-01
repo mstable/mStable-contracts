@@ -4,9 +4,9 @@ import { subtask, task, types } from "hardhat/config"
 import { RewardsDistributorEth__factory } from "types/generated/factories/RewardsDistributorEth__factory"
 import { RewardsDistributor__factory } from "types/generated/factories/RewardsDistributor__factory"
 import { formatUnits } from "ethers/lib/utils"
-import { Liquidator__factory } from "types"
+import { Comptroller__factory, Liquidator__factory } from "types"
 import rewardsFiles from "./balancer-mta-rewards/20210817.json"
-import { Chain, logTxDetails, usdFormatter } from "./utils"
+import { Chain, logTxDetails, USDC, usdFormatter } from "./utils"
 import { getAaveTokens, getAlcxTokens, getBlock, getCompTokens } from "./utils/snap-utils"
 import { getSigner } from "./utils/signerFactory"
 import { getChain, getChainAddress, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
@@ -115,7 +115,7 @@ task("dis-rewards").setAction(async (_, __, runSuper) => {
     await runSuper()
 })
 
-task("rewards", "Get Compound and Aave platform reward tokens")
+subtask("rewards", "Get Compound and Aave platform reward tokens")
     .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)
@@ -128,8 +128,26 @@ task("rewards", "Get Compound and Aave platform reward tokens")
         await getAaveTokens(signer, block)
         await getAlcxTokens(signer, block)
     })
+task("rewards").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})
 
-task("liq-trig", "Triggers a liquidation of a integration contract")
+subtask("liq-claim-comp", "Claimed COMP to the integration contract")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const compControllerAddress = resolveAddress("CompController", chain)
+        const compController = Comptroller__factory.connect(compControllerAddress, signer)
+        const tx = await compController["claimComp(address,address[])"](USDC.integrator, [USDC.liquidityProvider])
+        await logTxDetails(tx, "claim COMP")
+    })
+task("liq-claim-comp").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})
+
+subtask("liq-trig", "Triggers a liquidation of a integration contract")
     .addOptionalParam("basset", "Token symbol of bAsset that is integrated to a platform. eg USDC, WBTC, GUSD, alUSD", "USDC", types.string)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
@@ -140,7 +158,7 @@ task("liq-trig", "Triggers a liquidation of a integration contract")
 
         const liquidatorAddress = await resolveAddress("Liquidator", chain)
         const liquidator = Liquidator__factory.connect(liquidatorAddress, signer)
-        if (hre.network.name === "hatdhat") {
+        if (hre.network.name === "hardhat") {
             const tx = await liquidator.triggerLiquidation(bAsset.integrator)
             await logTxDetails(tx, `trigger liquidation for ${taskArgs.basset}`)
         } else {
@@ -149,8 +167,11 @@ task("liq-trig", "Triggers a liquidation of a integration contract")
             await sendPrivateTransaction(tx, signer)
         }
     })
+task("liq-trig").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})
 
-task("liq-trig-aave", "Triggers a liquidation of stkAAVE")
+subtask("liq-trig-aave", "Triggers a liquidation of stkAAVE")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)
@@ -158,7 +179,7 @@ task("liq-trig-aave", "Triggers a liquidation of stkAAVE")
 
         const liquidatorAddress = await resolveAddress("Liquidator", chain)
         const liquidator = Liquidator__factory.connect(liquidatorAddress, signer)
-        if (hre.network.name === "hatdhat") {
+        if (hre.network.name === "hardhat") {
             const tx = await liquidator.triggerLiquidationAave()
             await logTxDetails(tx, `trigger liquidation for Aave`)
         } else {
@@ -167,8 +188,11 @@ task("liq-trig-aave", "Triggers a liquidation of stkAAVE")
             await sendPrivateTransaction(tx, signer)
         }
     })
+task("liq-trig-aave").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})
 
-task("liq-claim-aave", "Triggers a liquidation of stkAAVE")
+subtask("liq-claim-aave", "Call liquidator to claim stkAAVE")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)
@@ -179,3 +203,6 @@ task("liq-claim-aave", "Triggers a liquidation of stkAAVE")
         const tx = await liquidator.claimStakedAave()
         await logTxDetails(tx, "claim Aave")
     })
+task("liq-claim-aave").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})

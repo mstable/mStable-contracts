@@ -214,8 +214,9 @@ export const getBasket = async (
     console.log(`${mAssetName}       ${quantityFormatter(mAssetSupply)}`)
     const mAssetTotal = mAssetSupply.add(mAssetSurplus)
 
-    if (exposedLogic && !isMusdEth(asset)) {
+    if (exposedLogic) {
         const config = {
+            supply: mAssetSupply,
             ...(await asset.getConfig({
                 blockTag: toBlock,
             })),

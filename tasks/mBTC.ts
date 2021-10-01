@@ -21,7 +21,7 @@ import {
     getBalances,
     getCollectedInterest,
 } from "./utils/snap-utils"
-import { Token, renBTC, sBTC, WBTC, mBTC, TBTC, HBTC } from "./utils/tokens"
+import { Token, renBTC, sBTC, WBTC, mBTC, TBTC, HBTC, Chain } from "./utils/tokens"
 import { getSwapRates } from "./utils/rates-utils"
 import { getSigner } from "./utils/signerFactory"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
@@ -60,9 +60,7 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
         const { ethers, network } = hre
 
         let exposedValidator
-        if (network.name !== "mainnet") {
-            console.log("Not mainnet")
-
+        if (network.name === "hardhat") {
             const LogicFactory = await ethers.getContractFactory("MassetLogic")
             const logicLib = await LogicFactory.deploy()
             const linkedAddress = {
@@ -103,15 +101,11 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
         await snapConfig(mAsset, toBlock.blockNumber)
 
         let accounts = []
-        if (network.name === "mainnet") {
+        if (chain === Chain.mainnet) {
             accounts = [
                 {
                     name: "imBTC",
                     address: mBTC.savings,
-                },
-                {
-                    name: "Sushi Pool",
-                    address: contracts.mainnet.sushiPool,
                 },
                 {
                     name: "tBTC Feeder Pool",
@@ -120,10 +114,6 @@ task("mBTC-snap", "Get the latest data from the mBTC contracts")
                 {
                     name: "HBTC Feeder Pool",
                     address: HBTC.feederPool,
-                },
-                {
-                    name: "mStable Fund Manager",
-                    address: contracts.mainnet.fundManager,
                 },
             ]
         }
@@ -149,6 +139,7 @@ task("mBTC-rates", "mBTC rate comparison to Curve")
     .addOptionalParam("swapSize", "Swap size to compare rates with Curve", 1, types.float)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre)
+        const chain = getChain(hre)
 
         const mAsset = await getMasset(signer)
         const block = await getBlock(hre.ethers, taskArgs.block)
@@ -156,7 +147,7 @@ task("mBTC-rates", "mBTC rate comparison to Curve")
         console.log(`\nGetting rates for mBTC at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
 
         console.log("      Qty Input     Output      Qty Out    Rate             Output    Rate   Diff      Arb$")
-        await getSwapRates(bAssets, bAssets, mAsset, block.blockNumber, btcFormatter, hre.network.name, BN.from(taskArgs.swapSize))
+        await getSwapRates(bAssets, bAssets, mAsset, block.blockNumber, btcFormatter, BN.from(taskArgs.swapSize), chain)
         await snapConfig(mAsset, block.blockNumber)
     })
 
