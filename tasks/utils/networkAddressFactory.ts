@@ -40,6 +40,7 @@ export const contractNames = [
     "AaveIncentivesController",
     "AaveLendingPoolAddressProvider",
     "AlchemixStakingPool",
+    "CompController",
     "CurveRegistryExchange",
     "QuickSwapRouter",
     "UniswapRouterV3",
@@ -141,6 +142,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5"
             case "AlchemixStakingPool":
                 return "0xAB8e74017a8Cc7c15FFcCd726603790d26d7DeCa"
+            case "CompController":
+                return "0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B"
             case "CurveRegistryExchange":
                 return "0xD1602F68CC7C4c7B59D686243EA35a9C73B0c6a2"
             case "UniswapRouterV3":
