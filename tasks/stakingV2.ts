@@ -23,12 +23,14 @@ subtask("staked-snap", "Dumps a user's staking token details.")
 
         const [rawBalance, cooldownBalance] = await stakingToken.rawBalanceOf(userAddress)
         const boostedBalance = await stakingToken.balanceOf(userAddress)
+        const votes = await stakingToken.getVotes(userAddress)
         const effectiveMultiplier = boostedBalance.mul(10000).div(rawBalance)
         const balanceData = await stakingToken.balanceData(userAddress)
         const delegatee = await stakingToken.delegates(userAddress)
 
         console.log(`Raw balance          ${usdFormatter(rawBalance)}`)
         console.log(`Boosted balance      ${usdFormatter(boostedBalance)}`)
+        console.log(`Voting power         ${usdFormatter(votes)}`)
         console.log(`Cooldown balance     ${usdFormatter(cooldownBalance)}`)
         console.log(`Effective multiplier ${formatUnits(effectiveMultiplier, 2).padStart(14)}`)
 
