@@ -16,7 +16,6 @@ import { getSigner } from "./utils/signerFactory"
 import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getBlockRange } from "./utils/snap-utils"
-import { getPrivateTxDetails } from "./utils/taichi"
 import { getQueuedUsersForQuest, hasUserCompletedQuest, signQuestUsers } from "./utils/quest-utils"
 
 task("collect-interest", "Collects and streams interest from platforms")
@@ -219,10 +218,4 @@ task("quest-complete-queue", "Completes all user quests in the quests queue")
         // Complete the quests in the Quest Manager contract
         const tx = await questManager.completeQuestUsers(0, usersUnclaimedChecked, sig)
         await logTxDetails(tx, "complete quest users")
-    })
-
-task("priv-status", "Gets the status of a private Taichi transaction.")
-    .addParam("hash", "Transaction hash", undefined, types.string, false)
-    .setAction(async (taskArgs) => {
-        await getPrivateTxDetails(taskArgs.hash)
     })
