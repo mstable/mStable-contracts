@@ -30,6 +30,7 @@
         "convertTestFiles": "cd test-utils/validator-data; ts-node ./convertCsvTestFiles.ts",
         "task": "yarn hardhat --config tasks.config.ts",
         "task:fork": "yarn hardhat --config tasks-fork.config.ts",
+        "task:fork:polly": "yarn hardhat --config tasks-fork-polygon.config.ts",
         "test": "yarn hardhat test",
         "test:long": "LONG_TESTS=true yarn hardhat test",
         "test:fork": "yarn hardhat --config hardhat-fork.config.ts test ./test-fork/**/*.spec.ts",

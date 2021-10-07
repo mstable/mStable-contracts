@@ -9,6 +9,7 @@ import {
     FeederPool__factory,
     FeederWrapper__factory,
     IERC20__factory,
+    InterestValidator__factory,
     Masset,
     SavingsManager__factory,
 } from "types/generated"
@@ -34,7 +35,7 @@ import { btcFormatter, QuantityFormatter, usdFormatter } from "./utils/quantity-
 import { getSwapRates } from "./utils/rates-utils"
 import { getSigner } from "./utils/signerFactory"
 import { logTxDetails } from "./utils"
-import { getChain, getChainAddress } from "./utils/networkAddressFactory"
+import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { params } from "./taskUtils"
 
 const getBalances = async (
@@ -382,6 +383,32 @@ task("feeder-swap", "Swap some Feeder Pool tokens")
 
         const tx = await fp.swap(inputToken.address, outputToken.address, inputAmount, minOutputAmount, signerAddress)
         await logTxDetails(tx, `swap ${formatUnits(inputAmount)} ${inputSymbol} for ${outputSymbol} using ${fpSymbol} Feeder Pool`)
+    })
+
+task("feeder-collect-interest", "Collects and interest from feeder pools")
+    .addParam("fasset", "Token symbol of feeder pool. eg HBTC, alUSD or PFRAX", undefined, types.string, false)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const chain = getChain(hre)
+        const signer = await getSigner(hre, taskArgs.speed)
+
+        const fpAddress = resolveAddress(taskArgs.fasset, chain, "feederPool")
+
+        const interestValidatorAddress = resolveAddress("FeederInterestValidator", chain)
+        const validator = InterestValidator__factory.connect(interestValidatorAddress, signer)
+
+        const lastBatchCollected = await validator.lastBatchCollected(fpAddress)
+        const lastBatchDate = new Date(lastBatchCollected.mul(1000).toNumber())
+        console.log(`The last interest collection was ${lastBatchDate.toUTCString()}, epoch ${lastBatchCollected} seconds`)
+
+        const currentEpoc = new Date().getTime() / 1000
+        if (currentEpoc - lastBatchCollected.toNumber() < 60 * 60 * 12) {
+            console.error(`Can not run again as the last run was less then 12 hours ago`)
+            process.exit(3)
+        }
+
+        const tx = await validator.collectAndValidateInterest([fpAddress])
+        await logTxDetails(tx, "collectAndValidateInterest")
     })
 
 module.exports = {}
