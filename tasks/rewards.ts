@@ -10,7 +10,7 @@ import { Chain, logTxDetails, USDC, usdFormatter } from "./utils"
 import { getAaveTokens, getAlcxTokens, getBlock, getCompTokens } from "./utils/snap-utils"
 import { getSigner } from "./utils/signerFactory"
 import { getChain, getChainAddress, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
-import { sendPrivateTransaction } from "./utils/taichi"
+import { sendPrivateTransaction } from "./utils/flashbots"
 
 task("sum-rewards", "Totals the rewards in a disperse json file")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
@@ -162,12 +162,12 @@ subtask("liq-trig", "Triggers a liquidation of a integration contract")
             const tx = await liquidator.triggerLiquidation(bAsset.integrator)
             await logTxDetails(tx, `trigger liquidation for ${taskArgs.basset}`)
         } else {
-            // Send via TaiChi
+            // Send via Flashbots
             const tx = await liquidator.populateTransaction.triggerLiquidation(bAsset.integrator)
             await sendPrivateTransaction(tx, signer)
         }
     })
-task("liq-trig").setAction(async (_, __, runSuper) => {
+task("liq-trig").setAction(async (_, hre, runSuper) => {
     await runSuper()
 })
 
@@ -183,7 +183,7 @@ subtask("liq-trig-aave", "Triggers a liquidation of stkAAVE")
             const tx = await liquidator.triggerLiquidationAave()
             await logTxDetails(tx, `trigger liquidation for Aave`)
         } else {
-            // Send via TaiChi
+            // Send via Flashbots
             const tx = await liquidator.populateTransaction.triggerLiquidationAave()
             await sendPrivateTransaction(tx, signer)
         }

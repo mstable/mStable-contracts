@@ -3,40 +3,23 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { PopulatedTransaction, Signer, UnsignedTransaction } from "ethers"
 import { BN } from "@utils/math"
-import { JsonRpcProvider } from "@ethersproject/providers"
-import axios from "axios"
-import { arrayify } from "@ethersproject/bytes"
+import { JsonRpcProvider, TransactionResponse } from "@ethersproject/providers"
 
-const baseUrl = "https://api.taichi.network:10001"
-const rpcUrl = `${baseUrl}/rpc/public`
+// Ethers provider for Flashbots Protect RPC
+const flashbotsProvider = new JsonRpcProvider("https://rpc.flashbots.net")
 
-// Ethers provider is used as a convenient way to send JSON RPC transactions
-const provider = new JsonRpcProvider(rpcUrl)
-
-// Send a private transaction via the Taichi network
-export const sendPrivateRawTransaction = async (txEncodedSigned: string): Promise<string> => {
-    const txHash = await provider.send("eth_sendPrivateTransaction", [txEncodedSigned])
-    console.log(`Taichi tx hash ${txHash}`)
-
-    return txHash
-}
-
-export const sendBundledRawTransactions = async (txsEncodedSigned: string[], fromBlock: BN): Promise<string> => {
-    const txHash = await provider.send("eth_sendBundle", [{ txs: txsEncodedSigned, fromBlock: fromBlock.toHexString() }])
-    console.log(`Taichi tx hash ${txHash}`)
-
-    return txHash
-}
-
-export const sendPrivateTransaction = async (tx: PopulatedTransaction, signer: Signer): Promise<string> => {
+export const sendPrivateTransaction = async (tx: PopulatedTransaction, signer: Signer): Promise<TransactionResponse> => {
     console.log(`About to send private transaction using signer address ${await signer.getAddress()}`)
+
+    const gasPriceChain = tx.gasPrice ?? (await signer.getGasPrice())
+    const gasPrice = gasPriceChain.mul(6).div(5) // add 20% to gas price
 
     const txUnsigned: UnsignedTransaction = {
         to: tx.to,
         data: tx.data,
         nonce: tx.nonce ?? (await signer.getTransactionCount()),
         gasLimit: tx.gasLimit ?? (await signer.estimateGas(tx)),
-        gasPrice: tx.gasPrice ?? (await signer.getGasPrice()),
+        gasPrice,
         value: tx.value ?? BN.from(0),
         chainId: tx.chainId ?? (await signer.getChainId()),
     }
@@ -46,13 +29,14 @@ export const sendPrivateTransaction = async (tx: PopulatedTransaction, signer: S
 
     const txRaw = await signer.signTransaction(txUnsigned)
 
-    return sendPrivateRawTransaction(txRaw)
+    return flashbotsProvider.sendTransaction(txRaw)
 }
 
-export const getPrivateTxDetails = async (txHash: string): Promise<void> => {
-    const response = await axios.get(`${baseUrl}/txscan/priTx?txHash=${txHash}`)
-    console.log(`Status ${response.data.obj.status}`)
-    console.log(`Tx details: ${JSON.stringify(response.data)}`)
+export const sendBundledRawTransactions = async (txsEncodedSigned: string[], fromBlock: BN): Promise<string> => {
+    const txHash = await flashbotsProvider.send("eth_sendBundle", [{ txs: txsEncodedSigned, fromBlock: fromBlock.toHexString() }])
+    console.log(`Taichi tx hash ${txHash}`)
+
+    return txHash
 }
 
 export const sendBundledTransactions = async (txs: PopulatedTransaction[], signer: Signer): Promise<string> => {
