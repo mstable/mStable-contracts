@@ -8,7 +8,7 @@ import { IFAssetRedemptionPriceGetter } from "../interfaces/IFAssetRedemptionPri
 // Internal
 import "../masset/MassetStructs.sol";
 import { IFeederPool } from "../interfaces/IFeederPool.sol";
-import { Initializable } from "@openzeppelin/contracts/utils/Initializable.sol";
+import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { InitializableToken } from "../shared/InitializableToken.sol";
 import { PausableModule } from "../shared/PausableModule.sol";
 import { InitializableReentrancyGuard } from "../shared/InitializableReentrancyGuard.sol";
@@ -96,7 +96,7 @@ contract NonPeggedFeederPool is
     uint256 private constant M_INDEX = 0;
     uint256 private constant F_INDEX = 1;
     uint256 private constant NUM_ASSETS = 2;
-    uint256 private constant RAY = 10 ** 27;
+    uint256 private constant RAY = 10**27;
     uint128 private fAssetBaseRatio;
     address public immutable override mAsset;
     address public immutable fAssetRedemptionPriceGetter;
@@ -110,7 +110,11 @@ contract NonPeggedFeederPool is
      * @param _mAsset  Immutable mAsset address
      * @param _mAsset  Immutable address of fAsset redemption price getter
      */
-    constructor(address _nexus, address _mAsset, address _fAssetRedemptionPriceGetter) PausableModule(_nexus) {
+    constructor(
+        address _nexus,
+        address _mAsset,
+        address _fAssetRedemptionPriceGetter
+    ) PausableModule(_nexus) {
         mAsset = _mAsset;
         fAssetRedemptionPriceGetter = _fAssetRedemptionPriceGetter;
     }
@@ -146,9 +150,7 @@ contract NonPeggedFeederPool is
         data.bAssetPersonal.push(
             BassetPersonal(_fAsset.addr, _fAsset.integrator, _fAsset.hasTxFee, BassetStatus.Normal)
         );
-        data.bAssetData.push(
-            BassetData(fAssetBaseRatio, 0)
-        );
+        data.bAssetData.push(BassetData(fAssetBaseRatio, 0));
         for (uint256 i = 0; i < _mpAssets.length; i++) {
             // Call will fail if bAsset does not exist
             IMasset(_mAsset.addr).getBasset(_mpAssets[i]);
@@ -282,7 +284,12 @@ contract NonPeggedFeederPool is
             );
         } else {
             uint256 estimatedMasset = IMasset(mAsset).getMintOutput(_input, _inputQuantity);
-            mintOutput = FeederLogic.computeMint(_getMemBassetData(), 0, estimatedMasset, _getConfig());
+            mintOutput = FeederLogic.computeMint(
+                _getMemBassetData(),
+                0,
+                estimatedMasset,
+                _getConfig()
+            );
         }
     }
 
@@ -302,7 +309,12 @@ contract NonPeggedFeederPool is
         require(len > 0 && len == _inputs.length, "Input array mismatch");
         uint8[] memory indexes = _getAssets(_inputs);
         return
-            FeederLogic.computeMintMulti(_getMemBassetData(), indexes, _inputQuantities, _getConfig());
+            FeederLogic.computeMintMulti(
+                _getMemBassetData(),
+                indexes,
+                _inputQuantities,
+                _getConfig()
+            );
     }
 
     /***************************************
@@ -771,7 +783,8 @@ contract NonPeggedFeederPool is
     }
 
     function _getRatioFromRedemptionPrice() internal view returns (uint128 ratio) {
-        uint256 rp_ray = IFAssetRedemptionPriceGetter(fAssetRedemptionPriceGetter).snappedRedemptionPrice();
+        uint256 rp_ray = IFAssetRedemptionPriceGetter(fAssetRedemptionPriceGetter)
+        .snappedRedemptionPrice();
         return SafeCast.toUint128((uint256(fAssetBaseRatio) * rp_ray + RAY / 2) / RAY);
     }
 
