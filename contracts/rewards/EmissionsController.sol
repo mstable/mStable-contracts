@@ -37,8 +37,10 @@ contract EmissionsController is Initializable, ImmutableModule {
     uint256 constant SCALE = 1e18;
     
     IERC20 immutable rewardToken;
-    IVotes immutable votes;
     uint256 immutable totalRewardsAmount;
+
+    mapping(address => bool) public isVotingContract;
+    IVotes[] public votingContracts;
 
     /// @notice list of dial addresses
     address[] public dials;
@@ -64,19 +66,29 @@ contract EmissionsController is Initializable, ImmutableModule {
         uint256 amount
     );
 
+    modifier onlyVotingContract() {
+        require(isVotingContract[msg.sender], "Must be whitelisted voting contract");
+        _;
+    }
+
     /** @notice Recipient is a module, governed by mStable governance
      * @param _nexus System nexus that resolves module addresses
      * @param _rewardToken token that rewards are distributed in. eg MTA
      * @param _votes gets a staker's voting power
      * @param _totalRewardsAmount rewards to be distributed over the live of the emissions
      */
-    constructor(address _nexus, address _rewardToken, address _votes, uint256 _totalRewardsAmount) ImmutableModule(_nexus) {
+    constructor(address _nexus, address[] memory _votes, address _rewardToken, uint256 _totalRewardsAmount) ImmutableModule(_nexus) {
         require(_rewardToken != address(0), "Reward token address is zero");
-        require(_votes != address(0), "Votes address is zero");
         rewardToken = IERC20(_rewardToken);
-        votes = IVotes(_votes);
-
         totalRewardsAmount = _totalRewardsAmount;
+
+        votingContracts = new IVotes[](_votes.length);
+        for (uint256 i = 0; i < _votes.length; i++) {
+            require(_votes[i] != address(0), "Votes address is zero");
+            votingContracts[i] = IVotes(_votes[i]);
+            isVotingContract[_votes[i]] = true;
+        }
+
     }
 
     function initialize(address[] memory _dials, uint256 _distributionRate) public initializer {
@@ -136,10 +148,20 @@ contract EmissionsController is Initializable, ImmutableModule {
     }
 
     /**
+     * Gets the aggreaged voting power across all voting contracts
+     */
+    function getVotes(address staker) public returns (uint256 votingPower) {
+        uint256 len = votingContracts.length;
+        for (uint256 i = 0; i < len; i++) {
+            votingPower += votingContracts[i].getVotes(staker);
+        }
+    }
+
+    /**
      */
     function setVoterDialWeights(DialWeight[] memory _newDialWeights) external {
         // get staker's votes
-        uint256 stakerVotes = votes.getVotes(msg.sender);
+        uint256 stakerVotes = getVotes(msg.sender);
         // load the total staker votes across all dials into memory
         uint256 totalDialVotesMem = totalDialVotes;
 
@@ -185,10 +207,8 @@ contract EmissionsController is Initializable, ImmutableModule {
      * @notice called by the staking contract when a staker has added or removed staked rewards
      * 
      */
-    function moveVotePower(address fromStaker, address toStaker, uint256 numVotes) external
+    function moveVotePower(address fromStaker, address toStaker, uint256 numVotes) external onlyVotingContract
     {
-        require(msg.sender == address(votes), "Only staking contract");
-
         // STEP 1 - update the total weighted votes across all dials
         // If from a mint of votes (stake)
         if (fromStaker == address(0)) {
