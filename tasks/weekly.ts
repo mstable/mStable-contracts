@@ -2,7 +2,7 @@
 /* eslint-disable no-await-in-loop */
 import { task, types } from "hardhat/config"
 import { getSigner } from "./utils/signerFactory"
-import { alUSD, AssetAddressTypes, BUSD, GUSD, HBTC, isToken, mBPT, mBTC, MTA, mUSD, PMTA, PmUSD, PWMATIC, TBTC, Token } from "./utils"
+import { alUSD, BUSD, GUSD, HBTC, isToken, mBPT, mBTC, MTA, mUSD, PMTA, PmUSD, TBTC, Token } from "./utils"
 import { ContractNames } from "./utils/networkAddressFactory"
 
 task("distribute-mta-mainnet", "Distributes MTA rewards on Mainnet")
@@ -11,9 +11,8 @@ task("distribute-mta-mainnet", "Distributes MTA rewards on Mainnet")
         const signer = await getSigner(hre)
         const signerAddress = await signer.getAddress()
         const rewardSymbol = MTA.symbol
-        const ownerTokenType: AssetAddressTypes = "vault"
         const vaultsOrPools: Array<Token | ContractNames> = [MTA, mBPT, mUSD, mBTC, alUSD, BUSD, GUSD, HBTC, TBTC]
-        const mtaAmounts = [32500, 20000, 15320.51, 6245.89, 13540.33, 24728.5, 22130.56, 15909.82, 9956.39]
+        const mtaAmounts = [32500, 20000, 14933.23, 6633.17, 12954.38, 18288.1, 22244.11, 19791.17, 12987.84]
         const vaultNames = [
             "Staking V2 MTA   ",
             "Staking V2 mBPT  ",
@@ -40,37 +39,29 @@ task("distribute-mta-mainnet", "Distributes MTA rewards on Mainnet")
             owner: signerAddress,
         })
 
-        console.log(`\nVault and pool MTA balances before distribution`)
-        for (const symbolOrName of symbolOrNames) {
-            await hre.run("token-balance", {
-                owner: symbolOrName,
-                token: rewardSymbol,
-                ownerTokenType,
-            })
-        }
-
-        console.log("\n\n")
+        console.log("\n\nDistribute MTA to vaults")
         await hre.run("dis-rewards", {
             vaultAssets: symbolOrNamesCommaSeparated,
             mtaAmounts: mtaAmountsCommaSeparated,
             speed,
         })
 
-        console.log(`\nVault and pool MTA balances after distribution`)
-        for (const symbolOrName of symbolOrNames) {
-            await hre.run("token-balance", {
-                owner: symbolOrName,
-                token: rewardSymbol,
-                ownerTokenType,
-            })
-        }
+        console.log("\n\nTransfer 5k MTA to Visor Finance")
+        const visorAmount = 5000
+        await hre.run("token-transfer", {
+            asset: "MTA",
+            recipient: "VisorRouter",
+            amount: visorAmount,
+            speed,
+        })
 
         console.log(`\nDiscord announcement`)
-        let total = 0
+        let total = visorAmount
         vaultNames.forEach((name, i) => {
             total += mtaAmounts[i]
             console.log(`- ${name} ${mtaAmounts[i].toLocaleString().padStart(10)} MTA`)
         })
+        console.log(`- Visor Finance     ${visorAmount.toLocaleString().padStart(10)} MTA`)
         console.log(`TOTAL rewards on ETH L1 ${total.toLocaleString()} MTA`)
     })
 
@@ -80,7 +71,6 @@ task("distribute-mta-polygon", "Distributes MTA and Matic rewards on Polygon")
         const signer = await getSigner(hre)
         const signerAddress = await signer.getAddress()
         const rewardSymbol = PMTA.symbol
-        const platformRewardSymbol = PWMATIC.symbol
         const vaultsOrPools: Array<Token | ContractNames> = [PmUSD]
         const mtaAmounts = [17360]
         const platformAmounts = []
@@ -99,37 +89,13 @@ task("distribute-mta-polygon", "Distributes MTA and Matic rewards on Polygon")
             owner: signerAddress,
             spender: "RewardsDistributor",
         })
-        await hre.run("token-allowance", {
-            token: platformRewardSymbol,
-            owner: signerAddress,
-            spender: "RewardsDistributor",
-        })
         console.log(`\nRelay accounts MTA balance before distribution`)
         await hre.run("token-balance", {
             token: rewardSymbol,
             owner: signerAddress,
         })
-        console.log(`Relay accounts WMATIC balance before distribution`)
-        await hre.run("token-balance", {
-            token: platformRewardSymbol,
-            owner: signerAddress,
-        })
 
-        console.log(`\nVault MTA and WMATIC balances before distribution`)
-        for (const symbolOrName of symbolOrNames) {
-            await hre.run("token-balance", {
-                token: rewardSymbol,
-                owner: symbolOrName,
-                ownerTokenType: "vault",
-            })
-            await hre.run("token-balance", {
-                token: platformRewardSymbol,
-                owner: symbolOrName,
-                ownerTokenType: "platformTokenVendor",
-            })
-        }
-
-        console.log("\n\n")
+        console.log("\n")
         await hre.run("dis-rewards", {
             vaultAssets: symbolOrNamesCommaSeparated,
             mtaAmounts: mtaAmountsCommaSeparated,
@@ -137,17 +103,12 @@ task("distribute-mta-polygon", "Distributes MTA and Matic rewards on Polygon")
             speed,
         })
 
-        console.log(`\nVault MTA and WMATIC balances after distribution`)
-        for (const symbolOrName of symbolOrNames) {
-            await hre.run("token-balance", {
-                token: rewardSymbol,
-                owner: symbolOrName,
-                ownerTokenType: "vault",
-            })
-            await hre.run("token-balance", {
-                token: platformRewardSymbol,
-                owner: symbolOrName,
-                ownerTokenType: "platformTokenVendor",
-            })
-        }
+        console.log("\n\nTransfer 10k MTA to FRAX")
+        const fraxAmount = 10000
+        await hre.run("token-transfer", {
+            asset: "PMTA",
+            recipient: "FraxVault",
+            amount: fraxAmount,
+            speed,
+        })
     })
