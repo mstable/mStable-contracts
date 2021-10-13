@@ -16,6 +16,9 @@ import {
     MockAaveV2__factory,
     Masset,
     MockERC20__factory,
+    NonPeggedFeederPool__factory,
+    RedemptionPriceSnapMock,
+    RedemptionPriceSnapMock__factory,
 } from "types/generated"
 import { BN, minimum, simpleToExactAmount } from "@utils/math"
 import { ratioScale, ZERO_ADDRESS, DEAD_ADDRESS, fullScale } from "@utils/constants"
@@ -36,6 +39,7 @@ export interface FeederDetails {
     bAssets?: MockERC20[]
     pTokens?: Array<string>
     mAssetDetails?: MassetDetails
+    redemptionPriceSnap?: RedemptionPriceSnapMock
 }
 
 export class FeederMachine {
@@ -59,6 +63,7 @@ export class FeederMachine {
         useLendingMarkets = false,
         useInterestValidator = false,
         use2dp = false,
+        useRedemptionPrice = false,
     ): Promise<FeederDetails> {
         const mAssetDetails = await this.mAssetMachine.deployMasset(useLendingMarkets, false)
         // Mints 10k mAsset to begin with
@@ -72,6 +77,9 @@ export class FeederMachine {
             "contracts/feeders/FeederLogic.sol:FeederLogic": feederLogic.address,
             "contracts/feeders/FeederManager.sol:FeederManager": feederManager.address,
         }
+        let redemptionPriceSnap: RedemptionPriceSnapMock
+        let feederPoolFactory;
+        let impl;
 
         // - Deploy InterestValidator contract
         let interestValidator: InterestValidator
@@ -104,10 +112,25 @@ export class FeederMachine {
         }
 
         // Deploy feeder pool
-        const impl = await new FeederPool__factory(linkedAddress, this.sa.default.signer).deploy(
-            mAssetDetails.nexus.address,
-            mAssetDetails.mAsset.address,
-        )
+        if (useRedemptionPrice) {
+            // - Deploy RedemptionPriceSnapMock contract
+            redemptionPriceSnap = await new RedemptionPriceSnapMock__factory(this.sa.default.signer).deploy()
+            let redemptionPriceSnapAddress = redemptionPriceSnap.address
+
+            feederPoolFactory = NonPeggedFeederPool__factory;
+            impl = await new feederPoolFactory(linkedAddress, this.sa.default.signer).deploy(
+                mAssetDetails.nexus.address,
+                mAssetDetails.mAsset.address,
+                redemptionPriceSnapAddress,
+            )
+        }
+        else {
+            feederPoolFactory = FeederPool__factory;
+            impl = await new feederPoolFactory(linkedAddress, this.sa.default.signer).deploy(
+                mAssetDetails.nexus.address,
+                mAssetDetails.mAsset.address,
+            )
+        }
         const data = impl.interface.encodeFunctionData("initialize", [
             "mStable mBTC/bBTC Feeder",
             "bBTC fPool",
@@ -135,7 +158,7 @@ export class FeederMachine {
         // Deploy feeder pool proxy and call initialize on the feeder pool implementation
         const poolProxy = await new AssetProxy__factory(this.sa.default.signer).deploy(impl.address, DEAD_ADDRESS, data)
         // Link the feeder pool ABI to its proxy
-        const pool = await new FeederPool__factory(linkedAddress, this.sa.default.signer).attach(poolProxy.address)
+        const pool = await new feederPoolFactory(linkedAddress, this.sa.default.signer).attach(poolProxy.address)
 
         // - Add feeder pool to the platform integration whitelist
         if (useLendingMarkets) {
@@ -163,6 +186,7 @@ export class FeederMachine {
             bAssets,
             pTokens,
             mAssetDetails,
+            redemptionPriceSnap,
         }
     }
 
