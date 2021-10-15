@@ -127,8 +127,9 @@ describe("Liquidator", () => {
         await save.initialize(sa.default.address, "Savings Credit", "imUSD")
         savings = await new SavingsManager__factory(sa.default.signer).deploy(
             nexus.address,
-            mUSD.address,
-            save.address,
+            [mUSD.address],
+            [save.address],
+            [ZERO_ADDRESS],
             simpleToExactAmount(1, 18),
             ONE_WEEK,
         )
