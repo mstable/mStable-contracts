@@ -13,21 +13,23 @@ import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
 import { mBTC, MTA, mUSD, GUSD, BUSD, HBTC, TBTC, alUSD } from "./utils/tokens"
 
-const maxVMTA = simpleToExactAmount(300000, 18)
-const maxBoost = simpleToExactAmount(4, 18)
+const maxVMTA = simpleToExactAmount(600000, 18)
+const maxBoost = simpleToExactAmount(3, 18)
 const minBoost = simpleToExactAmount(1, 18)
-const floor = simpleToExactAmount(95, 16)
+const floor = simpleToExactAmount(98, 16)
+const coeff = BN.from(9)
 
-const calcBoost = (raw: BN, vMTA: BN, priceCoefficient: BN, boostCoeff: BN, decimals = 18): BN => {
+const calcBoost = (raw: BN, vMTA: BN, priceCoefficient: BN, decimals = 18): BN => {
     // min(m, max(d, (d * 0.95) + c * min(vMTA, f) / USD^b))
-    const scaledBalance = raw.mul(priceCoefficient).div(simpleToExactAmount(1, decimals))
+    const scaledBalance = raw.mul(priceCoefficient).div(simpleToExactAmount(1, 18))
 
     if (scaledBalance.lt(simpleToExactAmount(1, decimals))) return minBoost
 
     let denom = parseFloat(formatUnits(scaledBalance))
-    denom **= 0.875
-    const flooredMTA = vMTA.gt(maxVMTA) ? maxVMTA : vMTA
-    let rhs = floor.add(flooredMTA.mul(boostCoeff).div(10).mul(fullScale).div(simpleToExactAmount(denom)))
+    denom **= 0.75
+    const scaledMTA = vMTA.div(12)
+    const flooredMTA = scaledMTA.gt(maxVMTA) ? maxVMTA : scaledMTA
+    let rhs = floor.add(flooredMTA.mul(coeff).div(10).mul(fullScale).div(simpleToExactAmount(denom)))
     rhs = rhs.gt(minBoost) ? rhs : minBoost
     return rhs.gt(maxBoost) ? maxBoost : rhs
 }
@@ -42,7 +44,7 @@ const getAccountBalanceMap = async (accounts: string[], tokenAddress: string, si
 
     const callPromises = accounts.map((account) => token.balanceOf(account))
 
-    console.log(`About to get vMTA balances for ${accounts.length} accounts`)
+    console.log(`About to get balances for ${accounts.length} accounts`)
     const balances = (await ethcallProvider.all(callPromises)) as BN[]
     const accountBalances: AccountBalance = {}
     balances.forEach((balance, i) => {
@@ -59,15 +61,17 @@ task("over-boost", "Pokes accounts that are over boosted")
     .setAction(async (taskArgs, hre) => {
         const chain = getChain(hre)
         const signer = await getSigner(hre, taskArgs.speed)
+        const stkMTA = await getChainAddress("StakedTokenMTA", chain)
+        const stkMBPT = await getChainAddress("StakedTokenBPT", chain)
 
         let idFilter = ""
         if (taskArgs.account) {
-            const vaults = [MTA, mUSD, mBTC, GUSD, BUSD, HBTC, TBTC, alUSD]
+            const vaults = [mUSD, mBTC, GUSD, BUSD, HBTC, TBTC, alUSD]
             const vaultAddresses = vaults.map((v) => v.vault.toLowerCase())
             const vaultAccountIds = vaultAddresses.map((vaultAddress) => `"${vaultAddress}.${taskArgs.account.toLowerCase()}" `)
             idFilter = `id_in: [${vaultAccountIds}] `
         }
-        const gqlClient = new GraphQLClient("https://api.thegraph.com/subgraphs/name/mstable/mstable-feeder-pools")
+        const gqlClient = new GraphQLClient("https://api.studio.thegraph.com/query/948/mstable-feeder-pools-and-vaults/v0.0.8")
         const query = gql`
             {
                 boostedSavingsVaults {
@@ -104,7 +108,14 @@ task("over-boost", "Pokes accounts that are over boosted")
         const vaultAccounts = gqlData.boostedSavingsVaults.map((vault) => vault.accounts.map((account) => account.id.split(".")[1]))
         const accountsWithDuplicates = vaultAccounts.flat()
         const accountsUnique = [...new Set<string>(accountsWithDuplicates)]
-        const vMtaBalancesMap = await getAccountBalanceMap(accountsUnique, MTA.vault, signer)
+
+        const mtaBalances = await getAccountBalanceMap(accountsUnique, stkMTA, signer)
+        const bptBalances = await getAccountBalanceMap(accountsUnique, stkMBPT, signer)
+        const accountBalances: AccountBalance = {}
+        Object.keys(mtaBalances).forEach((account) => {
+            accountBalances[account] = mtaBalances[account].add(bptBalances[account])
+        })
+
         const pokeVaultAccounts: {
             boostVault: string
             accounts: string[]
@@ -114,19 +125,18 @@ task("over-boost", "Pokes accounts that are over boosted")
         for (const vault of vaults) {
             const boostVault = BoostedVault__factory.connect(vault.id, signer)
             const priceCoeff = await boostVault.priceCoeff()
-            const boostCoeff = await boostVault.boostCoeff()
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const overBoosted: any[] = []
             console.log(
-                `\nVault with id ${vault.id} for token ${vault.stakingToken.symbol}, ${vault.accounts.length} accounts, price coeff ${priceCoeff}, boost coeff ${boostCoeff}`,
+                `\nVault with id ${vault.id} for token ${vault.stakingToken.symbol}, ${vault.accounts.length} accounts, price coeff ${priceCoeff}`,
             )
             console.log("Account, Raw Balance, Boosted Balance, Boost Balance USD, vMTA balance, Boost Actual, Boost Expected, Boost Diff")
             // For each account in the boosted savings vault
             vault.accounts.forEach((account) => {
                 const boostActual = BN.from(account.boostedBalance).mul(1000).div(account.rawBalance).toNumber()
                 const accountId = account.id.split(".")[1]
-                const boostExpected = calcBoost(BN.from(account.rawBalance), vMtaBalancesMap[accountId], priceCoeff, boostCoeff)
+                const boostExpected = calcBoost(BN.from(account.rawBalance), accountBalances[accountId], priceCoeff)
                     .div(simpleToExactAmount(1, 15))
                     .toNumber()
                 const boostDiff = boostActual - boostExpected
@@ -145,7 +155,7 @@ task("over-boost", "Pokes accounts that are over boosted")
                 console.log(
                     `${accountId}, ${formatUnits(account.rawBalance)}, ${formatUnits(account.boostedBalance)}, ${formatUnits(
                         boostBalanceUsd,
-                    )}, ${formatUnits(vMtaBalancesMap[accountId])}, ${formatUnits(boostActual, 3)}, ${formatUnits(
+                    )}, ${formatUnits(accountBalances[accountId])}, ${formatUnits(boostActual, 3)}, ${formatUnits(
                         boostExpected,
                         3,
                     )}, ${formatUnits(boostDiff, 3)}`,
