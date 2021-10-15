@@ -49,8 +49,9 @@ describe("SavingsManager", async () => {
 
         savingsManager = await new SavingsManager__factory(sa.default.signer).deploy(
             nexus.address,
-            mUSD.address,
-            savingsContract.address,
+            [mUSD.address],
+            [savingsContract.address],
+            [ZERO_ADDRESS],
             simpleToExactAmount(1),
             ONE_WEEK,
         )
@@ -89,8 +90,9 @@ describe("SavingsManager", async () => {
             await expect(
                 new SavingsManager__factory(sa.default.signer).deploy(
                     ZERO_ADDRESS,
-                    mUSD.address,
-                    savingsContract.address,
+                    [mUSD.address],
+                    [savingsContract.address],
+                    [ZERO_ADDRESS],
                     simpleToExactAmount(1),
                     ONE_WEEK,
                 ),
@@ -101,8 +103,9 @@ describe("SavingsManager", async () => {
             await expect(
                 new SavingsManager__factory(sa.default.signer).deploy(
                     nexus.address,
-                    ZERO_ADDRESS,
-                    savingsContract.address,
+                    [ZERO_ADDRESS],
+                    [savingsContract.address],
+                    [ZERO_ADDRESS],
                     simpleToExactAmount(1),
                     ONE_WEEK,
                 ),
@@ -113,8 +116,9 @@ describe("SavingsManager", async () => {
             await expect(
                 new SavingsManager__factory(sa.default.signer).deploy(
                     nexus.address,
-                    mUSD.address,
-                    ZERO_ADDRESS,
+                    [mUSD.address],
+                    [ZERO_ADDRESS],
+                    [ZERO_ADDRESS],
                     simpleToExactAmount(1),
                     ONE_WEEK,
                 ),
