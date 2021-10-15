@@ -4,10 +4,10 @@ import { formatUnits } from "@ethersproject/units"
 export const deployContract = async <T extends Contract>(
     contractFactory: ContractFactory,
     contractName = "Contract",
-    contractorArgs: Array<unknown> = [],
+    constructorArgs: Array<unknown> = [],
     overrides: Overrides = {},
 ): Promise<T> => {
-    const contract = (await contractFactory.deploy(...contractorArgs, overrides)) as T
+    const contract = (await contractFactory.deploy(...constructorArgs, overrides)) as T
     console.log(
         `Deploying ${contractName} contract with hash ${contract.deployTransaction.hash} from ${
             contract.deployTransaction.from
@@ -15,7 +15,7 @@ export const deployContract = async <T extends Contract>(
     )
     const receipt = await contract.deployTransaction.wait()
     const txCost = receipt.gasUsed.mul(contract.deployTransaction.gasPrice)
-    const abiEncodedConstructorArgs = contract.interface.encodeDeploy(contractorArgs)
+    const abiEncodedConstructorArgs = contract.interface.encodeDeploy(constructorArgs)
     console.log(
         `Deployed ${contractName} to ${contract.address} in block ${receipt.blockNumber}, using ${
             receipt.gasUsed
