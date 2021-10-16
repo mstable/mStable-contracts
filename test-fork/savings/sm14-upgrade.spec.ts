@@ -69,7 +69,7 @@ context("StakedToken deployments and vault upgrades", () => {
                 {
                     forking: {
                         jsonRpcUrl: process.env.NODE_URL,
-                        blockNumber: 13423210,
+                        blockNumber: 13428467,
                     },
                 },
             ],
@@ -87,27 +87,14 @@ context("StakedToken deployments and vault upgrades", () => {
     })
     context("1. Deploying", () => {
         it("deploys the contracts", async () => {
-            const nexus = resolveAddress("Nexus", Chain.mainnet)
-            const revenueRecipient = resolveAddress("RevenueRecipient", Chain.mainnet)
-
             musd = resolveAddress("mUSD", Chain.mainnet, "address")
-            const musdSave = resolveAddress("mUSD", Chain.mainnet, "savings")
             mbtc = resolveAddress("mBTC", Chain.mainnet, "address")
-            const mbtcSave = resolveAddress("mBTC", Chain.mainnet, "savings")
 
-            savingsManager = await deployContract(new SavingsManager__factory(deployer.signer), "SavingsManager", [
-                nexus,
-                [musd, mbtc],
-                [musdSave, mbtcSave],
-                [revenueRecipient, revenueRecipient],
-                simpleToExactAmount(9, 17),
-                ONE_WEEK,
-            ])
+            savingsManager = await SavingsManager__factory.connect("0xBC3B550E0349D74bF5148D86114A48C3B4Aa856F", deployer.signer)
         })
         it("proposes upgrade", async () => {
             const nexusAddress = resolveAddress("Nexus", Chain.mainnet)
             const nexus = await Nexus__factory.connect(nexusAddress, governor.signer)
-            await nexus.proposeModule(KEY_SAVINGS_MANAGER, savingsManager.address)
             await nexus.proposeModule(KEY_LIQUIDATOR, musdWhaleAddress)
         })
         it("checks the config matches up", async () => {
