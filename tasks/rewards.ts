@@ -4,7 +4,9 @@ import { subtask, task, types } from "hardhat/config"
 import { RewardsDistributorEth__factory } from "types/generated/factories/RewardsDistributorEth__factory"
 import { RewardsDistributor__factory } from "types/generated/factories/RewardsDistributor__factory"
 import { formatUnits } from "ethers/lib/utils"
-import { Comptroller__factory, Liquidator__factory } from "types"
+import { TransactionResponse } from "@ethersproject/providers"
+import { Liquidator__factory } from "types/generated"
+import { Comptroller__factory } from "types/generated/factories/Comptroller__factory"
 import rewardsFiles from "./balancer-mta-rewards/20210817.json"
 import { Chain, logTxDetails, USDC, usdFormatter } from "./utils"
 import { getAaveTokens, getAlcxTokens, getBlock, getCompTokens } from "./utils/snap-utils"
@@ -141,10 +143,26 @@ subtask("liq-claim-comp", "Claimed COMP to the integration contract")
         const compControllerAddress = resolveAddress("CompController", chain)
         const compController = Comptroller__factory.connect(compControllerAddress, signer)
         const tx = await compController["claimComp(address,address[])"](USDC.integrator, [USDC.liquidityProvider])
-        await logTxDetails(tx, "claim COMP")
+        const receipt = await logTxDetails(tx, "claim COMP")
+        const event = receipt.events.find((e) => e.event === "DistributedSupplierComp")
+        console.log(`Claimed ${formatUnits(event.args[2])} COMP`)
     })
-task("liq-claim-comp").setAction(async (_, __, runSuper) => {
+task("liq-claim-comp").setAction(async (taskArgs, hre, runSuper) => {
+    const signer = await getSigner(hre, taskArgs.speed)
+
+    let block = await getBlock(hre.ethers, "latest")
+
+    console.log(`\nGetting platform tokens at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
+
+    await getCompTokens(signer, block)
+
     await runSuper()
+
+    block = await getBlock(hre.ethers, "latest")
+
+    console.log(`\nGetting platform tokens at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
+
+    await getCompTokens(signer, block)
 })
 
 subtask("liq-trig", "Triggers a liquidation of a integration contract")
@@ -158,14 +176,15 @@ subtask("liq-trig", "Triggers a liquidation of a integration contract")
 
         const liquidatorAddress = await resolveAddress("Liquidator", chain)
         const liquidator = Liquidator__factory.connect(liquidatorAddress, signer)
+        let tx: TransactionResponse
         if (hre.network.name === "hardhat") {
-            const tx = await liquidator.triggerLiquidation(bAsset.integrator)
-            await logTxDetails(tx, `trigger liquidation for ${taskArgs.basset}`)
+            tx = await liquidator.triggerLiquidation(bAsset.integrator)
         } else {
             // Send via Flashbots
-            const tx = await liquidator.populateTransaction.triggerLiquidation(bAsset.integrator)
-            await sendPrivateTransaction(tx, signer)
+            const populatedTx = await liquidator.populateTransaction.triggerLiquidation(bAsset.integrator)
+            tx = await sendPrivateTransaction(populatedTx, signer)
         }
+        await logTxDetails(tx, `trigger liquidation for ${taskArgs.basset}`)
     })
 task("liq-trig").setAction(async (_, hre, runSuper) => {
     await runSuper()
@@ -179,14 +198,15 @@ subtask("liq-trig-aave", "Triggers a liquidation of stkAAVE")
 
         const liquidatorAddress = await resolveAddress("Liquidator", chain)
         const liquidator = Liquidator__factory.connect(liquidatorAddress, signer)
+        let tx: TransactionResponse
         if (hre.network.name === "hardhat") {
-            const tx = await liquidator.triggerLiquidationAave()
-            await logTxDetails(tx, `trigger liquidation for Aave`)
+            tx = await liquidator.triggerLiquidationAave()
         } else {
             // Send via Flashbots
-            const tx = await liquidator.populateTransaction.triggerLiquidationAave()
-            await sendPrivateTransaction(tx, signer)
+            const populatedTx = await liquidator.populateTransaction.triggerLiquidationAave()
+            tx = await sendPrivateTransaction(populatedTx, signer)
         }
+        await logTxDetails(tx, `trigger liquidation for Aave`)
     })
 task("liq-trig-aave").setAction(async (_, __, runSuper) => {
     await runSuper()
