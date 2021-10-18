@@ -207,6 +207,23 @@ contract Liquidator is ILiquidator, Initializable, ModuleKeysStorage, ImmutableM
         emit LiquidationModified(_integration);
     }
 
+    function reApproveLiquidation(address _integration) external {
+        Liquidation memory liquidation = liquidations[_integration];
+
+        address bAsset = liquidation.bAsset;
+        require(bAsset != address(0), "Liquidation does not exist");
+
+        address mAsset = liquidation.mAsset;
+        if (mAsset != address(0)) {
+            IERC20(bAsset).safeApprove(mAsset, 0);
+            IERC20(bAsset).safeApprove(mAsset, type(uint256).max);
+
+            address savings = _savingsManager();
+            IERC20(mAsset).safeApprove(savings, 0);
+            IERC20(mAsset).safeApprove(savings, type(uint256).max);
+        }
+    }
+
     /**
      * @notice Update a liquidation
      * @param _integration The integration contract in question
