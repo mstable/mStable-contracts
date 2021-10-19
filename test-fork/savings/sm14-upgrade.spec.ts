@@ -1,13 +1,22 @@
-import { ONE_WEEK, KEY_SAVINGS_MANAGER, KEY_LIQUIDATOR } from "@utils/constants"
+import { ONE_WEEK, KEY_SAVINGS_MANAGER, ONE_DAY } from "@utils/constants"
 import { impersonate, impersonateAccount } from "@utils/fork"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { increaseTime } from "@utils/time"
 import { expect } from "chai"
 import { Signer } from "ethers"
 import * as hre from "hardhat"
-import { SavingsManager, SavingsManager__factory, Nexus__factory, SavingsContract__factory, ERC20__factory } from "types/generated"
+import {
+    SavingsManager,
+    SavingsManager__factory,
+    Nexus__factory,
+    SavingsContract__factory,
+    ERC20__factory,
+    Liquidator__factory,
+    Liquidator,
+    DelayedProxyAdmin__factory,
+} from "types/generated"
 import { Account } from "types"
-import { Chain } from "tasks/utils/tokens"
+import { Chain, COMP, USDC, USDT, WBTC } from "tasks/utils/tokens"
 import { resolveAddress } from "../../tasks/utils/networkAddressFactory"
 import { deployContract } from "../../tasks/utils/deploy-utils"
 
@@ -15,6 +24,7 @@ const musdWhaleAddress = "0x136d841d4bece3fc0e4debb94356d8b6b4b93209"
 const governorAddress = resolveAddress("Governor")
 const deployerAddress = resolveAddress("OperationsSigner")
 const ethWhaleAddress = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+const compWhaleAddress = "0x28c6c06298d514db089934071355e5743bf21d60"
 
 interface Stream {
     end: BN
@@ -44,7 +54,9 @@ context("StakedToken deployments and vault upgrades", () => {
     let governor: Account
     let ethWhale: Signer
     let musdWhale: Signer
+    let compWhale: Signer
     let savingsManager: SavingsManager
+    let liquidator: Liquidator
     let musd
     let mbtc
 
@@ -78,6 +90,7 @@ context("StakedToken deployments and vault upgrades", () => {
         governor = await impersonateAccount(governorAddress)
         ethWhale = await impersonate(ethWhaleAddress)
         musdWhale = await impersonate(musdWhaleAddress)
+        compWhale = await impersonate(compWhaleAddress)
 
         // send some Ether to the impersonated multisig contract as it doesn't have Ether
         await ethWhale.sendTransaction({
@@ -86,49 +99,84 @@ context("StakedToken deployments and vault upgrades", () => {
         })
     })
     context("1. Deploying", () => {
-        it("deploys the contracts", async () => {
-            musd = resolveAddress("mUSD", Chain.mainnet, "address")
-            mbtc = resolveAddress("mBTC", Chain.mainnet, "address")
+        context("SavingsManager", () => {
+            it("deploys new contract", async () => {
+                musd = resolveAddress("mUSD", Chain.mainnet, "address")
+                mbtc = resolveAddress("mBTC", Chain.mainnet, "address")
 
-            savingsManager = await SavingsManager__factory.connect("0xBC3B550E0349D74bF5148D86114A48C3B4Aa856F", deployer.signer)
-        })
-        it("proposes upgrade", async () => {
-            const nexusAddress = resolveAddress("Nexus", Chain.mainnet)
-            const nexus = await Nexus__factory.connect(nexusAddress, governor.signer)
-            await nexus.proposeModule(KEY_LIQUIDATOR, musdWhaleAddress)
-        })
-        it("checks the config matches up", async () => {
-            const oldAddress = resolveAddress("SavingsManager", Chain.mainnet)
-            const oldSavingsManager = await SavingsManager__factory.connect(oldAddress, deployer.signer)
-            const oldConfig = await snapData(oldSavingsManager, [musd, mbtc])
-            const newConfig = await snapData(savingsManager, [musd, mbtc])
+                const newSavingsManagerAddress = "0xBC3B550E0349D74bF5148D86114A48C3B4Aa856F"
+                savingsManager = await SavingsManager__factory.connect(newSavingsManagerAddress, deployer.signer)
+            })
+            it("checks the config matches up", async () => {
+                const oldAddress = resolveAddress("SavingsManager", Chain.mainnet)
+                const oldSavingsManager = await SavingsManager__factory.connect(oldAddress, deployer.signer)
+                const oldConfig = await snapData(oldSavingsManager, [musd, mbtc])
+                const newConfig = await snapData(savingsManager, [musd, mbtc])
 
-            expect(newConfig.lastBatchCollected[0]).eq(0)
-            expect(newConfig.lastCollection[0]).eq(0)
-            expect(newConfig.lastPeriodStart[0]).eq(0)
-            expect(newConfig.nexus).eq(oldConfig.nexus)
-            expect(newConfig.revenueRecipients[0]).eq(oldConfig.revenueRecipients[0])
-            expect(newConfig.revenueRecipients[1]).eq(oldConfig.revenueRecipients[1])
-            expect(newConfig.savingsContracts[0]).eq(oldConfig.savingsContracts[0])
-            expect(newConfig.savingsContracts[1]).eq(oldConfig.savingsContracts[1])
+                expect(newConfig.lastBatchCollected[0]).eq(0)
+                expect(newConfig.lastCollection[0]).eq(0)
+                expect(newConfig.lastPeriodStart[0]).eq(0)
+                expect(newConfig.nexus).eq(oldConfig.nexus)
+                expect(newConfig.revenueRecipients[0]).eq(oldConfig.revenueRecipients[0])
+                expect(newConfig.revenueRecipients[1]).eq(oldConfig.revenueRecipients[1])
+                expect(newConfig.savingsContracts[0]).eq(oldConfig.savingsContracts[0])
+                expect(newConfig.savingsContracts[1]).eq(oldConfig.savingsContracts[1])
+            })
+            it("accepts upgrade", async () => {
+                await increaseTime(ONE_WEEK)
+                const nexusAddress = resolveAddress("Nexus", Chain.mainnet)
+                const nexus = await Nexus__factory.connect(nexusAddress, governor.signer)
+                await nexus.acceptProposedModule(KEY_SAVINGS_MANAGER)
+                expect(await nexus.getModule(KEY_SAVINGS_MANAGER)).eq(savingsManager.address)
+            })
         })
-        it("accepts upgrade", async () => {
-            await increaseTime(ONE_WEEK)
-            const nexusAddress = resolveAddress("Nexus", Chain.mainnet)
-            const nexus = await Nexus__factory.connect(nexusAddress, governor.signer)
-            await nexus.acceptProposedModule(KEY_SAVINGS_MANAGER)
-            await nexus.acceptProposedModule(KEY_LIQUIDATOR)
-            expect(await nexus.getModule(KEY_SAVINGS_MANAGER)).eq(savingsManager.address)
+        context("Liquidator", () => {
+            let liquidatorImpl: Liquidator
+
+            it("deploys new Liquidator contract", async () => {
+                const nexusAddress = resolveAddress("Nexus")
+                const stkAaveAddress = resolveAddress("stkAAVE")
+                const aaveAddress = resolveAddress("AAVE")
+                const uniswapRouterAddress = resolveAddress("UniswapRouterV3")
+                const uniswapQuoterAddress = resolveAddress("UniswapQuoterV3")
+                const compAddress = resolveAddress("COMP")
+                const alcxAddress = resolveAddress("ALCX")
+
+                liquidatorImpl = await deployContract(new Liquidator__factory(deployer.signer), "Liquidator", [
+                    nexusAddress,
+                    stkAaveAddress,
+                    aaveAddress,
+                    uniswapRouterAddress,
+                    uniswapQuoterAddress,
+                    compAddress,
+                    alcxAddress,
+                ])
+            })
+            it("Upgrade the Liquidator proxy", async () => {
+                // Update the Liquidator proxy to point to the new implementation using the delayed proxy admin
+                const delayedProxyAdminAddress = resolveAddress("DelayedProxyAdmin")
+                const delayedProxyAdmin = DelayedProxyAdmin__factory.connect(delayedProxyAdminAddress, governor.signer)
+                const liquidatorAddress = resolveAddress("Liquidator")
+                const data = liquidatorImpl.interface.encodeFunctionData("upgrade")
+                await delayedProxyAdmin.cancelUpgrade(liquidatorAddress)
+                await delayedProxyAdmin.proposeUpgrade(liquidatorAddress, liquidatorImpl.address, data)
+                await increaseTime(ONE_WEEK.add(60))
+                await delayedProxyAdmin.acceptUpgradeRequest(liquidatorAddress)
+
+                // Connect to the proxy with the Liquidator ABI
+                liquidator = Liquidator__factory.connect(liquidatorAddress, deployer.signer)
+            })
+            it("Reapprove mAssets to SavingsManager", async () => {
+                await liquidator.reApproveLiquidation(USDC.integrator) // COMP for mUSD
+                await liquidator.reApproveLiquidation(USDT.integrator) // AAVE for mUSD
+                await liquidator.reApproveLiquidation(WBTC.integrator) // AAVE for mBTC
+            })
         })
     })
     context("2. Beta tests", () => {
         it("collects & streams interest from both mAssets", async () => {
             await savingsManager.collectAndStreamInterest(musd)
             await savingsManager.collectAndStreamInterest(mbtc)
-        })
-        it("deposits liquidation", async () => {
-            await ERC20__factory.connect(musd, musdWhale).approve(savingsManager.address, simpleToExactAmount(1000))
-            await savingsManager.connect(musdWhale).depositLiquidation(musd, simpleToExactAmount(1000))
         })
         it("allows save deposits", async () => {
             const save = resolveAddress("mUSD", Chain.mainnet, "savings")
@@ -138,6 +186,20 @@ context("StakedToken deployments and vault upgrades", () => {
         it("distributed unallocated interest", async () => {
             await savingsManager.distributeUnallocatedInterest(musd)
             await savingsManager.distributeUnallocatedInterest(mbtc)
+        })
+        it("Liquidate COMP", async () => {
+            // transfer some COMP into the integration contract to test the liquidation
+            const compToken = ERC20__factory.connect(COMP.address, compWhale)
+            await compToken.transfer(USDC.integrator, simpleToExactAmount(10, COMP.decimals))
+
+            await liquidator.triggerLiquidation(USDC.integrator)
+        })
+        it("Claim Aave and liquidate", async () => {
+            await increaseTime(ONE_DAY.mul(10))
+            await liquidator.claimStakedAave()
+
+            await increaseTime(ONE_DAY.mul(11))
+            await liquidator.triggerLiquidationAave()
         })
     })
 })
