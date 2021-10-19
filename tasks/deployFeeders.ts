@@ -19,6 +19,8 @@ import { getSigner } from "./utils/signerFactory"
 import { deployFeederPool, deployVault, FeederData, VaultData } from "./utils/feederUtils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
 
+// hh --config tasks-fork.config.ts --network hardhat deployFeederPool --masset mBTC --fasset tBTCv2 --min 3 --max 97
+
 task("deployFeederPool", "Deploy Feeder Pool")
     .addParam("masset", "Token symbol of mAsset. eg mUSD or PmUSD for Polygon", "mUSD", types.string)
     .addParam("fasset", "Token symbol of Feeder Pool asset. eg GUSD, WBTC, PFRAX for Polygon", "alUSD", types.string)
@@ -79,6 +81,12 @@ task("deployAlcxInt", "Deploy Alchemix integration contract for alUSD Feeder Poo
         const migrateData = fp.interface.encodeFunctionData("migrateBassets", [[alUSD.address], alchemixIntegration.address])
         console.log(`migrateBassets data:\n${migrateData}`)
     })
+
+// TODO: feederPool add to token TBTCv2
+// TODO: dualRewardToken T not deployed yet
+// hh --config tasks-fork.config.ts --network hardhat deployVault --name "v-mBTC/tBTCv2 fPool Vault"
+// --symbol v-fPmBTC/tBTCv2 --boosted true --stakingToken tBTCv2 --rewardToken MTA --dualRewardToken T
+// symbol length is 15, change to >16?
 
 task("deployVault", "Deploy Feeder Pool with boosted dual vault")
     .addParam("name", "Token name of the vault. eg mUSD/alUSD fPool Vault", undefined, types.string)
