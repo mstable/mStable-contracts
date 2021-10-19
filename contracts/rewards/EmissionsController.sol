@@ -14,6 +14,7 @@ struct DialData {
     uint96 balance;
     address recipient;
     bool disabled;
+    bool notify;
 }
 
 struct DialWeight {
@@ -65,7 +66,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     // EVENTS
 
     event AddedDial(uint256 indexed id, address indexed recipient);
-    event UpdatedDial(uint256 indexed id, address indexed recipient, bool diabled);
+    event UpdatedDial(uint256 indexed id, address indexed recipient, bool diabled, bool notify);
     event PeriodRewards(uint256[] amounts);
     event DonatedRewards(uint256 indexed dialId, uint256 amount);
     event DistributedReward(uint256 indexed dialId, uint256 amount);
@@ -104,19 +105,24 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     }
 
     /**
-     * @dev Initialize function - simply sets the initial array of whitelisted vaults
-     * @param _recipients first dial contracts that can receive rewards
+     * @dev Initialize function to configure the first dials.
+     * @param _recipients list of dial contract addressess that can receive rewards.
+     * @param _notifies list of dial notify flags. If true, `notifyRewardAmount` is called in the `distributeRewards` function.
      * @dev all recipient contracts need to implement the `IRewardsDistributionRecipient` interface.
      */
-    function initialize(address[] memory _recipients) external initializer {
-        // Transfer all reward tokens for all future distributions to this distributor
+    function initialize(address[] memory _recipients, bool[] memory _notifies) external initializer {
+        uint256 len = _recipients.length;
+        require(_notifies.length == len, "Initialize args mistmatch");
+
+        // STEP 1 - Transfer all reward tokens for all future distributions to this distributor
         rewardToken.safeTransferFrom(msg.sender, address(this), totalRewardsAmount);
 
+        // STEP 2 - Add each of the dials
         for (uint256 i = 0; i < _recipients.length; i++) {
-            _addDial(_recipients[i]);
+            _addDial(_recipients[i], _notifies[i]);
         }
 
-        // the last distribution will be set at the end of the current time period.
+        // STEP 3 - the last distribution will be set at the end of the current time period.
         // for a 1 week period, this is 12am Thursday UTC
         // This means the first distribution needs to be after 12am Thursday UTC
         // It also means there is this period and next to vote beofre the first distribution
@@ -146,13 +152,13 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     /**
      * @notice Adds a new dial that can be voted on to receive weekly rewards.
      * @param _recipient Address of the contract that will receive rewards
-     * @dev the recipient contract need to implement the `IRewardsDistributionRecipient` interface.
+     * @param _notify If true, `notifyRewardAmount` is called in the `distributeRewards` function.
      */
-    function addDial(address _recipient) external onlyGovernor {
-        _addDial(_recipient);
+    function addDial(address _recipient, bool _notify) external onlyGovernor {
+        _addDial(_recipient, _notify);
     }
 
-    function _addDial(address _recipient) internal {
+    function _addDial(address _recipient, bool _notify) internal {
         require(_recipient != address(0), "Dial address is zero");
 
         uint256 len = dials.length;
@@ -160,7 +166,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             require(dials[i].recipient != _recipient, "Dial aleady exists");
         }
 
-        dials.push(DialData({ weightedVotes: 0, balance: 0, recipient: _recipient, disabled: false }));
+        dials.push(DialData({ weightedVotes: 0, balance: 0, recipient: _recipient, disabled: false, notify: _notify }));
 
         emit AddedDial(len, _recipient);
     }
@@ -170,14 +176,16 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @param _dialId Dial identifier
      * @param _recipient Address of the contract that will receive rewards
      * @param _disabled If true, no rewards will be distributed to this dial
+     * @param _notify If true, `notifyRewardAmount` is called in the `distributeRewards` function.
      */
-    function updateDial(uint256 _dialId, address _recipient, bool _disabled) external onlyGovernor {
+    function updateDial(uint256 _dialId, address _recipient, bool _disabled, bool _notify) external onlyGovernor {
         // require(_dialId > 0, "Dial ID is zero");
 
         dials[_dialId].disabled = _disabled;
         dials[_dialId].recipient = _recipient;
+        dials[_dialId].notify = _notify;
 
-        emit UpdatedDial(_dialId, _recipient, _disabled);
+        emit UpdatedDial(_dialId, _recipient, _disabled, _notify);
     }
 
     // TODO how will we handle platform amounts?
@@ -259,14 +267,16 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
                 continue;
             }
 
-            // STEP 2 - Send the rewards the to the dial
+            // STEP 2 - Send the rewards the to the dial recipient
             rewardToken.safeTransfer(dialData.recipient, dialData.balance);
 
-            // STEP 3 - notify the dial of the new rewards
+            // STEP 3 - notify the dial of the new rewards if configured to
             // Only after successful transer tx
-            IRewardsDistributionRecipient(dialData.recipient).notifyRewardAmount(
-                dialData.balance
-            );
+            if (dialData.notify) {
+                IRewardsDistributionRecipient(dialData.recipient).notifyRewardAmount(
+                    dialData.balance
+                );
+            }
 
             emit DistributedReward(_dialIds[i], dialData.balance);
 
