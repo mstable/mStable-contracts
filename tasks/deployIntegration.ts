@@ -19,6 +19,7 @@ import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { AAVE, ALCX, Chain, COMP, DAI, stkAAVE, tokens } from "./utils/tokens"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getSigner } from "./utils/signerFactory"
+import { verifyEtherscan } from "./utils/etherscan"
 
 task("integration-aave-deploy", "Deploys an instance of AaveV2Integration contract")
     .addParam(
@@ -109,7 +110,7 @@ subtask("liquidator-deploy", "Deploys new Liquidator contract")
         const uniswapQuoterV3Address = getChainAddress("UniswapQuoterV3", chain)
 
         // Deploy the new implementation
-        const liquidatorImpl = await deployContract<Liquidator>(new Liquidator__factory(signer), "Liquidator", [
+        const constructorArguments = [
             nexusAddress,
             stkAAVE.address,
             AAVE.address,
@@ -117,7 +118,8 @@ subtask("liquidator-deploy", "Deploys new Liquidator contract")
             uniswapQuoterV3Address,
             COMP.address,
             ALCX.address,
-        ])
+        ]
+        const liquidatorImpl = await deployContract<Liquidator>(new Liquidator__factory(signer), "Liquidator", constructorArguments)
 
         const delayedProxyAdmin = DelayedProxyAdmin__factory.connect(delayedAdminAddress, signer)
 
@@ -129,6 +131,11 @@ subtask("liquidator-deploy", "Deploys new Liquidator contract")
             upgradeData,
         ])
         console.log(`\ndelayedProxyAdmin.proposeUpgrade to ${delayedAdminAddress}, data:\n${proposeUpgradeData}`)
+
+        await verifyEtherscan(hre, {
+            address: liquidatorImpl.address,
+            constructorArguments,
+        })
     })
 
 task("liquidator-deploy").setAction(async (_, __, runSuper) => {
