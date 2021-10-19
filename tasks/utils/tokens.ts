@@ -108,7 +108,7 @@ export const sUSD: Token = {
     address: "0x57Ab1ec28D129707052df4dF418D58a2D46d5f51",
     chain: Chain.mainnet,
     platform: Platform.Aave,
-    integrator: "0xb9b0cfa90436c3fcbf8d8eb6ed8d0c2e3da47ca9", // Old Aave V2
+    integrator: "0xA2a3CAe63476891AB2d640d9a5A800755Ee79d6E",
     liquidityProvider: "0x35f6B052C598d933D69A4EEC4D04c73A191fE6c2", // aSUSD
     decimals: 18,
     quantityFormatter: "USD",
@@ -426,6 +426,9 @@ export const RmBPT: Token = {
 }
 
 export const tokens = [
+    AAVE,
+    stkAAVE,
+    COMP,
     MTA,
     PMTA,
     RMTA,
