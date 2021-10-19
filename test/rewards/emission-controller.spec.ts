@@ -55,7 +55,7 @@ describe("EmissionsController", async () => {
         await staking2.setGovernanceHook(emissionsController.address)
         const dialAddresses = dials.map((dial) => dial.address)
         await rewardToken.approve(emissionsController.address, totalRewardsSupply)
-        await emissionsController.initialize(dialAddresses)
+        await emissionsController.initialize(dialAddresses, [true, true, false])
     }
 
     before(async () => {
