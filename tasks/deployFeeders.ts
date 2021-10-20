@@ -17,7 +17,7 @@ import { ALCX, alUSD, BUSD, CREAM, cyMUSD, GUSD, mUSD, tokens } from "./utils/to
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getSigner } from "./utils/signerFactory"
 import { deployFeederPool, deployVault, FeederData, VaultData } from "./utils/feederUtils"
-import { getChain, getChainAddress } from "./utils/networkAddressFactory"
+import { getChain, getChainAddress, resolveToken } from "./utils/networkAddressFactory"
 
 task("deployFeederPool", "Deploy Feeder Pool")
     .addParam("masset", "Token symbol of mAsset. eg mUSD or PmUSD for Polygon", "mUSD", types.string)
@@ -30,10 +30,8 @@ task("deployFeederPool", "Deploy Feeder Pool")
         const signer = await getSigner(hre, taskArgs.speed)
         const chain = getChain(hre)
 
-        const mAsset = tokens.find((t) => t.symbol === taskArgs.masset)
-        if (!mAsset) throw Error(`Could not find mAsset token with symbol ${taskArgs.masset}`)
-        const fAsset = tokens.find((t) => t.symbol === taskArgs.fasset)
-        if (!fAsset) throw Error(`Could not find Feeder Pool token with symbol ${taskArgs.fasset}`)
+        const mAsset = resolveToken(taskArgs.masset, chain)
+        const fAsset = resolveToken(taskArgs.fasset, chain)
 
         if (taskArgs.a < 10 || taskArgs.min > 5000) throw Error(`Invalid amplitude coefficient (A) ${taskArgs.a}`)
         if (taskArgs.min < 0 || taskArgs.min > 50) throw Error(`Invalid min limit ${taskArgs.min}`)
@@ -54,7 +52,7 @@ task("deployFeederPool", "Deploy Feeder Pool")
         }
 
         // Deploy Feeder Pool
-        await deployFeederPool(signer, poolData, chain)
+        await deployFeederPool(signer, poolData, hre)
     })
 
 task("deployAlcxInt", "Deploy Alchemix integration contract for alUSD Feeder Pool")

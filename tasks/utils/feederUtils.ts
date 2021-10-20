@@ -4,6 +4,7 @@ import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { Signer } from "ethers"
 import { formatEther } from "ethers/lib/utils"
+import { HardhatRuntimeEnvironment } from "hardhat/types/runtime"
 import {
     FeederPool,
     BoostedVault,
@@ -25,7 +26,7 @@ import { deployContract } from "./deploy-utils"
 import { verifyEtherscan } from "./etherscan"
 import { getChain, getChainAddress } from "./networkAddressFactory"
 import { getSigner } from "./signerFactory"
-import { Chain, Token } from "./tokens"
+import { Token } from "./tokens"
 
 interface Config {
     a: BN
@@ -73,7 +74,8 @@ export const deployFasset = async (
     return new MockERC20__factory(sender).attach(proxy.address)
 }
 
-export const deployFeederPool = async (signer: Signer, feederData: FeederData, chain = Chain.mainnet): Promise<FeederPool> => {
+export const deployFeederPool = async (signer: Signer, feederData: FeederData, hre: HardhatRuntimeEnvironment): Promise<FeederPool> => {
+    const chain = getChain(hre)
     const feederManagerAddress = getChainAddress("FeederManager", chain)
     const feederLogicAddress = getChainAddress("FeederLogic", chain)
 
@@ -83,10 +85,17 @@ export const deployFeederPool = async (signer: Signer, feederData: FeederData, c
         "contracts/feeders/FeederManager.sol:FeederManager": feederManagerAddress,
     }
 
-    const impl = await deployContract(new FeederPool__factory(linkedAddress, signer), "FeederPool", [
-        getChainAddress("Nexus", chain),
-        feederData.mAsset.address,
-    ])
+    const fpConstructorArgs = [getChainAddress("Nexus", chain), feederData.mAsset.address]
+    const impl = await deployContract(new FeederPool__factory(linkedAddress, signer), "FeederPool", fpConstructorArgs)
+
+    await verifyEtherscan(hre, {
+        address: impl.address,
+        constructorArguments: fpConstructorArgs,
+        libraries: {
+            FeederManager: feederManagerAddress,
+            FeederLogic: feederLogicAddress,
+        },
+    })
 
     // Initialization Data
     const mAsset = Masset__factory.connect(feederData.mAsset.address, signer)
@@ -203,12 +212,6 @@ export const deployVault = async (
         proxyAdminAddress,
         initializeData,
     ])
-
-    await verifyEtherscan(hre, {
-        address: proxy.address,
-        contract: "contracts/upgradability/Proxies.sol:AssetProxy",
-        constructorArguments: [vault.address, proxyAdminAddress, initializeData],
-    })
 
     return vault.attach(proxy.address)
 }

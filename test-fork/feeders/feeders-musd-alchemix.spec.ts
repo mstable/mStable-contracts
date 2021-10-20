@@ -28,6 +28,7 @@ import { IAlchemixStakingPools__factory } from "types/generated/factories/IAlche
 import { RewardsDistributorEth__factory } from "types/generated/factories/RewardsDistributorEth__factory"
 import { IAlchemixStakingPools } from "types/generated/IAlchemixStakingPools"
 import { RewardsDistributorEth } from "types/generated/RewardsDistributorEth"
+import * as hre from "hardhat"
 
 const chain = Chain.mainnet
 const nexusAddress = getChainAddress("Nexus", chain)
@@ -140,7 +141,7 @@ context("alUSD Feeder Pool integration to Alchemix", () => {
             }
             alUsdFp = alUSD.feederPool
                 ? FeederPool__factory.connect(alUSD.feederPool, deployer)
-                : await deployFeederPool(deployer, fpData, chain)
+                : await deployFeederPool(deployer, fpData, hre)
 
             expect(await alUsdFp.name(), "name").to.eq(fpData.name)
             expect(await alUsdFp.symbol(), "symbol").to.eq(fpData.symbol)
