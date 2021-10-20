@@ -19,6 +19,7 @@ import { getSigner } from "./utils/signerFactory"
 import { deployFeederPool, deployVault, FeederData, VaultData } from "./utils/feederUtils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
 
+// TODO: add ETHERSCAN_KEY
 // hh --config tasks-fork.config.ts --network hardhat deployFeederPool --masset mBTC --fasset tBTCv2 --min 3 --max 97
 
 task("deployFeederPool", "Deploy Feeder Pool")
@@ -106,7 +107,7 @@ task("deployVault", "Deploy Feeder Pool with boosted dual vault")
         const chain = getChain(hre)
 
         if (taskArgs.name?.length < 4) throw Error(`Invalid token name ${taskArgs.name}`)
-        if (taskArgs.symbol?.length <= 0 || taskArgs.symbol?.length > 14) throw Error(`Invalid token symbol ${taskArgs.name}`)
+        if (taskArgs.symbol?.length <= 0 || taskArgs.symbol?.length > 16) throw Error(`Invalid token symbol ${taskArgs.name}`)
         if (taskArgs.boosted === undefined) throw Error(`Invalid boolean boost ${taskArgs.boosted}`)
 
         const stakingToken = tokens.find((t) => t.symbol === taskArgs.stakingToken && t.chain === chain)
