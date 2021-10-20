@@ -55,6 +55,7 @@ task("Vault.deploy", "Deploys a vault contract")
     .addParam("vaultSymbol", "Vault symbol", undefined, types.string, false)
     .addOptionalParam("stakingToken", "Symbol of staking token. eg MTA, BAL, RMTA, mUSD, RmUSD", "MTA", types.string)
     .addOptionalParam("rewardsToken", "Symbol of rewards token. eg MTA or RMTA for Ropsten", "MTA", types.string)
+    .addOptionalParam("dualRewardsToken", "Symbol of dual rewards token. eg WMATIC", undefined, types.string)
     .addOptionalParam("priceCoeff", "Price coefficient without 18 decimal places. eg 1 or 4800", 1, types.int)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
@@ -67,6 +68,7 @@ task("Vault.deploy", "Deploys a vault contract")
             priceCoeff: simpleToExactAmount(taskArgs.priceCoeff),
             stakingToken: resolveAddress(taskArgs.stakingToken, chain),
             rewardToken: resolveAddress(taskArgs.rewardsToken, chain),
+            dualRewardToken: taskArgs.dualRewardsToken ? resolveAddress(taskArgs.dualRewardsToken, chain) : undefined,
         }
 
         await deployVault(hre, vaultData)
