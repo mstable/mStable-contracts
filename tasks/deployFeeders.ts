@@ -84,7 +84,7 @@ task("deployAlcxInt", "Deploy Alchemix integration contract for alUSD Feeder Poo
 // TODO: feederPool add to token TBTCv2
 // TODO: dualRewardToken T not deployed yet
 // hh --config tasks-fork.config.ts --network hardhat deployVault --name "v-mBTC/tBTCv2 fPool Vault"
-// --symbol v-fPmBTC/tBTCv2 --boosted true --stakingToken tBTCv2 --rewardToken MTA --dualRewardToken T
+// --symbol v-fPmBTC/tBTCv2 --boosted true --stakingToken tBTCv2 --rewardToken MTA --dualRewardToken DUMMY
 // symbol length is 15, change to >16?
 
 task("deployVault", "Deploy Feeder Pool with boosted dual vault")

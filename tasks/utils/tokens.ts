@@ -1,4 +1,5 @@
 import { ethereumAddress } from "@utils/regex"
+import { DEAD_ADDRESS } from "@utils/constants"
 
 export enum Chain {
     mainnet,
@@ -434,6 +435,14 @@ export const RmBPT: Token = {
     quantityFormatter: "USD",
 }
 
+export const DUMMY: Token = {
+    symbol: "DUMMY",
+    address: DEAD_ADDRESS,
+    chain: Chain.mainnet,
+    decimals: 18,
+    quantityFormatter: "USD",
+}
+
 export const tokens = [
     MTA,
     PMTA,
@@ -467,4 +476,5 @@ export const tokens = [
     RmBPT,
     BAL,
     RBAL,
+    DUMMY,
 ]
