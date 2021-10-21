@@ -1,6 +1,8 @@
+/* eslint-disable no-restricted-syntax */
+/* eslint-disable @typescript-eslint/no-loop-func */
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-plusplus */
-import { DEAD_ADDRESS, ONE_WEEK } from "@utils/constants"
+import { DEAD_ADDRESS, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { StandardAccounts } from "@utils/machines"
 import { expect } from "chai"
 import { ethers } from "hardhat"
@@ -64,6 +66,64 @@ describe("EmissionsController", async () => {
         console.log(`User 1 ${sa.dummy1.address}`)
         console.log(`User 2 ${sa.dummy2.address}`)
         console.log(`User 3 ${sa.dummy3.address}`)
+    })
+    describe("deploy and initialize", () => {
+        before(async () => {
+            await deployEmissionsController()
+            console.log(`Emissions Controller contract size ${EmissionsController__factory.bytecode.length}`)
+        })
+        it("Zero nexus address", async () => {
+            const tx = new EmissionsController__factory(sa.default.signer).deploy(
+                ZERO_ADDRESS,
+                [staking1.address, staking2.address],
+                rewardToken.address,
+                simpleToExactAmount(1000),
+            )
+            await expect(tx).to.revertedWith("Nexus address is zero")
+        })
+        it("Zero rewards address", async () => {
+            const tx = new EmissionsController__factory(sa.default.signer).deploy(
+                nexus.address,
+                [staking1.address, staking2.address],
+                ZERO_ADDRESS,
+                simpleToExactAmount(1000),
+            )
+            await expect(tx).to.revertedWith("Reward token address is zero")
+        })
+        context("initialize recipients and notifies", () => {
+            before(async () => {
+                emissionsController = await new EmissionsController__factory(sa.default.signer).deploy(
+                    nexus.address,
+                    [staking1.address, staking2.address],
+                    rewardToken.address,
+                    simpleToExactAmount(40000000),
+                )
+            })
+            const tests: { desc: string; dialIndexes: number[]; notifies: boolean[] }[] = [
+                {
+                    desc: "recipients empty",
+                    dialIndexes: [],
+                    notifies: [true, false],
+                },
+                {
+                    desc: "notifies empty",
+                    dialIndexes: [0, 1],
+                    notifies: [],
+                },
+                {
+                    desc: "different lengths",
+                    dialIndexes: [0],
+                    notifies: [true, false],
+                },
+            ]
+            for (const test of tests) {
+                it(test.desc, async () => {
+                    const recipients = test.dialIndexes.map((i) => dials[i].address)
+                    const tx = emissionsController.initialize(recipients, test.notifies)
+                    await expect(tx).to.revertedWith("Initialize args mistmatch")
+                })
+            }
+        })
     })
     describe("calculate rewards", () => {
         const user1Staking1Votes = simpleToExactAmount(100)
@@ -614,6 +674,113 @@ describe("EmissionsController", async () => {
             })
         })
     })
-    describe("add dial", () => {})
-    describe("update dial", () => {})
+    describe("Staking contract hook", () => {
+        let user1: string
+        let user2: string
+        const amount = simpleToExactAmount(100)
+        beforeEach(async () => {
+            await deployEmissionsController()
+
+            user1 = sa.dummy1.address
+            user2 = sa.dummy1.address
+            await staking1.setVotes(user1, simpleToExactAmount(1000))
+            await staking1.setVotes(user2, simpleToExactAmount(2000))
+        })
+        it("Default can not move voting power", async () => {
+            const tx = emissionsController.moveVotingPowerHook(user1, user2, amount)
+            await expect(tx).to.revertedWith("Must be staking contract")
+        })
+        it("Governor can not move voting power", async () => {
+            const tx = emissionsController.connect(sa.governor.signer).moveVotingPowerHook(user1, user2, amount)
+            await expect(tx).to.revertedWith("Must be staking contract")
+        })
+    })
+    describe("add dial", () => {
+        let newDial: MockRewardsDistributionRecipient
+        beforeEach(async () => {
+            await deployEmissionsController()
+
+            newDial = await new MockRewardsDistributionRecipient__factory(sa.default.signer).deploy(rewardToken.address, DEAD_ADDRESS)
+            dials.push(newDial)
+        })
+        it("governor adds new dial", async () => {
+            const tx = await emissionsController.connect(sa.governor.signer).addDial(newDial.address, true)
+            await expect(tx).to.emit(emissionsController, "AddedDial").withArgs(3, newDial.address)
+            const savedDial = await emissionsController.dials(3)
+            expect(savedDial.recipient).to.eq(newDial.address)
+            expect(savedDial.notify).to.eq(true)
+        })
+        it("fail to add recipient with zero address", async () => {
+            const tx = emissionsController.connect(sa.governor.signer).addDial(ZERO_ADDRESS, true)
+            await expect(tx).to.revertedWith("Dial address is zero")
+        })
+        it("fail to add existing dial", async () => {
+            const tx = emissionsController.connect(sa.governor.signer).addDial(dials[0].address, true)
+            await expect(tx).to.revertedWith("Dial already exists")
+        })
+        it("Default user fails to add new dial", async () => {
+            const tx = emissionsController.addDial(newDial.address, true)
+            await expect(tx).to.revertedWith("Only governor can execute")
+        })
+    })
+    describe("update dial", () => {
+        const user1Staking1Votes = simpleToExactAmount(100)
+        const user2Staking1Votes = simpleToExactAmount(200)
+        const user3Staking1Votes = simpleToExactAmount(300)
+        let dial1
+        let dial2
+        let dial3
+        beforeEach(async () => {
+            await deployEmissionsController()
+            await increaseTime(ONE_WEEK.mul(2))
+
+            await staking1.setVotes(sa.dummy1.address, user1Staking1Votes)
+            await staking1.setVotes(sa.dummy2.address, user2Staking1Votes)
+            await staking1.setVotes(sa.dummy3.address, user3Staking1Votes)
+
+            // User 1 puts 100 votes to dial 1
+            await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 10000 }])
+            dial1 = weeklyRewards.mul(100).div(600)
+
+            // User 2 puts 200 votes to dial 2
+            await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 1, weight: 10000 }])
+            dial2 = weeklyRewards.mul(200).div(600)
+
+            // User 3 puts 300 votes to dial 3
+            await emissionsController.connect(sa.dummy3.signer).setVoterDialWeights([{ dialId: 2, weight: 10000 }])
+            dial3 = weeklyRewards.mul(300).div(600)
+        })
+        it("Governor disables dial with votes", async () => {
+            expect((await emissionsController.dials(0)).disabled, "dial 1 disabled before").to.false
+            const tx = await emissionsController.connect(sa.governor.signer).updateDial(0, true)
+            await expect(tx).to.emit(emissionsController, "UpdatedDial").withArgs(0, true)
+            expect((await emissionsController.dials(0)).disabled, "dial 1 disabled after").to.true
+
+            const tx2 = await emissionsController.calculateRewards()
+
+            await expect(tx2).to.emit(emissionsController, "PeriodRewards").withArgs([0, dial2, dial3])
+        })
+        it("Governor reenables dial", async () => {
+            await emissionsController.connect(sa.governor.signer).updateDial(0, true)
+            await emissionsController.calculateRewards()
+            await increaseTime(ONE_WEEK.add(60))
+
+            // Reenable dial 1
+            const tx = await emissionsController.connect(sa.governor.signer).updateDial(0, false)
+            await expect(tx).to.emit(emissionsController, "UpdatedDial").withArgs(0, false)
+            expect((await emissionsController.dials(0)).disabled, "dial 1 reenabled after").to.false
+
+            const tx2 = await emissionsController.calculateRewards()
+
+            await expect(tx2).to.emit(emissionsController, "PeriodRewards").withArgs([dial1, dial2, dial3])
+        })
+        it("Governor fails to disable invalid 4th dial", async () => {
+            const tx = emissionsController.connect(sa.governor.signer).updateDial(3, true)
+            await expect(tx).to.revertedWith("Invalid dial id")
+        })
+        it("Default user fails to update dial", async () => {
+            const tx = emissionsController.updateDial(1, true)
+            await expect(tx).to.revertedWith("Only governor can execute")
+        })
+    })
 })

@@ -48,6 +48,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     // VOTING
 
+    IVotes immutable stakingContract1;
+    IVotes immutable stakingContract2;
+
     /// @notice list of dial data including weightedVotes, rewards balance, recipient contract and disabled flag.
     DialData[] public dials;
     /// @notice total number of staker votes across all the dials
@@ -58,21 +61,18 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     /// A user can not issue more than 100% of their voting power across dials.
     mapping(address => DialWeight[]) stakerDialWeights;
 
-    // CONFIG
-
-    mapping(address => bool) public isStakingContract;
-    IVotes[] public stakingContracts;
-
     // EVENTS
 
     event AddedDial(uint256 indexed id, address indexed recipient);
-    event UpdatedDial(uint256 indexed id, address indexed recipient, bool diabled, bool notify);
+    event UpdatedDial(uint256 indexed id, bool diabled);
     event PeriodRewards(uint256[] amounts);
     event DonatedRewards(uint256 indexed dialId, uint256 amount);
     event DistributedReward(uint256 indexed dialId, uint256 amount);
 
     modifier onlyStakingContract() {
-        require(isStakingContract[msg.sender], "Must be whitelisted staking contract");
+        require(address(stakingContract1) == msg.sender ||
+                address(stakingContract2) == msg.sender,
+                "Must be staking contract");
         _;
     }
 
@@ -82,13 +82,13 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     /** @notice Recipient is a module, governed by mStable governance
      * @param _nexus System nexus that resolves module addresses
+     * @param _stakingContracts two staking contract with voting power
      * @param _rewardToken token that rewards are distributed in. eg MTA
-     * @param _stakingContracts staking contract with voting power
      * @param _totalRewardsAmount rewards to be distributed over the live of the emissions
      */
     constructor(
         address _nexus,
-        address[] memory _stakingContracts,
+        address[2] memory _stakingContracts,
         address _rewardToken,
         uint256 _totalRewardsAmount
     ) ImmutableModule(_nexus) {
@@ -96,12 +96,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         rewardToken = IERC20(_rewardToken);
         totalRewardsAmount = _totalRewardsAmount;
 
-        stakingContracts = new IVotes[](_stakingContracts.length);
-        for (uint256 i = 0; i < _stakingContracts.length; i++) {
-            require(_stakingContracts[i] != address(0), "Staking contract address is zero");
-            stakingContracts[i] = IVotes(_stakingContracts[i]);
-            isStakingContract[_stakingContracts[i]] = true;
-        }
+        require(_stakingContracts[0] != address(0) && _stakingContracts[1] != address(0), "Staking contract address is zero");
+        stakingContract1 = IVotes(_stakingContracts[0]);
+        stakingContract2 = IVotes(_stakingContracts[1]);
     }
 
     /**
@@ -110,7 +107,10 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @param _notifies list of dial notify flags. If true, `notifyRewardAmount` is called in the `distributeRewards` function.
      * @dev all recipient contracts need to implement the `IRewardsDistributionRecipient` interface.
      */
-    function initialize(address[] memory _recipients, bool[] memory _notifies) external initializer {
+    function initialize(
+        address[] memory _recipients,
+        bool[] memory _notifies
+    ) external initializer {
         uint256 len = _recipients.length;
         require(_notifies.length == len, "Initialize args mistmatch");
 
@@ -139,10 +139,8 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @param account that has voting power.
      */
     function getVotes(address account) public returns (uint256 votingPower) {
-        uint256 len = stakingContracts.length;
-        for (uint256 i = 0; i < len; i++) {
-            votingPower += stakingContracts[i].getVotes(account);
-        }
+        votingPower = stakingContract1.getVotes(account);
+        votingPower += stakingContract2.getVotes(account);
     }
 
     /***************************************
@@ -163,7 +161,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
         uint256 len = dials.length;
         for (uint256 i = 0; i < len; i++) {
-            require(dials[i].recipient != _recipient, "Dial aleady exists");
+            require(dials[i].recipient != _recipient, "Dial already exists");
         }
 
         dials.push(DialData({ weightedVotes: 0, balance: 0, recipient: _recipient, disabled: false, notify: _notify }));
@@ -174,18 +172,14 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     /**
      * @notice Updates a dials recipient contract and/or disabled flag.
      * @param _dialId Dial identifier
-     * @param _recipient Address of the contract that will receive rewards
      * @param _disabled If true, no rewards will be distributed to this dial
-     * @param _notify If true, `notifyRewardAmount` is called in the `distributeRewards` function.
      */
-    function updateDial(uint256 _dialId, address _recipient, bool _disabled, bool _notify) external onlyGovernor {
-        // require(_dialId > 0, "Dial ID is zero");
+    function updateDial(uint256 _dialId, bool _disabled) external onlyGovernor {
+        require(_dialId < dials.length, "Invalid dial id");
 
         dials[_dialId].disabled = _disabled;
-        dials[_dialId].recipient = _recipient;
-        dials[_dialId].notify = _notify;
 
-        emit UpdatedDial(_dialId, _recipient, _disabled, _notify);
+        emit UpdatedDial(_dialId, _disabled);
     }
 
     // TODO how will we handle platform amounts?
@@ -211,7 +205,8 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         for (uint256 i = 0; i < len; i++) {
             // STEP 3 - Calculate amount of rewards for the dial
             uint256 dialWeightedVotes = dials[i].weightedVotes;
-            if (dialWeightedVotes == 0) {
+            // Skip dial if no votes or disabled
+            if (dialWeightedVotes == 0 || dials[i].disabled) {
                 continue;
             }
             distributionAmounts[i] = (totalDistributionAmount * dialWeightedVotes) /
@@ -358,7 +353,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     function _moveVotingPower(
         address _voter,
         uint256 _amount,
-        function(uint256, uint256) view returns (uint256) _op
+        function(uint256, uint256) pure returns (uint256) _op
     ) internal {
         DialWeight[] memory preferences = stakerDialWeights[_voter];
         uint256 len = preferences.length;
