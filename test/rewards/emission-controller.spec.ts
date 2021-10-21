@@ -90,6 +90,24 @@ describe("EmissionsController", async () => {
             )
             await expect(tx).to.revertedWith("Reward token address is zero")
         })
+        it("Zero first staking contract address", async () => {
+            const tx = new EmissionsController__factory(sa.default.signer).deploy(
+                nexus.address,
+                [ZERO_ADDRESS, staking2.address],
+                rewardToken.address,
+                simpleToExactAmount(1000),
+            )
+            await expect(tx).to.revertedWith("Staking contract address is zero")
+        })
+        it("Zero second staking contract address", async () => {
+            const tx = new EmissionsController__factory(sa.default.signer).deploy(
+                nexus.address,
+                [staking1.address, ZERO_ADDRESS],
+                rewardToken.address,
+                simpleToExactAmount(1000),
+            )
+            await expect(tx).to.revertedWith("Staking contract address is zero")
+        })
         context("initialize recipients and notifies", () => {
             before(async () => {
                 emissionsController = await new EmissionsController__factory(sa.default.signer).deploy(
@@ -148,7 +166,42 @@ describe("EmissionsController", async () => {
             expect(await emissionsController.callStatic.getVotes(sa.dummy2.address), "User 2 votes before").to.eq(simpleToExactAmount(600))
             expect(await emissionsController.callStatic.getVotes(sa.dummy3.address), "User 3 votes before").to.eq(simpleToExactAmount(300))
         })
+        it("calculate rewards with no weights", async () => {
+            const tx = await emissionsController.calculateRewards()
+
+            await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([0, 0, 0])
+
+            expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(0)
+            expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(0)
+            expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(0)
+        })
+        it("fail to calculate rewards after not waiting a week", async () => {
+            await emissionsController.calculateRewards()
+            await increaseTime(60) // add 1 minute
+
+            const tx = emissionsController.calculateRewards()
+            await expect(tx).to.revertedWith("Must wait for new period")
+        })
         context("change voting weights", () => {
+            context("fail to set weights when", () => {
+                it("weights > 100% to a single dial", async () => {
+                    // User 1 gives 100.01% to dial 1
+                    const tx = emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 10001 }])
+                    await expect(tx).to.revertedWith("Imbalanced weights")
+                })
+                it("weights > 100% across multiple dials", async () => {
+                    // User 1 gives 90% to dial 1 and 10.01% to dial 2
+                    const tx = emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
+                        { dialId: 0, weight: 9000 },
+                        { dialId: 1, weight: 1001 },
+                    ])
+                    await expect(tx).to.revertedWith("Imbalanced weights")
+                })
+                it("invalid dial id", async () => {
+                    const tx = emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 3, weight: 10000 }])
+                    await expect(tx).to.revertedWith("Invalid dial id")
+                })
+            })
             context("first voting period", () => {
                 it("User 1 all votes to dial 1", async () => {
                     // User 1 gives all 300 votes to dial 1
@@ -513,6 +566,33 @@ describe("EmissionsController", async () => {
             await staking1.setVotes(sa.dummy3.address, user3Staking1Votes)
             await increaseTime(ONE_WEEK.mul(2))
         })
+        context("fail to donate when", () => {
+            it("No dial ids or amounts", async () => {
+                const tx = emissionsController.donate([], [])
+                await expect(tx).to.revertedWith("Invalid inputs")
+            })
+            it("No dial ids but amounts", async () => {
+                const tx = emissionsController.donate([], [100])
+                await expect(tx).to.revertedWith("Invalid inputs")
+            })
+            it("No amounts but dials", async () => {
+                const tx = emissionsController.donate([0], [])
+                await expect(tx).to.revertedWith("Invalid inputs")
+            })
+            it("Less dial ids than amounts", async () => {
+                const tx = emissionsController.donate([0], [100, 200])
+                await expect(tx).to.revertedWith("Invalid inputs")
+            })
+            it("Less amounts than dials", async () => {
+                const tx = emissionsController.donate([0, 1, 2], [100, 200])
+                await expect(tx).to.revertedWith("Invalid inputs")
+            })
+            it("first dial is invalid", async () => {
+                const tx = emissionsController.donate([3], [100])
+                await expect(tx).to.revertedWith("Invalid dial id")
+            })
+        })
+
         context("User 1 80/20 votes to dial 1 & 2, User 2 50/50 votes to dial 2 & 3", () => {
             // 80% of User 1's 300 votes
             const dial1 = weeklyRewards.mul((300 * 4) / 5).div(900)
@@ -587,6 +667,20 @@ describe("EmissionsController", async () => {
             await staking1.setVotes(sa.dummy2.address, user2Staking1Votes)
             await staking1.setVotes(sa.dummy3.address, user3Staking1Votes)
             await increaseTime(ONE_WEEK.mul(2))
+        })
+        context("Fail to distribute rewards when", () => {
+            it("when first dial id is invalid", async () => {
+                const tx = emissionsController.distributeRewards([3])
+                await expect(tx).to.revertedWith("Invalid dial id")
+            })
+            it("when middle dial id is invalid", async () => {
+                const tx = emissionsController.distributeRewards([0, 3, 2])
+                await expect(tx).to.revertedWith("Invalid dial id")
+            })
+            it("when last dial id is invalid", async () => {
+                const tx = emissionsController.distributeRewards([0, 1, 2, 3])
+                await expect(tx).to.revertedWith("Invalid dial id")
+            })
         })
         context("No rewards", () => {
             beforeEach(async () => {

@@ -232,6 +232,8 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
         // For each specified dial
         for (uint256 i = 0; i < dialLen; i++) {
+            require(_dialIds[i] < dials.length, "Invalid dial id");
+
             // Sum the rewards for each dial
             totalAmount += _amounts[i];
             // Add rewards to the dial's rewards balance
@@ -253,9 +255,8 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         // For each specified dial
         uint256 len = _dialIds.length;
         for (uint256 i = 0; i < len; i++) {
+            require(_dialIds[i] < dials.length, "Invalid dial id");
             DialData memory dialData = dials[_dialIds[i]];
-            require(dialData.recipient != address(0), "Invalid dial");
-            require(dialData.disabled == false, "Dial is disabled");
 
             // STEP 1 - Get the dial's reward balance
             if (dialData.balance == 0) {
@@ -308,6 +309,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         uint256 newLen = _newDialWeights.length;
         if (newLen > 0) {
             for (uint256 i = 0; i < newLen; i++) {
+                require(_newDialWeights[i].dialId < dials.length, "Invalid dial id");
                 newTotalWeight += _newDialWeights[i].weight;
                 // Add staker's dial weight
                 stakerDialWeights[msg.sender].push(_newDialWeights[i]);
