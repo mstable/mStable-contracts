@@ -308,6 +308,17 @@ export const TBTC: Token = {
     vault: "0x760ea8CfDcC4e78d8b9cA3088ECD460246DC0731",
 }
 
+export const TBTCv2: Token = {
+    symbol: "tBTCv2",
+    address: "0x18084fbA666a33d37592fA2633fD49a74DD93a88",
+    chain: Chain.mainnet,
+    decimals: 18,
+    parent: "mBTC",
+    quantityFormatter: "BTC",
+    feederPool: "0xc3280306b6218031E61752d060b091278d45c329",
+    vault: "0xD6892f8e386f7230D877140C6A3f59f21052453D",
+}
+
 export const MTA: Token = {
     symbol: "MTA",
     address: "0xa3BeD4E1c75D00fa6f4E5E6922DB7261B5E9AcD2",
@@ -443,6 +454,7 @@ export const tokens = [
     WBTC,
     HBTC,
     TBTC,
+    TBTCv2,
     alUSD,
     ALCX,
     PFRAX,

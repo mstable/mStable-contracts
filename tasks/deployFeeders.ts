@@ -96,7 +96,7 @@ task("deployVault", "Deploy Feeder Pool with boosted dual vault")
         const chain = getChain(hre)
 
         if (taskArgs.name?.length < 4) throw Error(`Invalid token name ${taskArgs.name}`)
-        if (taskArgs.symbol?.length <= 0 || taskArgs.symbol?.length > 14) throw Error(`Invalid token symbol ${taskArgs.name}`)
+        if (taskArgs.symbol?.length <= 0 || taskArgs.symbol?.length > 16) throw Error(`Invalid token symbol ${taskArgs.name}`)
         if (taskArgs.boosted === undefined) throw Error(`Invalid boolean boost ${taskArgs.boosted}`)
 
         const stakingToken = tokens.find((t) => t.symbol === taskArgs.stakingToken && t.chain === chain)
