@@ -19,7 +19,7 @@ contract MockStakingContract {
         _votes[account] = newVotes;
 
         if(address(govHook) != address(0)) {
-            if (oldVotes < newVotes) {
+            if (oldVotes <= newVotes) {
                 govHook.moveVotingPowerHook(address(0), account, newVotes - oldVotes);
             } else if (oldVotes > newVotes) {
                 govHook.moveVotingPowerHook(account, address(0), oldVotes - newVotes);
