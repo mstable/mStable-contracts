@@ -409,9 +409,20 @@ describe("EmissionsController", async () => {
         })
         context("Change voting power", () => {
             context("first voting period", () => {
+                it("User 1 does not change their voting power", async () => {
+                    expect(await emissionsController.callStatic.getVotes(sa.dummy1.address), "User 1 votes before").to.eq(
+                        simpleToExactAmount(300),
+                    )
+
+                    await staking1.setVotes(sa.dummy1.address, user1Staking1Votes)
+
+                    expect(await emissionsController.callStatic.getVotes(sa.dummy1.address), "User 1 votes after").to.eq(
+                        simpleToExactAmount(300),
+                    )
+                })
                 it("User 3 increases voting power before setting weights", async () => {
                     expect(await emissionsController.callStatic.getVotes(sa.dummy3.address), "User 3 votes before").to.eq(
-                        simpleToExactAmount(300),
+                        user3Staking1Votes,
                     )
 
                     await staking1.setVotes(sa.dummy3.address, simpleToExactAmount(400))
