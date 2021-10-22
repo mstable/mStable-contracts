@@ -81,7 +81,7 @@ context("StakedToken deployments and vault upgrades", () => {
                 {
                     forking: {
                         jsonRpcUrl: process.env.NODE_URL,
-                        blockNumber: 13428467,
+                        blockNumber: 13467671,
                     },
                 },
             ],
@@ -99,78 +99,69 @@ context("StakedToken deployments and vault upgrades", () => {
         })
     })
     context("1. Deploying", () => {
-        context("SavingsManager", () => {
-            it("deploys new contract", async () => {
-                musd = resolveAddress("mUSD", Chain.mainnet, "address")
-                mbtc = resolveAddress("mBTC", Chain.mainnet, "address")
+        let liquidatorImpl: Liquidator
+        it("deploys new contract", async () => {
+            musd = resolveAddress("mUSD", Chain.mainnet, "address")
+            mbtc = resolveAddress("mBTC", Chain.mainnet, "address")
 
-                const newSavingsManagerAddress = "0xBC3B550E0349D74bF5148D86114A48C3B4Aa856F"
-                savingsManager = await SavingsManager__factory.connect(newSavingsManagerAddress, deployer.signer)
-            })
-            it("checks the config matches up", async () => {
-                const oldAddress = resolveAddress("SavingsManager", Chain.mainnet)
-                const oldSavingsManager = await SavingsManager__factory.connect(oldAddress, deployer.signer)
-                const oldConfig = await snapData(oldSavingsManager, [musd, mbtc])
-                const newConfig = await snapData(savingsManager, [musd, mbtc])
-
-                expect(newConfig.lastBatchCollected[0]).eq(0)
-                expect(newConfig.lastCollection[0]).eq(0)
-                expect(newConfig.lastPeriodStart[0]).eq(0)
-                expect(newConfig.nexus).eq(oldConfig.nexus)
-                expect(newConfig.revenueRecipients[0]).eq(oldConfig.revenueRecipients[0])
-                expect(newConfig.revenueRecipients[1]).eq(oldConfig.revenueRecipients[1])
-                expect(newConfig.savingsContracts[0]).eq(oldConfig.savingsContracts[0])
-                expect(newConfig.savingsContracts[1]).eq(oldConfig.savingsContracts[1])
-            })
-            it("accepts upgrade", async () => {
-                await increaseTime(ONE_WEEK)
-                const nexusAddress = resolveAddress("Nexus", Chain.mainnet)
-                const nexus = await Nexus__factory.connect(nexusAddress, governor.signer)
-                await nexus.acceptProposedModule(KEY_SAVINGS_MANAGER)
-                expect(await nexus.getModule(KEY_SAVINGS_MANAGER)).eq(savingsManager.address)
-            })
+            const newSavingsManagerAddress = "0xBC3B550E0349D74bF5148D86114A48C3B4Aa856F"
+            savingsManager = await SavingsManager__factory.connect(newSavingsManagerAddress, deployer.signer)
         })
-        context("Liquidator", () => {
-            let liquidatorImpl: Liquidator
+        it("checks the config matches up", async () => {
+            const oldAddress = resolveAddress("SavingsManager", Chain.mainnet)
+            const oldSavingsManager = await SavingsManager__factory.connect(oldAddress, deployer.signer)
+            const oldConfig = await snapData(oldSavingsManager, [musd, mbtc])
+            const newConfig = await snapData(savingsManager, [musd, mbtc])
 
-            it("deploys new Liquidator contract", async () => {
-                const nexusAddress = resolveAddress("Nexus")
-                const stkAaveAddress = resolveAddress("stkAAVE")
-                const aaveAddress = resolveAddress("AAVE")
-                const uniswapRouterAddress = resolveAddress("UniswapRouterV3")
-                const uniswapQuoterAddress = resolveAddress("UniswapQuoterV3")
-                const compAddress = resolveAddress("COMP")
-                const alcxAddress = resolveAddress("ALCX")
+            expect(newConfig.lastBatchCollected[0]).eq(0)
+            expect(newConfig.lastCollection[0]).eq(0)
+            expect(newConfig.lastPeriodStart[0]).eq(0)
+            expect(newConfig.nexus).eq(oldConfig.nexus)
+            expect(newConfig.revenueRecipients[0]).eq(oldConfig.revenueRecipients[0])
+            expect(newConfig.revenueRecipients[1]).eq(oldConfig.revenueRecipients[1])
+            expect(newConfig.savingsContracts[0]).eq(oldConfig.savingsContracts[0])
+            expect(newConfig.savingsContracts[1]).eq(oldConfig.savingsContracts[1])
+        })
+        it("accepts upgrade", async () => {
+            await increaseTime(ONE_WEEK)
+            const nexusAddress = resolveAddress("Nexus", Chain.mainnet)
+            const nexus = await Nexus__factory.connect(nexusAddress, governor.signer)
+            await nexus.acceptProposedModule(KEY_SAVINGS_MANAGER)
+            expect(await nexus.getModule(KEY_SAVINGS_MANAGER)).eq(savingsManager.address)
+        })
 
-                liquidatorImpl = await deployContract(new Liquidator__factory(deployer.signer), "Liquidator", [
-                    nexusAddress,
-                    stkAaveAddress,
-                    aaveAddress,
-                    uniswapRouterAddress,
-                    uniswapQuoterAddress,
-                    compAddress,
-                    alcxAddress,
-                ])
-            })
-            it("Upgrade the Liquidator proxy", async () => {
-                // Update the Liquidator proxy to point to the new implementation using the delayed proxy admin
-                const delayedProxyAdminAddress = resolveAddress("DelayedProxyAdmin")
-                const delayedProxyAdmin = DelayedProxyAdmin__factory.connect(delayedProxyAdminAddress, governor.signer)
-                const liquidatorAddress = resolveAddress("Liquidator")
-                const data = liquidatorImpl.interface.encodeFunctionData("upgrade")
-                await delayedProxyAdmin.cancelUpgrade(liquidatorAddress)
-                await delayedProxyAdmin.proposeUpgrade(liquidatorAddress, liquidatorImpl.address, data)
-                await increaseTime(ONE_WEEK.add(60))
-                await delayedProxyAdmin.acceptUpgradeRequest(liquidatorAddress)
+        it("deploys new Liquidator contract", async () => {
+            const nexusAddress = resolveAddress("Nexus")
+            const stkAaveAddress = resolveAddress("stkAAVE")
+            const aaveAddress = resolveAddress("AAVE")
+            const uniswapRouterAddress = resolveAddress("UniswapRouterV3")
+            const uniswapQuoterAddress = resolveAddress("UniswapQuoterV3")
+            const compAddress = resolveAddress("COMP")
+            const alcxAddress = resolveAddress("ALCX")
 
-                // Connect to the proxy with the Liquidator ABI
-                liquidator = Liquidator__factory.connect(liquidatorAddress, deployer.signer)
-            })
-            it("Reapprove mAssets to SavingsManager", async () => {
-                await liquidator.reApproveLiquidation(USDC.integrator) // COMP for mUSD
-                await liquidator.reApproveLiquidation(USDT.integrator) // AAVE for mUSD
-                await liquidator.reApproveLiquidation(WBTC.integrator) // AAVE for mBTC
-            })
+            liquidatorImpl = Liquidator__factory.connect("0xd6669e5778174f03Ac4B68Fe83493f6C54A10024", deployer.signer)
+            expect(await liquidatorImpl.nexus()).eq(nexusAddress)
+            expect(await liquidatorImpl.stkAave()).eq(stkAaveAddress)
+            expect(await liquidatorImpl.aaveToken()).eq(aaveAddress)
+            expect(await liquidatorImpl.uniswapRouter()).eq(uniswapRouterAddress)
+            expect(await liquidatorImpl.uniswapQuoter()).eq(uniswapQuoterAddress)
+            expect(await liquidatorImpl.compToken()).eq(compAddress)
+            expect(await liquidatorImpl.alchemixToken()).eq(alcxAddress)
+        })
+        it("Upgrade the Liquidator proxy", async () => {
+            // Update the Liquidator proxy to point to the new implementation using the delayed proxy admin
+            const delayedProxyAdminAddress = resolveAddress("DelayedProxyAdmin")
+            const delayedProxyAdmin = DelayedProxyAdmin__factory.connect(delayedProxyAdminAddress, governor.signer)
+            const liquidatorAddress = resolveAddress("Liquidator")
+            await delayedProxyAdmin.acceptUpgradeRequest(liquidatorAddress)
+
+            // Connect to the proxy with the Liquidator ABI
+            liquidator = Liquidator__factory.connect(liquidatorAddress, deployer.signer)
+        })
+        it("Reapprove mAssets to SavingsManager", async () => {
+            await liquidator.reApproveLiquidation(USDC.integrator) // COMP for mUSD
+            await liquidator.reApproveLiquidation(USDT.integrator) // AAVE for mUSD
+            await liquidator.reApproveLiquidation(WBTC.integrator) // AAVE for mBTC
         })
     })
     context("2. Beta tests", () => {
