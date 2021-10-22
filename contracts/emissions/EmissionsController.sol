@@ -118,7 +118,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         rewardToken.safeTransferFrom(msg.sender, address(this), totalRewardsAmount);
 
         // STEP 2 - Add each of the dials
-        for (uint256 i = 0; i < _recipients.length; i++) {
+        for (uint256 i = 0; i < len; i++) {
             _addDial(_recipients[i], _notifies[i]);
         }
 
