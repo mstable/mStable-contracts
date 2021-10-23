@@ -87,7 +87,7 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "mStableDAO":
                 return "0x3dd46846eed8D147841AE162C8425c08BD8E1b41"
             case "SavingsManager":
-                return "0x9781C4E9B9cc6Ac18405891DF20Ad3566FB6B301"
+                return "0xBC3B550E0349D74bF5148D86114A48C3B4Aa856F"
             case "Liquidator":
                 return "0xe595D67181D701A5356e010D9a58EB9A341f1DbD"
             case "RewardsDistributor":
