@@ -11,13 +11,16 @@ import {
     AlchemixIntegration,
     AlchemixIntegration__factory,
     FeederWrapper__factory,
+    AssetProxy__factory,
+    BoostedDualVaultTBTCv2__factory,
 } from "types/generated"
 import { simpleToExactAmount } from "@utils/math"
-import { ALCX, alUSD, BUSD, CREAM, cyMUSD, GUSD, mUSD, tokens } from "./utils/tokens"
+import { ALCX, alUSD, BUSD, CREAM, cyMUSD, GUSD, MTA, mUSD, TBTCv2, tokens } from "./utils/tokens"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getSigner } from "./utils/signerFactory"
 import { deployFeederPool, deployVault, FeederData, VaultData } from "./utils/feederUtils"
 import { getChain, getChainAddress, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
+import { verifyEtherscan } from "./utils/etherscan"
 
 task("deployFeederPool", "Deploy Feeder Pool")
     .addParam("masset", "Token symbol of mAsset. eg mUSD or PmUSD for Polygon", "mUSD", types.string)
@@ -124,6 +127,45 @@ task("deployVault", "Deploy Feeder Pool with boosted dual vault")
         }
 
         await deployVault(hre, vaultData)
+    })
+
+task("FeederWrapper-deploy", "Deploy a new FeederWrapper").setAction(async (taskArgs, hre) => {
+    const deployer = await getSigner(hre)
+    await deployContract(new FeederWrapper__factory(deployer), "FeederWrapper")
+})
+
+task("deployTBTCv2Vault", "Deploy Feeder Pool with boosted dual vault")
+    .addParam("name", "Token name of the vault. eg mUSD/alUSD fPool Vault", undefined, types.string)
+    .addParam("symbol", "Token symbol of the vault. eg v-fPmUSD/alUSD", undefined, types.string)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre)
+        const chain = getChain(hre)
+
+        if (taskArgs.name?.length < 4) throw Error(`Invalid token name ${taskArgs.name}`)
+        if (taskArgs.symbol?.length <= 0 || taskArgs.symbol?.length > 16) throw Error(`Invalid token symbol ${taskArgs.name}`)
+
+        const rewardsDistributorAddress = getChainAddress("RewardsDistributor", chain)
+        const constructorArguments = [
+            getChainAddress("Nexus", chain),
+            TBTCv2.feederPool,
+            getChainAddress("BoostDirector", chain),
+            simpleToExactAmount(48000),
+            48,
+            MTA.address,
+        ]
+        const vault = await deployContract(new BoostedDualVaultTBTCv2__factory(signer), "BoostedDualVaultTBTCv2", constructorArguments)
+
+        await verifyEtherscan(hre, {
+            address: vault.address,
+            constructorArguments,
+        })
+
+        const initializeData = vault.interface.encodeFunctionData("initialize", [rewardsDistributorAddress, taskArgs.name, taskArgs.symbol])
+        const proxyAdminAddress = getChainAddress("DelayedProxyAdmin", chain)
+
+        // Proxy
+        await deployContract(new AssetProxy__factory(signer), "AssetProxy for vault", [vault.address, proxyAdminAddress, initializeData])
     })
 
 task("FeederWrapper-deploy", "Deploy a new FeederWrapper").setAction(async (taskArgs, hre) => {
