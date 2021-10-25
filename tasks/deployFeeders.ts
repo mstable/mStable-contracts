@@ -17,7 +17,7 @@ import { ALCX, alUSD, BUSD, CREAM, cyMUSD, GUSD, mUSD, tokens } from "./utils/to
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getSigner } from "./utils/signerFactory"
 import { deployFeederPool, deployVault, FeederData, VaultData } from "./utils/feederUtils"
-import { getChain, getChainAddress, resolveToken } from "./utils/networkAddressFactory"
+import { getChain, getChainAddress, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
 
 task("deployFeederPool", "Deploy Feeder Pool")
     .addParam("masset", "Token symbol of mAsset. eg mUSD or PmUSD for Polygon", "mUSD", types.string)
@@ -99,8 +99,8 @@ task("deployVault", "Deploy Feeder Pool with boosted dual vault")
         if (taskArgs.symbol?.length <= 0 || taskArgs.symbol?.length > 16) throw Error(`Invalid token symbol ${taskArgs.name}`)
         if (taskArgs.boosted === undefined) throw Error(`Invalid boolean boost ${taskArgs.boosted}`)
 
-        const stakingToken = tokens.find((t) => t.symbol === taskArgs.stakingToken && t.chain === chain)
-        if (!stakingToken) throw Error(`Could not find staking token with symbol ${taskArgs.stakingToken}`)
+        const stakingToken = resolveToken(taskArgs.stakingToken, chain)
+        const dualRewardTokenAddress = taskArgs.dualRewardToken ? resolveAddress(taskArgs.dualRewardToken, chain) : undefined
 
         // Staking Token is for Feeder Pool, Savings Vault or the token itself. eg
         // alUSD will stake feeder pool in a v-fPmUSD/alUSD vault
@@ -113,8 +113,6 @@ task("deployVault", "Deploy Feeder Pool with boosted dual vault")
 
         if (taskArgs.price < 0 || taskArgs.price >= simpleToExactAmount(1)) throw Error(`Invalid price coefficient ${taskArgs.price}`)
 
-        const dualRewardToken = tokens.find((t) => t.symbol === taskArgs.dualRewardToken)
-
         const vaultData: VaultData = {
             boosted: taskArgs.boosted,
             name: taskArgs.name,
@@ -122,7 +120,7 @@ task("deployVault", "Deploy Feeder Pool with boosted dual vault")
             priceCoeff: simpleToExactAmount(taskArgs.price),
             stakingToken: stakingTokenAddress,
             rewardToken: rewardToken.address,
-            dualRewardToken: dualRewardToken?.address,
+            dualRewardToken: dualRewardTokenAddress,
         }
 
         await deployVault(hre, vaultData)
