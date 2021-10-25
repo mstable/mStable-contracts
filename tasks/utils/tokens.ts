@@ -108,7 +108,7 @@ export const sUSD: Token = {
     address: "0x57Ab1ec28D129707052df4dF418D58a2D46d5f51",
     chain: Chain.mainnet,
     platform: Platform.Aave,
-    integrator: "0xb9b0cfa90436c3fcbf8d8eb6ed8d0c2e3da47ca9", // Old Aave V2
+    integrator: "0xA2a3CAe63476891AB2d640d9a5A800755Ee79d6E",
     liquidityProvider: "0x35f6B052C598d933D69A4EEC4D04c73A191fE6c2", // aSUSD
     decimals: 18,
     quantityFormatter: "USD",
@@ -308,6 +308,17 @@ export const TBTC: Token = {
     vault: "0x760ea8CfDcC4e78d8b9cA3088ECD460246DC0731",
 }
 
+export const TBTCv2: Token = {
+    symbol: "tBTCv2",
+    address: "0x18084fbA666a33d37592fA2633fD49a74DD93a88",
+    chain: Chain.mainnet,
+    decimals: 18,
+    parent: "mBTC",
+    quantityFormatter: "BTC",
+    feederPool: "0xc3280306b6218031E61752d060b091278d45c329",
+    vault: "0xD6892f8e386f7230D877140C6A3f59f21052453D",
+}
+
 export const MTA: Token = {
     symbol: "MTA",
     address: "0xa3BeD4E1c75D00fa6f4E5E6922DB7261B5E9AcD2",
@@ -426,6 +437,9 @@ export const RmBPT: Token = {
 }
 
 export const tokens = [
+    AAVE,
+    stkAAVE,
+    COMP,
     MTA,
     PMTA,
     RMTA,
@@ -443,6 +457,7 @@ export const tokens = [
     WBTC,
     HBTC,
     TBTC,
+    TBTCv2,
     alUSD,
     ALCX,
     PFRAX,

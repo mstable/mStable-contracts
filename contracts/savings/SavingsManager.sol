@@ -21,8 +21,8 @@ import { YieldValidator } from "../shared/YieldValidator.sol";
  * @author  mStable
  * @notice  Savings Manager collects interest from mAssets and sends them to the
  *          corresponding Savings Contract, performing some validation in the process.
- * @dev     VERSION: 1.3
- *          DATE:    2020-12-09
+ * @dev     VERSION: 1.4
+ *          DATE:    2021-10-15
  */
 contract SavingsManager is ISavingsManager, PausableModule {
     using StableMath for uint256;
@@ -80,13 +80,24 @@ contract SavingsManager is ISavingsManager, PausableModule {
 
     constructor(
         address _nexus,
-        address _mUSD,
-        address _savingsContract,
+        address[] memory _mAssets,
+        address[] memory _savingsContracts,
+        address[] memory _revenueRecipients,
         uint256 _savingsRate,
         uint256 _duration
     ) PausableModule(_nexus) {
-        _updateSavingsContract(_mUSD, _savingsContract);
-        emit SavingsContractAdded(_mUSD, _savingsContract);
+        uint256 len = _mAssets.length;
+        require(
+            _savingsContracts.length == len && _revenueRecipients.length == len,
+            "Invalid inputs"
+        );
+        for (uint256 i = 0; i < len; i++) {
+            _updateSavingsContract(_mAssets[i], _savingsContracts[i]);
+            emit SavingsContractAdded(_mAssets[i], _savingsContracts[i]);
+
+            revenueRecipients[_mAssets[i]] = IRevenueRecipient(_revenueRecipients[i]);
+            emit RevenueRecipientSet(_mAssets[i], _revenueRecipients[i]);
+        }
         savingsRate = _savingsRate;
         DURATION = _duration;
     }
@@ -169,8 +180,8 @@ contract SavingsManager is ISavingsManager, PausableModule {
      * @param _savingsRate   Rate of savings sent to SavingsContract (100% = 1e18)
      */
     function setSavingsRate(uint256 _savingsRate) external onlyGovernor {
-        // Greater than 60% upto 100%
-        require(_savingsRate >= 6e17 && _savingsRate <= 1e18, "Must be a valid rate");
+        // Greater than 25% up to 100%
+        require(_savingsRate >= 25e16 && _savingsRate <= 1e18, "Must be a valid rate");
         savingsRate = _savingsRate;
         emit SavingsRateChanged(_savingsRate);
     }
