@@ -53,8 +53,6 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     /// @notice list of dial data including weightedVotes, rewards balance, recipient contract and disabled flag.
     DialData[] public dials;
-    /// @notice total number of staker votes across all the dials
-    uint256 public totalDialVotes;
     /// @notice mapping of staker addresses to an list of voter dial weights.
     /// @dev the sum of the weights for each staker must not be greater than SCALE = 10000.
     /// A user can issue a subset of their voting power. eg only 20% of their voting power.
@@ -199,20 +197,33 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         // TODO replace with curve rather than linear
         uint256 totalDistributionAmount = totalRewardsAmount / DISTRIBUTIONS;
 
+        // STEP 3 - Calculate the total amount of dial votes ignoring any disabled dials
+        uint256 totalDialVotes;
+        uint256 dialLen = dials.length;
         // For each dial
-        uint256 len = dials.length;
-        uint256[] memory distributionAmounts = new uint256[](len);
-        for (uint256 i = 0; i < len; i++) {
+        for (uint256 i = 0; i < dialLen; i++) {
             // STEP 3 - Calculate amount of rewards for the dial
+            uint256 dialWeightedVotes = dials[i].weightedVotes;
+            if (dialWeightedVotes == 0 || dials[i].disabled) {
+                continue;
+            }
+            totalDialVotes += dials[i].weightedVotes;
+        }
+
+        // STEP 4 - Calculate the distribution amounts for each dial
+        // For each dial
+        uint256[] memory distributionAmounts = new uint256[](dialLen);
+        for (uint256 i = 0; i < dialLen; i++) {
             uint256 dialWeightedVotes = dials[i].weightedVotes;
             // Skip dial if no votes or disabled
             if (dialWeightedVotes == 0 || dials[i].disabled) {
                 continue;
             }
+            // Calculate amount of rewards for the dial
             distributionAmounts[i] = (totalDistributionAmount * dialWeightedVotes) /
                 totalDialVotes;
 
-            // STEP 4 - Update dial's rewards balance
+            // Update dial's rewards balance
             dials[i].balance += SafeCast.toUint96(distributionAmounts[i]);
         }
 
@@ -368,7 +379,6 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
                 dials[pref.dialId].weightedVotes,
                 amountToChange
             ));
-            totalDialVotes = _op(totalDialVotes, amountToChange);
         }
     }
 

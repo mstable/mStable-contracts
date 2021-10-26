@@ -350,10 +350,8 @@ describe("EmissionsController", async () => {
                     expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(balDial3Before.add(weeklyRewards))
                 })
                 it("User 3 all weight on dial 1", async () => {
-                    expect(await emissionsController.totalDialVotes(), "total vote before").to.eq(simpleToExactAmount(900, 4))
                     // User 3 gives all 300 votes to dial 1
                     await emissionsController.connect(sa.dummy3.signer).setVoterDialWeights([{ dialId: 0, weight: 10000 }])
-                    expect(await emissionsController.totalDialVotes(), "total vote after").to.eq(simpleToExactAmount(1200, 4))
 
                     const tx = await emissionsController.calculateRewards()
 
@@ -370,10 +368,8 @@ describe("EmissionsController", async () => {
                     expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(balDial3Before.add(dial3))
                 })
                 it("User 3 all weight on dial 2", async () => {
-                    expect(await emissionsController.totalDialVotes(), "total vote before").to.eq(simpleToExactAmount(900, 4))
                     // User 3 gives all 300 votes to dial 2
                     await emissionsController.connect(sa.dummy3.signer).setVoterDialWeights([{ dialId: 1, weight: 10000 }])
-                    expect(await emissionsController.totalDialVotes(), "total vote after").to.eq(simpleToExactAmount(1200, 4))
 
                     const tx = await emissionsController.calculateRewards()
 
@@ -855,7 +851,7 @@ describe("EmissionsController", async () => {
             await emissionsController.connect(sa.dummy3.signer).setVoterDialWeights([{ dialId: 2, weight: 10000 }])
             dial3 = weeklyRewards.mul(300).div(600)
         })
-        it("Governor disables dial with votes", async () => {
+        it("Governor disables dial 1 with votes", async () => {
             expect((await emissionsController.dials(0)).disabled, "dial 1 disabled before").to.false
             const tx = await emissionsController.connect(sa.governor.signer).updateDial(0, true)
             await expect(tx).to.emit(emissionsController, "UpdatedDial").withArgs(0, true)
@@ -863,7 +859,9 @@ describe("EmissionsController", async () => {
 
             const tx2 = await emissionsController.calculateRewards()
 
-            await expect(tx2).to.emit(emissionsController, "PeriodRewards").withArgs([0, dial2, dial3])
+            const adjustedDial2 = weeklyRewards.mul(200).div(500)
+            const adjustedDial3 = weeklyRewards.mul(300).div(500)
+            await expect(tx2).to.emit(emissionsController, "PeriodRewards").withArgs([0, adjustedDial2, adjustedDial3])
         })
         it("Governor reenables dial", async () => {
             await emissionsController.connect(sa.governor.signer).updateDial(0, true)
