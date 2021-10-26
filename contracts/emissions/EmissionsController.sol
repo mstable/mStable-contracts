@@ -48,8 +48,14 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     // VOTING
 
+    /// @dev The number of staking contracts is fixed for each implementation.
+    /// More can be added but requires the proxy contract to be upgraded to a new implementation
+    uint256 constant NumStakingContract = 2;
     IVotes immutable stakingContract1;
     IVotes immutable stakingContract2;
+    // More immutable variables can be added if the contract is upgraded
+    // IVotes immutable stakingContract3;
+    // IVotes immutable stakingContract4;
 
     /// @notice list of dial data including weightedVotes, rewards balance, recipient contract and disabled flag.
     DialData[] public dials;
@@ -70,6 +76,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     modifier onlyStakingContract() {
         require(address(stakingContract1) == msg.sender ||
                 address(stakingContract2) == msg.sender,
+                // Add if contract is upgraded with more staking contracts
+                // address(stakingContract3) == msg.sender ||
+                // address(stakingContract4) == msg.sender,
                 "Must be staking contract");
         _;
     }
@@ -86,7 +95,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      */
     constructor(
         address _nexus,
-        address[2] memory _stakingContracts,
+        address[NumStakingContract] memory _stakingContracts,
         address _rewardToken,
         uint256 _totalRewardsAmount
     ) ImmutableModule(_nexus) {
@@ -97,6 +106,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         require(_stakingContracts[0] != address(0) && _stakingContracts[1] != address(0), "Staking contract address is zero");
         stakingContract1 = IVotes(_stakingContracts[0]);
         stakingContract2 = IVotes(_stakingContracts[1]);
+        // Add if contract is upgraded to include more staking contracts.
+        // stakingContract2 = IVotes(_stakingContracts[2]);
+        // stakingContract3 = IVotes(_stakingContracts[3]);
     }
 
     /**
@@ -139,6 +151,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     function getVotes(address account) public returns (uint256 votingPower) {
         votingPower = stakingContract1.getVotes(account);
         votingPower += stakingContract2.getVotes(account);
+        // Add if contract is upgraded to include more staking contracts
+        // votingPower += stakingContract3.getVotes(account);
+        // votingPower += stakingContract4.getVotes(account);
     }
 
     /***************************************
