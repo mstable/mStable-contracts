@@ -156,13 +156,14 @@ context("TBTCv2 Feeder Pool", () => {
         expect(await vault.platformToken(), "platform token after").to.eq(platformToken.address)
     })
     it("distribute MTA and Platform Token to vault", async () => {
+        const platformTokenVendorAddress = await vault.platformTokenVendor()
         expect(await rewardsToken.balanceOf(vault.address), "vault rewards before").to.eq(simpleToExactAmount(1000))
-        expect(await platformToken.balanceOf(vault.address), "vault platform tokens before").to.eq(0)
-        await platformToken.transfer(rewardsDistributor.address, simpleToExactAmount(100))
+        expect(await platformToken.balanceOf(platformTokenVendorAddress), "vault platform tokens before").to.eq(0)
+        await platformToken.transfer(vault.address, simpleToExactAmount(100))
 
         await rewardsDistributor.distributeRewards([vault.address], [simpleToExactAmount(2000)])
 
         expect(await rewardsToken.balanceOf(vault.address), "vault rewards after").to.eq(simpleToExactAmount(3000))
-        // expect(await platformToken.balanceOf(vault.address), "vault platform tokens after").to.eq(simpleToExactAmount(100))
+        expect(await platformToken.balanceOf(platformTokenVendorAddress), "vault platform tokens after").to.eq(simpleToExactAmount(100))
     })
 })

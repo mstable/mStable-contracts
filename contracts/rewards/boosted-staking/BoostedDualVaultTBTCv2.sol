@@ -134,6 +134,7 @@ contract BoostedDualVaultTBTCv2 is
     function setPlatformToken(
         address _platformToken
     ) external onlyGovernor {
+        require(address(platformToken) == address(0), "Already set");
         platformToken = IERC20(_platformToken);
         platformTokenVendor = new PlatformTokenVendor(IERC20(_platformToken));
     }
