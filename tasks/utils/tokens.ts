@@ -316,6 +316,7 @@ export const TBTCv2: Token = {
     parent: "mBTC",
     quantityFormatter: "BTC",
     feederPool: "0xc3280306b6218031E61752d060b091278d45c329",
+    vault: "0x97E2a2F97A2E9a4cFB462a49Ab7c8D205aBB9ed9",
 }
 
 export const MTA: Token = {
