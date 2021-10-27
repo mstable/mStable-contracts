@@ -7,6 +7,9 @@ import { FeederDetails, FeederMachine, MassetMachine, StandardAccounts } from "@
 
 import { DEAD_ADDRESS, MAX_UINT256, ONE_DAY, ONE_HOUR, ONE_MIN, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import {
+    DudIntegration,
+    DudIntegration__factory,
+    IPlatformIntegration__factory,
     FeederPool,
     MaliciousAaveIntegration,
     MaliciousAaveIntegration__factory,
@@ -917,6 +920,42 @@ describe("Feeder Admin", () => {
             expect(migratedBal).eq(0)
             const migratedRawBal = await transferringAsset.balanceOf(newMigration.address)
             expect(migratedRawBal).eq(rawBalBefore)
+            // old balances should be empty
+            const newRawBal = await transferringAsset.balanceOf(pool.address)
+            expect(newRawBal).eq(0)
+            // updates the integrator address
+            const [[, newIntegratorAddress]] = await pool.getBasset(transferringAsset.address)
+            expect(newIntegratorAddress).eq(newMigration.address)
+        })
+    })
+
+    describe.only("when going from platform to no platform", () => {
+        let newMigration: DudIntegration
+        let transferringAsset: MockERC20
+        before(async () => {
+            await runSetup(true, false, [1000, 1000])
+            ;[, transferringAsset] = details.bAssets
+            newMigration = await (await new DudIntegration__factory(sa.default.signer)).deploy(DEAD_ADDRESS, details.pool.address)
+        })
+        it("should migrate everything correctly", async () => {
+            const { pool } = details
+            // get balances before
+            const rawBalBefore = await (await pool.getBasset(transferringAsset.address))[1][1]
+            const integratorAddress = (await pool.getBasset(transferringAsset.address))[0][1]
+            expect(integratorAddress).not.eq(ZERO_ADDRESS)
+            const balBefore = await IPlatformIntegration__factory.connect(integratorAddress, sa.default.signer).callStatic.checkBalance(
+                transferringAsset.address,
+            )
+            expect(balBefore).gt(0)
+            // call migrate
+            const tx = pool.connect(sa.governor.signer).migrateBassets([transferringAsset.address], newMigration.address)
+            // emits BassetsMigrated
+            await expect(tx).to.emit(pool, "BassetsMigrated").withArgs([transferringAsset.address], newMigration.address)
+            // moves all bAssets from old to new
+            const migratedBal = await newMigration.callStatic.checkBalance(transferringAsset.address)
+            expect(migratedBal).eq(0)
+            const migratedRawBal = await transferringAsset.balanceOf(newMigration.address)
+            expect(migratedRawBal).eq(rawBalBefore.add(balBefore))
             // old balances should be empty
             const newRawBal = await transferringAsset.balanceOf(pool.address)
             expect(newRawBal).eq(0)
