@@ -20,6 +20,13 @@ import { AbstractIntegration } from "./AbstractIntegration.sol";
 contract DudIntegration is AbstractIntegration {
     using SafeERC20 for IERC20;
 
+    // TODO - support virtual amount here
+    uint256 pseudoDeposited = 0;
+
+    // increase on deposit
+    // decrease on totalWithdraw
+    // return balance from checkbalance
+
     /**
      * @param _nexus            Address of the Nexus
      * @param _lp               Address of LP
@@ -41,23 +48,7 @@ contract DudIntegration is AbstractIntegration {
         address _bAsset,
         uint256 _amount,
         bool _hasTxFee
-    ) external override onlyLP nonReentrant returns (uint256 quantityDeposited) {
-        require(_amount > 0, "Must deposit something");
-
-        quantityDeposited = _amount;
-
-        if (_hasTxFee) {
-            // If we charge a fee, account for it
-            uint256 prevBal = IERC20(_bAsset).balanceOf(address(this));
-            IERC20(_bAsset).safeTransferFrom(msg.sender, address(this), _amount);
-            uint256 newBal = IERC20(_bAsset).balanceOf(address(this));
-            quantityDeposited = _min(quantityDeposited, newBal - prevBal);
-        } else {
-            IERC20(_bAsset).safeTransferFrom(msg.sender, address(this), _amount);
-        }
-
-        emit Deposit(_bAsset, _bAsset, quantityDeposited);
-    }
+    ) external override onlyLP nonReentrant returns (uint256 quantityDeposited) {}
 
     /**
      * @dev Withdraw a quantity of bAsset from the platform
