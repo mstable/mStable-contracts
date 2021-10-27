@@ -48,13 +48,12 @@ contract PolygonRootRecipient is IRewardsDistributionRecipient, Initializable, I
     /**
      * @dev Initialization function for upgradable proxy contract.
      *      This function should be called via Proxy just after contract deployment.
-     *      To avoid variable shadowing appended `Arg` after arguments name.
-     * @param _rewardsDistributorArg mStable Reward Distributor contract address
+     * @param _emissionsController mStable Emissions Controller that distributes MTA rewards
      */
     function initialize(
-        address _rewardsDistributorArg
+        address _emissionsController
     ) external initializer {
-        InitializableRewardsDistributionRecipient._initialize(_rewardsDistributorArg);
+        InitializableRewardsDistributionRecipient._initialize(_emissionsController);
 
         // Approve the Polygon PoS Bridge to transfer reward tokens from this contract
         rewardsToken.safeApprove(address(rootChainManager), type(uint256).max);

@@ -2,5 +2,5 @@
 pragma solidity 0.8.6;
 
 interface IRootChainManager {
-    function depositFor(address userAddress, address rootToken, bytes memory data) external returns (uint256);
+    function depositFor(address userAddress, address rootToken, bytes memory data) external;
 }
