@@ -45,3 +45,17 @@ interface ISavingsContractV2 {
 
     function underlying() external view returns (IERC20 underlyingMasset); // V2
 }
+
+interface ISavingsContractV3 is ISavingsContractV2 {
+    function redeemAndUnwrap(
+        uint256 _amount,
+        address _bAsset,
+        address _beneficiary
+    ) external;
+
+    function depositSavings(
+        uint256 _amount,
+        address _beneficiary,
+        address _referrer
+    ) external returns (uint256 creditsIssued);
+}
