@@ -25,6 +25,7 @@ export interface Token {
     vault?: string
     savings?: string // interest-bearing savings contracts
     platformTokenVendor?: string // hold WMATIC on Polygon's v-imUSD vault
+    priceGetter?: string // Contract for price of asset, used for NonPeggedFeederPool
 }
 
 export function isToken(asset: unknown): asset is Token {
@@ -207,6 +208,31 @@ export const BUSD: Token = {
     parent: "mUSD",
     feederPool: "0xfE842e95f8911dcc21c943a1dAA4bd641a1381c6",
     vault: "0xD124B55f70D374F58455c8AEdf308E52Cf2A6207",
+}
+
+// NonPeggedFeederPool contains priceGetter
+export const RAI: Token = {
+    symbol: "RAI",
+    address: "0x03ab458634910aad20ef5f1c8ee96f1d6ac54919",
+    chain: Chain.mainnet,
+    platform: Platform.Aave,
+    integrator: "",
+    liquidityProvider: "0xc9bc48c72154ef3e5425641a3c747242112a46af", // aRAI,
+    decimals: 18,
+    quantityFormatter: "USD",
+    parent: "mUSD",
+    feederPool: "",
+    vault: "",
+    priceGetter: "0x07210B8871073228626AB79c296d9b22238f63cE",
+}
+
+// FLX token for RAI
+export const FLX: Token = {
+    symbol: "FLX",
+    address: "0x6243d8cea23066d098a15582d81a598b4e8391f4",
+    chain: Chain.mainnet,
+    decimals: 18,
+    quantityFormatter: "USD",
 }
 
 // USD Feeder Pool Assets on Mainnet
@@ -452,6 +478,8 @@ export const tokens = [
     DAI,
     GUSD,
     BUSD,
+    RAI,
+    FLX,
     renBTC,
     sBTC,
     WBTC,

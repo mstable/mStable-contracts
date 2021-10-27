@@ -7,12 +7,14 @@ import { formatEther } from "ethers/lib/utils"
 import { HardhatRuntimeEnvironment } from "hardhat/types/runtime"
 import {
     FeederPool,
+    NonPeggedFeederPool,
     BoostedVault,
     MockERC20__factory,
     MockInitializableToken__factory,
     AssetProxy__factory,
     MockERC20,
     FeederPool__factory,
+    NonPeggedFeederPool__factory,
     BoostedVault__factory,
     Masset__factory,
     BoostedDualVault,
@@ -21,6 +23,7 @@ import {
     BoostedDualVault__factory,
     StakingRewardsWithPlatformToken__factory,
     StakingRewards__factory,
+    IRedemptionPriceSnap__factory,
 } from "types/generated"
 import { deployContract } from "./deploy-utils"
 import { verifyEtherscan } from "./etherscan"
@@ -39,6 +42,7 @@ interface Config {
 export interface FeederData {
     mAsset: Token
     fAsset: Token
+    fAssetRedemptionPriceGetter?: string
     name: string
     symbol: string
     config: Config
@@ -85,8 +89,18 @@ export const deployFeederPool = async (signer: Signer, feederData: FeederData, h
         "contracts/feeders/FeederManager.sol:FeederManager": feederManagerAddress,
     }
 
-    const fpConstructorArgs = [getChainAddress("Nexus", chain), feederData.mAsset.address]
-    const impl = await deployContract(new FeederPool__factory(linkedAddress, signer), "FeederPool", fpConstructorArgs)
+    let impl: FeederPool | NonPeggedFeederPool
+    let fpConstructorArgs: Array<string>
+
+    if (feederData.fAssetRedemptionPriceGetter) {
+        // Update fAssetRedemptionPriceGetter price oracle
+        await IRedemptionPriceSnap__factory.connect(feederData.fAssetRedemptionPriceGetter, signer).updateSnappedPrice()
+        fpConstructorArgs = [getChainAddress("Nexus", chain), feederData.mAsset.address, feederData.fAssetRedemptionPriceGetter]
+        impl = await deployContract(new NonPeggedFeederPool__factory(linkedAddress, signer), "NonPeggedFeederPool", fpConstructorArgs)
+    } else {
+        fpConstructorArgs = [getChainAddress("Nexus", chain), feederData.mAsset.address]
+        impl = await deployContract(new FeederPool__factory(linkedAddress, signer), "FeederPool", fpConstructorArgs)
+    }
 
     await verifyEtherscan(hre, {
         address: impl.address,
