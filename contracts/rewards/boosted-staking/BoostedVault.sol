@@ -3,6 +3,7 @@ pragma solidity 0.8.6;
 
 // Internal
 import { IBoostedVaultWithLockup } from "../../interfaces/IBoostedVaultWithLockup.sol";
+import { ISavingsContractV3 } from "../../interfaces/ISavingsContract.sol";
 import { InitializableRewardsDistributionRecipient } from "../InitializableRewardsDistributionRecipient.sol";
 import { BoostedTokenWrapper } from "./BoostedTokenWrapper.sol";
 import { Initializable } from "../../shared/@openzeppelin-2.5/Initializable.sol";
@@ -11,6 +12,7 @@ import { Initializable } from "../../shared/@openzeppelin-2.5/Initializable.sol"
 import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { StableMath } from "../../shared/StableMath.sol";
+import "../../savings/SavingsContract.sol";
 
 /**
  * @title  BoostedVault
@@ -247,6 +249,39 @@ contract BoostedVault is
         updateBoost(msg.sender)
     {
         _withdraw(_amount);
+    }
+
+    /**
+     * @dev Withdraws given stake amount from the pool and
+     * redeems the staking token into a given asset.
+     * @param _amount        Units of the staked token to withdraw
+     * @param _minAmountOut  TODO
+     * @param _output        TODO
+     * @param _beneficiary   Address to send staked token to
+     */
+    function withdrawAndUnwrap(
+        uint256 _amount,
+        uint256 _minAmountOut,
+        address _output,
+        address _beneficiary
+    ) external updateReward(msg.sender) updateBoost(msg.sender) {
+        require(_amount > 0, "Cannot withdraw 0");
+
+        // Reduce raw balance (but do not transfer `stakingToken`)
+        _reduceRaw(_amount);
+
+        // Approve SavingsContract to spend this contract's `stakingToken`
+        IERC20(stakingToken).approve(address(stakingToken), _amount);
+
+        // Unwrap `stakingToken` into `output` and send to `beneficiary`
+        ISavingsContractV3(stakingToken).redeemAndUnwrap(
+            _amount,
+            _minAmountOut,
+            _output,
+            _beneficiary
+        );
+
+        emit Withdrawn(msg.sender, _amount);
     }
 
     /**
