@@ -34,15 +34,17 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     /// @notice minimum time between distributions
     uint256 constant DISTRIBUTION_PERIOD = 1 weeks;
-    /// @notice total number of distributions. 52 weeks * 6 years
-    uint256 constant DISTRIBUTIONS = 312;
     /// @notice scale of dial weights. 10000 = 100%, 100 = 1%, 1 = 0.01%
     uint256 constant SCALE = 10000;
 
     // HIGH LEVEL EMISSION
 
     IERC20 immutable rewardToken;
-    uint256 immutable totalRewardsAmount;
+
+    /// @notice the rewards that are still to be distributed
+    uint256 public remainingRewards;
+    /// @notice number of weekly distributions left
+    uint256 public remainingDistributions;
     /// @notice the start of the last distribution period which for 1 week periods, is 12am Thursday UTC
     uint256 public lastDistribution;
 
@@ -69,6 +71,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     event AddedDial(uint256 indexed id, address indexed recipient);
     event UpdatedDial(uint256 indexed id, bool diabled);
+    event AddedRewards(uint256 rewards);
     event PeriodRewards(uint256[] amounts);
     event DonatedRewards(uint256 indexed dialId, uint256 amount);
     event DistributedReward(uint256 indexed dialId, uint256 amount);
@@ -91,17 +94,14 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @param _nexus System nexus that resolves module addresses
      * @param _stakingContracts two staking contract with voting power
      * @param _rewardToken token that rewards are distributed in. eg MTA
-     * @param _totalRewardsAmount rewards to be distributed over the live of the emissions
      */
     constructor(
         address _nexus,
         address[NumStakingContract] memory _stakingContracts,
-        address _rewardToken,
-        uint256 _totalRewardsAmount
+        address _rewardToken
     ) ImmutableModule(_nexus) {
         require(_rewardToken != address(0), "Reward token address is zero");
         rewardToken = IERC20(_rewardToken);
-        totalRewardsAmount = _totalRewardsAmount;
 
         require(_stakingContracts[0] != address(0) && _stakingContracts[1] != address(0), "Staking contract address is zero");
         stakingContract1 = IVotes(_stakingContracts[0]);
@@ -124,8 +124,8 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         uint256 len = _recipients.length;
         require(_notifies.length == len, "Initialize args mistmatch");
 
-        // STEP 1 - Transfer all reward tokens for all future distributions to this distributor
-        rewardToken.safeTransferFrom(msg.sender, address(this), totalRewardsAmount);
+        // STEP 1 - calculate how many distributions. 52 weeks * 6 years = 312
+        remainingDistributions = 312;
 
         // STEP 2 - Add each of the dials
         for (uint256 i = 0; i < len; i++) {
@@ -195,7 +195,51 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         emit UpdatedDial(_dialId, _disabled);
     }
 
-    // TODO how will we handle platform amounts?
+    /**
+     * @notice Adds rewards to the Emission Controller for future distributions.
+     * @param from account that the rewards will be transferred from. This can be different to the msg sender.
+     * @param rewards the number of rewards to be transferred to the Emissions Controller
+     */
+    function addRewards(address from, uint256 rewards) external onlyGovernor {
+        require(rewards > 0, "Zero rewards");
+
+        rewardToken.safeTransferFrom(from, address(this), rewards);
+        remainingRewards += rewards;
+
+        emit AddedRewards(rewards);
+    }
+
+    /***************************************
+                    REWARDS-EXTERNAL
+    ****************************************/
+
+    /**
+     * @notice allows anyone to donate rewards to a dial on top of the weekly rewards.
+     * @param _dialIds Dial identifiers that will receive donated rewards
+     * @param _amounts Number of rewards to be sent to each dial including decimals.
+     */
+    function donate(uint256[] memory _dialIds, uint256[] memory _amounts) external {
+        uint256 dialLen = _dialIds.length;
+        require(dialLen > 0 && _amounts.length == dialLen, "Invalid inputs");
+
+        uint256 totalAmount;
+
+        // For each specified dial
+        for (uint256 i = 0; i < dialLen; i++) {
+            require(_dialIds[i] < dials.length, "Invalid dial id");
+
+            // Sum the rewards for each dial
+            totalAmount += _amounts[i];
+            // Add rewards to the dial's rewards balance
+            dials[_dialIds[i]].balance += SafeCast.toUint96(_amounts[i]);
+
+            emit DonatedRewards(_dialIds[i], _amounts[i]);
+        }
+
+        // Transfer the total donated rewards to this Emissions Controller contract
+        rewardToken.safeTransferFrom(msg.sender, address(this), totalAmount);
+    }
+
     /**
      * @notice calculates the rewards to be distributed to each dial
      * at the start of a period.
@@ -210,7 +254,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
         // STEP 2 - Calculate amount of rewards to distribute this week
         // TODO replace with curve rather than linear
-        uint256 totalDistributionAmount = totalRewardsAmount / DISTRIBUTIONS;
+        uint256 totalDistributionAmount = remainingRewards / remainingDistributions;
+        remainingRewards -= totalDistributionAmount;
+        remainingDistributions -= 1;
 
         // STEP 3 - Calculate the total amount of dial votes ignoring any disabled dials
         uint256 totalDialVotes;
@@ -243,33 +289,6 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         }
 
         emit PeriodRewards(distributionAmounts);
-    }
-
-    /**
-     * @notice allows anyone to donate rewards to a dial on top of the weekly rewards.
-     * @param _dialIds Dial identifiers that will receive donated rewards
-     * @param _amounts Number of rewards to be sent to each dial including decimals.
-     */
-    function donate(uint256[] memory _dialIds, uint256[] memory _amounts) external {
-        uint256 dialLen = _dialIds.length;
-        require(dialLen > 0 && _amounts.length == dialLen, "Invalid inputs");
-
-        uint256 totalAmount;
-
-        // For each specified dial
-        for (uint256 i = 0; i < dialLen; i++) {
-            require(_dialIds[i] < dials.length, "Invalid dial id");
-
-            // Sum the rewards for each dial
-            totalAmount += _amounts[i];
-            // Add rewards to the dial's rewards balance
-            dials[_dialIds[i]].balance += SafeCast.toUint96(_amounts[i]);
-
-            emit DonatedRewards(_dialIds[i], _amounts[i]);
-        }
-
-        // Transfer the total donated rewards to this Emissions Controller contract
-        rewardToken.safeTransferFrom(msg.sender, address(this), totalAmount);
     }
 
     /**

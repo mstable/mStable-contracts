@@ -57,24 +57,9 @@ contract ChildEmissionsController is Initializable, ImmutableModule {
     }
 
     /**
-     * @dev Initialize function to configure the first dials.
-     * @param _childRecipients list of contract addressess that receive rewards from the PoS Bridge.
-     * @param _endRecipients list of contract addressess that ultimately receive rewards.
-     * @dev all end recipient contracts need to implement the `IRewardsDistributionRecipient` interface.
+     * @dev Initialize from the proxy
      */
-    function initialize(
-        address[] memory _childRecipients,
-        address[] memory _endRecipients
-    ) external initializer {
-        uint256 len = _childRecipients.length;
-        require(_endRecipients.length == len, "Initialize args mistmatch");
-
-
-        // STEP 2 - Add each recipient
-        for (uint256 i = 0; i < len; i++) {
-            _addRecipients(_childRecipients[i], _endRecipients[i]);
-        }
-    }
+    function initialize() external initializer {}
 
     /***************************************
                     ADMIN
@@ -109,10 +94,15 @@ contract ChildEmissionsController is Initializable, ImmutableModule {
         for (uint256 i = 0; i < len; i++) {
             // STEP 1 - get the child recipient from the recipient map
             address childRecipient = recipientMap[_endRecipients[i]];
+            require(childRecipient != address(0), "Unmapped recipient");
 
             // STEP 2 - Get the balance of bridged rewards in the child recipient
             uint256 amount = childRewardToken.balanceOf(childRecipient);
 
+            // STEP 3 - transfer the bridged rewards to the final recipient
+            childRewardToken.safeTransferFrom(childRecipient, _endRecipients[i], amount);
+
+            // STEP 4 - notify final recipient of received rewards
             IRewardsDistributionRecipient(_endRecipients[i]).notifyRewardAmount(
                 amount
             );

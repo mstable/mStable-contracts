@@ -1,11 +1,16 @@
 import { BigNumberish } from "@ethersproject/bignumber"
 import { Contract } from "@ethersproject/contracts"
 import { formatBytes32String } from "@ethersproject/strings"
+import { Signer } from "ethers"
 import { Account } from "types/common"
 import {
     AssetProxy__factory,
     InstantProxyAdmin__factory,
     PlatformTokenVendorFactory__factory,
+    PolygonChildRecipient,
+    PolygonChildRecipient__factory,
+    PolygonRootRecipient,
+    PolygonRootRecipient__factory,
     QuestManager__factory,
     SignatureVerifier__factory,
     StakedTokenBPT__factory,
@@ -195,4 +200,43 @@ export const deployStakingToken = async (
         platformTokenVendorFactory: platformTokenVendorFactoryAddress,
         proxyAdminAddress,
     }
+}
+
+export const deployPolygonRootRecipient = async (
+    signer: Signer,
+    nexusAddress: string,
+    rewardTokenAddress: string,
+    rootChainManagerAddress: string,
+    childRecipient1Address: string,
+    emissionsController: string,
+): Promise<PolygonRootRecipient> => {
+    const impl = await deployContract(new PolygonRootRecipient__factory(signer), "PolygonRootRecipient", [
+        nexusAddress,
+        rewardTokenAddress,
+        rootChainManagerAddress,
+        childRecipient1Address,
+    ])
+
+    // Proxy
+    const data = impl.interface.encodeFunctionData("initialize", [emissionsController])
+    const delayedProxyAdminAddress = resolveAddress("DelayedProxyAdmin")
+    const proxy = await deployContract(new AssetProxy__factory(signer), "AssetProxy", [impl.address, delayedProxyAdminAddress, data])
+
+    const rootRecipient = new PolygonRootRecipient__factory(signer).attach(proxy.address)
+
+    return rootRecipient
+}
+
+export const deployPolygonChildRecipient = async (
+    signer: Signer,
+    bridgedRewardTokenAddress: string,
+    childEmissionsController: string,
+): Promise<PolygonChildRecipient> => {
+    const childRecipient = await deployContract<PolygonChildRecipient>(
+        new PolygonChildRecipient__factory(signer),
+        "PolygonChildRecipient",
+        [bridgedRewardTokenAddress, childEmissionsController],
+    )
+
+    return childRecipient
 }
