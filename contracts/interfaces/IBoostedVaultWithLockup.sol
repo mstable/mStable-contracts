@@ -39,24 +39,24 @@ interface IBoostedVaultWithLockup {
      */
     function withdraw(uint256 _amount) external;
 
-    /**
-     * @dev Withdraws given stake amount from the pool and
-     * redeems the staking token into a given asset.
-     * @param _amount        Units of the staked token to withdraw
-     * @param _minAmountOut  Minimum amount of `_output` to receive
-     * @param _output        Address of desired output b/f-Asset
-     * @param _beneficiary   Address to send output and any claimed reward to
-     * @param _router        Router to redeem/swap
-     * @param _routeType     Action of redeem/swap
-     */
-    function withdrawAndUnwrap(
-        uint256 _amount,
-        uint256 _minAmountOut,
-        address _output,
-        address _beneficiary,
-        address _router,
-        uint8 _routeType
-    ) external;
+    // /**
+    //  * @dev Withdraws given stake amount from the pool and
+    //  * redeems the staking token into a given asset.
+    //  * @param _amount        Units of the staked token to withdraw
+    //  * @param _minAmountOut  Minimum amount of `_output` to receive
+    //  * @param _output        Address of desired output b/f-Asset
+    //  * @param _beneficiary   Address to send output and any claimed reward to
+    //  * @param _router        Router to redeem/swap
+    //  * @param _routeType     Action of redeem/swap
+    //  */
+    // function withdrawAndUnwrap(
+    //     uint256 _amount,
+    //     uint256 _minAmountOut,
+    //     address _output,
+    //     address _beneficiary,
+    //     address _router,
+    //     uint8 _routeType
+    // ) external;
 
     /**
      * @dev Claims only the tokens that have been immediately unlocked, not including

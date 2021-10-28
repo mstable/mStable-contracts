@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.6;
 
+// TODO: -
+// - Passes through router & routeType. I think we can cut this down to one somehow with storage, or maybe we leave it
+// - Unwrapper set as immutable and set in constructor, needs proxy pattern for unwrapper
+
 /**
  * @title IUnwrapper
  */
