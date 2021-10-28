@@ -6,11 +6,13 @@ import { Wallet } from "@ethersproject/wallet"
 import { DEAD_ADDRESS, ONE_WEEK } from "@utils/constants"
 import { StandardAccounts } from "@utils/machines"
 import { expect } from "chai"
-import { Signer } from "ethers"
 import { ethers } from "hardhat"
 import { BN, deployContract, increaseTime, simpleToExactAmount } from "index"
+import { deployPolygonChildRecipient, deployPolygonRootRecipient } from "tasks/utils/rewardsUtils"
 import {
     AssetProxy__factory,
+    ChildEmissionsController,
+    ChildEmissionsController__factory,
     EmissionsController,
     EmissionsController__factory,
     IRootChainManager,
@@ -18,36 +20,14 @@ import {
     MockERC20__factory,
     MockNexus,
     MockNexus__factory,
+    MockRewardsDistributionRecipient,
+    MockRewardsDistributionRecipient__factory,
     MockRootChainManager__factory,
     MockStakingContract,
     MockStakingContract__factory,
+    PolygonChildRecipient,
     PolygonRootRecipient,
-    PolygonRootRecipient__factory,
 } from "types/generated"
-
-const deployPolygonRootRecipient = async (
-    signer: Signer,
-    nexusAddress: string,
-    rewardTokenAddress: string,
-    rootChainManagerAddress: string,
-    childRecipient1Address: string,
-    emissionsController: string,
-) => {
-    const impl = await deployContract(new PolygonRootRecipient__factory(signer), "PolygonRootRecipient", [
-        nexusAddress,
-        rewardTokenAddress,
-        rootChainManagerAddress,
-        childRecipient1Address,
-    ])
-
-    // Proxy
-    const data = impl.interface.encodeFunctionData("initialize", [emissionsController])
-    const proxy = await deployContract(new AssetProxy__factory(signer), "AssetProxy", [impl.address, DEAD_ADDRESS, data])
-
-    const rootRecipient = new PolygonRootRecipient__factory(signer).attach(proxy.address)
-
-    return rootRecipient
-}
 
 describe("EmissionsController Polygon Integration", async () => {
     let sa: StandardAccounts
@@ -59,8 +39,6 @@ describe("EmissionsController Polygon Integration", async () => {
     let rootChainManager: IRootChainManager
     const totalRewardsSupply = simpleToExactAmount(100000000)
     const totalRewards = simpleToExactAmount(40000000)
-    const childRecipient1 = Wallet.createRandom()
-    const childRecipient2 = Wallet.createRandom()
 
     const deployEmissionsController = async (): Promise<void> => {
         // staking contracts
@@ -70,16 +48,27 @@ describe("EmissionsController Polygon Integration", async () => {
         nexus = await new MockNexus__factory(sa.default.signer).deploy(sa.governor.address, DEAD_ADDRESS, DEAD_ADDRESS)
         rewardToken = await new MockERC20__factory(sa.default.signer).deploy("Reward", "RWD", 18, sa.default.address, totalRewardsSupply)
 
-        emissionsController = await new EmissionsController__factory(sa.default.signer).deploy(
+        // Deploy logic contract
+        const emissionsControllerImpl = await new EmissionsController__factory(sa.default.signer).deploy(
             nexus.address,
             [staking1.address, staking2.address],
             rewardToken.address,
-            totalRewards,
         )
+
+        // Deploy proxy and initialize
+        const data = emissionsControllerImpl.interface.encodeFunctionData("initialize", [[], []])
+        const proxy = await deployContract(new AssetProxy__factory(sa.default.signer), "AssetProxy", [
+            emissionsControllerImpl.address,
+            DEAD_ADDRESS,
+            data,
+        ])
+        emissionsController = new EmissionsController__factory(sa.default.signer).attach(proxy.address)
+
+        // Transfer MTA to the Emissions Controller
+        await rewardToken.transfer(emissionsController.address, totalRewards)
+
         await staking1.setGovernanceHook(emissionsController.address)
         await staking2.setGovernanceHook(emissionsController.address)
-        await rewardToken.approve(emissionsController.address, totalRewardsSupply)
-        await emissionsController.initialize([], [])
 
         rootChainManager = await new MockRootChainManager__factory(sa.default.signer).deploy()
     }
@@ -101,12 +90,14 @@ describe("EmissionsController Polygon Integration", async () => {
                 nexus.address,
                 rewardToken.address,
                 rootChainManager.address,
-                childRecipient1.address,
+                Wallet.createRandom().address,
                 emissionsController.address,
             )
         })
     })
-    describe("distribute rewards", () => {
+    describe("distribute rewards via bridge", () => {
+        const childRecipient1 = Wallet.createRandom()
+        const childRecipient2 = Wallet.createRandom()
         let rootRecipient1: PolygonRootRecipient
         let rootRecipient2: PolygonRootRecipient
         beforeEach(async () => {
@@ -139,6 +130,7 @@ describe("EmissionsController Polygon Integration", async () => {
             expect(await rewardToken.balanceOf(rootChainManager.address), "root chain manager balance before").to.eq(0)
 
             const amountRecipient1 = simpleToExactAmount(1000)
+            await rewardToken.approve(emissionsController.address, amountRecipient1)
             await emissionsController.donate([0], [amountRecipient1])
 
             const tx = await emissionsController.distributeRewards([0])
@@ -158,6 +150,7 @@ describe("EmissionsController Polygon Integration", async () => {
 
             const amountRecipient1 = simpleToExactAmount(1000)
             const amountRecipient2 = simpleToExactAmount(2000)
+            await rewardToken.approve(emissionsController.address, amountRecipient1.add(amountRecipient2))
             await emissionsController.donate([0, 1], [amountRecipient1, amountRecipient2])
 
             const tx = await emissionsController.distributeRewards([0, 1])
@@ -184,6 +177,7 @@ describe("EmissionsController Polygon Integration", async () => {
 
             const amountRecipient1 = BN.from(0)
             const amountRecipient2 = simpleToExactAmount(2000)
+            await rewardToken.approve(emissionsController.address, amountRecipient1.add(amountRecipient2))
             await emissionsController.donate([0, 1], [amountRecipient1, amountRecipient2])
 
             const tx = await emissionsController.distributeRewards([0, 1])
@@ -196,6 +190,78 @@ describe("EmissionsController Polygon Integration", async () => {
             expect(await rewardToken.balanceOf(rootRecipient1.address), "recipient 1 balance after").to.eq(0)
             expect(await rewardToken.balanceOf(rootRecipient1.address), "recipient 2 balance after").to.eq(0)
             expect(await rewardToken.balanceOf(rootChainManager.address), "root chain manager balance after").to.eq(amountRecipient2)
+        })
+    })
+    describe("receive rewards from bridge", () => {
+        let bridgedRewardToken: MockERC20
+        let childEmissionsController: ChildEmissionsController
+        let childRecipient1: PolygonChildRecipient
+        let childRecipient2: PolygonChildRecipient
+        let finalRecipient1: MockRewardsDistributionRecipient
+        let finalRecipient2: MockRewardsDistributionRecipient
+        beforeEach(async () => {
+            await deployEmissionsController()
+
+            bridgedRewardToken = await new MockERC20__factory(sa.default.signer).deploy(
+                "Bridged Reward",
+                "BRWD",
+                18,
+                sa.default.address,
+                simpleToExactAmount(10000),
+            )
+
+            const childEmissionsControllerImpl = await deployContract<ChildEmissionsController>(
+                new ChildEmissionsController__factory(sa.default.signer),
+                "ChildEmissionsController",
+                [nexus.address, bridgedRewardToken.address],
+            )
+            // Proxy
+            const data = childEmissionsControllerImpl.interface.encodeFunctionData("initialize")
+            const proxy = await deployContract(new AssetProxy__factory(sa.default.signer), "AssetProxy", [
+                childEmissionsControllerImpl.address,
+                DEAD_ADDRESS,
+                data,
+            ])
+            childEmissionsController = new ChildEmissionsController__factory(sa.default.signer).attach(proxy.address)
+
+            childRecipient1 = await deployPolygonChildRecipient(
+                sa.default.signer,
+                bridgedRewardToken.address,
+                childEmissionsController.address,
+            )
+            finalRecipient1 = await new MockRewardsDistributionRecipient__factory(sa.default.signer).deploy(
+                bridgedRewardToken.address,
+                DEAD_ADDRESS,
+            )
+            childRecipient2 = await deployPolygonChildRecipient(
+                sa.default.signer,
+                bridgedRewardToken.address,
+                childEmissionsController.address,
+            )
+            finalRecipient2 = await new MockRewardsDistributionRecipient__factory(sa.default.signer).deploy(
+                bridgedRewardToken.address,
+                DEAD_ADDRESS,
+            )
+            await childEmissionsController.connect(sa.governor.signer).addRecipients(childRecipient1.address, finalRecipient1.address)
+            await childEmissionsController.connect(sa.governor.signer).addRecipients(childRecipient2.address, finalRecipient2.address)
+        })
+        it("received rewards in both child recipients", async () => {
+            expect(await bridgedRewardToken.balanceOf(finalRecipient1.address), "final recipient 1 bal before").to.eq(0)
+            expect(await bridgedRewardToken.balanceOf(finalRecipient2.address), "final recipient 2 bal before").to.eq(0)
+
+            const amountRecipient1 = simpleToExactAmount(1000)
+            await bridgedRewardToken.transfer(childRecipient1.address, amountRecipient1)
+
+            const amountRecipient2 = simpleToExactAmount(2000)
+            await bridgedRewardToken.transfer(childRecipient2.address, amountRecipient2)
+
+            const tx = await childEmissionsController.distributeRewards([finalRecipient1.address, finalRecipient2.address])
+
+            await expect(tx).to.emit(childEmissionsController, "DistributedReward").withArgs(finalRecipient1.address, amountRecipient1)
+            await expect(tx).to.emit(childEmissionsController, "DistributedReward").withArgs(finalRecipient2.address, amountRecipient2)
+
+            expect(await bridgedRewardToken.balanceOf(finalRecipient1.address), "final recipient 1 bal after").to.eq(amountRecipient1)
+            expect(await bridgedRewardToken.balanceOf(finalRecipient2.address), "final recipient 2 bal after").to.eq(amountRecipient2)
         })
     })
 })

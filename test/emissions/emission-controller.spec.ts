@@ -6,8 +6,9 @@ import { DEAD_ADDRESS, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { StandardAccounts } from "@utils/machines"
 import { expect } from "chai"
 import { ethers } from "hardhat"
-import { increaseTime, simpleToExactAmount } from "index"
+import { deployContract, increaseTime, simpleToExactAmount } from "index"
 import {
+    AssetProxy__factory,
     EmissionsController,
     EmissionsController__factory,
     MockERC20,
@@ -46,18 +47,29 @@ describe("EmissionsController", async () => {
             const newDial = await new MockRewardsDistributionRecipient__factory(sa.default.signer).deploy(rewardToken.address, DEAD_ADDRESS)
             dials.push(newDial)
         }
+        const dialAddresses = dials.map((dial) => dial.address)
 
-        emissionsController = await new EmissionsController__factory(sa.default.signer).deploy(
+        // Deploy logic contract
+        const emissionsControllerImpl = await new EmissionsController__factory(sa.default.signer).deploy(
             nexus.address,
             [staking1.address, staking2.address],
             rewardToken.address,
-            totalRewards,
         )
+
+        // Deploy proxy and initialize
+        const data = emissionsControllerImpl.interface.encodeFunctionData("initialize", [dialAddresses, [true, true, false]])
+        const proxy = await deployContract(new AssetProxy__factory(sa.default.signer), "AssetProxy", [
+            emissionsControllerImpl.address,
+            DEAD_ADDRESS,
+            data,
+        ])
+        emissionsController = new EmissionsController__factory(sa.default.signer).attach(proxy.address)
+
+        await rewardToken.approve(emissionsController.address, totalRewards)
+        await emissionsController.connect(sa.governor.signer).addRewards(sa.default.address, totalRewards)
+
         await staking1.setGovernanceHook(emissionsController.address)
         await staking2.setGovernanceHook(emissionsController.address)
-        const dialAddresses = dials.map((dial) => dial.address)
-        await rewardToken.approve(emissionsController.address, totalRewardsSupply)
-        await emissionsController.initialize(dialAddresses, [true, true, false])
     }
 
     before(async () => {
@@ -77,7 +89,6 @@ describe("EmissionsController", async () => {
                 ZERO_ADDRESS,
                 [staking1.address, staking2.address],
                 rewardToken.address,
-                simpleToExactAmount(1000),
             )
             await expect(tx).to.revertedWith("Nexus address is zero")
         })
@@ -86,7 +97,6 @@ describe("EmissionsController", async () => {
                 nexus.address,
                 [staking1.address, staking2.address],
                 ZERO_ADDRESS,
-                simpleToExactAmount(1000),
             )
             await expect(tx).to.revertedWith("Reward token address is zero")
         })
@@ -95,7 +105,6 @@ describe("EmissionsController", async () => {
                 nexus.address,
                 [ZERO_ADDRESS, staking2.address],
                 rewardToken.address,
-                simpleToExactAmount(1000),
             )
             await expect(tx).to.revertedWith("Staking contract address is zero")
         })
@@ -104,7 +113,6 @@ describe("EmissionsController", async () => {
                 nexus.address,
                 [staking1.address, ZERO_ADDRESS],
                 rewardToken.address,
-                simpleToExactAmount(1000),
             )
             await expect(tx).to.revertedWith("Staking contract address is zero")
         })
@@ -114,7 +122,6 @@ describe("EmissionsController", async () => {
                     nexus.address,
                     [staking1.address, staking2.address],
                     rewardToken.address,
-                    simpleToExactAmount(40000000),
                 )
             })
             const tests: { desc: string; dialIndexes: number[]; notifies: boolean[] }[] = [
@@ -211,6 +218,7 @@ describe("EmissionsController", async () => {
 
                     await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([weeklyRewards, 0, 0])
 
+                    expect(await emissionsController.remainingDistributions(), "remaining dist after").to.eq(311)
                     expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(weeklyRewards)
                     expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(0)
                     expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(0)
@@ -316,6 +324,7 @@ describe("EmissionsController", async () => {
                     const dial3 = weeklyRewards.mul(600).div(900)
                     await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([dial1, dial2, dial3])
 
+                    expect(await emissionsController.remainingDistributions(), "remaining dist after").to.eq(310)
                     expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(balDial1Before.add(dial1))
                     expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(balDial2Before.add(dial2))
                     expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(balDial3Before.add(dial3))
@@ -567,6 +576,8 @@ describe("EmissionsController", async () => {
         const user3Staking1Votes = simpleToExactAmount(300)
         beforeEach(async () => {
             await deployEmissionsController()
+
+            await rewardToken.approve(emissionsController.address, totalRewardsSupply)
             await staking1.setVotes(sa.dummy1.address, user1Staking1Votes)
             await staking2.setVotes(sa.dummy1.address, user1Staking2Votes)
             await staking1.setVotes(sa.dummy2.address, user2Staking1Votes)
@@ -717,6 +728,7 @@ describe("EmissionsController", async () => {
         })
         context("Rewards in each dial", () => {
             beforeEach(async () => {
+                await rewardToken.approve(emissionsController.address, simpleToExactAmount(600))
                 await emissionsController.donate([0, 1, 2], [simpleToExactAmount(100), simpleToExactAmount(200), simpleToExactAmount(300)])
 
                 expect((await emissionsController.dials(0)).balance, "dial 1 balance before").to.eq(simpleToExactAmount(100))
@@ -884,6 +896,42 @@ describe("EmissionsController", async () => {
         it("Default user fails to update dial", async () => {
             const tx = emissionsController.updateDial(1, true)
             await expect(tx).to.revertedWith("Only governor can execute")
+        })
+    })
+    describe("add rewards", () => {
+        const extraRewards = simpleToExactAmount(20000)
+        beforeEach(async () => {
+            await deployEmissionsController()
+        })
+        it("governor adds new rewards", async () => {
+            expect(await emissionsController.remainingRewards(), "remaining rewards before").to.eq(totalRewards)
+            await rewardToken.transfer(sa.governor.address, extraRewards)
+            await rewardToken.connect(sa.governor.signer).approve(emissionsController.address, extraRewards)
+
+            const tx = await emissionsController.connect(sa.governor.signer).addRewards(sa.governor.address, extraRewards)
+
+            await expect(tx).to.emit(emissionsController, "AddedRewards").withArgs(extraRewards)
+
+            expect(await emissionsController.remainingRewards(), "remaining rewards after").to.eq(totalRewards.add(extraRewards))
+        })
+        it("governor adds rewards from different account", async () => {
+            expect(await emissionsController.remainingRewards(), "remaining rewards before").to.eq(totalRewards)
+            await rewardToken.transfer(sa.dummy1.address, extraRewards)
+            await rewardToken.connect(sa.dummy1.signer).approve(emissionsController.address, extraRewards)
+
+            const tx = await emissionsController.connect(sa.governor.signer).addRewards(sa.dummy1.address, extraRewards)
+
+            await expect(tx).to.emit(emissionsController, "AddedRewards").withArgs(extraRewards)
+
+            expect(await emissionsController.remainingRewards(), "remaining rewards after").to.eq(totalRewards.add(extraRewards))
+        })
+        it("Default user fails to add new rewards", async () => {
+            const tx = emissionsController.addRewards(sa.governor.address, extraRewards)
+            await expect(tx).to.revertedWith("Only governor can execute")
+        })
+        it("Fail to add zero rewards", async () => {
+            const tx = emissionsController.connect(sa.governor.signer).addRewards(sa.governor.address, 0)
+            await expect(tx).to.revertedWith("Zero rewards")
         })
     })
 })
