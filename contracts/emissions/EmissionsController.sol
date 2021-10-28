@@ -26,6 +26,8 @@ struct DialWeight {
  * @title  EmissionsController
  * @author mStable
  * @notice Calculates the weekly rewards to be sent to each dial based on governance votes.
+ a* @dev     VERSION: 1.0
+ *          DATE:    2021-10-28
  */
 contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule {
     using SafeERC20 for IERC20;

@@ -26,6 +26,8 @@ struct DialWeight {
  * @title  ChildEmissionsController
  * @author mStable
  * @notice Distributes the bridged rewards from the child recipients to the end recipients (vaults) on the Polygon chain.
+ * @dev     VERSION: 1.0
+ *          DATE:    2021-10-28
  */
 contract ChildEmissionsController is Initializable, ImmutableModule {
     using SafeERC20 for IERC20;
@@ -70,11 +72,11 @@ contract ChildEmissionsController is Initializable, ImmutableModule {
      * @param _childRecipient Address of the contract that will receive rewards
      * @param _endRecipient address of the contract that ultimately receive rewards and implements the `IRewardsDistributionRecipient` interface.
      */
-    function addRecipients(address _childRecipient, address _endRecipient) external onlyGovernor {
-        _addRecipients(_childRecipient, _endRecipient);
+    function addRecipient(address _childRecipient, address _endRecipient) external onlyGovernor {
+        _addRecipient(_childRecipient, _endRecipient);
     }
 
-    function _addRecipients(address _childRecipient, address _endRecipient) internal {
+    function _addRecipient(address _childRecipient, address _endRecipient) internal {
         require(_childRecipient != address(0), "Child recipient address is zero");
         require(_endRecipient != address(0), "End recipient address is zero");
 
