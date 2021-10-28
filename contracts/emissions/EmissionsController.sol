@@ -17,9 +17,9 @@ struct DialData {
     bool notify;
 }
 
-struct DialWeight {
-    uint256 dialId;
-    uint256 weight;
+struct Preference {
+    uint8 dialId;
+    uint8 weight;
 }
 
 /**
@@ -34,8 +34,8 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     /// @notice minimum time between distributions
     uint256 constant DISTRIBUTION_PERIOD = 1 weeks;
-    /// @notice scale of dial weights. 10000 = 100%, 100 = 1%, 1 = 0.01%
-    uint256 constant SCALE = 10000;
+    /// @notice scale of dial weights. 200 = 100%, 2 = 1%, 1 = 0.5%
+    uint256 constant SCALE = 200;
 
     // HIGH LEVEL EMISSION
 
@@ -65,7 +65,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     /// @dev the sum of the weights for each staker must not be greater than SCALE = 10000.
     /// A user can issue a subset of their voting power. eg only 20% of their voting power.
     /// A user can not issue more than 100% of their voting power across dials.
-    mapping(address => DialWeight[]) stakerDialWeights;
+    mapping(address => Preference[16]) public stakerPreferences;
 
     // EVENTS
 
@@ -77,12 +77,13 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     event DistributedReward(uint256 indexed dialId, uint256 amount);
 
     modifier onlyStakingContract() {
-        require(address(stakingContract1) == msg.sender ||
-                address(stakingContract2) == msg.sender,
-                // Add if contract is upgraded with more staking contracts
-                // address(stakingContract3) == msg.sender ||
-                // address(stakingContract4) == msg.sender,
-                "Must be staking contract");
+        require(
+            address(stakingContract1) == msg.sender || address(stakingContract2) == msg.sender,
+            // Add if contract is upgraded with more staking contracts
+            // address(stakingContract3) == msg.sender ||
+            // address(stakingContract4) == msg.sender,
+            "Must be staking contract"
+        );
         _;
     }
 
@@ -103,7 +104,10 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         require(_rewardToken != address(0), "Reward token address is zero");
         rewardToken = IERC20(_rewardToken);
 
-        require(_stakingContracts[0] != address(0) && _stakingContracts[1] != address(0), "Staking contract address is zero");
+        require(
+            _stakingContracts[0] != address(0) && _stakingContracts[1] != address(0),
+            "Staking contract address is zero"
+        );
         stakingContract1 = IVotes(_stakingContracts[0]);
         stakingContract2 = IVotes(_stakingContracts[1]);
         // Add if contract is upgraded to include more staking contracts.
@@ -117,12 +121,16 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @param _notifies list of dial notify flags. If true, `notifyRewardAmount` is called in the `distributeRewards` function.
      * @dev all recipient contracts need to implement the `IRewardsDistributionRecipient` interface.
      */
-    function initialize(
-        address[] memory _recipients,
-        bool[] memory _notifies
-    ) external initializer {
+    function initialize(address[] memory _recipients, bool[] memory _notifies)
+        external
+        initializer
+    {
         uint256 len = _recipients.length;
         require(_notifies.length == len, "Initialize args mistmatch");
+
+        // STEP 0 - Init the dials, setting pos0 = empty
+        _addDial(address(1), false);
+        dials[0].disabled = true;
 
         // STEP 1 - calculate how many distributions. 52 weeks * 6 years = 312
         remainingDistributions = 312;
@@ -136,7 +144,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         // for a 1 week period, this is 12am Thursday UTC
         // This means the first distribution needs to be after 12am Thursday UTC
         // It also means there is this period and next to vote beofre the first distribution
-        lastDistribution = ((block.timestamp + 1 weeks) / DISTRIBUTION_PERIOD) * DISTRIBUTION_PERIOD;
+        lastDistribution =
+            ((block.timestamp + 1 weeks) / DISTRIBUTION_PERIOD) *
+            DISTRIBUTION_PERIOD;
     }
 
     /***************************************
@@ -177,7 +187,15 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             require(dials[i].recipient != _recipient, "Dial already exists");
         }
 
-        dials.push(DialData({ weightedVotes: 0, balance: 0, recipient: _recipient, disabled: false, notify: _notify }));
+        dials.push(
+            DialData({
+                weightedVotes: 0,
+                balance: 0,
+                recipient: _recipient,
+                disabled: false,
+                notify: _notify
+            })
+        );
 
         emit AddedDial(len, _recipient);
     }
@@ -188,7 +206,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @param _disabled If true, no rewards will be distributed to this dial
      */
     function updateDial(uint256 _dialId, bool _disabled) external onlyGovernor {
-        require(_dialId < dials.length, "Invalid dial id");
+        require(_dialId > 0 && _dialId < dials.length, "Invalid dial id");
 
         dials[_dialId].disabled = _disabled;
 
@@ -225,15 +243,17 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         uint256 totalAmount;
 
         // For each specified dial
+        uint256 dialId;
         for (uint256 i = 0; i < dialLen; i++) {
-            require(_dialIds[i] < dials.length, "Invalid dial id");
+            dialId = _dialIds[i];
+            require(dialId > 0 && dialId < dials.length, "Invalid dial id");
 
             // Sum the rewards for each dial
             totalAmount += _amounts[i];
             // Add rewards to the dial's rewards balance
-            dials[_dialIds[i]].balance += SafeCast.toUint96(_amounts[i]);
+            dials[dialId].balance += SafeCast.toUint96(_amounts[i]);
 
-            emit DonatedRewards(_dialIds[i], _amounts[i]);
+            emit DonatedRewards(dialId, _amounts[i]);
         }
 
         // Transfer the total donated rewards to this Emissions Controller contract
@@ -281,8 +301,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
                 continue;
             }
             // Calculate amount of rewards for the dial
-            distributionAmounts[i] = (totalDistributionAmount * dialWeightedVotes) /
-                totalDialVotes;
+            distributionAmounts[i] = (totalDistributionAmount * dialWeightedVotes) / totalDialVotes;
 
             // Update dial's rewards balance
             dials[i].balance += SafeCast.toUint96(distributionAmounts[i]);
@@ -296,7 +315,6 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @param _dialIds Dial identifiers that will receive distributed rewards
      */
     function distributeRewards(uint256[] memory _dialIds) external {
-
         // For each specified dial
         uint256 len = _dialIds.length;
         for (uint256 i = 0; i < len; i++) {
@@ -332,36 +350,35 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     /**
      * @notice allows a staker to proportion their voting power across a number of dials
-     * @param _newDialWeights 10000 = 100%, 100 = 1%, 1 = 0.01%
+     * @param _preferences Structs containing dialId & voting weights
      * @dev a staker can proportion their voting power even if they currently have zero voting power.
      * For example, they have delegated their votes.
      * When they do have voting power, their set weights will proportion their voting power. eg they undelegate.
      */
-    function setVoterDialWeights(DialWeight[] memory _newDialWeights) external {
+    function setVoterDialWeights(Preference[] memory _preferences) external {
+        require(_preferences.length <= 16, "Maximum of 16 preferences");
         // get staker's votes
         uint256 stakerVotes = getVotes(msg.sender);
 
         // STEP 1 - adjust dial weighted votes from removed staker weighted votes
-        uint256 oldLen = stakerDialWeights[msg.sender].length;
-        if (oldLen > 0) {
-            _moveVotingPower(msg.sender, stakerVotes, _subtract);
-            // clear the old weights as they will be added back below
-            delete stakerDialWeights[msg.sender];
-        }
+        _moveVotingPower(msg.sender, stakerVotes, _subtract);
+        // clear the old weights as they will be added back below
+        delete stakerPreferences[msg.sender];
 
         // STEP 2 - adjust dial weighted votes from added staker weighted votes
         uint256 newTotalWeight;
-        uint256 newLen = _newDialWeights.length;
-        if (newLen > 0) {
-            for (uint256 i = 0; i < newLen; i++) {
-                require(_newDialWeights[i].dialId < dials.length, "Invalid dial id");
-                newTotalWeight += _newDialWeights[i].weight;
-                // Add staker's dial weight
-                stakerDialWeights[msg.sender].push(_newDialWeights[i]);
-            }
-
-            _moveVotingPower(msg.sender, stakerVotes, _add);
+        for (uint256 i = 0; i < _preferences.length; i++) {
+            require(
+                _preferences[i].dialId > 0 && _preferences[i].dialId < dials.length,
+                "Invalid dial id"
+            );
+            require(_preferences[i].weight > 0, "Must give a dial some weight");
+            newTotalWeight += _preferences[i].weight;
+            // Add staker's dial weight
+            stakerPreferences[msg.sender][i] = _preferences[i];
         }
+
+        _moveVotingPower(msg.sender, stakerVotes, _add);
 
         require(newTotalWeight <= SCALE, "Imbalanced weights");
     }
@@ -402,17 +419,17 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         uint256 _amount,
         function(uint256, uint256) pure returns (uint256) _op
     ) internal {
-        DialWeight[] memory preferences = stakerDialWeights[_voter];
-        uint256 len = preferences.length;
-        for (uint256 i = 0; i < len; i++) {
-            DialWeight memory pref = preferences[i];
+        Preference[16] memory preferences = stakerPreferences[_voter];
+        // Loop through preferences until dialId == 0 or until end
+        for (uint256 i = 0; i < 16; i++) {
+            Preference memory pref = preferences[i];
+            if (pref.dialId == 0) break;
             // e.g. 5e17 * 1e18 / 1e18 * 100e18 / 1e18
             // = 50e18
-            uint256 amountToChange = (pref.weight * _amount) / 1e18;
-            dials[pref.dialId].weightedVotes = SafeCast.toUint128(_op(
-                dials[pref.dialId].weightedVotes,
-                amountToChange
-            ));
+            uint256 amountToChange = (pref.weight * _amount) / SCALE;
+            dials[pref.dialId].weightedVotes = SafeCast.toUint128(
+                _op(dials[pref.dialId].weightedVotes, amountToChange)
+            );
         }
     }
 
