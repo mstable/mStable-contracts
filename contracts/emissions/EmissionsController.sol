@@ -202,7 +202,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @param from account that the rewards will be transferred from. This can be different to the msg sender.
      * @param rewards the number of rewards to be transferred to the Emissions Controller
      */
-    function addRewards(address from, uint256 rewards) external onlyGovernor {
+    function addRewards(address from, uint256 rewards) external {
         require(rewards > 0, "Zero rewards");
 
         rewardToken.safeTransferFrom(from, address(this), rewards);

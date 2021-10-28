@@ -903,31 +903,26 @@ describe("EmissionsController", async () => {
         beforeEach(async () => {
             await deployEmissionsController()
         })
-        it("governor adds new rewards", async () => {
+        it("adds new rewards", async () => {
             expect(await emissionsController.remainingRewards(), "remaining rewards before").to.eq(totalRewards)
-            await rewardToken.transfer(sa.governor.address, extraRewards)
-            await rewardToken.connect(sa.governor.signer).approve(emissionsController.address, extraRewards)
+            await rewardToken.approve(emissionsController.address, extraRewards)
 
-            const tx = await emissionsController.connect(sa.governor.signer).addRewards(sa.governor.address, extraRewards)
+            const tx = await emissionsController.addRewards(sa.default.address, extraRewards)
 
             await expect(tx).to.emit(emissionsController, "AddedRewards").withArgs(extraRewards)
 
             expect(await emissionsController.remainingRewards(), "remaining rewards after").to.eq(totalRewards.add(extraRewards))
         })
-        it("governor adds rewards from different account", async () => {
+        it("adds rewards from different account", async () => {
             expect(await emissionsController.remainingRewards(), "remaining rewards before").to.eq(totalRewards)
             await rewardToken.transfer(sa.dummy1.address, extraRewards)
             await rewardToken.connect(sa.dummy1.signer).approve(emissionsController.address, extraRewards)
 
-            const tx = await emissionsController.connect(sa.governor.signer).addRewards(sa.dummy1.address, extraRewards)
+            const tx = await emissionsController.addRewards(sa.dummy1.address, extraRewards)
 
             await expect(tx).to.emit(emissionsController, "AddedRewards").withArgs(extraRewards)
 
             expect(await emissionsController.remainingRewards(), "remaining rewards after").to.eq(totalRewards.add(extraRewards))
-        })
-        it("Default user fails to add new rewards", async () => {
-            const tx = emissionsController.addRewards(sa.governor.address, extraRewards)
-            await expect(tx).to.revertedWith("Only governor can execute")
         })
         it("Fail to add zero rewards", async () => {
             const tx = emissionsController.connect(sa.governor.signer).addRewards(sa.governor.address, 0)
