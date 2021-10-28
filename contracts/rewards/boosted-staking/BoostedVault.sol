@@ -12,7 +12,6 @@ import { Initializable } from "../../shared/@openzeppelin-2.5/Initializable.sol"
 import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { StableMath } from "../../shared/StableMath.sol";
-import "../../savings/SavingsContract.sol";
 
 /**
  * @title  BoostedVault
@@ -258,13 +257,17 @@ contract BoostedVault is
      * @param _minAmountOut  TODO
      * @param _output        TODO
      * @param _beneficiary   Address to send staked token to
+     * @param _router        Router to redeem/swap
+     * @param _routeType     Route action of redeem/swap
      */
     function withdrawAndUnwrap(
         uint256 _amount,
         uint256 _minAmountOut,
         address _output,
-        address _beneficiary
-    ) external updateReward(msg.sender) updateBoost(msg.sender) {
+        address _beneficiary,
+        address _router,
+        uint8 _routeType
+    ) external override updateReward(msg.sender) updateBoost(msg.sender) {
         require(_amount > 0, "Cannot withdraw 0");
 
         // Reduce raw balance (but do not transfer `stakingToken`)
@@ -274,11 +277,13 @@ contract BoostedVault is
         IERC20(stakingToken).approve(address(stakingToken), _amount);
 
         // Unwrap `stakingToken` into `output` and send to `beneficiary`
-        ISavingsContractV3(stakingToken).redeemAndUnwrap(
+        ISavingsContractV3(address(stakingToken)).redeemAndUnwrap(
             _amount,
             _minAmountOut,
             _output,
-            _beneficiary
+            _beneficiary,
+            _router,
+            _routeType
         );
 
         emit Withdrawn(msg.sender, _amount);

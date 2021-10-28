@@ -46,15 +46,49 @@ interface ISavingsContractV2 {
     function underlying() external view returns (IERC20 underlyingMasset); // V2
 }
 
-interface ISavingsContractV3 is ISavingsContractV2 {
+interface ISavingsContractV3 {
+    // DEPRECATED but still backwards compatible
+    function redeem(uint256 _amount) external returns (uint256 massetReturned);
+
+    function creditBalances(address) external view returns (uint256); // V1 & V2 (use balanceOf)
+
+    // --------------------------------------------
+
+    function depositInterest(uint256 _amount) external; // V1 & V2
+
+    function depositSavings(uint256 _amount) external returns (uint256 creditsIssued); // V1 & V2
+
+    function depositSavings(uint256 _amount, address _beneficiary)
+        external
+        returns (uint256 creditsIssued); // V2
+
+    function redeemCredits(uint256 _amount) external returns (uint256 underlyingReturned); // V2
+
+    function redeemUnderlying(uint256 _amount) external returns (uint256 creditsBurned); // V2
+
+    function exchangeRate() external view returns (uint256); // V1 & V2
+
+    function balanceOfUnderlying(address _user) external view returns (uint256 underlying); // V2
+
+    function underlyingToCredits(uint256 _underlying) external view returns (uint256 credits); // V2
+
+    function creditsToUnderlying(uint256 _credits) external view returns (uint256 underlying); // V2
+
+    function underlying() external view returns (IERC20 underlyingMasset); // V2
+
+    // --------------------------------------------
+
     function redeemAndUnwrap(
-        uint256 _amount,
-        address _bAsset,
-        address _beneficiary
-    ) external;
+        uint256 _underlying,
+        uint256 _minAmountOut,
+        address _output,
+        address _beneficiary,
+        address _router,
+        uint8 _routeType
+    ) external returns (uint256 creditsBurned);
 
     function depositSavings(
-        uint256 _amount,
+        uint256 _underlying,
         address _beneficiary,
         address _referrer
     ) external returns (uint256 creditsIssued);
