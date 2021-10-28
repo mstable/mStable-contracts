@@ -46,12 +46,16 @@ interface IBoostedVaultWithLockup {
      * @param _minAmountOut  Minimum amount of `_output` to receive
      * @param _output        Address of desired output b/f-Asset
      * @param _beneficiary   Address to send output and any claimed reward to
+     * @param _router        Router to redeem/swap
+     * @param _routeType     Action of redeem/swap
      */
     function withdrawAndUnwrap(
         uint256 _amount,
         uint256 _minAmountOut,
         address _output,
-        address _beneficiary
+        address _beneficiary,
+        address _router,
+        uint8 _routeType
     ) external;
 
     /**
