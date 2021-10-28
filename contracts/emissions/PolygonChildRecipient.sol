@@ -8,6 +8,8 @@ import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/Saf
  * @title  PolygonChildRecipient
  * @author mStable
  * @notice sends reward tokens across the Polygon PoS Bridge to a specified recipient contract on the Polygon chain.
+ * @dev     VERSION: 1.0
+ *          DATE:    2021-10-28
  */
 contract PolygonChildRecipient
 {

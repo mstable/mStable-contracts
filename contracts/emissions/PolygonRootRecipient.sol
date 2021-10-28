@@ -14,6 +14,8 @@ import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/Saf
  * @title  PolygonRootRecipient
  * @author mStable
  * @notice sends reward tokens across the Polygon PoS Bridge to a specified recipient contract on the Polygon chain.
+ * @dev     VERSION: 1.0
+ *          DATE:    2021-10-28
  */
 contract PolygonRootRecipient is IRewardsDistributionRecipient, Initializable, InitializableRewardsDistributionRecipient
 {
@@ -40,6 +42,10 @@ contract PolygonRootRecipient is IRewardsDistributionRecipient, Initializable, I
     )
         InitializableRewardsDistributionRecipient(_nexus)
     {
+        require(_rewardsToken != address(0), "Rewards token is zero");
+        require(_rootChainManager != address(0), "RootChainManager is zero");
+        require(_childRecipient != address(0), "ChildRecipient is zero");
+
         rewardsToken = IERC20(_rewardsToken);
         rootChainManager = IRootChainManager(_rootChainManager);
         childRecipient = _childRecipient;
