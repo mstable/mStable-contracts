@@ -21,4 +21,4 @@ jobs:
                       ${{ runner.os }}-yarn-
             - run: yarn
             - run: yarn compile
-            - run: yarn test:file ./test/emissions/**/*.spec.ts ./test/emissions/*.spec.ts
+            - run: yarn test:file ./test/emissions/*.spec.ts
