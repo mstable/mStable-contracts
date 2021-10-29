@@ -131,11 +131,11 @@ describe("EmissionsController Polygon Integration", async () => {
 
             const amountRecipient1 = simpleToExactAmount(1000)
             await rewardToken.approve(emissionsController.address, amountRecipient1)
-            await emissionsController.donate([0], [amountRecipient1])
+            await emissionsController.donate([1], [amountRecipient1])
 
-            const tx = await emissionsController.distributeRewards([0])
+            const tx = await emissionsController.distributeRewards([1])
 
-            await expect(tx).to.emit(emissionsController, "DistributedReward").withArgs(0, amountRecipient1)
+            await expect(tx).to.emit(emissionsController, "DistributedReward").withArgs(1, amountRecipient1)
             await expect(tx)
                 .to.emit(rootChainManager, "DepositFor")
                 .withArgs(childRecipient1.address, rewardToken.address, amountRecipient1)
@@ -151,12 +151,12 @@ describe("EmissionsController Polygon Integration", async () => {
             const amountRecipient1 = simpleToExactAmount(1000)
             const amountRecipient2 = simpleToExactAmount(2000)
             await rewardToken.approve(emissionsController.address, amountRecipient1.add(amountRecipient2))
-            await emissionsController.donate([0, 1], [amountRecipient1, amountRecipient2])
+            await emissionsController.donate([1, 2], [amountRecipient1, amountRecipient2])
 
-            const tx = await emissionsController.distributeRewards([0, 1])
+            const tx = await emissionsController.distributeRewards([1, 2])
 
-            await expect(tx).to.emit(emissionsController, "DistributedReward").withArgs(0, amountRecipient1)
-            await expect(tx).to.emit(emissionsController, "DistributedReward").withArgs(1, amountRecipient2)
+            await expect(tx).to.emit(emissionsController, "DistributedReward").withArgs(1, amountRecipient1)
+            await expect(tx).to.emit(emissionsController, "DistributedReward").withArgs(2, amountRecipient2)
             await expect(tx)
                 .to.emit(rootChainManager, "DepositFor")
                 .withArgs(childRecipient1.address, rewardToken.address, amountRecipient1)
@@ -178,11 +178,11 @@ describe("EmissionsController Polygon Integration", async () => {
             const amountRecipient1 = BN.from(0)
             const amountRecipient2 = simpleToExactAmount(2000)
             await rewardToken.approve(emissionsController.address, amountRecipient1.add(amountRecipient2))
-            await emissionsController.donate([0, 1], [amountRecipient1, amountRecipient2])
+            await emissionsController.donate([1, 2], [amountRecipient1, amountRecipient2])
 
-            const tx = await emissionsController.distributeRewards([0, 1])
+            const tx = await emissionsController.distributeRewards([1, 2])
 
-            await expect(tx).to.emit(emissionsController, "DistributedReward").withArgs(1, amountRecipient2)
+            await expect(tx).to.emit(emissionsController, "DistributedReward").withArgs(2, amountRecipient2)
             await expect(tx)
                 .to.emit(rootChainManager, "DepositFor")
                 .withArgs(childRecipient2.address, rewardToken.address, amountRecipient2)
