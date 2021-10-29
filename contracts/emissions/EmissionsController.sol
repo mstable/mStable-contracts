@@ -185,6 +185,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         require(_recipient != address(0), "Dial address is zero");
 
         uint256 len = dials.length;
+        require(len < 255, "Max dial count reached");
         for (uint256 i = 0; i < len; i++) {
             require(dials[i].recipient != _recipient, "Dial already exists");
         }
