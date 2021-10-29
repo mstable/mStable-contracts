@@ -203,6 +203,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xdccb7a6567603af223c090be4b9c83eced210f18"
             case "FraxVault":
                 return "0xc425Fd9Ed3C892d849C9E1a971516da1C1B29696"
+            case "RevenueRecipient":
+                return "0x4845A90664311F9f0c8cDb5D9B95Bb0937863380"
             default:
         }
     } else if (chain === Chain.mumbai) {
