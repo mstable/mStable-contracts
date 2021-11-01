@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-loop-func */
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-plusplus */
+import { Wallet } from "@ethersproject/wallet"
 import { DEAD_ADDRESS, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { StandardAccounts } from "@utils/machines"
 import { expect } from "chai"
@@ -50,14 +51,14 @@ describe("EmissionsController", async () => {
         const dialAddresses = dials.map((dial) => dial.address)
 
         // Deploy logic contract
-        const emissionsControllerImpl = await new EmissionsController__factory(sa.default.signer).deploy(
-            nexus.address,
-            [staking1.address, staking2.address],
-            rewardToken.address,
-        )
+        const emissionsControllerImpl = await new EmissionsController__factory(sa.default.signer).deploy(nexus.address, rewardToken.address)
 
         // Deploy proxy and initialize
-        const data = emissionsControllerImpl.interface.encodeFunctionData("initialize", [dialAddresses, [true, true, false]])
+        const data = emissionsControllerImpl.interface.encodeFunctionData("initialize", [
+            dialAddresses,
+            [true, true, false],
+            [staking1.address, staking2.address],
+        ])
         const proxy = await deployContract(new AssetProxy__factory(sa.default.signer), "AssetProxy", [
             emissionsControllerImpl.address,
             DEAD_ADDRESS,
@@ -85,69 +86,56 @@ describe("EmissionsController", async () => {
             console.log(`Emissions Controller contract size ${EmissionsController__factory.bytecode.length}`)
         })
         it("Zero nexus address", async () => {
-            const tx = new EmissionsController__factory(sa.default.signer).deploy(
-                ZERO_ADDRESS,
-                [staking1.address, staking2.address],
-                rewardToken.address,
-            )
+            const tx = new EmissionsController__factory(sa.default.signer).deploy(ZERO_ADDRESS, rewardToken.address)
             await expect(tx).to.revertedWith("Nexus address is zero")
         })
         it("Zero rewards address", async () => {
-            const tx = new EmissionsController__factory(sa.default.signer).deploy(
-                nexus.address,
-                [staking1.address, staking2.address],
-                ZERO_ADDRESS,
-            )
+            const tx = new EmissionsController__factory(sa.default.signer).deploy(nexus.address, ZERO_ADDRESS)
             await expect(tx).to.revertedWith("Reward token address is zero")
-        })
-        it("Zero first staking contract address", async () => {
-            const tx = new EmissionsController__factory(sa.default.signer).deploy(
-                nexus.address,
-                [ZERO_ADDRESS, staking2.address],
-                rewardToken.address,
-            )
-            await expect(tx).to.revertedWith("Staking contract address is zero")
-        })
-        it("Zero second staking contract address", async () => {
-            const tx = new EmissionsController__factory(sa.default.signer).deploy(
-                nexus.address,
-                [staking1.address, ZERO_ADDRESS],
-                rewardToken.address,
-            )
-            await expect(tx).to.revertedWith("Staking contract address is zero")
         })
         context("initialize recipients and notifies", () => {
             before(async () => {
-                emissionsController = await new EmissionsController__factory(sa.default.signer).deploy(
-                    nexus.address,
-                    [staking1.address, staking2.address],
-                    rewardToken.address,
-                )
+                emissionsController = await new EmissionsController__factory(sa.default.signer).deploy(nexus.address, rewardToken.address)
             })
-            const tests: { desc: string; dialIndexes: number[]; notifies: boolean[] }[] = [
+            const stakingContract1 = Wallet.createRandom()
+            const stakingContract2 = Wallet.createRandom()
+            const tests: { desc: string; dialIndexes: number[]; notifies: boolean[]; stakingContracts: string[] }[] = [
                 {
                     desc: "recipients empty",
                     dialIndexes: [],
                     notifies: [true, false],
+                    stakingContracts: [stakingContract1.address, stakingContract2.address],
                 },
                 {
                     desc: "notifies empty",
                     dialIndexes: [0, 1],
                     notifies: [],
+                    stakingContracts: [stakingContract1.address, stakingContract2.address],
                 },
                 {
                     desc: "different lengths",
                     dialIndexes: [0],
                     notifies: [true, false],
+                    stakingContracts: [stakingContract1.address, stakingContract2.address],
                 },
             ]
             for (const test of tests) {
                 it(test.desc, async () => {
                     const recipients = test.dialIndexes.map((i) => dials[i].address)
-                    const tx = emissionsController.initialize(recipients, test.notifies)
+                    const tx = emissionsController.initialize(recipients, test.notifies, test.stakingContracts)
                     await expect(tx).to.revertedWith("Initialize args mistmatch")
                 })
             }
+            it("First staking contract is zero", async () => {
+                const recipients = dials.map((d) => d.address)
+                const tx = emissionsController.initialize(recipients, [true, true, false], [ZERO_ADDRESS, staking2.address])
+                await expect(tx).to.revertedWith("Staking contract address is zero")
+            })
+            it("Second staking contract is zero", async () => {
+                const recipients = dials.map((d) => d.address)
+                const tx = emissionsController.initialize(recipients, [true, true, false], [staking1.address, ZERO_ADDRESS])
+                await expect(tx).to.revertedWith("Staking contract address is zero")
+            })
         })
     })
     describe("calculate rewards", () => {
@@ -218,7 +206,8 @@ describe("EmissionsController", async () => {
 
                     await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([0, weeklyRewards, 0, 0])
 
-                    expect(await emissionsController.remainingDistributions(), "remaining dist after").to.eq(311)
+                    const config = await emissionsController.config()
+                    expect(config.remainingDistributions, "remaining dist after").to.eq(311)
                     expect((await emissionsController.dials(1)).balance, "dial 1 balance after").to.eq(weeklyRewards)
                     expect((await emissionsController.dials(2)).balance, "dial 2 balance after").to.eq(0)
                     expect((await emissionsController.dials(3)).balance, "dial 3 balance after").to.eq(0)
@@ -324,7 +313,8 @@ describe("EmissionsController", async () => {
                     const dial3 = weeklyRewards.mul(600).div(900)
                     await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([0, dial1, dial2, dial3])
 
-                    expect(await emissionsController.remainingDistributions(), "remaining dist after").to.eq(310)
+                    const config = await emissionsController.config()
+                    expect(config.remainingDistributions, "remaining dist after").to.eq(310)
                     expect((await emissionsController.dials(1)).balance, "dial 1 balance after").to.eq(balDial1Before.add(dial1))
                     expect((await emissionsController.dials(2)).balance, "dial 2 balance after").to.eq(balDial2Before.add(dial2))
                     expect((await emissionsController.dials(3)).balance, "dial 3 balance after").to.eq(balDial3Before.add(dial3))
@@ -903,31 +893,30 @@ describe("EmissionsController", async () => {
         beforeEach(async () => {
             await deployEmissionsController()
         })
-        it("governor adds new rewards", async () => {
-            expect(await emissionsController.remainingRewards(), "remaining rewards before").to.eq(totalRewards)
-            await rewardToken.transfer(sa.governor.address, extraRewards)
-            await rewardToken.connect(sa.governor.signer).approve(emissionsController.address, extraRewards)
+        it("adds new rewards", async () => {
+            const configBefore = await emissionsController.config()
+            expect(configBefore.remainingRewards, "remaining rewards before").to.eq(totalRewards)
+            await rewardToken.approve(emissionsController.address, extraRewards)
 
-            const tx = await emissionsController.connect(sa.governor.signer).addRewards(sa.governor.address, extraRewards)
+            const tx = await emissionsController.addRewards(sa.default.address, extraRewards)
 
             await expect(tx).to.emit(emissionsController, "AddedRewards").withArgs(extraRewards)
 
-            expect(await emissionsController.remainingRewards(), "remaining rewards after").to.eq(totalRewards.add(extraRewards))
+            const configAfter = await emissionsController.config()
+            expect(configAfter.remainingRewards, "remaining rewards after").to.eq(totalRewards.add(extraRewards))
         })
-        it("governor adds rewards from different account", async () => {
-            expect(await emissionsController.remainingRewards(), "remaining rewards before").to.eq(totalRewards)
+        it("adds rewards from different account", async () => {
+            const configBefore = await emissionsController.config()
+            expect(configBefore.remainingRewards, "remaining rewards before").to.eq(totalRewards)
             await rewardToken.transfer(sa.dummy1.address, extraRewards)
             await rewardToken.connect(sa.dummy1.signer).approve(emissionsController.address, extraRewards)
 
-            const tx = await emissionsController.connect(sa.governor.signer).addRewards(sa.dummy1.address, extraRewards)
+            const tx = await emissionsController.addRewards(sa.dummy1.address, extraRewards)
 
             await expect(tx).to.emit(emissionsController, "AddedRewards").withArgs(extraRewards)
 
-            expect(await emissionsController.remainingRewards(), "remaining rewards after").to.eq(totalRewards.add(extraRewards))
-        })
-        it("Default user fails to add new rewards", async () => {
-            const tx = emissionsController.addRewards(sa.governor.address, extraRewards)
-            await expect(tx).to.revertedWith("Only governor can execute")
+            const configAfter = await emissionsController.config()
+            expect(configAfter.remainingRewards, "remaining rewards after").to.eq(totalRewards.add(extraRewards))
         })
         it("Fail to add zero rewards", async () => {
             const tx = emissionsController.connect(sa.governor.signer).addRewards(sa.governor.address, 0)

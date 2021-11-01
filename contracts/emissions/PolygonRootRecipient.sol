@@ -14,8 +14,13 @@ import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/Saf
  * @title  PolygonRootRecipient
  * @author mStable
  * @notice sends reward tokens across the Polygon PoS Bridge to a specified recipient contract on the Polygon chain.
+ * @dev     VERSION: 1.0
+ *          DATE:    2021-10-28
  */
-contract PolygonRootRecipient is IRewardsDistributionRecipient, Initializable, InitializableRewardsDistributionRecipient
+contract PolygonRootRecipient is
+    IRewardsDistributionRecipient,
+    Initializable,
+    InitializableRewardsDistributionRecipient
 {
     using SafeERC20 for IERC20;
 
@@ -37,9 +42,11 @@ contract PolygonRootRecipient is IRewardsDistributionRecipient, Initializable, I
         address _rewardsToken,
         address _rootChainManager,
         address _childRecipient
-    )
-        InitializableRewardsDistributionRecipient(_nexus)
-    {
+    ) InitializableRewardsDistributionRecipient(_nexus) {
+        require(_rewardsToken != address(0), "Rewards token is zero");
+        require(_rootChainManager != address(0), "RootChainManager is zero");
+        require(_childRecipient != address(0), "ChildRecipient is zero");
+
         rewardsToken = IERC20(_rewardsToken);
         rootChainManager = IRootChainManager(_rootChainManager);
         childRecipient = _childRecipient;
@@ -50,9 +57,7 @@ contract PolygonRootRecipient is IRewardsDistributionRecipient, Initializable, I
      *      This function should be called via Proxy just after contract deployment.
      * @param _emissionsController mStable Emissions Controller that distributes MTA rewards
      */
-    function initialize(
-        address _emissionsController
-    ) external initializer {
+    function initialize(address _emissionsController) external initializer {
         InitializableRewardsDistributionRecipient._initialize(_emissionsController);
 
         // Approve the Polygon PoS Bridge to transfer reward tokens from this contract

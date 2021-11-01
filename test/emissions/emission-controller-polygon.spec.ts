@@ -3,7 +3,7 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-plusplus */
 import { Wallet } from "@ethersproject/wallet"
-import { DEAD_ADDRESS, ONE_WEEK } from "@utils/constants"
+import { DEAD_ADDRESS, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { StandardAccounts } from "@utils/machines"
 import { expect } from "chai"
 import { ethers } from "hardhat"
@@ -27,6 +27,7 @@ import {
     MockStakingContract__factory,
     PolygonChildRecipient,
     PolygonRootRecipient,
+    PolygonRootRecipient__factory,
 } from "types/generated"
 
 describe("EmissionsController Polygon Integration", async () => {
@@ -49,14 +50,10 @@ describe("EmissionsController Polygon Integration", async () => {
         rewardToken = await new MockERC20__factory(sa.default.signer).deploy("Reward", "RWD", 18, sa.default.address, totalRewardsSupply)
 
         // Deploy logic contract
-        const emissionsControllerImpl = await new EmissionsController__factory(sa.default.signer).deploy(
-            nexus.address,
-            [staking1.address, staking2.address],
-            rewardToken.address,
-        )
+        const emissionsControllerImpl = await new EmissionsController__factory(sa.default.signer).deploy(nexus.address, rewardToken.address)
 
         // Deploy proxy and initialize
-        const data = emissionsControllerImpl.interface.encodeFunctionData("initialize", [[], []])
+        const data = emissionsControllerImpl.interface.encodeFunctionData("initialize", [[], [], [staking1.address, staking2.address]])
         const proxy = await deployContract(new AssetProxy__factory(sa.default.signer), "AssetProxy", [
             emissionsControllerImpl.address,
             DEAD_ADDRESS,
@@ -93,6 +90,42 @@ describe("EmissionsController Polygon Integration", async () => {
                 Wallet.createRandom().address,
                 emissionsController.address,
             )
+        })
+        it("fail when zero nexus", async () => {
+            const tx = new PolygonRootRecipient__factory(sa.default.signer).deploy(
+                ZERO_ADDRESS,
+                rewardToken.address,
+                rootChainManager.address,
+                sa.dummy1.address,
+            )
+            await expect(tx).to.revertedWith("Nexus address is zero")
+        })
+        it("fail when zero rewards token", async () => {
+            const tx = new PolygonRootRecipient__factory(sa.default.signer).deploy(
+                nexus.address,
+                ZERO_ADDRESS,
+                rootChainManager.address,
+                sa.dummy1.address,
+            )
+            await expect(tx).to.revertedWith("Rewards token is zero")
+        })
+        it("fail when zero root chain manager", async () => {
+            const tx = new PolygonRootRecipient__factory(sa.default.signer).deploy(
+                nexus.address,
+                rewardToken.address,
+                ZERO_ADDRESS,
+                sa.dummy1.address,
+            )
+            await expect(tx).to.revertedWith("RootChainManager is zero")
+        })
+        it("fail when zero child recipient", async () => {
+            const tx = new PolygonRootRecipient__factory(sa.default.signer).deploy(
+                nexus.address,
+                rewardToken.address,
+                rootChainManager.address,
+                ZERO_ADDRESS,
+            )
+            await expect(tx).to.revertedWith("ChildRecipient is zero")
         })
     })
     describe("distribute rewards via bridge", () => {
@@ -191,6 +224,15 @@ describe("EmissionsController Polygon Integration", async () => {
             expect(await rewardToken.balanceOf(rootRecipient1.address), "recipient 2 balance after").to.eq(0)
             expect(await rewardToken.balanceOf(rootChainManager.address), "root chain manager balance after").to.eq(amountRecipient2)
         })
+        it("get rewards token from root recipient", async () => {
+            expect(await rootRecipient1.getRewardToken()).to.eq(rewardToken.address)
+        })
+        context("fail to notify reward amount", () => {
+            it("when not emissions controller", async () => {
+                const tx = rootRecipient1.notifyRewardAmount(1)
+                await expect(tx).revertedWith("Caller is not reward distributor")
+            })
+        })
     })
     describe("receive rewards from bridge", () => {
         let bridgedRewardToken: MockERC20
@@ -242,8 +284,8 @@ describe("EmissionsController Polygon Integration", async () => {
                 bridgedRewardToken.address,
                 DEAD_ADDRESS,
             )
-            await childEmissionsController.connect(sa.governor.signer).addRecipients(childRecipient1.address, finalRecipient1.address)
-            await childEmissionsController.connect(sa.governor.signer).addRecipients(childRecipient2.address, finalRecipient2.address)
+            await childEmissionsController.connect(sa.governor.signer).addRecipient(childRecipient1.address, finalRecipient1.address)
+            await childEmissionsController.connect(sa.governor.signer).addRecipient(childRecipient2.address, finalRecipient2.address)
         })
         it("received rewards in both child recipients", async () => {
             expect(await bridgedRewardToken.balanceOf(finalRecipient1.address), "final recipient 1 bal before").to.eq(0)
@@ -262,6 +304,30 @@ describe("EmissionsController Polygon Integration", async () => {
 
             expect(await bridgedRewardToken.balanceOf(finalRecipient1.address), "final recipient 1 bal after").to.eq(amountRecipient1)
             expect(await bridgedRewardToken.balanceOf(finalRecipient2.address), "final recipient 2 bal after").to.eq(amountRecipient2)
+        })
+        context("fail to add recipient", () => {
+            it("no child recipient", async () => {
+                const tx = childEmissionsController.connect(sa.governor.signer).addRecipient(ZERO_ADDRESS, sa.dummy1.address)
+                await expect(tx).to.revertedWith("Child recipient address is zero")
+            })
+            it("no end recipient", async () => {
+                const tx = childEmissionsController.connect(sa.governor.signer).addRecipient(sa.dummy1.address, ZERO_ADDRESS)
+                await expect(tx).to.revertedWith("End recipient address is zero")
+            })
+        })
+        it("fail to distribute to unmapped end recipient", async () => {
+            const tx = childEmissionsController.distributeRewards([sa.dummy1.address])
+            await expect(tx).to.revertedWith("Unmapped recipient")
+        })
+    })
+    context("fail to deploy child emissions controller when", () => {
+        it("no nexus", async () => {
+            const tx = new ChildEmissionsController__factory(sa.default.signer).deploy(ZERO_ADDRESS, sa.dummy1.address)
+            await expect(tx).to.revertedWith("Nexus address is zero")
+        })
+        it("no child rewards token", async () => {
+            const tx = new ChildEmissionsController__factory(sa.default.signer).deploy(sa.dummy1.address, ZERO_ADDRESS)
+            await expect(tx).to.revertedWith("Reward token address is zero")
         })
     })
 })
