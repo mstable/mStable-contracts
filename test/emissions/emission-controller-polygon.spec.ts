@@ -50,14 +50,10 @@ describe("EmissionsController Polygon Integration", async () => {
         rewardToken = await new MockERC20__factory(sa.default.signer).deploy("Reward", "RWD", 18, sa.default.address, totalRewardsSupply)
 
         // Deploy logic contract
-        const emissionsControllerImpl = await new EmissionsController__factory(sa.default.signer).deploy(
-            nexus.address,
-            [staking1.address, staking2.address],
-            rewardToken.address,
-        )
+        const emissionsControllerImpl = await new EmissionsController__factory(sa.default.signer).deploy(nexus.address, rewardToken.address)
 
         // Deploy proxy and initialize
-        const data = emissionsControllerImpl.interface.encodeFunctionData("initialize", [[], []])
+        const data = emissionsControllerImpl.interface.encodeFunctionData("initialize", [[], [], [staking1.address, staking2.address]])
         const proxy = await deployContract(new AssetProxy__factory(sa.default.signer), "AssetProxy", [
             emissionsControllerImpl.address,
             DEAD_ADDRESS,

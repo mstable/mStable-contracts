@@ -52,14 +52,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     // VOTING
 
-    /// @dev The number of staking contracts is fixed for each implementation.
-    /// More can be added but requires the proxy contract to be upgraded to a new implementation
-    uint256 constant NumStakingContract = 2;
-    IVotes immutable stakingContract1;
-    IVotes immutable stakingContract2;
-    // More immutable variables can be added if the contract is upgraded
-    // IVotes immutable stakingContract3;
-    // IVotes immutable stakingContract4;
+    mapping(address => bool) public isStakingContract;
+    IVotes[] public stakingContracts;
+
 
     /// @notice list of dial data including weightedVotes, rewards balance, recipient contract and disabled flag.
     DialData[] public dials;
@@ -73,6 +68,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     event AddedDial(uint256 indexed id, address indexed recipient);
     event UpdatedDial(uint256 indexed id, bool diabled);
+    event AddStakingContract(address indexed stakingContract);
     event AddedRewards(uint256 rewards);
     event PeriodRewards(uint256[] amounts);
     event DonatedRewards(uint256 indexed dialId, uint256 amount);
@@ -80,10 +76,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     modifier onlyStakingContract() {
         require(
-            address(stakingContract1) == msg.sender || address(stakingContract2) == msg.sender,
-            // Add if contract is upgraded with more staking contracts
-            // address(stakingContract3) == msg.sender ||
-            // address(stakingContract4) == msg.sender,
+            isStakingContract[msg.sender],
             "Must be staking contract"
         );
         _;
@@ -95,35 +88,29 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     /** @notice Recipient is a module, governed by mStable governance
      * @param _nexus System nexus that resolves module addresses
-     * @param _stakingContracts two staking contract with voting power
      * @param _rewardToken token that rewards are distributed in. eg MTA
      */
     constructor(
         address _nexus,
-        address[NumStakingContract] memory _stakingContracts,
         address _rewardToken
     ) ImmutableModule(_nexus) {
         require(_rewardToken != address(0), "Reward token address is zero");
         rewardToken = IERC20(_rewardToken);
 
-        require(
-            _stakingContracts[0] != address(0) && _stakingContracts[1] != address(0),
-            "Staking contract address is zero"
-        );
-        stakingContract1 = IVotes(_stakingContracts[0]);
-        stakingContract2 = IVotes(_stakingContracts[1]);
-        // Add if contract is upgraded to include more staking contracts.
-        // stakingContract2 = IVotes(_stakingContracts[2]);
-        // stakingContract3 = IVotes(_stakingContracts[3]);
+        
     }
 
     /**
      * @dev Initialize function to configure the first dials.
      * @param _recipients list of dial contract addressess that can receive rewards.
      * @param _notifies list of dial notify flags. If true, `notifyRewardAmount` is called in the `distributeRewards` function.
+     * @param _stakingContracts two staking contract with voting power
      * @dev all recipient contracts need to implement the `IRewardsDistributionRecipient` interface.
      */
-    function initialize(address[] memory _recipients, bool[] memory _notifies)
+    function initialize(
+        address[] memory _recipients,
+        bool[] memory _notifies,
+        address[] memory _stakingContracts)
         external
         initializer
     {
@@ -149,6 +136,11 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         lastDistribution =
             ((block.timestamp + 1 weeks) / DISTRIBUTION_PERIOD) *
             DISTRIBUTION_PERIOD;
+        
+        // STEP 4 - initialize the staking contracts
+        for (uint256 i = 0; i < _stakingContracts.length; i++) {
+            _addStakingContract(_stakingContracts[i]);
+        }
     }
 
     /***************************************
@@ -161,11 +153,10 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @param account that has voting power.
      */
     function getVotes(address account) public returns (uint256 votingPower) {
-        votingPower = stakingContract1.getVotes(account);
-        votingPower += stakingContract2.getVotes(account);
-        // Add if contract is upgraded to include more staking contracts
-        // votingPower += stakingContract3.getVotes(account);
-        // votingPower += stakingContract4.getVotes(account);
+        // For each configured staking contract
+        for (uint256 i = 0; i < stakingContracts.length; i++) {
+            votingPower += stakingContracts[i].getVotes(account);
+        }
     }
 
     /***************************************
@@ -230,6 +221,20 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         emit AddedRewards(rewards);
     }
 
+    function addStakingContract(address _stakingContract) external onlyGovernor {
+        _addStakingContract(_stakingContract);
+    }
+
+    function _addStakingContract(address _stakingContract) internal {
+        require(_stakingContract != address(0), "Staking contract address is zero");
+
+        isStakingContract[_stakingContract] = true;
+        stakingContracts.push(IVotes(_stakingContract));
+
+        emit AddStakingContract(_stakingContract);
+    }
+
+
     /***************************************
                     REWARDS-EXTERNAL
     ****************************************/
@@ -276,10 +281,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         lastDistribution = lastDistribution + DISTRIBUTION_PERIOD;
 
         // STEP 2 - Calculate amount of rewards to distribute this week
-        // TODO replace with curve rather than linear
-        uint256 totalDistributionAmount = remainingRewards / remainingDistributions;
-        remainingRewards -= totalDistributionAmount;
-        remainingDistributions -= 1;
+        uint256 totalDistributionAmount = calculateDistributionAmount();
 
         // STEP 3 - Calculate the total amount of dial votes ignoring any disabled dials
         uint256 totalDialVotes;
@@ -345,6 +347,19 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             // STEP 4 - Reset the balance in storage back to 0
             dials[_dialIds[i]].balance = 0;
         }
+    }
+
+    /***************************************
+                    REWARDS-INTERNAL
+    ****************************************/
+
+    // Calculate amount of rewards to distribute this week
+    // ALso updates the remaining rewards and distributions storage variables.
+    // TODO replace with curve rather than linear
+    function calculateDistributionAmount() internal returns (uint256 totalDistributionAmount) {
+        totalDistributionAmount = remainingRewards / remainingDistributions;
+        remainingRewards -= totalDistributionAmount;
+        remainingDistributions -= 1;
     }
 
     /***************************************
