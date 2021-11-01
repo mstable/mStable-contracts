@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-loop-func */
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-plusplus */
+import { Wallet } from "@ethersproject/wallet"
 import { DEAD_ADDRESS, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { StandardAccounts } from "@utils/machines"
 import { expect } from "chai"
@@ -50,14 +51,14 @@ describe("EmissionsController", async () => {
         const dialAddresses = dials.map((dial) => dial.address)
 
         // Deploy logic contract
-        const emissionsControllerImpl = await new EmissionsController__factory(sa.default.signer).deploy(
-            nexus.address,
-            [staking1.address, staking2.address],
-            rewardToken.address,
-        )
+        const emissionsControllerImpl = await new EmissionsController__factory(sa.default.signer).deploy(nexus.address, rewardToken.address)
 
         // Deploy proxy and initialize
-        const data = emissionsControllerImpl.interface.encodeFunctionData("initialize", [dialAddresses, [true, true, false]])
+        const data = emissionsControllerImpl.interface.encodeFunctionData("initialize", [
+            dialAddresses,
+            [true, true, false],
+            [staking1.address, staking2.address],
+        ])
         const proxy = await deployContract(new AssetProxy__factory(sa.default.signer), "AssetProxy", [
             emissionsControllerImpl.address,
             DEAD_ADDRESS,
@@ -85,69 +86,56 @@ describe("EmissionsController", async () => {
             console.log(`Emissions Controller contract size ${EmissionsController__factory.bytecode.length}`)
         })
         it("Zero nexus address", async () => {
-            const tx = new EmissionsController__factory(sa.default.signer).deploy(
-                ZERO_ADDRESS,
-                [staking1.address, staking2.address],
-                rewardToken.address,
-            )
+            const tx = new EmissionsController__factory(sa.default.signer).deploy(ZERO_ADDRESS, rewardToken.address)
             await expect(tx).to.revertedWith("Nexus address is zero")
         })
         it("Zero rewards address", async () => {
-            const tx = new EmissionsController__factory(sa.default.signer).deploy(
-                nexus.address,
-                [staking1.address, staking2.address],
-                ZERO_ADDRESS,
-            )
+            const tx = new EmissionsController__factory(sa.default.signer).deploy(nexus.address, ZERO_ADDRESS)
             await expect(tx).to.revertedWith("Reward token address is zero")
-        })
-        it("Zero first staking contract address", async () => {
-            const tx = new EmissionsController__factory(sa.default.signer).deploy(
-                nexus.address,
-                [ZERO_ADDRESS, staking2.address],
-                rewardToken.address,
-            )
-            await expect(tx).to.revertedWith("Staking contract address is zero")
-        })
-        it("Zero second staking contract address", async () => {
-            const tx = new EmissionsController__factory(sa.default.signer).deploy(
-                nexus.address,
-                [staking1.address, ZERO_ADDRESS],
-                rewardToken.address,
-            )
-            await expect(tx).to.revertedWith("Staking contract address is zero")
         })
         context("initialize recipients and notifies", () => {
             before(async () => {
-                emissionsController = await new EmissionsController__factory(sa.default.signer).deploy(
-                    nexus.address,
-                    [staking1.address, staking2.address],
-                    rewardToken.address,
-                )
+                emissionsController = await new EmissionsController__factory(sa.default.signer).deploy(nexus.address, rewardToken.address)
             })
-            const tests: { desc: string; dialIndexes: number[]; notifies: boolean[] }[] = [
+            const stakingContract1 = Wallet.createRandom()
+            const stakingContract2 = Wallet.createRandom()
+            const tests: { desc: string; dialIndexes: number[]; notifies: boolean[]; stakingContracts: string[] }[] = [
                 {
                     desc: "recipients empty",
                     dialIndexes: [],
                     notifies: [true, false],
+                    stakingContracts: [stakingContract1.address, stakingContract2.address],
                 },
                 {
                     desc: "notifies empty",
                     dialIndexes: [0, 1],
                     notifies: [],
+                    stakingContracts: [stakingContract1.address, stakingContract2.address],
                 },
                 {
                     desc: "different lengths",
                     dialIndexes: [0],
                     notifies: [true, false],
+                    stakingContracts: [stakingContract1.address, stakingContract2.address],
                 },
             ]
             for (const test of tests) {
                 it(test.desc, async () => {
                     const recipients = test.dialIndexes.map((i) => dials[i].address)
-                    const tx = emissionsController.initialize(recipients, test.notifies)
+                    const tx = emissionsController.initialize(recipients, test.notifies, test.stakingContracts)
                     await expect(tx).to.revertedWith("Initialize args mistmatch")
                 })
             }
+            it("First staking contract is zero", async () => {
+                const recipients = dials.map((d) => d.address)
+                const tx = emissionsController.initialize(recipients, [true, true, false], [ZERO_ADDRESS, staking2.address])
+                await expect(tx).to.revertedWith("Staking contract address is zero")
+            })
+            it("Second staking contract is zero", async () => {
+                const recipients = dials.map((d) => d.address)
+                const tx = emissionsController.initialize(recipients, [true, true, false], [staking1.address, ZERO_ADDRESS])
+                await expect(tx).to.revertedWith("Staking contract address is zero")
+            })
         })
     })
     describe("calculate rewards", () => {
