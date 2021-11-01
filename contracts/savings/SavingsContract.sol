@@ -363,7 +363,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
      * @param _output         Asset to unwrap from underlying
      * @param _beneficiary    Address to send `asset` to
      * @param _router         Router address = mAsset || feederPool
-     * @param _routeType      Route type = 0 || 1 -> redeem || swap
+     * @param _routeIndex     Route type = 0 || 1 -> redeem || swap
      * @return creditsBurned  Units of credits burned from sender
      */
     function redeemAndUnwrap(
@@ -372,7 +372,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         address _output,
         address _beneficiary,
         address _router,
-        uint8 _routeType
+        uint8 _routeIndex
     ) external override returns (uint256 creditsBurned) {
         require(_underlying > 0, "Must withdraw something");
 
@@ -390,7 +390,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
 
         // Unwrap the underlying into `output` and transfer to `beneficiary`
         IUnwrapper(unwrapper).unwrapAndSend(
-            _routeType,
+            _routeIndex,
             _router,
             address(underlying),
             _output,
