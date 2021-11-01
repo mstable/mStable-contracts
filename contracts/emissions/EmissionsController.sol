@@ -183,7 +183,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         require(_recipient != address(0), "Dial address is zero");
 
         uint256 len = dials.length;
-        require(len < 255, "Max dial count reached");
+        require(len < 254, "Max dial count reached");
         for (uint256 i = 0; i < len; i++) {
             require(dials[i].recipient != _recipient, "Dial already exists");
         }
@@ -378,6 +378,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             // Add staker's dial weight
             stakerPreferences[msg.sender][i] = _preferences[i];
         }
+        if (_preferences.length < 16) {
+            stakerPreferences[msg.sender][_preferences.length] = Preference(255, 0);
+        }
 
         _moveVotingPower(msg.sender, stakerVotes, _add);
 
@@ -424,7 +427,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         // Loop through preferences until dialId == 0 or until end
         for (uint256 i = 0; i < 16; i++) {
             Preference memory pref = preferences[i];
-            if (pref.dialId == 0) break;
+            if (pref.dialId == 255) break;
             // e.g. 5e17 * 1e18 / 1e18 * 100e18 / 1e18
             // = 50e18
             uint256 amountToChange = (pref.weight * _amount) / SCALE;
