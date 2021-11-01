@@ -22,6 +22,15 @@ struct Preference {
     uint8 weight;
 }
 
+struct EmissionsConfig {
+    // 2^88 = 309m which is > 100m total MTA
+    uint128 remainingRewards;
+    // 2^16 = 65,536
+    uint16 remainingDistributions;
+    // 2^32 goes until February 2106
+    uint32 startLastCalculatedPeriod;
+}
+
 /**
  * @title  EmissionsController
  * @author mStable
@@ -34,25 +43,24 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     // CONST
 
-    /// @notice minimum time between distributions
-    uint256 constant DISTRIBUTION_PERIOD = 1 weeks;
-    /// @notice scale of dial weights. 200 = 100%, 2 = 1%, 1 = 0.5%
+    /// @notice Minimum time between distributions.
+    uint32 constant DISTRIBUTION_PERIOD = 1 weeks;
+    /// @notice Scale of dial weights. 200 = 100%, 2 = 1%, 1 = 0.5%
     uint256 constant SCALE = 200;
 
     // HIGH LEVEL EMISSION
 
+    /// @notice address of rewards token. ie MTA token
     IERC20 immutable rewardToken;
 
-    /// @notice the rewards that are still to be distributed
-    uint256 public remainingRewards;
-    /// @notice number of weekly distributions left
-    uint256 public remainingDistributions;
-    /// @notice the start of the last distribution period which for 1 week periods, is 12am Thursday UTC
-    uint256 public lastDistribution;
+    /// @dev integer configs packed into one slot
+    EmissionsConfig public config;
 
     // VOTING
 
+    /// @notice flags if a contract address is a staking contract
     mapping(address => bool) public isStakingContract;
+    /// @notice list of staking contract addresses.
     IVotes[] public stakingContracts;
 
 
@@ -122,19 +130,18 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         dials[0].disabled = true;
 
         // STEP 1 - calculate how many distributions. 52 weeks * 6 years = 312
-        remainingDistributions = 312;
+        config.remainingDistributions = 312;
 
         // STEP 2 - Add each of the dials
         for (uint256 i = 0; i < len; i++) {
             _addDial(_recipients[i], _notifies[i]);
         }
 
-        // STEP 3 - the last distribution will be set at the end of the current time period.
-        // for a 1 week period, this is 12am Thursday UTC
-        // This means the first distribution needs to be after 12am Thursday UTC
-        // It also means there is this period and next to vote beofre the first distribution
-        lastDistribution =
-            ((block.timestamp + 1 weeks) / DISTRIBUTION_PERIOD) *
+        // STEP 3 - the start of the last distribution will be set at the end of the current time period.
+        // This means there is the current period and the next period to vote before the first distribution.
+        // That is, will be at least 1 week and max of 2 weeks to vote before the first distribution is calculated.
+        config.startLastCalculatedPeriod =
+            (SafeCast.toUint32(block.timestamp + 1 weeks) / DISTRIBUTION_PERIOD) *
             DISTRIBUTION_PERIOD;
         
         // STEP 4 - initialize the staking contracts
@@ -216,11 +223,15 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         require(rewards > 0, "Zero rewards");
 
         rewardToken.safeTransferFrom(from, address(this), rewards);
-        remainingRewards += rewards;
+        config.remainingRewards += SafeCast.toUint128(rewards);
 
         emit AddedRewards(rewards);
     }
 
+    /**
+     * @notice Adds a new contract to the list of approved staking contracts.
+     * @param _stakingContract address of the new staking contracts.
+     */
     function addStakingContract(address _stakingContract) external onlyGovernor {
         _addStakingContract(_stakingContract);
     }
@@ -273,22 +284,15 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * at the start of a period.
      */
     function calculateRewards() external {
-        // STEP 1 - check a new period has started
-        require(
-            block.timestamp > lastDistribution + DISTRIBUTION_PERIOD,
-            "Must wait for new period"
-        );
-        lastDistribution = lastDistribution + DISTRIBUTION_PERIOD;
-
-        // STEP 2 - Calculate amount of rewards to distribute this week
+        // STEP 1 - Calculate amount of rewards to distribute this week
         uint256 totalDistributionAmount = calculateDistributionAmount();
 
-        // STEP 3 - Calculate the total amount of dial votes ignoring any disabled dials
+        // STEP 2 - Calculate the total amount of dial votes ignoring any disabled dials
         uint256 totalDialVotes;
         uint256 dialLen = dials.length;
         // For each dial
         for (uint256 i = 0; i < dialLen; i++) {
-            // STEP 3 - Calculate amount of rewards for the dial
+            // Calculate amount of rewards for the dial
             uint256 dialWeightedVotes = dials[i].weightedVotes;
             if (dialWeightedVotes == 0 || dials[i].disabled) {
                 continue;
@@ -296,7 +300,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             totalDialVotes += dials[i].weightedVotes;
         }
 
-        // STEP 4 - Calculate the distribution amounts for each dial
+        // STEP 3 - Calculate the distribution amounts for each dial
         // For each dial
         uint256[] memory distributionAmounts = new uint256[](dialLen);
         for (uint256 i = 0; i < dialLen; i++) {
@@ -357,9 +361,16 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     // ALso updates the remaining rewards and distributions storage variables.
     // TODO replace with curve rather than linear
     function calculateDistributionAmount() internal returns (uint256 totalDistributionAmount) {
-        totalDistributionAmount = remainingRewards / remainingDistributions;
-        remainingRewards -= totalDistributionAmount;
-        remainingDistributions -= 1;
+        EmissionsConfig memory configMem = config;
+        require(
+            block.timestamp > configMem.startLastCalculatedPeriod + DISTRIBUTION_PERIOD,
+            "Must wait for new period"
+        );
+        config.startLastCalculatedPeriod = configMem.startLastCalculatedPeriod + DISTRIBUTION_PERIOD;
+
+        totalDistributionAmount = configMem.remainingRewards / configMem.remainingDistributions;
+        config.remainingRewards -= SafeCast.toUint128(totalDistributionAmount);
+        config.remainingDistributions -= 1;
     }
 
     /***************************************

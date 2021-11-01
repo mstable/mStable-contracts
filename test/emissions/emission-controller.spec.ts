@@ -206,7 +206,8 @@ describe("EmissionsController", async () => {
 
                     await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([0, weeklyRewards, 0, 0])
 
-                    expect(await emissionsController.remainingDistributions(), "remaining dist after").to.eq(311)
+                    const config = await emissionsController.config()
+                    expect(config.remainingDistributions, "remaining dist after").to.eq(311)
                     expect((await emissionsController.dials(1)).balance, "dial 1 balance after").to.eq(weeklyRewards)
                     expect((await emissionsController.dials(2)).balance, "dial 2 balance after").to.eq(0)
                     expect((await emissionsController.dials(3)).balance, "dial 3 balance after").to.eq(0)
@@ -312,7 +313,8 @@ describe("EmissionsController", async () => {
                     const dial3 = weeklyRewards.mul(600).div(900)
                     await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([0, dial1, dial2, dial3])
 
-                    expect(await emissionsController.remainingDistributions(), "remaining dist after").to.eq(310)
+                    const config = await emissionsController.config()
+                    expect(config.remainingDistributions, "remaining dist after").to.eq(310)
                     expect((await emissionsController.dials(1)).balance, "dial 1 balance after").to.eq(balDial1Before.add(dial1))
                     expect((await emissionsController.dials(2)).balance, "dial 2 balance after").to.eq(balDial2Before.add(dial2))
                     expect((await emissionsController.dials(3)).balance, "dial 3 balance after").to.eq(balDial3Before.add(dial3))
@@ -892,17 +894,20 @@ describe("EmissionsController", async () => {
             await deployEmissionsController()
         })
         it("adds new rewards", async () => {
-            expect(await emissionsController.remainingRewards(), "remaining rewards before").to.eq(totalRewards)
+            const configBefore = await emissionsController.config()
+            expect(configBefore.remainingRewards, "remaining rewards before").to.eq(totalRewards)
             await rewardToken.approve(emissionsController.address, extraRewards)
 
             const tx = await emissionsController.addRewards(sa.default.address, extraRewards)
 
             await expect(tx).to.emit(emissionsController, "AddedRewards").withArgs(extraRewards)
 
-            expect(await emissionsController.remainingRewards(), "remaining rewards after").to.eq(totalRewards.add(extraRewards))
+            const configAfter = await emissionsController.config()
+            expect(configAfter.remainingRewards, "remaining rewards after").to.eq(totalRewards.add(extraRewards))
         })
         it("adds rewards from different account", async () => {
-            expect(await emissionsController.remainingRewards(), "remaining rewards before").to.eq(totalRewards)
+            const configBefore = await emissionsController.config()
+            expect(configBefore.remainingRewards, "remaining rewards before").to.eq(totalRewards)
             await rewardToken.transfer(sa.dummy1.address, extraRewards)
             await rewardToken.connect(sa.dummy1.signer).approve(emissionsController.address, extraRewards)
 
@@ -910,7 +915,8 @@ describe("EmissionsController", async () => {
 
             await expect(tx).to.emit(emissionsController, "AddedRewards").withArgs(extraRewards)
 
-            expect(await emissionsController.remainingRewards(), "remaining rewards after").to.eq(totalRewards.add(extraRewards))
+            const configAfter = await emissionsController.config()
+            expect(configAfter.remainingRewards, "remaining rewards after").to.eq(totalRewards.add(extraRewards))
         })
         it("Fail to add zero rewards", async () => {
             const tx = emissionsController.connect(sa.governor.signer).addRewards(sa.governor.address, 0)
