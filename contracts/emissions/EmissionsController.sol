@@ -114,10 +114,6 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         uint256 len = _recipients.length;
         require(_notifies.length == len, "Initialize args mistmatch");
 
-        // STEP 0 - Init the dials, setting pos0 = empty
-        _addDial(address(1), false);
-        dials[0].disabled = true;
-
         // STEP 1 - calculate how many distributions. 52 weeks * 6 years = 312
         config.remainingDistributions = 312;
 
@@ -196,7 +192,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @param _disabled If true, no rewards will be distributed to this dial
      */
     function updateDial(uint256 _dialId, bool _disabled) external onlyGovernor {
-        require(_dialId > 0 && _dialId < dials.length, "Invalid dial id");
+        require(_dialId < dials.length, "Invalid dial id");
 
         dials[_dialId].disabled = _disabled;
 
@@ -225,6 +221,14 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         _addStakingContract(_stakingContract);
     }
 
+    // TODO / FIXME - it's very important that any new staking contracts are added either during the initialization of THIS
+    // contract, or while the totalsupply of the new stakign contract is 0. This is because it will affect the internal
+    // accounting of the users votes.
+    // e.g. deploy new staking contract. User mints 1000. Add contract to list here. Vote. Now, balance is looked up,
+    // and is 1000 greater than what was originally used to vote, therefore the votes will be off
+    // Solution 1: Enforce the above, where staking contracts can only be added if this contract is uninitialized, or if their supply = 0
+    // Solution 2: Track the votes cast by each user, and use this when changing the preferences (this allows for adding/removing staking contract
+    // but increases gas)
     function _addStakingContract(address _stakingContract) internal {
         require(_stakingContract != address(0), "Staking contract address is zero");
 
@@ -235,7 +239,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     }
 
     /***************************************
-                    REWARDS-EXTERNAL
+                REWARDS-EXTERNAL
     ****************************************/
 
     /**
@@ -253,7 +257,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         uint256 dialId;
         for (uint256 i = 0; i < dialLen; i++) {
             dialId = _dialIds[i];
-            require(dialId > 0 && dialId < dials.length, "Invalid dial id");
+            require(dialId < dials.length, "Invalid dial id");
 
             // Sum the rewards for each dial
             totalAmount += _amounts[i];
@@ -342,7 +346,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     }
 
     /***************************************
-                    REWARDS-INTERNAL
+                REWARDS-INTERNAL
     ****************************************/
 
     // Calculate amount of rewards to distribute this week
@@ -387,10 +391,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         // STEP 2 - adjust dial weighted votes from added staker weighted votes
         uint256 newTotalWeight;
         for (uint256 i = 0; i < _preferences.length; i++) {
-            require(
-                _preferences[i].dialId > 0 && _preferences[i].dialId < dials.length,
-                "Invalid dial id"
-            );
+            require(_preferences[i].dialId < dials.length, "Invalid dial id");
             require(_preferences[i].weight > 0, "Must give a dial some weight");
             newTotalWeight += _preferences[i].weight;
             // Add staker's dial weight
