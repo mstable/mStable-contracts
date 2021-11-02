@@ -57,14 +57,6 @@ task("integration-aave-deploy", "Deploys an instance of AaveV2Integration contra
         const tx = await integration.initialize([bAsset.address], [bAsset.liquidityProvider])
         await logTxDetails(tx, "AaveIntegrationV2.initialize")
 
-        const approveRewardTokenData = integration.interface.encodeFunctionData("approveRewardToken")
-        console.log(`\napproveRewardToken data: ${approveRewardTokenData}`)
-
-        const fp = FeederPool__factory.connect(liquidityProviderAddress, signer)
-
-        const migrateData = fp.interface.encodeFunctionData("migrateBassets", [[bAsset.address], integration.address])
-        console.log(`${bAsset.symbol} migrateBassets data: ${migrateData}`)
-
         await verifyEtherscan(hre, {
             address: integration.address,
             constructorArguments,
