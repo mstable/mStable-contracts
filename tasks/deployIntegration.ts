@@ -45,13 +45,14 @@ task("integration-aave-deploy", "Deploys an instance of AaveV2Integration contra
         const liquidityProviderAddress = resolveAddress(taskArgs.asset, chain)
         const rewardsTokenAddress = resolveAddress(taskArgs.rewards, chain)
 
+        const constructorArguments = [nexusAddress, liquidityProviderAddress, platformAddress, rewardsTokenAddress]
+
         // Deploy
-        const integration = await deployContract<AaveV2Integration>(new AaveV2Integration__factory(signer), "AaveV2Integration", [
-            nexusAddress,
-            liquidityProviderAddress,
-            platformAddress,
-            rewardsTokenAddress,
-        ])
+        const integration = await deployContract<AaveV2Integration>(
+            new AaveV2Integration__factory(signer),
+            "AaveV2Integration",
+            constructorArguments,
+        )
 
         const tx = await integration.initialize([bAsset.address], [bAsset.liquidityProvider])
         await logTxDetails(tx, "AaveIntegrationV2.initialize")
@@ -63,6 +64,11 @@ task("integration-aave-deploy", "Deploys an instance of AaveV2Integration contra
 
         const migrateData = fp.interface.encodeFunctionData("migrateBassets", [[bAsset.address], integration.address])
         console.log(`${bAsset.symbol} migrateBassets data: ${migrateData}`)
+
+        await verifyEtherscan(hre, {
+            address: integration.address,
+            constructorArguments,
+        })
     })
 
 task("integration-paave-deploy", "Deploys mUSD and mBTC instances of PAaveIntegration")
