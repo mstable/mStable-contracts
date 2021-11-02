@@ -4,11 +4,13 @@ import "tsconfig-paths/register"
 
 import { subtask, task, types } from "hardhat/config"
 import {
+    AaveV2Integration,
     AaveV2Integration__factory,
     DelayedProxyAdmin__factory,
     Liquidator,
     Liquidator__factory,
     Masset__factory,
+    FeederPool__factory,
     PAaveIntegration,
     PAaveIntegration__factory,
 } from "types/generated"
@@ -17,7 +19,7 @@ import { encodeUniswapPath } from "@utils/peripheral/uniswap"
 import { ZERO_ADDRESS } from "@utils/constants"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { AAVE, ALCX, Chain, COMP, DAI, stkAAVE, tokens } from "./utils/tokens"
-import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
+import { getChain, getChainAddress, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
 import { getSigner } from "./utils/signerFactory"
 import { verifyEtherscan } from "./utils/etherscan"
 
@@ -37,16 +39,30 @@ task("integration-aave-deploy", "Deploys an instance of AaveV2Integration contra
         const nexusAddress = getChainAddress("Nexus", chain)
         const platformAddress = getChainAddress("AaveLendingPoolAddressProvider", chain)
 
+        const bAsset = resolveToken(taskArgs.asset, chain)
+        if (!bAsset.liquidityProvider) throw Error(`No aToken address provided for token: ${taskArgs.asset}`)
+
         const liquidityProviderAddress = resolveAddress(taskArgs.asset, chain)
         const rewardsTokenAddress = resolveAddress(taskArgs.rewards, chain)
 
         // Deploy
-        await deployContract(new AaveV2Integration__factory(signer), "AaveV2Integration", [
+        const integration = await deployContract<AaveV2Integration>(new AaveV2Integration__factory(signer), "AaveV2Integration", [
             nexusAddress,
             liquidityProviderAddress,
             platformAddress,
             rewardsTokenAddress,
         ])
+
+        const tx = await integration.initialize([bAsset.address], [bAsset.liquidityProvider])
+        await logTxDetails(tx, "AaveIntegrationV2.initialize")
+
+        const approveRewardTokenData = integration.interface.encodeFunctionData("approveRewardToken")
+        console.log(`\napproveRewardToken data: ${approveRewardTokenData}`)
+
+        const fp = FeederPool__factory.connect(liquidityProviderAddress, signer)
+
+        const migrateData = fp.interface.encodeFunctionData("migrateBassets", [[bAsset.address], integration.address])
+        console.log(`${bAsset.symbol} migrateBassets data: ${migrateData}`)
     })
 
 task("integration-paave-deploy", "Deploys mUSD and mBTC instances of PAaveIntegration")
@@ -87,7 +103,7 @@ task("integration-paave-deploy", "Deploys mUSD and mBTC instances of PAaveIntegr
         const approveRewardTokenData = integration.interface.encodeFunctionData("approveRewardToken")
         console.log(`\napproveRewardToken data: ${approveRewardTokenData}`)
 
-        const mAsset = await Masset__factory.connect(liquidityProviderAddress, deployer)
+        const mAsset = Masset__factory.connect(liquidityProviderAddress, deployer)
 
         for (const bAsset of bAssets) {
             const migrateData = mAsset.interface.encodeFunctionData("migrateBassets", [[bAsset.address], integration.address])
