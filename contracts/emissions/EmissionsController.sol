@@ -12,9 +12,9 @@ import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/Saf
 struct DialData {
     uint128 weightedVotes;
     uint96 balance;
-    address recipient;
     bool disabled;
     bool notify;
+    address recipient;
 }
 
 struct Preference {
