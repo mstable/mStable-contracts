@@ -89,7 +89,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     }
 
     // V3 upgrade, pass unwrapper proxy
-    function upgrade(address _unwrapper) external override {
+    function upgrade(address _unwrapper) external {
         require(unwrapper == address(0), "Unwrapper address is not zero");
         unwrapper = _unwrapper;
     }
