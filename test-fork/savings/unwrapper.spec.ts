@@ -4,6 +4,8 @@ import { expect } from "chai"
 import { network } from "hardhat"
 import { deployContract } from "tasks/utils/deploy-utils"
 import {
+    BoostedVault,
+    BoostedVault__factory,
     DelayedProxyAdmin,
     DelayedProxyAdmin__factory,
     IERC20__factory,
@@ -14,7 +16,7 @@ import {
     UnwrapperProxy__factory,
     Unwrapper__factory,
 } from "types/generated"
-import { Chain, increaseTime, ONE_WEEK, simpleToExactAmount } from "index"
+import { BN, Chain, increaseTime, ONE_WEEK, simpleToExactAmount } from "index"
 import { BigNumber } from "@ethersproject/bignumber"
 import { getChainAddress } from "tasks/utils/networkAddressFactory"
 
@@ -30,6 +32,7 @@ const musdAddress = "0xe2f2a5c287993345a840db3b0845fbc70f5935a5"
 const daiAddress = "0x6b175474e89094c44da98b954eedeac495271d0f"
 const alusdFeederPool = "0x4eaa01974B6594C0Ee62fFd7FEE56CF11E6af936"
 const alusdAddress = "0xBC6DA0FE9aD5f3b0d58160288917AA56653660E9"
+const mtaAddress = "0xa3BeD4E1c75D00fa6f4E5E6922DB7261B5E9AcD2"
 
 enum Route {
     Masset,
@@ -247,5 +250,64 @@ context("Unwrapper", () => {
 
         const daiBalanceAfter = await IERC20__factory.connect(daiAddress, imusdHolder).balanceOf(imusdHolderAddress)
         expect(daiBalanceAfter, "Token balance has increased").to.be.gt(daiBalanceBefore.add(minAmountOut))
+    })
+
+    it("Upgrades the imUSD vault", async () => {
+        const imusdVaultAddress = "0x78BefCa7de27d07DC6e71da295Cc2946681A6c7B"
+        const vimusdHolderAddress = "0x0c2ef8a1b3bc00bf676053732f31a67ebba5bd81"
+        const vimusdHolder = await impersonate(vimusdHolderAddress)
+
+        const boostDirector = "0xba05fd2f20ae15b0d3f20ddc6870feca6acd3592"
+        const priceCoeff = simpleToExactAmount(1, 17)
+        const boostCoeff = BN.from(9)
+        const rewardsToken = mtaAddress
+
+        const saveVaultImpl = await deployContract<BoostedVault>(new BoostedVault__factory(deployer), "mStable: mUSD Savings Vault", [
+            nexusAddress,
+            imusdAddress,
+            boostDirector,
+            priceCoeff,
+            boostCoeff,
+            rewardsToken,
+        ])
+
+        await delayedProxyAdmin.proposeUpgrade(imusdVaultAddress, saveVaultImpl.address, "0x")
+        await increaseTime(ONE_WEEK.add(60))
+
+        // check request is correct
+        const request = await delayedProxyAdmin.requests(imusdVaultAddress)
+        expect(request.implementation).eq(saveVaultImpl.address)
+
+        // accept upgrade
+        await delayedProxyAdmin.acceptUpgradeRequest(imusdVaultAddress)
+
+        // const config = {
+        //     routeIndex: Route.Masset,
+        //     router: musdAddress,
+        //     input: musdAddress,
+        //     output: daiAddress,
+        //     amount: simpleToExactAmount(10, 18),
+        // }
+
+        // Get estimated output via getUnwrapOutput
+        // const amountOut = await unwrapper.getUnwrapOutput(config.routeIndex, config.router, config.input, config.output, config.amount)
+        // expect(amountOut.toString().length).to.be.gte(18)
+        // const minAmountOut = amountOut.mul(98).div(1e2)
+
+        // const daiContract = IERC20__factory.connect(config.output, vimusdHolder)
+        // const tokenBalanceBefore = await daiContract.balanceOf(vimusdHolderAddress)
+
+        // withdraw and unrap
+        const saveVault = BoostedVault__factory.connect(imusdVaultAddress, vimusdHolder)
+        const vaultBalance = await saveVault.balanceOf(vimusdHolderAddress)
+
+        console.log(vaultBalance.toString())
+
+        // await saveVault.withdrawAndUnwrap(config.amount, minAmountOut, config.output, vimusdHolderAddress, config.router, config.routeIndex)
+
+        // const tokenBalanceAfter = await daiContract.balanceOf(vimusdHolderAddress)
+        // expect(tokenBalanceAfter, "Token balance has increased").to.be.gt(tokenBalanceBefore)
+
+        // console.log(tokenBalanceAfter, tokenBalanceBefore)
     })
 })
