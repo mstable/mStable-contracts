@@ -3,11 +3,11 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-plusplus */
 import { Wallet } from "@ethersproject/wallet"
-import { DEAD_ADDRESS, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
+import { DEAD_ADDRESS, ONE_HOUR, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { StandardAccounts } from "@utils/machines"
 import { expect } from "chai"
 import { ethers } from "hardhat"
-import { deployContract, increaseTime, simpleToExactAmount } from "index"
+import { deployContract, increaseTime, increaseTimeTo, simpleToExactAmount, startCurrentWeek } from "index"
 import {
     AssetProxy__factory,
     EmissionsController,
@@ -79,11 +79,34 @@ describe("EmissionsController", async () => {
         console.log(`User 1 ${sa.dummy1.address}`)
         console.log(`User 2 ${sa.dummy2.address}`)
         console.log(`User 3 ${sa.dummy3.address}`)
+
+        // Set the time to Thursday, 01:00am UTC time which is just after the start of the distribution period
+        const startCurrentPeriod = startCurrentWeek()
+        const earlyNextPeriod = startCurrentPeriod.add(ONE_WEEK).add(ONE_HOUR)
+        await increaseTimeTo(earlyNextPeriod)
+        console.log(`Time at start ${new Date(earlyNextPeriod.toNumber() * 1000).toUTCString()}, epoch ${earlyNextPeriod}`)
     })
     describe("deploy and initialize", () => {
         before(async () => {
             await deployEmissionsController()
             console.log(`Emissions Controller contract size ${EmissionsController__factory.bytecode.length}`)
+        })
+        it("Immutable variables set on deployment", async () => {
+            expect(await emissionsController.nexus(), "nexus").to.eq(nexus.address)
+            expect(await emissionsController.rewardToken(), "rewardToken").to.eq(rewardToken.address)
+        })
+        it("Dials set on initialization", async () => {
+            const dial1 = await emissionsController.dials(0)
+            expect(dial1.recipient, "dial 1 recipient").to.eq(dials[0].address)
+            expect(dial1.notify, "dial 1 notify").to.eq(true)
+
+            const dial3 = await emissionsController.dials(2)
+            expect(dial3.recipient, "dial 3 recipient").to.eq(dials[2].address)
+            expect(dial3.notify, "dial 3 notify").to.eq(false)
+        })
+        it("Staking contracts set on initialization", async () => {
+            expect(await emissionsController.stakingContracts(0), "staking contract 1").to.eq(staking1.address)
+            expect(await emissionsController.stakingContracts(1), "staking contract 2").to.eq(staking2.address)
         })
         it("Zero nexus address", async () => {
             const tx = new EmissionsController__factory(sa.default.signer).deploy(ZERO_ADDRESS, rewardToken.address)
@@ -138,6 +161,28 @@ describe("EmissionsController", async () => {
             })
         })
     })
+    context("setVoterDialWeights fails when", () => {
+        before(async () => {
+            await deployEmissionsController()
+        })
+        it("weights > 100% to a single dial", async () => {
+            // User 1 gives 100.01% to dial 1
+            const tx = emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 201 }])
+            await expect(tx).to.revertedWith("Imbalanced weights")
+        })
+        it("weights > 100% across multiple dials", async () => {
+            // User 1 gives 90% to dial 1 and 10.01% to dial 2
+            const tx = emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
+                { dialId: 0, weight: 180 },
+                { dialId: 1, weight: 21 },
+            ])
+            await expect(tx).to.revertedWith("Imbalanced weights")
+        })
+        it("invalid dial id", async () => {
+            const tx = emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 3, weight: 200 }])
+            await expect(tx).to.revertedWith("Invalid dial id")
+        })
+    })
     describe("calculate rewards", () => {
         const user1Staking1Votes = simpleToExactAmount(100)
         const user1Staking2Votes = simpleToExactAmount(200)
@@ -149,7 +194,7 @@ describe("EmissionsController", async () => {
             await staking2.setVotes(sa.dummy1.address, user1Staking2Votes)
             await staking1.setVotes(sa.dummy2.address, user2Staking1Votes)
             await staking1.setVotes(sa.dummy3.address, user3Staking1Votes)
-            await increaseTime(ONE_WEEK.mul(2))
+            await increaseTime(ONE_WEEK)
 
             // Dial's rewards balances
             expect((await emissionsController.dials(0)).balance, "dial 1 balance before").to.eq(0)
@@ -161,53 +206,56 @@ describe("EmissionsController", async () => {
             expect(await emissionsController.callStatic.getVotes(sa.dummy2.address), "User 2 votes before").to.eq(simpleToExactAmount(600))
             expect(await emissionsController.callStatic.getVotes(sa.dummy3.address), "User 3 votes before").to.eq(simpleToExactAmount(300))
         })
-        it("calculate rewards with no weights", async () => {
+        it("with no weights", async () => {
+            const configBefore = await emissionsController.config()
+            const endLastCalculatedPeriodBefore = configBefore.endLastCalculatedPeriod
+            await increaseTime(ONE_WEEK)
+
             const tx = await emissionsController.calculateRewards()
 
             await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([0, 0, 0])
+
+            const configAfter = await emissionsController.config()
+            expect(configAfter.endLastCalculatedPeriod, "endLastCalculatedPeriod after").to.eq(ONE_WEEK.add(endLastCalculatedPeriodBefore))
+            expect(configAfter.remainingDistributions, "remaining dist after").to.eq(311)
+            expect(configAfter.remainingRewards, "remaining rewards after").to.eq(totalRewards.sub(weeklyRewards))
 
             expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(0)
             expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(0)
             expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(0)
         })
-        it("fail to calculate rewards after not waiting a week", async () => {
+        it("fails after not waiting a week", async () => {
+            await increaseTime(ONE_WEEK)
             await emissionsController.calculateRewards()
             await increaseTime(60) // add 1 minute
 
             const tx = emissionsController.calculateRewards()
             await expect(tx).to.revertedWith("Must wait for new period")
         })
-        context("change voting weights", () => {
-            context("fail to set weights when", () => {
-                it("weights > 100% to a single dial", async () => {
-                    // User 1 gives 100.01% to dial 1
-                    const tx = emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 201 }])
-                    await expect(tx).to.revertedWith("Imbalanced weights")
+        context("after change to voting weights", () => {
+            context("in first emissions period", () => {
+                let endLastCalculatedPeriodBefore: number
+                beforeEach(async () => {
+                    const config = await emissionsController.config()
+                    endLastCalculatedPeriodBefore = config.endLastCalculatedPeriod
                 })
-                it("weights > 100% across multiple dials", async () => {
-                    // User 1 gives 90% to dial 1 and 10.01% to dial 2
-                    const tx = emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
-                        { dialId: 0, weight: 180 },
-                        { dialId: 1, weight: 21 },
-                    ])
-                    await expect(tx).to.revertedWith("Imbalanced weights")
+                afterEach(async () => {
+                    const config = await emissionsController.config()
+                    expect(config.endLastCalculatedPeriod, "endLastCalculatedPeriod after").to.eq(
+                        ONE_WEEK.add(endLastCalculatedPeriodBefore),
+                    )
+                    expect(config.remainingDistributions, "remaining dist after").to.eq(311)
+                    expect(config.remainingRewards, "remaining rewards after").to.eq(totalRewards.sub(weeklyRewards))
                 })
-                it("invalid dial id", async () => {
-                    const tx = emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 3, weight: 200 }])
-                    await expect(tx).to.revertedWith("Invalid dial id")
-                })
-            })
-            context("first voting period", () => {
                 it("User 1 all votes to dial 1", async () => {
                     // User 1 gives all 300 votes to dial 1
                     await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
+                    await increaseTime(ONE_WEEK.mul(1))
 
                     const tx = await emissionsController.calculateRewards()
 
                     await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([weeklyRewards, 0, 0])
 
-                    const config = await emissionsController.config()
-                    expect(config.remainingDistributions, "remaining dist after").to.eq(311)
                     expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(weeklyRewards)
                     expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(0)
                     expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(0)
@@ -217,6 +265,7 @@ describe("EmissionsController", async () => {
                     await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
                     // User 2 gives all 600 votes to dial 2
                     await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 1, weight: 200 }])
+                    await increaseTime(ONE_WEEK.mul(1))
 
                     const tx = await emissionsController.calculateRewards()
 
@@ -241,6 +290,7 @@ describe("EmissionsController", async () => {
                         { dialId: 0, weight: 100 },
                         { dialId: 1, weight: 100 },
                     ])
+                    await increaseTime(ONE_WEEK.mul(1))
 
                     const tx = await emissionsController.calculateRewards()
 
@@ -261,6 +311,7 @@ describe("EmissionsController", async () => {
                     ])
                     // User 2 gives all 600 votes to dial 3
                     await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 2, weight: 200 }])
+                    await increaseTime(ONE_WEEK.mul(1))
 
                     const tx = await emissionsController.calculateRewards()
 
@@ -277,7 +328,7 @@ describe("EmissionsController", async () => {
                     expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(dial3)
                 })
             })
-            context("second voting period", () => {
+            context("in second emissions period", () => {
                 // Users previous votes
                 // User 1 300 20% dial 1, 80% dial 2
                 // User 2 600 100% dial 3
@@ -292,9 +343,12 @@ describe("EmissionsController", async () => {
                     ])
                     // User 2 gives all 600 votes to dial 2
                     await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 2, weight: 200 }])
+                    await increaseTime(ONE_WEEK)
 
                     await emissionsController.calculateRewards()
-                    await increaseTime(ONE_WEEK)
+                    expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(balDial1Before)
+                    expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(balDial2Before)
+                    expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(balDial3Before)
                 })
                 it("User 1 changes weights to 80/20 dial 1 & 2", async () => {
                     // User 1 splits their 300 votes with 80% to dial 1 and 20% to dial 2
@@ -302,6 +356,7 @@ describe("EmissionsController", async () => {
                         { dialId: 0, weight: 160 },
                         { dialId: 1, weight: 40 },
                     ])
+                    await increaseTime(ONE_WEEK)
 
                     const tx = await emissionsController.calculateRewards()
 
@@ -320,8 +375,10 @@ describe("EmissionsController", async () => {
                     expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(balDial3Before.add(dial3))
                 })
                 it("User 1 removes 20% to dial 1", async () => {
-                    // User gives 80% of their 300 votes to dial 2. The remaining 20% is not 40
+                    console.log("Start User 1 removes 20% to dial 1")
+                    // User gives 80% of their 300 votes to dial 2. The remaining 20% (40) is not set
                     await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 1, weight: 160 }])
+                    await increaseTime(ONE_WEEK)
 
                     const tx = await emissionsController.calculateRewards()
 
@@ -339,6 +396,7 @@ describe("EmissionsController", async () => {
                 it("User 1 changes all to dial 3", async () => {
                     // User 1 gives all 300 votes to dial 3
                     await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 2, weight: 200 }])
+                    await increaseTime(ONE_WEEK)
 
                     const tx = await emissionsController.calculateRewards()
 
@@ -351,6 +409,7 @@ describe("EmissionsController", async () => {
                 it("User 3 all weight on dial 1", async () => {
                     // User 3 gives all 300 votes to dial 1
                     await emissionsController.connect(sa.dummy3.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
+                    await increaseTime(ONE_WEEK)
 
                     const tx = await emissionsController.calculateRewards()
 
@@ -369,6 +428,7 @@ describe("EmissionsController", async () => {
                 it("User 3 all weight on dial 2", async () => {
                     // User 3 gives all 300 votes to dial 2
                     await emissionsController.connect(sa.dummy3.signer).setVoterDialWeights([{ dialId: 1, weight: 200 }])
+                    await increaseTime(ONE_WEEK)
 
                     const tx = await emissionsController.calculateRewards()
 
@@ -387,6 +447,7 @@ describe("EmissionsController", async () => {
                 it("User 2 removes all votes to dial 3", async () => {
                     // User 2 removes all 600 votes from dial 3
                     await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([])
+                    await increaseTime(ONE_WEEK)
 
                     const tx = await emissionsController.calculateRewards()
 
@@ -401,8 +462,31 @@ describe("EmissionsController", async () => {
                     expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(balDial3Before)
                 })
             })
+            context("after first emissions period", () => {
+                beforeEach(async () => {
+                    await increaseTime(ONE_WEEK)
+                })
+                it("User 1 changes weights to 80/20 dial 1 & 2", async () => {
+                    // User 1 splits their 300 votes with 80% to dial 1 and 20% to dial 2
+                    await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
+                        { dialId: 0, weight: 160 },
+                        { dialId: 1, weight: 40 },
+                    ])
+
+                    const tx = await emissionsController.calculateRewards()
+
+                    await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([0, 0, 0])
+
+                    const config = await emissionsController.config()
+                    expect(config.remainingDistributions, "remaining dist after").to.eq(311)
+                    expect(config.remainingRewards, "remaining rewards after").to.eq(totalRewards.sub(weeklyRewards))
+                    expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(0)
+                    expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(0)
+                    expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(0)
+                })
+            })
         })
-        context("Change voting power", () => {
+        context("change voting power", () => {
             context("first voting period", () => {
                 it("User 1 does not change their voting power", async () => {
                     expect(await emissionsController.callStatic.getVotes(sa.dummy1.address), "User 1 votes before").to.eq(
@@ -429,6 +513,7 @@ describe("EmissionsController", async () => {
                 it("User 1 increases voting power to dial 1", async () => {
                     // User 1 gives all 300 votes to dial 1
                     await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
+                    await increaseTime(ONE_WEEK)
 
                     // User 1 increases votes from 300 to 400 by increasing staking 2 from 200 to 300
                     await staking2.setVotes(sa.dummy1.address, simpleToExactAmount(300))
@@ -460,6 +545,7 @@ describe("EmissionsController", async () => {
                         expect(await emissionsController.callStatic.getVotes(sa.dummy2.address), "User 2 votes after").to.eq(
                             simpleToExactAmount(1200),
                         )
+                        await increaseTime(ONE_WEEK)
 
                         const tx = await emissionsController.calculateRewards()
 
@@ -482,6 +568,7 @@ describe("EmissionsController", async () => {
                         expect(await emissionsController.callStatic.getVotes(sa.dummy2.address), "User 2 votes after").to.eq(
                             simpleToExactAmount(300),
                         )
+                        await increaseTime(ONE_WEEK)
 
                         const tx = await emissionsController.calculateRewards()
 
@@ -504,6 +591,7 @@ describe("EmissionsController", async () => {
                         expect(await emissionsController.callStatic.getVotes(sa.dummy2.address), "User 2 votes after").to.eq(
                             simpleToExactAmount(0),
                         )
+                        await increaseTime(ONE_WEEK)
 
                         const tx = await emissionsController.calculateRewards()
 
@@ -524,6 +612,7 @@ describe("EmissionsController", async () => {
                         expect(await emissionsController.callStatic.getVotes(sa.dummy2.address), "User 2 votes after").to.eq(
                             simpleToExactAmount(0),
                         )
+                        await increaseTime(ONE_WEEK)
 
                         const tx = await emissionsController.calculateRewards()
 
@@ -544,6 +633,7 @@ describe("EmissionsController", async () => {
                         expect(await emissionsController.callStatic.getVotes(sa.dummy2.address), "User 2 votes after").to.eq(
                             simpleToExactAmount(0),
                         )
+                        await increaseTime(ONE_WEEK)
 
                         const tx = await emissionsController.calculateRewards()
 
@@ -572,7 +662,7 @@ describe("EmissionsController", async () => {
             await staking2.setVotes(sa.dummy1.address, user1Staking2Votes)
             await staking1.setVotes(sa.dummy2.address, user2Staking1Votes)
             await staking1.setVotes(sa.dummy3.address, user3Staking1Votes)
-            await increaseTime(ONE_WEEK.mul(2))
+            await increaseTime(ONE_WEEK)
         })
         context("fail to donate when", () => {
             it("No dial ids or amounts", async () => {
@@ -600,7 +690,6 @@ describe("EmissionsController", async () => {
                 await expect(tx).to.revertedWith("Invalid dial id")
             })
         })
-
         context("User 1 80/20 votes to dial 1 & 2, User 2 50/50 votes to dial 2 & 3", () => {
             // 80% of User 1's 300 votes
             const dial1 = weeklyRewards.mul((300 * 4) / 5).div(900)
@@ -619,6 +708,7 @@ describe("EmissionsController", async () => {
                     { dialId: 1, weight: 100 },
                     { dialId: 2, weight: 100 },
                 ])
+                await increaseTime(ONE_WEEK)
             })
             it("donation to dial 1 before rewards calculated", async () => {
                 const donationAmount = simpleToExactAmount(100)
@@ -835,7 +925,7 @@ describe("EmissionsController", async () => {
         let dial3
         beforeEach(async () => {
             await deployEmissionsController()
-            await increaseTime(ONE_WEEK.mul(2))
+            await increaseTime(ONE_WEEK)
 
             await staking1.setVotes(sa.dummy1.address, user1Staking1Votes)
             await staking1.setVotes(sa.dummy2.address, user2Staking1Votes)
@@ -858,6 +948,7 @@ describe("EmissionsController", async () => {
             const tx = await emissionsController.connect(sa.governor.signer).updateDial(0, true)
             await expect(tx).to.emit(emissionsController, "UpdatedDial").withArgs(0, true)
             expect((await emissionsController.dials(0)).disabled, "dial 1 disabled after").to.be.true
+            await increaseTime(ONE_WEEK)
 
             const tx2 = await emissionsController.calculateRewards()
 
@@ -867,6 +958,7 @@ describe("EmissionsController", async () => {
         })
         it("Governor reenables dial", async () => {
             await emissionsController.connect(sa.governor.signer).updateDial(0, true)
+            await increaseTime(ONE_WEEK)
             await emissionsController.calculateRewards()
             await increaseTime(ONE_WEEK.add(60))
 

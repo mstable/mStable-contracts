@@ -9,12 +9,19 @@ import { ImmutableModule } from "../shared/ImmutableModule.sol";
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-struct DialData {
+struct WeightedVotesEpoch {
     uint128 weightedVotes;
+    // The start of the distribution period in seconds
+    uint32 epoch;
+}
+
+struct DialData {
+    // uint128 weightedVotes;
     uint96 balance;
     bool disabled;
     bool notify;
     address recipient;
+    WeightedVotesEpoch[] weightedVotesEpoch;
 }
 
 struct Preference {
@@ -28,7 +35,7 @@ struct EmissionsConfig {
     // 2^16 = 65,536
     uint16 remainingDistributions;
     // 2^32 goes until February 2106
-    uint32 startLastCalculatedPeriod;
+    uint32 endLastCalculatedPeriod;
 }
 
 /**
@@ -51,7 +58,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     // HIGH LEVEL EMISSION
 
     /// @notice address of rewards token. ie MTA token
-    IERC20 immutable rewardToken;
+    IERC20 public immutable rewardToken;
 
     /// @dev integer configs packed into one slot
     EmissionsConfig public config;
@@ -62,7 +69,6 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     mapping(address => bool) public isStakingContract;
     /// @notice list of staking contract addresses.
     IVotes[] public stakingContracts;
-
 
     /// @notice list of dial data including weightedVotes, rewards balance, recipient contract and disabled flag.
     DialData[] public dials;
@@ -83,10 +89,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     event DistributedReward(uint256 indexed dialId, uint256 amount);
 
     modifier onlyStakingContract() {
-        require(
-            isStakingContract[msg.sender],
-            "Must be staking contract"
-        );
+        require(isStakingContract[msg.sender], "Must be staking contract");
         _;
     }
 
@@ -98,14 +101,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @param _nexus System nexus that resolves module addresses
      * @param _rewardToken token that rewards are distributed in. eg MTA
      */
-    constructor(
-        address _nexus,
-        address _rewardToken
-    ) ImmutableModule(_nexus) {
+    constructor(address _nexus, address _rewardToken) ImmutableModule(_nexus) {
         require(_rewardToken != address(0), "Reward token address is zero");
         rewardToken = IERC20(_rewardToken);
-
-        
     }
 
     /**
@@ -118,10 +116,8 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     function initialize(
         address[] memory _recipients,
         bool[] memory _notifies,
-        address[] memory _stakingContracts)
-        external
-        initializer
-    {
+        address[] memory _stakingContracts
+    ) external initializer {
         uint256 len = _recipients.length;
         require(_notifies.length == len, "Initialize args mistmatch");
 
@@ -136,10 +132,8 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         // STEP 3 - the start of the last distribution will be set at the end of the current time period.
         // This means there is the current period and the next period to vote before the first distribution.
         // That is, will be at least 1 week and max of 2 weeks to vote before the first distribution is calculated.
-        config.startLastCalculatedPeriod =
-            (SafeCast.toUint32(block.timestamp + 1 weeks) / DISTRIBUTION_PERIOD) *
-            DISTRIBUTION_PERIOD;
-        
+        config.endLastCalculatedPeriod = _startCurrentPeriod(block.timestamp + 1 weeks);
+
         // STEP 4 - initialize the staking contracts
         for (uint256 i = 0; i < _stakingContracts.length; i++) {
             _addStakingContract(_stakingContracts[i]);
@@ -184,14 +178,12 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             require(dials[i].recipient != _recipient, "Dial already exists");
         }
 
-        dials.push(
-            DialData({
-                weightedVotes: 0,
-                balance: 0,
-                recipient: _recipient,
-                disabled: false,
-                notify: _notify
-            })
+        dials.push();
+        DialData storage newDialData = dials[len];
+        newDialData.recipient = _recipient;
+        newDialData.notify = _notify;
+        newDialData.weightedVotesEpoch.push(
+            WeightedVotesEpoch({ weightedVotes: 0, epoch: _startCurrentPeriod(block.timestamp) })
         );
 
         emit AddedDial(len, _recipient);
@@ -249,7 +241,6 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         emit AddStakingContract(_stakingContract);
     }
 
-
     /***************************************
                 REWARDS-EXTERNAL
     ****************************************/
@@ -289,35 +280,55 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      */
     function calculateRewards() external {
         // STEP 1 - Calculate amount of rewards to distribute this week
-        uint256 totalDistributionAmount = calculateDistributionAmount();
+        (uint256 totalDistributionAmount, uint256 endPeriod) = calculateDistributionAmount();
 
         // STEP 2 - Calculate the total amount of dial votes ignoring any disabled dials
         uint256 totalDialVotes;
         uint256 dialLen = dials.length;
+        uint256[] memory dialWeightedVotes = new uint256[](dialLen);
         // For each dial
-        for (uint256 i = 0; i < dialLen; i++) {
-            // Calculate amount of rewards for the dial
-            uint256 dialWeightedVotes = dials[i].weightedVotes;
-            if (dialWeightedVotes == 0 || dials[i].disabled) {
+        for (uint256 dialIndex = 0; dialIndex < dialLen; dialIndex++) {
+            DialData memory dialData = dials[dialIndex];
+            uint256 wveLength = dialData.weightedVotesEpoch.length;
+            if (dialData.disabled || wveLength == 0) {
+                // TODO does this need to be initialised? Do we save gas by not initialising?
+                dialWeightedVotes[dialIndex] = 0;
                 continue;
             }
-            totalDialVotes += dials[i].weightedVotes;
+
+            // Get the dial's weighted votes for the calculated epoch
+            // Start at the lastest epoch and keep going back until the epoch is
+            // less than or equal to the epoch the rewards are being calculated for
+            uint256 epochIndex = wveLength;
+            do {
+                epochIndex--;
+                // get last weighted vote from the dial. If
+                WeightedVotesEpoch memory wve = dialData.weightedVotesEpoch[epochIndex];
+                if (wve.epoch < endPeriod) {
+                    dialWeightedVotes[dialIndex] = wve.weightedVotes;
+                    totalDialVotes += wve.weightedVotes;
+                    // break from the do loop but not the for loop
+                    break;
+                }
+            } while (epochIndex > 0);
         }
 
         // STEP 3 - Calculate the distribution amounts for each dial
         // For each dial
         uint256[] memory distributionAmounts = new uint256[](dialLen);
-        for (uint256 i = 0; i < dialLen; i++) {
-            uint256 dialWeightedVotes = dials[i].weightedVotes;
+        for (uint256 dialIndex2 = 0; dialIndex2 < dialLen; dialIndex2++) {
             // Skip dial if no votes or disabled
-            if (dialWeightedVotes == 0 || dials[i].disabled) {
+            if (dialWeightedVotes[dialIndex2] == 0) {
                 continue;
             }
-            // Calculate amount of rewards for the dial
-            distributionAmounts[i] = (totalDistributionAmount * dialWeightedVotes) / totalDialVotes;
 
-            // Update dial's rewards balance
-            dials[i].balance += SafeCast.toUint96(distributionAmounts[i]);
+            // Calculate amount of rewards for the dial
+            distributionAmounts[dialIndex2] =
+                (totalDistributionAmount * dialWeightedVotes[dialIndex2]) /
+                totalDialVotes;
+
+            // Update dial's rewards balance in storage
+            dials[dialIndex2].balance += SafeCast.toUint96(distributionAmounts[dialIndex2]);
         }
 
         emit PeriodRewards(distributionAmounts);
@@ -362,17 +373,23 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     ****************************************/
 
     // Calculate amount of rewards to distribute this week
-    // ALso updates the remaining rewards and distributions storage variables.
+    // Also updates the remaining rewards and distributions storage variables.
     // TODO replace with curve rather than linear
-    function calculateDistributionAmount() internal returns (uint256 totalDistributionAmount) {
+    function calculateDistributionAmount()
+        internal
+        returns (uint256 totalDistributionAmount, uint256 endPeriod)
+    {
         EmissionsConfig memory configMem = config;
         require(
-            block.timestamp > configMem.startLastCalculatedPeriod + DISTRIBUTION_PERIOD,
+            block.timestamp > configMem.endLastCalculatedPeriod + DISTRIBUTION_PERIOD,
             "Must wait for new period"
         );
-        config.startLastCalculatedPeriod = configMem.startLastCalculatedPeriod + DISTRIBUTION_PERIOD;
-
+        // Set return params
         totalDistributionAmount = configMem.remainingRewards / configMem.remainingDistributions;
+        endPeriod = configMem.endLastCalculatedPeriod + DISTRIBUTION_PERIOD;
+
+        // Update storage variables for the next period
+        config.endLastCalculatedPeriod = configMem.endLastCalculatedPeriod + DISTRIBUTION_PERIOD;
         config.remainingRewards -= SafeCast.toUint128(totalDistributionAmount);
         config.remainingDistributions -= 1;
     }
@@ -460,10 +477,41 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             // e.g. 5e17 * 1e18 / 1e18 * 100e18 / 1e18
             // = 50e18
             uint256 amountToChange = (pref.weight * _amount) / SCALE;
-            dials[pref.dialId].weightedVotes = SafeCast.toUint128(
-                _op(dials[pref.dialId].weightedVotes, amountToChange)
+
+            uint256 len = dials[pref.dialId].weightedVotesEpoch.length;
+            WeightedVotesEpoch storage latestWeightedVotesEpoch = dials[pref.dialId]
+            .weightedVotesEpoch[len - 1];
+
+            uint32 startCurrentEpoch = _startCurrentPeriod(block.timestamp);
+
+            uint128 newWeightedVotes = SafeCast.toUint128(
+                _op(latestWeightedVotesEpoch.weightedVotes, amountToChange)
             );
+
+            // If in a new epoch for this dial
+            if (latestWeightedVotesEpoch.epoch < startCurrentEpoch) {
+                // Add a new weighted votes epoch for the dial
+                dials[pref.dialId].weightedVotesEpoch.push(
+                    WeightedVotesEpoch({
+                        weightedVotes: newWeightedVotes,
+                        epoch: startCurrentEpoch
+                    })
+                );
+            } else {
+                // Epoch already exists for this dial so just update the dial's weighted votes
+                latestWeightedVotesEpoch.weightedVotes = newWeightedVotes;
+            }
         }
+    }
+
+    function _startCurrentPeriod(uint256 timestamp)
+        internal
+        pure
+        returns (uint32 startCurrentEpoch)
+    {
+        startCurrentEpoch =
+            (SafeCast.toUint32(timestamp) / DISTRIBUTION_PERIOD) *
+            DISTRIBUTION_PERIOD;
     }
 
     function _add(uint256 a, uint256 b) private pure returns (uint256) {
