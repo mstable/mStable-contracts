@@ -2,6 +2,8 @@
 pragma solidity 0.8.6;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 import { ISavingsContractV3 } from "../../interfaces/ISavingsContract.sol";
@@ -10,8 +12,16 @@ import { IMasset } from "../../interfaces/IMasset.sol";
 import { IFeederPool } from "../../interfaces/IFeederPool.sol";
 import { IBoostedVaultWithLockup } from "../../interfaces/IBoostedVaultWithLockup.sol";
 
-// Q: Should this be Governable?
-contract Unwrapper is IUnwrapper, Ownable {
+contract Unwrapper is IUnwrapper, OwnableUpgradeable {
+    using SafeERC20 for IERC20;
+
+    /**
+     * @dev Initialize contract
+     */
+    function initialize() public initializer {
+        __Ownable_init();
+    }
+
     /**
      * @dev Estimate output
      * @param _routeIndex     0 || 1 -> determines action
@@ -60,8 +70,6 @@ contract Unwrapper is IUnwrapper, Ownable {
         if (_routeIndex == 0) {
             outputQuantity = IMasset(_router).redeem(_output, _amount, _minAmountOut, _beneficiary);
         } else {
-            // TODO: - Pull approval out to constructor/func?
-            IERC20(_input).approve(_router, _amount);
             outputQuantity = IFeederPool(_router).swap(
                 _input,
                 _output,
@@ -69,6 +77,20 @@ contract Unwrapper is IUnwrapper, Ownable {
                 _minAmountOut,
                 _beneficiary
             );
+        }
+    }
+
+    /**
+     * @dev Approve tokens for router
+     * @param _routers      router addresses
+     * @param _tokens       tokens to approve for router
+     */
+    function approve(address[] calldata _routers, address[] calldata _tokens) external onlyOwner {
+        require(_routers.length == _tokens.length, "Array mismatch");
+        for (uint256 i = 0; i < _tokens.length; i++) {
+            require(_tokens[i] != address(0), "Invalid token");
+            require(_routers[i] != address(0), "Invalid router");
+            IERC20(_tokens[i]).safeApprove(_routers[i], 2**256 - 1);
         }
     }
 }
