@@ -22,20 +22,26 @@ struct Preference {
     uint8 weight;
 }
 
-struct EmissionsConfig {
-    // 2^88 = 309m which is > 100m total MTA
-    uint128 remainingRewards;
-    // 2^16 = 65,536
-    uint16 remainingDistributions;
+struct EpochHistory {
+    // Starting epoch of contract
+    uint32 startEpoch;
     // 2^32 goes until February 2106
-    uint32 startLastCalculatedPeriod;
+    uint32 lastEpoch;
+}
+
+struct TopLevelConfig {
+    int256 A;
+    int256 B;
+    int256 C;
+    int256 D;
+    uint128 EPOCHS;
 }
 
 /**
  * @title  EmissionsController
  * @author mStable
  * @notice Calculates the weekly rewards to be sent to each dial based on governance votes.
- a* @dev     VERSION: 1.0
+ * @dev     VERSION: 1.0
  *          DATE:    2021-10-28
  */
 contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule {
@@ -47,6 +53,12 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     uint32 constant DISTRIBUTION_PERIOD = 1 weeks;
     /// @notice Scale of dial weights. 200 = 100%, 2 = 1%, 1 = 0.5%
     uint256 constant SCALE = 200;
+    /// @notice Immutable emissions config, where 1 = 1
+    int256 immutable A;
+    int256 immutable B;
+    int256 immutable C;
+    int256 immutable D;
+    uint128 immutable EPOCHS;
 
     // HIGH LEVEL EMISSION
 
@@ -54,7 +66,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     IERC20 immutable rewardToken;
 
     /// @dev integer configs packed into one slot
-    EmissionsConfig public config;
+    EpochHistory public config;
 
     // VOTING
 
@@ -62,7 +74,6 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     mapping(address => bool) public isStakingContract;
     /// @notice list of staking contract addresses.
     IVotes[] public stakingContracts;
-
 
     /// @notice list of dial data including weightedVotes, rewards balance, recipient contract and disabled flag.
     DialData[] public dials;
@@ -83,10 +94,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     event DistributedReward(uint256 indexed dialId, uint256 amount);
 
     modifier onlyStakingContract() {
-        require(
-            isStakingContract[msg.sender],
-            "Must be staking contract"
-        );
+        require(isStakingContract[msg.sender], "Must be staking contract");
         _;
     }
 
@@ -94,18 +102,23 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
                     INIT
     ****************************************/
 
-    /** @notice Recipient is a module, governed by mStable governance
+    /**
+     * @notice Recipient is a module, governed by mStable governance
      * @param _nexus System nexus that resolves module addresses
      * @param _rewardToken token that rewards are distributed in. eg MTA
      */
     constructor(
         address _nexus,
-        address _rewardToken
+        address _rewardToken,
+        TopLevelConfig memory _config
     ) ImmutableModule(_nexus) {
         require(_rewardToken != address(0), "Reward token address is zero");
         rewardToken = IERC20(_rewardToken);
-
-        
+        A = _config.A * 1e12;
+        B = _config.B * 1e12;
+        C = _config.C * 1e12;
+        D = _config.D * 1e12;
+        EPOCHS = _config.EPOCHS * 1e6;
     }
 
     /**
@@ -118,28 +131,27 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     function initialize(
         address[] memory _recipients,
         bool[] memory _notifies,
-        address[] memory _stakingContracts)
-        external
-        initializer
-    {
+        address[] memory _stakingContracts,
+        uint128 _totalRewards
+    ) external initializer {
         uint256 len = _recipients.length;
         require(_notifies.length == len, "Initialize args mistmatch");
 
-        // STEP 1 - calculate how many distributions. 52 weeks * 6 years = 312
-        config.remainingDistributions = 312;
-
-        // STEP 2 - Add each of the dials
+        // STEP 1 - Add each of the dials
         for (uint256 i = 0; i < len; i++) {
             _addDial(_recipients[i], _notifies[i]);
         }
 
-        // STEP 3 - the start of the last distribution will be set at the end of the current time period.
+        // STEP 2 - Set the top level emission config
+        // The start of the last distribution will be set at the end of the current time period.
         // This means there is the current period and the next period to vote before the first distribution.
         // That is, will be at least 1 week and max of 2 weeks to vote before the first distribution is calculated.
-        config.startLastCalculatedPeriod =
-            (SafeCast.toUint32(block.timestamp + 1 weeks) / DISTRIBUTION_PERIOD) *
-            DISTRIBUTION_PERIOD;
-        
+        uint32 startEpoch = SafeCast.toUint32(block.timestamp + 1 weeks) / DISTRIBUTION_PERIOD;
+        config = EpochHistory({ startEpoch: startEpoch, lastEpoch: startEpoch });
+
+        rewardToken.safeTransferFrom(msg.sender, address(this), _totalRewards);
+        emit AddedRewards(_totalRewards);
+
         // STEP 4 - initialize the staking contracts
         for (uint256 i = 0; i < _stakingContracts.length; i++) {
             _addStakingContract(_stakingContracts[i]);
@@ -211,20 +223,6 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     }
 
     /**
-     * @notice Adds rewards to the Emission Controller for future distributions.
-     * @param from account that the rewards will be transferred from. This can be different to the msg sender.
-     * @param rewards the number of rewards to be transferred to the Emissions Controller
-     */
-    function addRewards(address from, uint256 rewards) external {
-        require(rewards > 0, "Zero rewards");
-
-        rewardToken.safeTransferFrom(from, address(this), rewards);
-        config.remainingRewards += SafeCast.toUint128(rewards);
-
-        emit AddedRewards(rewards);
-    }
-
-    /**
      * @notice Adds a new contract to the list of approved staking contracts.
      * @param _stakingContract address of the new staking contracts.
      */
@@ -248,7 +246,6 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
         emit AddStakingContract(_stakingContract);
     }
-
 
     /***************************************
                 REWARDS-EXTERNAL
@@ -289,7 +286,10 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      */
     function calculateRewards() external {
         // STEP 1 - Calculate amount of rewards to distribute this week
-        uint256 totalDistributionAmount = calculateDistributionAmount();
+        uint32 epoch = SafeCast.toUint32(block.timestamp) / DISTRIBUTION_PERIOD;
+        require(epoch > config.lastEpoch, "Must wait for new period");
+        config.lastEpoch = epoch;
+        uint256 emissionForEpoch = topLineEmission(epoch);
 
         // STEP 2 - Calculate the total amount of dial votes ignoring any disabled dials
         uint256 totalDialVotes;
@@ -314,7 +314,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
                 continue;
             }
             // Calculate amount of rewards for the dial
-            distributionAmounts[i] = (totalDistributionAmount * dialWeightedVotes) / totalDialVotes;
+            distributionAmounts[i] = (emissionForEpoch * dialWeightedVotes) / totalDialVotes;
 
             // Update dial's rewards balance
             dials[i].balance += SafeCast.toUint96(distributionAmounts[i]);
@@ -357,24 +357,27 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         }
     }
 
-    /***************************************
-                REWARDS-INTERNAL
-    ****************************************/
-
-    // Calculate amount of rewards to distribute this week
-    // ALso updates the remaining rewards and distributions storage variables.
-    // TODO replace with curve rather than linear
-    function calculateDistributionAmount() internal returns (uint256 totalDistributionAmount) {
-        EmissionsConfig memory configMem = config;
-        require(
-            block.timestamp > configMem.startLastCalculatedPeriod + DISTRIBUTION_PERIOD,
-            "Must wait for new period"
-        );
-        config.startLastCalculatedPeriod = configMem.startLastCalculatedPeriod + DISTRIBUTION_PERIOD;
-
-        totalDistributionAmount = configMem.remainingRewards / configMem.remainingDistributions;
-        config.remainingRewards -= SafeCast.toUint128(totalDistributionAmount);
-        config.remainingDistributions -= 1;
+    /**
+     * @dev Calculates top line distribution amount for the current epoch as per the polynomial
+     *                  (f(x)=A*(x/div)^3+B*(x/div)^2+C*(x/div)+D)
+     * NB: Values are effectively scaled to 1e12 to avoid integer overflow on pow
+     * @param epoch Index of the epoch to look up
+     * @return emissionForEpoch Units of MTA to be distributed at this epoch
+     */
+    function topLineEmission(uint32 epoch) public view returns (uint256 emissionForEpoch) {
+        // e.g. week 1, A = -166000e12, B = 180000e12, C = -180000e12, D = 166000e12
+        // e.g. epochDelta = 1e18
+        uint128 epochDelta = (epoch - config.startEpoch) * 1e18;
+        // e.g. x = 1e18 / 312e6 = 3205128205
+        int256 x = SafeCast.toInt256(epochDelta / EPOCHS);
+        emissionForEpoch =
+            SafeCast.toUint256(
+                ((A * (x**3)) / 1e36) + // e.g. -166000e12 * (3205128205 ^ 3) / 1e36 =   -5465681315
+                    ((B * (x**2)) / 1e24) + // e.g.  180000e12 * (3205128205 ^ 2) / 1e24 = 1849112425887
+                    ((C * (x)) / 1e12) + // e.g. -180000e12 * 3205128205 / 1e12 =    -576923076900000
+                    D // e.g.                                   166000000000000000
+            ) *
+            1e6; // e.g. SUM = 1,6542492e17 * 1e6 = 165424e18
     }
 
     /***************************************

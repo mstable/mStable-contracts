@@ -7,6 +7,7 @@ import { DEAD_ADDRESS, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { StandardAccounts } from "@utils/machines"
 import { expect } from "chai"
 import { ethers } from "hardhat"
+import { BN } from "@utils/math"
 import { deployContract, increaseTime, simpleToExactAmount } from "index"
 import {
     AssetProxy__factory,
@@ -22,6 +23,31 @@ import {
     MockStakingContract__factory,
 } from "types/generated"
 
+const defaultConfig = {
+    A: -166000,
+    B: 180000,
+    C: -180000,
+    D: 166000,
+    EPOCHS: 312,
+}
+
+const calcWeeklyReward = (epochDelta: number): BN => {
+    const { A, B, C, D, EPOCHS } = defaultConfig
+    const x = BN.from(epochDelta)
+        .mul(simpleToExactAmount(1))
+        .div(BN.from(EPOCHS).mul(simpleToExactAmount(1, 6)))
+    const a = BN.from(A).mul(x.pow(3)).div(simpleToExactAmount(1, 24))
+    const b = BN.from(B).mul(x.pow(2)).div(simpleToExactAmount(1, 12))
+    const c = BN.from(C).mul(x)
+    const d = BN.from(D).mul(simpleToExactAmount(1, 12))
+    return a.add(b).add(c).add(d).mul(simpleToExactAmount(1, 6))
+}
+
+const nextRewardAmount = async (emissionsController: EmissionsController): Promise<BN> => {
+    const epochs = await emissionsController.config()
+    return calcWeeklyReward(epochs.lastEpoch - epochs.startEpoch + 1)
+}
+
 describe("EmissionsController", async () => {
     let sa: StandardAccounts
     let nexus: MockNexus
@@ -31,8 +57,7 @@ describe("EmissionsController", async () => {
     let dials: MockRewardsDistributionRecipient[]
     let emissionsController: EmissionsController
     const totalRewardsSupply = simpleToExactAmount(100000000)
-    const totalRewards = simpleToExactAmount(40000000)
-    const weeklyRewards = totalRewards.div(312)
+    const totalRewards = simpleToExactAmount(29400963)
 
     const deployEmissionsController = async (): Promise<void> => {
         // staking contracts
@@ -51,23 +76,27 @@ describe("EmissionsController", async () => {
         const dialAddresses = dials.map((dial) => dial.address)
 
         // Deploy logic contract
-        const emissionsControllerImpl = await new EmissionsController__factory(sa.default.signer).deploy(nexus.address, rewardToken.address)
+        const emissionsControllerImpl = await new EmissionsController__factory(sa.default.signer).deploy(
+            nexus.address,
+            rewardToken.address,
+            defaultConfig,
+        )
 
         // Deploy proxy and initialize
-        const data = emissionsControllerImpl.interface.encodeFunctionData("initialize", [
-            dialAddresses,
-            [true, true, false],
-            [staking1.address, staking2.address],
-        ])
         const proxy = await deployContract(new AssetProxy__factory(sa.default.signer), "AssetProxy", [
             emissionsControllerImpl.address,
             DEAD_ADDRESS,
-            data,
+            "0x",
         ])
         emissionsController = new EmissionsController__factory(sa.default.signer).attach(proxy.address)
 
         await rewardToken.approve(emissionsController.address, totalRewards)
-        await emissionsController.connect(sa.governor.signer).addRewards(sa.default.address, totalRewards)
+        await emissionsController.initialize(
+            dialAddresses,
+            [true, true, false],
+            [staking1.address, staking2.address],
+            simpleToExactAmount(29400963),
+        )
 
         await staking1.setGovernanceHook(emissionsController.address)
         await staking2.setGovernanceHook(emissionsController.address)
@@ -86,16 +115,20 @@ describe("EmissionsController", async () => {
             console.log(`Emissions Controller contract size ${EmissionsController__factory.bytecode.length}`)
         })
         it("Zero nexus address", async () => {
-            const tx = new EmissionsController__factory(sa.default.signer).deploy(ZERO_ADDRESS, rewardToken.address)
+            const tx = new EmissionsController__factory(sa.default.signer).deploy(ZERO_ADDRESS, rewardToken.address, defaultConfig)
             await expect(tx).to.revertedWith("Nexus address is zero")
         })
         it("Zero rewards address", async () => {
-            const tx = new EmissionsController__factory(sa.default.signer).deploy(nexus.address, ZERO_ADDRESS)
+            const tx = new EmissionsController__factory(sa.default.signer).deploy(nexus.address, ZERO_ADDRESS, defaultConfig)
             await expect(tx).to.revertedWith("Reward token address is zero")
         })
         context("initialize recipients and notifies", () => {
             before(async () => {
-                emissionsController = await new EmissionsController__factory(sa.default.signer).deploy(nexus.address, rewardToken.address)
+                emissionsController = await new EmissionsController__factory(sa.default.signer).deploy(
+                    nexus.address,
+                    rewardToken.address,
+                    defaultConfig,
+                )
             })
             const stakingContract1 = Wallet.createRandom()
             const stakingContract2 = Wallet.createRandom()
@@ -122,20 +155,30 @@ describe("EmissionsController", async () => {
             for (const test of tests) {
                 it(test.desc, async () => {
                     const recipients = test.dialIndexes.map((i) => dials[i].address)
-                    const tx = emissionsController.initialize(recipients, test.notifies, test.stakingContracts)
+                    const tx = emissionsController.initialize(recipients, test.notifies, test.stakingContracts, 0)
                     await expect(tx).to.revertedWith("Initialize args mistmatch")
                 })
             }
             it("First staking contract is zero", async () => {
                 const recipients = dials.map((d) => d.address)
-                const tx = emissionsController.initialize(recipients, [true, true, false], [ZERO_ADDRESS, staking2.address])
+                const tx = emissionsController.initialize(recipients, [true, true, false], [ZERO_ADDRESS, staking2.address], 0)
                 await expect(tx).to.revertedWith("Staking contract address is zero")
             })
             it("Second staking contract is zero", async () => {
                 const recipients = dials.map((d) => d.address)
-                const tx = emissionsController.initialize(recipients, [true, true, false], [staking1.address, ZERO_ADDRESS])
+                const tx = emissionsController.initialize(recipients, [true, true, false], [staking1.address, ZERO_ADDRESS], 0)
                 await expect(tx).to.revertedWith("Staking contract address is zero")
             })
+        })
+    })
+    context("fetch weekly emissions", () => {
+        let startingEpoch
+        before(async () => {
+            await deployEmissionsController()
+            startingEpoch = (await emissionsController.config()).startEpoch
+        })
+        it("fetches week 1", async () => {
+            expect(await emissionsController.topLineEmission(startingEpoch + 1)).eq(await nextRewardAmount(emissionsController))
         })
     })
     describe("calculate rewards", () => {
@@ -202,13 +245,12 @@ describe("EmissionsController", async () => {
                     // User 1 gives all 300 votes to dial 1
                     await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
 
+                    const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
 
-                    await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([weeklyRewards, 0, 0])
+                    await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([nextEpochEmission, 0, 0])
 
-                    const config = await emissionsController.config()
-                    expect(config.remainingDistributions, "remaining dist after").to.eq(311)
-                    expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(weeklyRewards)
+                    expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(nextEpochEmission)
                     expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(0)
                     expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(0)
                 })
@@ -218,12 +260,13 @@ describe("EmissionsController", async () => {
                     // User 2 gives all 600 votes to dial 2
                     await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 1, weight: 200 }])
 
+                    const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
 
                     // User 1 has 300 of the 900 votes (1/3)
-                    const dial1 = weeklyRewards.div(3)
+                    const dial1 = nextEpochEmission.div(3)
                     // User 2 has 600 of the 900 votes (2/3)
-                    const dial2 = weeklyRewards.mul(2).div(3)
+                    const dial2 = nextEpochEmission.mul(2).div(3)
                     await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([dial1, dial2, 0])
 
                     expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(dial1)
@@ -242,11 +285,12 @@ describe("EmissionsController", async () => {
                         { dialId: 1, weight: 100 },
                     ])
 
+                    const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
 
                     // User 1 and 2 split their votes 50/50
-                    const dial1 = weeklyRewards.div(2)
-                    const dial2 = weeklyRewards.div(2)
+                    const dial1 = nextEpochEmission.div(2)
+                    const dial2 = nextEpochEmission.div(2)
                     await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([dial1, dial2, 0])
 
                     expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(dial1)
@@ -262,14 +306,15 @@ describe("EmissionsController", async () => {
                     // User 2 gives all 600 votes to dial 3
                     await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 2, weight: 200 }])
 
+                    const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
 
                     // User 1 20% of 300 votes
-                    const dial1 = weeklyRewards.mul(300).div(5).div(900)
+                    const dial1 = nextEpochEmission.mul(300).div(5).div(900)
                     // User 1 80% of 300 votes
-                    const dial2 = weeklyRewards.mul(300).mul(4).div(5).div(900)
+                    const dial2 = nextEpochEmission.mul(300).mul(4).div(5).div(900)
                     // User 2 600 votes
-                    const dial3 = weeklyRewards.mul(600).div(900)
+                    const dial3 = nextEpochEmission.mul(600).div(900)
                     await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([dial1, dial2, dial3])
 
                     expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(dial1)
@@ -281,9 +326,9 @@ describe("EmissionsController", async () => {
                 // Users previous votes
                 // User 1 300 20% dial 1, 80% dial 2
                 // User 2 600 100% dial 3
-                const balDial1Before = weeklyRewards.mul(300).div(5).div(900)
-                const balDial2Before = weeklyRewards.mul(300).mul(4).div(5).div(900)
-                const balDial3Before = weeklyRewards.mul(600).div(900)
+                let balDial1Before
+                let balDial2Before
+                let balDial3Before
                 beforeEach(async () => {
                     // User 1 splits their 300 votes with 20% to dial 1 and 80% to dial 2
                     await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
@@ -293,6 +338,10 @@ describe("EmissionsController", async () => {
                     // User 2 gives all 600 votes to dial 2
                     await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 2, weight: 200 }])
 
+                    const nextEpochEmission = await nextRewardAmount(emissionsController)
+                    balDial1Before = nextEpochEmission.mul(300).div(5).div(900)
+                    balDial2Before = nextEpochEmission.mul(300).mul(4).div(5).div(900)
+                    balDial3Before = nextEpochEmission.mul(600).div(900)
                     await emissionsController.calculateRewards()
                     await increaseTime(ONE_WEEK)
                 })
@@ -303,18 +352,17 @@ describe("EmissionsController", async () => {
                         { dialId: 1, weight: 40 },
                     ])
 
+                    const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
 
                     // User 1 80% of 300 votes
-                    const dial1 = weeklyRewards.mul((300 * 4) / 5).div(900)
+                    const dial1 = nextEpochEmission.mul((300 * 4) / 5).div(900)
                     // User 1 20% of 300 votes
-                    const dial2 = weeklyRewards.mul(300 / 5).div(900)
+                    const dial2 = nextEpochEmission.mul(300 / 5).div(900)
                     // User 2 600 votes
-                    const dial3 = weeklyRewards.mul(600).div(900)
+                    const dial3 = nextEpochEmission.mul(600).div(900)
                     await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([dial1, dial2, dial3])
 
-                    const config = await emissionsController.config()
-                    expect(config.remainingDistributions, "remaining dist after").to.eq(310)
                     expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(balDial1Before.add(dial1))
                     expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(balDial2Before.add(dial2))
                     expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(balDial3Before.add(dial3))
@@ -323,13 +371,14 @@ describe("EmissionsController", async () => {
                     // User gives 80% of their 300 votes to dial 2. The remaining 20% is not 40
                     await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 1, weight: 160 }])
 
+                    const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
 
                     // Total votes is 900 - 20% * 300 = 900 - 60 = 840
                     // User 1 80% of 300 votes
-                    const dial2 = weeklyRewards.mul((300 * 4) / 5).div(840)
+                    const dial2 = nextEpochEmission.mul((300 * 4) / 5).div(840)
                     // User 2 600 votes
-                    const dial3 = weeklyRewards.mul(600).div(840)
+                    const dial3 = nextEpochEmission.mul(600).div(840)
                     await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([0, dial2, dial3])
 
                     expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(balDial1Before)
@@ -340,26 +389,30 @@ describe("EmissionsController", async () => {
                     // User 1 gives all 300 votes to dial 3
                     await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 2, weight: 200 }])
 
+                    const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
 
-                    await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([0, 0, weeklyRewards])
+                    await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([0, 0, nextEpochEmission])
 
                     expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(balDial1Before)
                     expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(balDial2Before)
-                    expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(balDial3Before.add(weeklyRewards))
+                    expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(
+                        balDial3Before.add(nextEpochEmission),
+                    )
                 })
                 it("User 3 all weight on dial 1", async () => {
                     // User 3 gives all 300 votes to dial 1
                     await emissionsController.connect(sa.dummy3.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
 
+                    const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
 
                     // User 1 20% of 300 votes + User 3 300 votes
-                    const dial1 = weeklyRewards.mul(300 + 300 / 5).div(1200)
+                    const dial1 = nextEpochEmission.mul(300 + 300 / 5).div(1200)
                     // User 1 80% of 300 votes
-                    const dial2 = weeklyRewards.mul((300 * 4) / 5).div(1200)
+                    const dial2 = nextEpochEmission.mul((300 * 4) / 5).div(1200)
                     // User 2 600 votes
-                    const dial3 = weeklyRewards.mul(600).div(1200)
+                    const dial3 = nextEpochEmission.mul(600).div(1200)
                     await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([dial1, dial2, dial3])
 
                     expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(balDial1Before.add(dial1))
@@ -370,14 +423,15 @@ describe("EmissionsController", async () => {
                     // User 3 gives all 300 votes to dial 2
                     await emissionsController.connect(sa.dummy3.signer).setVoterDialWeights([{ dialId: 1, weight: 200 }])
 
+                    const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
 
                     // User 1 20% of 300 votes + User 3 300 votes
-                    const dial1 = weeklyRewards.mul(300 / 5).div(1200)
+                    const dial1 = nextEpochEmission.mul(300 / 5).div(1200)
                     // User 1 80% of 300 votes, User 3 300 votes
-                    const dial2 = weeklyRewards.mul(300 + (300 * 4) / 5).div(1200)
+                    const dial2 = nextEpochEmission.mul(300 + (300 * 4) / 5).div(1200)
                     // User 2 600 votes
-                    const dial3 = weeklyRewards.mul(600).div(1200)
+                    const dial3 = nextEpochEmission.mul(600).div(1200)
                     await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([dial1, dial2, dial3])
 
                     expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(balDial1Before.add(dial1))
@@ -388,12 +442,13 @@ describe("EmissionsController", async () => {
                     // User 2 removes all 600 votes from dial 3
                     await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([])
 
+                    const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
 
                     // User 1 20% of 300 votes
-                    const dial1 = weeklyRewards.mul(300 / 5).div(300)
+                    const dial1 = nextEpochEmission.mul(300 / 5).div(300)
                     // User 1 80% of 300 votes
-                    const dial2 = weeklyRewards.mul((300 * 4) / 5).div(300)
+                    const dial2 = nextEpochEmission.mul((300 * 4) / 5).div(300)
                     await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([dial1, dial2, 0])
 
                     expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(balDial1Before.add(dial1))
@@ -436,11 +491,12 @@ describe("EmissionsController", async () => {
                         simpleToExactAmount(400),
                     )
 
+                    const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
 
-                    await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([weeklyRewards, 0, 0])
+                    await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([nextEpochEmission, 0, 0])
 
-                    expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(weeklyRewards)
+                    expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(nextEpochEmission)
                     expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(0)
                     expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(0)
                 })
@@ -461,12 +517,13 @@ describe("EmissionsController", async () => {
                             simpleToExactAmount(1200),
                         )
 
+                        const nextEpochEmission = await nextRewardAmount(emissionsController)
                         const tx = await emissionsController.calculateRewards()
 
                         // User 1 has 300 of the 1500 votes (1/5)
-                        const dial1 = weeklyRewards.div(5)
+                        const dial1 = nextEpochEmission.div(5)
                         // User 2 has 1200 of the 1500 votes (4/5)
-                        const dial2 = weeklyRewards.mul(4).div(5)
+                        const dial2 = nextEpochEmission.mul(4).div(5)
                         await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([dial1, dial2, 0])
 
                         expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(dial1)
@@ -483,12 +540,13 @@ describe("EmissionsController", async () => {
                             simpleToExactAmount(300),
                         )
 
+                        const nextEpochEmission = await nextRewardAmount(emissionsController)
                         const tx = await emissionsController.calculateRewards()
 
                         // User 1 has 300 of the 600 votes (1/2)
-                        const dial1 = weeklyRewards.div(2)
+                        const dial1 = nextEpochEmission.div(2)
                         // User 2 has 300 of the 600 votes (1/2)
-                        const dial2 = weeklyRewards.div(2)
+                        const dial2 = nextEpochEmission.div(2)
                         await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([dial1, dial2, 0])
 
                         expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(dial1)
@@ -505,10 +563,11 @@ describe("EmissionsController", async () => {
                             simpleToExactAmount(0),
                         )
 
+                        const nextEpochEmission = await nextRewardAmount(emissionsController)
                         const tx = await emissionsController.calculateRewards()
 
                         // User 1 has 300 of the 300 votes
-                        const dial1 = weeklyRewards
+                        const dial1 = nextEpochEmission
                         await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([dial1, 0, 0])
 
                         expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(dial1)
@@ -525,10 +584,11 @@ describe("EmissionsController", async () => {
                             simpleToExactAmount(0),
                         )
 
+                        const nextEpochEmission = await nextRewardAmount(emissionsController)
                         const tx = await emissionsController.calculateRewards()
 
                         // User 1 has 900 of the 900 votes
-                        const dial1 = weeklyRewards
+                        const dial1 = nextEpochEmission
                         await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([dial1, 0, 0])
 
                         expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(dial1)
@@ -545,10 +605,11 @@ describe("EmissionsController", async () => {
                             simpleToExactAmount(0),
                         )
 
+                        const nextEpochEmission = await nextRewardAmount(emissionsController)
                         const tx = await emissionsController.calculateRewards()
 
                         // User 1 has 300 of the 300 votes
-                        const dial1 = weeklyRewards
+                        const dial1 = nextEpochEmission
                         await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([dial1, 0, 0])
 
                         expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(dial1)
@@ -603,11 +664,11 @@ describe("EmissionsController", async () => {
 
         context("User 1 80/20 votes to dial 1 & 2, User 2 50/50 votes to dial 2 & 3", () => {
             // 80% of User 1's 300 votes
-            const dial1 = weeklyRewards.mul((300 * 4) / 5).div(900)
+            let dial1
             // 20% of User 1's 300 votes + 50% of User 2's 600 votes
-            const dial2 = weeklyRewards.mul(300 / 5 + 600 / 2).div(900)
+            let dial2
             // 50% of User 2's 600 votes
-            const dial3 = weeklyRewards.mul(600 / 2).div(900)
+            let dial3
             beforeEach(async () => {
                 // User 1 splits their 300 votes with 80% to dial 1 and 20% to dial 2
                 await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
@@ -619,6 +680,11 @@ describe("EmissionsController", async () => {
                     { dialId: 1, weight: 100 },
                     { dialId: 2, weight: 100 },
                 ])
+
+                const nextEpochEmission = await nextRewardAmount(emissionsController)
+                dial1 = nextEpochEmission.mul((300 * 4) / 5).div(900)
+                dial2 = nextEpochEmission.mul(300 / 5 + 600 / 2).div(900)
+                dial3 = nextEpochEmission.mul(600 / 2).div(900)
             })
             it("donation to dial 1 before rewards calculated", async () => {
                 const donationAmount = simpleToExactAmount(100)
@@ -843,15 +909,12 @@ describe("EmissionsController", async () => {
 
             // User 1 puts 100 votes to dial 1
             await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
-            dial1 = weeklyRewards.mul(100).div(600)
 
             // User 2 puts 200 votes to dial 2
             await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 1, weight: 200 }])
-            dial2 = weeklyRewards.mul(200).div(600)
 
             // User 3 puts 300 votes to dial 3
             await emissionsController.connect(sa.dummy3.signer).setVoterDialWeights([{ dialId: 2, weight: 200 }])
-            dial3 = weeklyRewards.mul(300).div(600)
         })
         it("Governor disables dial 1 with votes", async () => {
             expect((await emissionsController.dials(0)).disabled, "dial 1 disabled before").to.be.false
@@ -859,10 +922,11 @@ describe("EmissionsController", async () => {
             await expect(tx).to.emit(emissionsController, "UpdatedDial").withArgs(0, true)
             expect((await emissionsController.dials(0)).disabled, "dial 1 disabled after").to.be.true
 
+            const nextEpochEmission = await nextRewardAmount(emissionsController)
             const tx2 = await emissionsController.calculateRewards()
 
-            const adjustedDial2 = weeklyRewards.mul(200).div(500)
-            const adjustedDial3 = weeklyRewards.mul(300).div(500)
+            const adjustedDial2 = nextEpochEmission.mul(200).div(500)
+            const adjustedDial3 = nextEpochEmission.mul(300).div(500)
             await expect(tx2).to.emit(emissionsController, "PeriodRewards").withArgs([0, adjustedDial2, adjustedDial3])
         })
         it("Governor reenables dial", async () => {
@@ -875,8 +939,12 @@ describe("EmissionsController", async () => {
             await expect(tx).to.emit(emissionsController, "UpdatedDial").withArgs(0, false)
             expect((await emissionsController.dials(0)).disabled, "dial 1 reenabled after").to.be.false
 
+            const nextEpochEmission = await nextRewardAmount(emissionsController)
             const tx2 = await emissionsController.calculateRewards()
 
+            dial1 = nextEpochEmission.mul(100).div(600)
+            dial2 = nextEpochEmission.mul(200).div(600)
+            dial3 = nextEpochEmission.mul(300).div(600)
             await expect(tx2).to.emit(emissionsController, "PeriodRewards").withArgs([dial1, dial2, dial3])
         })
         it("Governor fails to disable invalid 4th dial", async () => {
@@ -886,41 +954,6 @@ describe("EmissionsController", async () => {
         it("Default user fails to update dial", async () => {
             const tx = emissionsController.updateDial(1, true)
             await expect(tx).to.revertedWith("Only governor can execute")
-        })
-    })
-    describe("add rewards", () => {
-        const extraRewards = simpleToExactAmount(20000)
-        beforeEach(async () => {
-            await deployEmissionsController()
-        })
-        it("adds new rewards", async () => {
-            const configBefore = await emissionsController.config()
-            expect(configBefore.remainingRewards, "remaining rewards before").to.eq(totalRewards)
-            await rewardToken.approve(emissionsController.address, extraRewards)
-
-            const tx = await emissionsController.addRewards(sa.default.address, extraRewards)
-
-            await expect(tx).to.emit(emissionsController, "AddedRewards").withArgs(extraRewards)
-
-            const configAfter = await emissionsController.config()
-            expect(configAfter.remainingRewards, "remaining rewards after").to.eq(totalRewards.add(extraRewards))
-        })
-        it("adds rewards from different account", async () => {
-            const configBefore = await emissionsController.config()
-            expect(configBefore.remainingRewards, "remaining rewards before").to.eq(totalRewards)
-            await rewardToken.transfer(sa.dummy1.address, extraRewards)
-            await rewardToken.connect(sa.dummy1.signer).approve(emissionsController.address, extraRewards)
-
-            const tx = await emissionsController.addRewards(sa.dummy1.address, extraRewards)
-
-            await expect(tx).to.emit(emissionsController, "AddedRewards").withArgs(extraRewards)
-
-            const configAfter = await emissionsController.config()
-            expect(configAfter.remainingRewards, "remaining rewards after").to.eq(totalRewards.add(extraRewards))
-        })
-        it("Fail to add zero rewards", async () => {
-            const tx = emissionsController.connect(sa.governor.signer).addRewards(sa.governor.address, 0)
-            await expect(tx).to.revertedWith("Zero rewards")
         })
     })
 })
