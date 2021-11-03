@@ -19,18 +19,17 @@ import { BigNumber } from "@ethersproject/bignumber"
 import { getChainAddress } from "tasks/utils/networkAddressFactory"
 
 const chain = Chain.mainnet
+const delayedProxyAdminAddress = getChainAddress("DelayedProxyAdmin", chain)
+const governorAddress = getChainAddress("Governor", chain)
+const nexusAddress = getChainAddress("Nexus", chain)
 
 const deployerAddress = "0x19F12C947D25Ff8a3b748829D8001cA09a28D46d"
 const musdHolderAddress = "0x8474ddbe98f5aa3179b3b3f5942d724afcdec9f6"
-const imusdHolderAddress = "0xdA1fD36cfC50ED03ca4dd388858A78C904379fb3"
+const imusdAddress = "0x30647a72Dc82d7Fbb1123EA74716aB8A317Eac19"
 const musdAddress = "0xe2f2a5c287993345a840db3b0845fbc70f5935a5"
 const daiAddress = "0x6b175474e89094c44da98b954eedeac495271d0f"
 const alusdFeederPool = "0x4eaa01974B6594C0Ee62fFd7FEE56CF11E6af936"
 const alusdAddress = "0xBC6DA0FE9aD5f3b0d58160288917AA56653660E9"
-const beneficiary = "0x594FEB6Ee83AdDAEfc8ae8E8450cB9e3f803Dfb6" // rando
-
-const delayedProxyAdminAddress = getChainAddress("DelayedProxyAdmin", chain)
-const governorAddress = getChainAddress("Governor", chain)
 
 enum Route {
     Masset,
@@ -186,9 +185,6 @@ context("Unwrapper", () => {
     })
 
     it("Upgrades the save contract", async () => {
-        const imusdAddress = "0x30647a72Dc82d7Fbb1123EA74716aB8A317Eac19"
-        const nexusAddress = "0xAFcE80b19A8cE13DEc0739a1aaB7A028d6845Eb3"
-
         const musdSaveImpl = await deployContract<SavingsContract>(
             new SavingsContract__factory(deployer),
             "mStable: mUSD Savings Contract",
@@ -220,7 +216,7 @@ context("Unwrapper", () => {
     })
 
     it("Save contract works after upgraded", async () => {
-        const imusdAddress = "0x30647a72Dc82d7Fbb1123EA74716aB8A317Eac19"
+        const imusdHolderAddress = "0xdA1fD36cfC50ED03ca4dd388858A78C904379fb3"
         const imusdHolder = await impersonate(imusdHolderAddress)
 
         const config = {
@@ -237,12 +233,19 @@ context("Unwrapper", () => {
         const minAmountOut = amountOut.mul(98).div(1e2)
 
         // dai balance before
-        const daiBalanceBefore = await IERC20__factory.connect(daiAddress, imusdHolder).balanceOf(beneficiary)
+        const daiBalanceBefore = await IERC20__factory.connect(daiAddress, imusdHolder).balanceOf(imusdHolderAddress)
 
         const saveContractProxy = SavingsContract__factory.connect(imusdAddress, imusdHolder)
-        await saveContractProxy.redeemAndUnwrap(config.amount, minAmountOut, config.output, beneficiary, config.router, config.routeIndex)
+        await saveContractProxy.redeemAndUnwrap(
+            config.amount,
+            minAmountOut,
+            config.output,
+            imusdHolderAddress,
+            config.router,
+            config.routeIndex,
+        )
 
-        const daiBalanceAfter = await IERC20__factory.connect(daiAddress, imusdHolder).balanceOf(beneficiary)
+        const daiBalanceAfter = await IERC20__factory.connect(daiAddress, imusdHolder).balanceOf(imusdHolderAddress)
         expect(daiBalanceAfter, "Token balance has increased").to.be.gt(daiBalanceBefore.add(minAmountOut))
     })
 })

@@ -250,44 +250,44 @@ contract BoostedVault is
         _withdraw(_amount);
     }
 
-    // /**
-    //  * @dev Withdraws given stake amount from the pool and
-    //  * redeems the staking token into a given asset.
-    //  * @param _amount        Units of the staked token to withdraw
-    //  * @param _minAmountOut  TODO
-    //  * @param _output        TODO
-    //  * @param _beneficiary   Address to send staked token to
-    //  * @param _router        Router to redeem/swap
-    //  * @param _routeIndex     Route action of redeem/swap
-    //  */
-    // function withdrawAndUnwrap(
-    //     uint256 _amount,
-    //     uint256 _minAmountOut,
-    //     address _output,
-    //     address _beneficiary,
-    //     address _router,
-    //     uint8 _routeIndex
-    // ) external override updateReward(msg.sender) updateBoost(msg.sender) {
-    //     require(_amount > 0, "Cannot withdraw 0");
+    /**
+     * @dev Withdraws given stake amount from the pool and
+     * redeems the staking token into a given asset.
+     * @param _amount        Units of the staked token to withdraw
+     * @param _minAmountOut  TODO
+     * @param _output        TODO
+     * @param _beneficiary   Address to send staked token to
+     * @param _router        Router to redeem/swap
+     * @param _routeIndex     Route action of redeem/swap
+     */
+    function withdrawAndUnwrap(
+        uint256 _amount,
+        uint256 _minAmountOut,
+        address _output,
+        address _beneficiary,
+        address _router,
+        uint8 _routeIndex
+    ) external override updateReward(msg.sender) updateBoost(msg.sender) {
+        require(_amount > 0, "Cannot withdraw 0");
 
-    //     // Reduce raw balance (but do not transfer `stakingToken`)
-    //     _reduceRaw(_amount);
+        // Reduce raw balance (but do not transfer `stakingToken`)
+        _reduceRaw(_amount);
 
-    //     // Approve SavingsContract to spend this contract's `stakingToken`
-    //     IERC20(stakingToken).approve(address(stakingToken), _amount);
+        // Approve SavingsContract to spend this contract's `stakingToken`
+        IERC20(stakingToken).approve(address(stakingToken), _amount);
 
-    //     // Unwrap `stakingToken` into `output` and send to `beneficiary`
-    //     ISavingsContractV3(address(stakingToken)).redeemAndUnwrap(
-    //         _amount,
-    //         _minAmountOut,
-    //         _output,
-    //         _beneficiary,
-    //         _router,
-    //         _routeIndex
-    //     );
+        // Unwrap `stakingToken` into `output` and send to `beneficiary`
+        ISavingsContractV3(address(stakingToken)).redeemAndUnwrap(
+            _amount,
+            _minAmountOut,
+            _output,
+            _beneficiary,
+            _router,
+            _routeIndex
+        );
 
-    //     emit Withdrawn(msg.sender, _amount);
-    // }
+        emit Withdrawn(msg.sender, _amount);
+    }
 
     /**
      * @dev Claims only the tokens that have been immediately unlocked, not including
