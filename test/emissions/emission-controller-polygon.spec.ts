@@ -30,6 +30,14 @@ import {
     PolygonRootRecipient__factory,
 } from "types/generated"
 
+const defaultConfig = {
+    A: -166000,
+    B: 180000,
+    C: -180000,
+    D: 166000,
+    EPOCHS: 312,
+}
+
 describe("EmissionsController Polygon Integration", async () => {
     let sa: StandardAccounts
     let nexus: MockNexus
@@ -39,7 +47,7 @@ describe("EmissionsController Polygon Integration", async () => {
     let emissionsController: EmissionsController
     let rootChainManager: IRootChainManager
     const totalRewardsSupply = simpleToExactAmount(100000000)
-    const totalRewards = simpleToExactAmount(40000000)
+    const totalRewards = simpleToExactAmount(29400963)
 
     const deployEmissionsController = async (): Promise<void> => {
         // staking contracts
@@ -50,19 +58,22 @@ describe("EmissionsController Polygon Integration", async () => {
         rewardToken = await new MockERC20__factory(sa.default.signer).deploy("Reward", "RWD", 18, sa.default.address, totalRewardsSupply)
 
         // Deploy logic contract
-        const emissionsControllerImpl = await new EmissionsController__factory(sa.default.signer).deploy(nexus.address, rewardToken.address)
+        const emissionsControllerImpl = await new EmissionsController__factory(sa.default.signer).deploy(
+            nexus.address,
+            rewardToken.address,
+            defaultConfig,
+        )
 
         // Deploy proxy and initialize
-        const data = emissionsControllerImpl.interface.encodeFunctionData("initialize", [[], [], [staking1.address, staking2.address]])
         const proxy = await deployContract(new AssetProxy__factory(sa.default.signer), "AssetProxy", [
             emissionsControllerImpl.address,
             DEAD_ADDRESS,
-            data,
+            "0x",
         ])
         emissionsController = new EmissionsController__factory(sa.default.signer).attach(proxy.address)
 
-        // Transfer MTA to the Emissions Controller
-        await rewardToken.transfer(emissionsController.address, totalRewards)
+        await rewardToken.approve(emissionsController.address, totalRewards)
+        await emissionsController.initialize([], [], [staking1.address, staking2.address], simpleToExactAmount(29400963))
 
         await staking1.setGovernanceHook(emissionsController.address)
         await staking2.setGovernanceHook(emissionsController.address)
