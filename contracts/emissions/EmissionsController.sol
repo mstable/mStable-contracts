@@ -19,10 +19,14 @@ struct DialData {
     bool disabled;
     bool notify;
     // 2^88 = 309m which is > 100m total MTA
+    // dial's weekly rewards distribution amount.
+    // If 0 then the weighted votes is used.
+    uint88 fixedDistribution;
+    // dial rewards that are waiting to be distributed to recipient
     uint88 balance;
     // 20 * 8 = 160 bits
     address recipient;
-    // list of weighted votes in each distribution period
+    // list of weighted votes in each distribution period. 1 slot
     WeightedVotesPeriod[] weightedVotesPeriods;
 }
 
