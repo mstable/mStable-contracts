@@ -4,7 +4,6 @@ pragma solidity 0.8.6;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 import { ISavingsContractV3 } from "../../interfaces/ISavingsContract.sol";
 import { IUnwrapper } from "../../interfaces/IUnwrapper.sol";
@@ -39,8 +38,10 @@ contract Unwrapper is IUnwrapper, OwnableUpgradeable {
         uint256 _amount
     ) external view override returns (uint256 output) {
         if (_routeIndex == 0) {
+            // basset
             output = IMasset(_router).getRedeemOutput(_output, _amount);
         } else {
+            // fasset
             output = IFeederPool(_router).getSwapOutput(_input, _output, _amount);
         }
     }
@@ -82,15 +83,15 @@ contract Unwrapper is IUnwrapper, OwnableUpgradeable {
 
     /**
      * @dev Approve tokens for router
-     * @param _routers      router addresses
+     * @param _spenders     router addresses
      * @param _tokens       tokens to approve for router
      */
-    function approve(address[] calldata _routers, address[] calldata _tokens) external onlyOwner {
-        require(_routers.length == _tokens.length, "Array mismatch");
+    function approve(address[] calldata _spenders, address[] calldata _tokens) external onlyOwner {
+        require(_spenders.length == _tokens.length, "Array mismatch");
         for (uint256 i = 0; i < _tokens.length; i++) {
             require(_tokens[i] != address(0), "Invalid token");
-            require(_routers[i] != address(0), "Invalid router");
-            IERC20(_tokens[i]).safeApprove(_routers[i], 2**256 - 1);
+            require(_spenders[i] != address(0), "Invalid router");
+            IERC20(_tokens[i]).safeApprove(_spenders[i], type(uint256).max);
         }
     }
 }

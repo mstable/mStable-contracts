@@ -38,9 +38,6 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         uint256 savingsCredited
     );
 
-    // Tracking events
-    event Referral(address indexed referrer, address beneficiary);
-
     event AutomaticInterestCollectionSwitched(bool automationEnabled);
 
     // Connector poking
@@ -52,6 +49,9 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
 
     event Poked(uint256 oldBalance, uint256 newBalance, uint256 interestDetected);
     event PokedRaw();
+
+    // Tracking events
+    event Referral(address indexed referrer, address beneficiary);
 
     // Rate between 'savings credits' and underlying
     // e.g. 1 credit (1e17) mulTruncate(exchangeRate) = underlying, starts at 10:1
@@ -79,8 +79,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     // Max APY generated on the capital in the connector
     uint256 private constant MAX_APY = 4e18;
     uint256 private constant SECONDS_IN_YEAR = 365 days;
-
-    // TODO: Make unwrapper proxy implementation
+    // Proxy contract for easy redemption
     address public unwrapper;
 
     constructor(address _nexus, address _underlying) ImmutableModule(_nexus) {
