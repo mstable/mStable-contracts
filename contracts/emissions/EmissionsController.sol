@@ -9,7 +9,7 @@ import { ImmutableModule } from "../shared/ImmutableModule.sol";
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-struct WeightedVotesPeriod {
+struct HistoricVotes {
     uint128 weightedVotes;
     // The start of the distribution period in seconds divided by 604,800 seconds in a week
     uint32 epoch;
@@ -20,14 +20,14 @@ struct DialData {
     bool disabled;
     // If true, `notifyRewardAmount` on the recipient contract is called
     bool notify;
-    // dial recipient is a staking contract
-    bool staking;
-    // dial rewards that are waiting to be distributed to recipient
+    // Cap on distribution % where 1% = 1
+    uint8 cap;
+    // Dial rewards that are waiting to be distributed to recipient
     uint96 balance;
-    // account rewards are distributed to
+    // Account rewards are distributed to
     address recipient;
     // list of weighted votes in each distribution period. 1 slot
-    WeightedVotesPeriod[] weightedVotesPeriods;
+    HistoricVotes[] voteHistory;
 }
 
 struct Preference {
@@ -43,14 +43,21 @@ struct TopLevelConfig {
     uint128 EPOCHS;
 }
 
+struct EpochHistory {
+    // First weekly epoch of this contract.
+    uint32 startEpoch;
+    // The last weekly epoch to have rewards distributed.
+    uint32 lastEpoch;
+}
+
 /**
  * @title  EmissionsController
  * @author mStable
  * @notice Calculates the weekly rewards to be sent to each dial based on governance votes.
- * @dev     VERSION: 1.0
- *          DATE:    2021-10-28
- * An epoch is the number of weeks since 1 Jan 1970. The week starts on Thursday 00:00 UTC.
- * epoch = start of the distribution period in seconds divided by 604,800 seconds in a week
+ * @dev    VERSION: 1.0
+ *         DATE:    2021-10-28
+ *         An epoch is the number of weeks since 1 Jan 1970. The week starts on Thursday 00:00 UTC.
+ *         epoch = start of the distribution period in seconds divided by 604,800 seconds in a week
  */
 contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule {
     using SafeERC20 for IERC20;
@@ -61,8 +68,6 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     uint32 constant DISTRIBUTION_PERIOD = 1 weeks;
     /// @notice Scale of dial weights. 200 = 100%, 2 = 1%, 1 = 0.5%
     uint256 constant SCALE = 200;
-    /// @notice percentage of weekly emissions to each staking contract.
-    uint256 constant STAKING_PERCENTAGE = 10;
     /// @notice Immutable emissions config, where 1 = 1
     int256 immutable A;
     int256 immutable B;
@@ -72,27 +77,24 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     // HIGH LEVEL EMISSION
 
-    /// @notice first weekly epoch of this contract.
-    uint32 public immutable startEpoch;
-    /// @notice the last weekly epoch to have rewards distributed.
-    uint32 public lastEpoch;
-
-    /// @notice address of rewards token. ie MTA token
+    /// @notice Epoch history in storage
+    EpochHistory public epochs;
+    /// @notice Address of rewards token. ie MTA token
     IERC20 public immutable rewardToken;
 
     // VOTING
 
-    /// @notice flags if a contract address is a staking contract
+    /// @notice Flags if a contract address is a staking contract
     mapping(address => bool) public isStakingContract;
-    /// @notice list of staking contract addresses.
+    /// @notice List of staking contract addresses.
     IVotes[] public stakingContracts;
 
-    /// @notice list of dial data including weightedVotes, rewards balance, recipient contract and disabled flag.
+    /// @notice List of dial data including weightedVotes, rewards balance, recipient contract and disabled flag.
     DialData[] public dials;
-    /// @notice mapping of staker addresses to an list of voter dial weights.
-    /// @dev the sum of the weights for each staker must not be greater than SCALE = 10000.
-    /// A user can issue a subset of their voting power. eg only 20% of their voting power.
-    /// A user can not issue more than 100% of their voting power across dials.
+    /// @notice Mapping of staker addresses to an list of voter dial weights.
+    /// @dev    The sum of the weights for each staker must not be greater than SCALE = 10000.
+    ///         A user can issue a subset of their voting power. eg only 20% of their voting power.
+    ///         A user can not issue more than 100% of their voting power across dials.
     mapping(address => Preference[16]) public stakerPreferences;
 
     // EVENTS
@@ -130,9 +132,6 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         C = _config.C * 1e12;
         D = _config.D * 1e12;
         EPOCHS = _config.EPOCHS * 1e6;
-
-        // Set the weekly epoch this contract starts distributions which will be 1 - 2 week after deployment.
-        startEpoch = SafeCast.toUint32((block.timestamp + 1 weeks) / DISTRIBUTION_PERIOD);
     }
 
     /**
@@ -144,24 +143,27 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      */
     function initialize(
         address[] memory _recipients,
+        uint8[] memory _caps,
         bool[] memory _notifies,
         address[] memory _stakingContracts,
         uint128 _totalRewards
     ) external initializer {
         uint256 len = _recipients.length;
-        require(_notifies.length == len, "Initialize args mistmatch");
+        require(_notifies.length == len && _caps.length == len, "Initialize args mistmatch");
 
-        // STEP 1 - Add each of the dials
+        // 1.0 - Add each of the dials
         for (uint256 i = 0; i < len; i++) {
-            _addDial(_recipients[i], _notifies[i]);
+            _addDial(_recipients[i], _caps[i], _notifies[i]);
         }
 
-        // STEP 2 - Set the last epoch storage variable to the immutable start epoch
-        lastEpoch = startEpoch;
+        // 2.0 - Set the last epoch storage variable to the immutable start epoch
+        //       Set the weekly epoch this contract starts distributions which will be 1 - 2 week after deployment.
+        uint32 startEpoch = SafeCast.toUint32((block.timestamp + 1 weeks) / DISTRIBUTION_PERIOD);
+        epochs = EpochHistory({ startEpoch: startEpoch, lastEpoch: startEpoch });
 
         rewardToken.safeTransferFrom(msg.sender, address(this), _totalRewards);
 
-        // STEP 4 - initialize the staking contracts
+        // 3.0 - Initialize the staking contracts
         for (uint256 i = 0; i < _stakingContracts.length; i++) {
             _addStakingContract(_stakingContracts[i]);
         }
@@ -190,14 +192,24 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     /**
      * @notice Adds a new dial that can be voted on to receive weekly rewards.
      * @param _recipient Address of the contract that will receive rewards.
+     * @param _cap Cap where 0 = uncapped and 10 = 10%.
      * @param _notify If true, `notifyRewardAmount` is called in the `distributeRewards` function.
      */
-    function addDial(address _recipient, bool _notify) external onlyGovernor {
-        _addDial(_recipient, _notify);
+    function addDial(
+        address _recipient,
+        uint8 _cap,
+        bool _notify
+    ) external onlyGovernor {
+        _addDial(_recipient, _cap, _notify);
     }
 
-    function _addDial(address _recipient, bool _notify) internal {
+    function _addDial(
+        address _recipient,
+        uint8 _cap,
+        bool _notify
+    ) internal {
         require(_recipient != address(0), "Dial address is zero");
+        require(_cap < 100, "Invalid cap");
 
         uint256 len = dials.length;
         require(len < 254, "Max dial count reached");
@@ -209,9 +221,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         DialData storage newDialData = dials[len];
         newDialData.recipient = _recipient;
         newDialData.notify = _notify;
-        newDialData.staking = isStakingContract[_recipient];
-        newDialData.weightedVotesPeriods.push(
-            WeightedVotesPeriod({ weightedVotes: 0, epoch: _epoch(block.timestamp) })
+        newDialData.cap = _cap;
+        newDialData.voteHistory.push(
+            HistoricVotes({ weightedVotes: 0, epoch: _epoch(block.timestamp) })
         );
 
         emit AddedDial(len, _recipient);
@@ -297,98 +309,75 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * Any updates to the weights after the period finished will be ignored.
      */
     function calculateRewards() external {
-        // STEP 1 - Calculate amount of rewards to distribute this week
+        // 1 - Calculate amount of rewards to distribute this week
         uint32 epoch = SafeCast.toUint32(block.timestamp) / DISTRIBUTION_PERIOD;
-        require(epoch > lastEpoch, "Must wait for new period");
-        // Update storage with new last epoch
-        lastEpoch = epoch;
+        require(epoch > epochs.lastEpoch, "Must wait for new period");
+        //     Update storage with new last epoch
+        epochs.lastEpoch = epoch;
         uint256 emissionForEpoch = topLineEmission(epoch);
-        uint96 stakingDistributionAmount = SafeCast.toUint96(
-            (emissionForEpoch * STAKING_PERCENTAGE) / 100
-        );
 
-        // STEP 2 - Calculate the total amount of dial votes ignoring any disabled dials
+        // 2.0 - Calculate the total amount of dial votes ignoring any disabled dials
         uint256 totalDialVotes;
         uint256 dialLen = dials.length;
         uint256[] memory dialWeightedVotes = new uint256[](dialLen);
-        // For each dial
-        for (uint256 dialIndex = 0; dialIndex < dialLen; dialIndex++) {
-            DialData memory dialData = dials[dialIndex];
-            uint256 wveLength = dialData.weightedVotesPeriods.length;
-            bool isStaking = isStakingContract[dialData.recipient];
-            if (dialData.disabled || isStaking || wveLength == 0) {
-                // If dial is a fixed emissions
-                if (isStaking) {
-                    // Remove from emission amount for the weighted votes
-                    require(
-                        emissionForEpoch > stakingDistributionAmount,
-                        "staking amounts > weekly emission"
-                    );
-                    emissionForEpoch -= stakingDistributionAmount;
-                }
+        for (uint256 i = 0; i < dialLen; i++) {
+            DialData memory dialData = dials[i];
+            if (dialData.disabled) continue;
 
-                // TODO does this need to be initialised? Do we save gas by not initialising?
-                dialWeightedVotes[dialIndex] = 0;
-                continue;
+            // Get the relevant votes for the dial. Possibilities:
+            //   - No new votes cast in period, therefore relevant votes are at pos len - 1
+            //   - Votes already cast in period, therefore relevant is at pos len - 2
+            uint256 end = dialData.voteHistory.length - 1;
+            HistoricVotes memory latestVote = dialData.voteHistory[end];
+            if (latestVote.epoch < epoch) {
+                dialWeightedVotes[i] = latestVote.weightedVotes;
+                totalDialVotes += latestVote.weightedVotes;
+                // Create a new weighted votes for the current distribution period
+                dials[i].voteHistory.push(
+                    HistoricVotes({
+                        weightedVotes: latestVote.weightedVotes,
+                        epoch: SafeCast.toUint32(epoch)
+                    })
+                );
+            } else if (latestVote.epoch == epoch && end > 0) {
+                uint256 votes = dialData.voteHistory[end - 1].weightedVotes;
+                dialWeightedVotes[i] = votes;
+                totalDialVotes += votes;
             }
-
-            // Get the dial's weighted votes for the calculated epoch
-            // Start at the lastest epoch and keep going back until the epoch is
-            // less than or equal to the epoch the rewards are being calculated for
-            uint256 epochIndex = wveLength;
-            do {
-                epochIndex--;
-                // get dial's last weighted votes before this current period ends
-                WeightedVotesPeriod memory wve = dialData.weightedVotesPeriods[epochIndex];
-                // periodStart is most likely the start of the last distribution period, but it
-                // could be older if calculateRewards has not been run for over 2 weeks.
-                // periodStart could also be in the current period which should be ignored. We only
-                // want the weighted votes from last distribution period.
-                if (wve.epoch < epoch) {
-                    dialWeightedVotes[dialIndex] = wve.weightedVotes;
-                    totalDialVotes += wve.weightedVotes;
-
-                    // If the dial's last weighted votes
-                    if (epochIndex == wveLength - 1) {
-                        // Create a new weighted votes for the current distribution period
-                        dials[dialIndex].weightedVotesPeriods.push(
-                            WeightedVotesPeriod({
-                                weightedVotes: wve.weightedVotes,
-                                epoch: SafeCast.toUint32(epoch)
-                            })
-                        );
-                    }
-
-                    // break from the do loop but not the for loop
-                    break;
-                }
-            } while (epochIndex > 0);
         }
 
-        // STEP 3 - Calculate the distribution amounts for each dial
-        // For each dial
-        // TODO should this be uint96?
+        // 3.0 - Deal with the capped dials
         uint256[] memory distributionAmounts = new uint256[](dialLen);
-        for (uint256 dialIndex2 = 0; dialIndex2 < dialLen; dialIndex2++) {
-            // If dial is a fixed distribution
-            // TODO should the staking flag be included in the dialWeightedVotes memory array?
-            if (dials[dialIndex2].staking) {
-                distributionAmounts[dialIndex2] = stakingDistributionAmount;
-                dials[dialIndex2].balance += stakingDistributionAmount;
-                continue;
+        uint256 postCappedVotes = totalDialVotes;
+        uint256 postCappedEmission = emissionForEpoch;
+        for (uint256 k = 0; k < dialLen; k++) {
+            DialData memory dialData = dials[k];
+            // 3.1 - If the dial has a cap and isn't disabled, check if it's over the threshold
+            if (dialData.cap > 0 && !dialData.disabled) {
+                uint256 maxVotes = (dialData.cap * totalDialVotes) / 100;
+                if (dialWeightedVotes[k] > maxVotes) {
+                    // Calculate amount of rewards for the dial & set storage
+                    distributionAmounts[k] = (dialData.cap * emissionForEpoch) / 100;
+                    dials[k].balance += SafeCast.toUint96(distributionAmounts[k]);
+
+                    // Calculate amount of rewards for the dial & set storage
+                    postCappedVotes -= dialWeightedVotes[k];
+                    postCappedEmission -= distributionAmounts[k];
+                    dialWeightedVotes[k] = 0;
+                }
             }
+        }
+
+        // 4.0 - Calculate the distribution amounts for each dial
+        for (uint256 l = 0; l < dialLen; l++) {
             // Skip dial if no votes or disabled
-            if (dialWeightedVotes[dialIndex2] == 0) {
+            if (dialWeightedVotes[l] == 0) {
                 continue;
             }
 
-            // Calculate amount of rewards for the dial
-            distributionAmounts[dialIndex2] =
-                (emissionForEpoch * dialWeightedVotes[dialIndex2]) /
-                totalDialVotes;
-
-            // Update dial's rewards balance in storage
-            dials[dialIndex2].balance += SafeCast.toUint96(distributionAmounts[dialIndex2]);
+            // Calculate amount of rewards for the dial & set storage
+            distributionAmounts[l] = (dialWeightedVotes[l] * postCappedEmission) / postCappedVotes;
+            dials[l].balance += SafeCast.toUint96(distributionAmounts[l]);
         }
 
         emit PeriodRewards(distributionAmounts);
@@ -405,16 +394,18 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             require(_dialIds[i] < dials.length, "Invalid dial id");
             DialData memory dialData = dials[_dialIds[i]];
 
-            // STEP 1 - Get the dial's reward balance
+            // 1.0 - Get the dial's reward balance
             if (dialData.balance == 0) {
                 continue;
             }
+            // 2.0 - Reset the balance in storage back to 0
+            dials[_dialIds[i]].balance = 0;
 
-            // STEP 2 - Send the rewards the to the dial recipient
+            // 3.0 - Send the rewards the to the dial recipient
             rewardToken.safeTransfer(dialData.recipient, dialData.balance);
 
-            // STEP 3 - notify the dial of the new rewards if configured to
-            // Only after successful transer tx
+            // 4.0 - Notify the dial of the new rewards if configured to
+            //       Only after successful transer tx
             if (dialData.notify) {
                 IRewardsDistributionRecipient(dialData.recipient).notifyRewardAmount(
                     dialData.balance
@@ -422,9 +413,6 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             }
 
             emit DistributedReward(_dialIds[i], dialData.balance);
-
-            // STEP 4 - Reset the balance in storage back to 0
-            dials[_dialIds[i]].balance = 0;
         }
     }
 
@@ -438,13 +426,13 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     function topLineEmission(uint32 epoch) public view returns (uint256 emissionForEpoch) {
         // e.g. week 1, A = -166000e12, B = 180000e12, C = -180000e12, D = 166000e12
         // e.g. epochDelta = 1e18
-        uint128 epochDelta = (epoch - startEpoch) * 1e18;
+        uint128 epochDelta = (epoch - epochs.startEpoch) * 1e18;
         // e.g. x = 1e18 / 312e6 = 3205128205
         int256 x = SafeCast.toInt256(epochDelta / EPOCHS);
         emissionForEpoch =
             SafeCast.toUint256(
                 ((A * (x**3)) / 1e36) + // e.g. -166000e12 * (3205128205 ^ 3) / 1e36 =   -5465681315
-                    ((B * (x**2)) / 1e24) + // e.g.  180000e12 * (3205128205 ^ 2) / 1e24 = 1849112425887
+                    ((B * (x**2)) / 1e24) + // e.g.  180000e12 * (3205128205 ^ 2) / 1e24.0 = 1849112425887
                     ((C * (x)) / 1e12) + // e.g. -180000e12 * 3205128205 / 1e12 =    -576923076900000
                     D // e.g.                                   166000000000000000
             ) *
@@ -456,29 +444,29 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     ****************************************/
 
     /**
-     * @notice allows a staker to proportion their voting power across a number of dials.
+     * @notice Allows a staker to proportion their voting power across a number of dials.
      * @param _preferences Structs containing dialId & voting weights.
-     * @dev a staker can proportion their voting power even if they currently have zero voting power.
-     * For example, they have delegated their votes.
-     * When they do have voting power, their set weights will proportion their voting power. eg they undelegate.
+     * @dev A staker can proportion their voting power even if they currently have zero voting power.
+     *      For example, they have delegated their votes.
+     *      When they do have voting power, their set weights will proportion their voting power. eg they undelegate.
      */
     function setVoterDialWeights(Preference[] memory _preferences) external {
         require(_preferences.length <= 16, "Maximum of 16 preferences");
-        // get staker's votes
+        // 0.0 - Get staker's voting power
         uint256 stakerVotes = getVotes(msg.sender);
 
-        // STEP 1 - adjust dial weighted votes from removed staker weighted votes
+        // 1.0 - Adjust dial weighted votes from removed staker weighted votes
         _moveVotingPower(msg.sender, stakerVotes, _subtract);
-        // clear the old weights as they will be added back below
+        //       Clear the old weights as they will be added back below
         delete stakerPreferences[msg.sender];
 
-        // STEP 2 - adjust dial weighted votes from added staker weighted votes
+        // 2.0 - Adjust dial weighted votes from added staker weighted votes
         uint256 newTotalWeight;
         for (uint256 i = 0; i < _preferences.length; i++) {
             require(_preferences[i].dialId < dials.length, "Invalid dial id");
             require(_preferences[i].weight > 0, "Must give a dial some weight");
             newTotalWeight += _preferences[i].weight;
-            // Add staker's dial weight
+            //  Add staker's dial weight
             stakerPreferences[msg.sender][i] = _preferences[i];
         }
         if (_preferences.length < 16) {
@@ -502,10 +490,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         address to,
         uint256 amount
     ) external override onlyStakingContract {
-        // STEP 1 - update the total weighted votes across all dials
-        // if transferring votes from or to a delegate then no need to change the total dial votes
         if (amount > 0) {
-            // STEP 2 - Update the staker's dial weights
             // If burning (withdraw) or transferring delegated votes from a staker
             if (from != address(0)) {
                 _moveVotingPower(from, amount, _subtract);
@@ -527,33 +512,31 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         function(uint256, uint256) pure returns (uint256) _op
     ) internal {
         Preference[16] memory preferences = stakerPreferences[_voter];
+        uint32 currentEpoch = _epoch(block.timestamp);
         // Loop through preferences until dialId == 0 or until end
         for (uint256 i = 0; i < 16; i++) {
             Preference memory pref = preferences[i];
             if (pref.dialId == 255) break;
-            // e.g. 5e17 * 1e18 / 1e18 * 100e18 / 1e18
-            // = 50e18
+            // e.g. 5e17 * 1e18 / 1e18 * 100e18 / 1e18 = 50e18
             uint256 amountToChange = (pref.weight * _amount) / SCALE;
 
-            uint256 len = dials[pref.dialId].weightedVotesPeriods.length;
-            WeightedVotesPeriod storage latestWeightedVotesPeriod = dials[pref.dialId]
-            .weightedVotesPeriods[len - 1];
-
-            uint32 currentEpoch = _epoch(block.timestamp);
+            HistoricVotes[] storage voteHistory = dials[pref.dialId].voteHistory;
+            uint256 len = voteHistory.length;
+            HistoricVotes storage latestHistoricVotes = voteHistory[len - 1];
 
             uint128 newWeightedVotes = SafeCast.toUint128(
-                _op(latestWeightedVotesPeriod.weightedVotes, amountToChange)
+                _op(latestHistoricVotes.weightedVotes, amountToChange)
             );
 
             // If in a new epoch for this dial
-            if (latestWeightedVotesPeriod.epoch < currentEpoch) {
+            if (latestHistoricVotes.epoch < currentEpoch) {
                 // Add a new weighted votes epoch for the dial
-                dials[pref.dialId].weightedVotesPeriods.push(
-                    WeightedVotesPeriod({ weightedVotes: newWeightedVotes, epoch: currentEpoch })
+                voteHistory.push(
+                    HistoricVotes({ weightedVotes: newWeightedVotes, epoch: currentEpoch })
                 );
             } else {
                 // Epoch already exists for this dial so just update the dial's weighted votes
-                latestWeightedVotesPeriod.weightedVotes = newWeightedVotes;
+                latestHistoricVotes.weightedVotes = newWeightedVotes;
             }
         }
     }
