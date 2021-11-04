@@ -18,12 +18,11 @@ struct WeightedVotesPeriod {
 struct DialData {
     bool disabled;
     bool notify;
-    // 2^88 = 309m which is > 100m total MTA
     // dial's weekly rewards distribution amount.
     // If 0 then the weighted votes is used.
-    uint88 fixedDistribution;
+    uint96 fixedDistributionAmount;
     // dial rewards that are waiting to be distributed to recipient
-    uint88 balance;
+    uint96 balance;
     // 20 * 8 = 160 bits
     address recipient;
     // list of weighted votes in each distribution period. 1 slot
@@ -143,6 +142,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     function initialize(
         address[] memory _recipients,
         bool[] memory _notifies,
+        uint96[] memory _fixedDistributionAmount,
         address[] memory _stakingContracts,
         uint128 _totalRewards
     ) external initializer {
@@ -151,7 +151,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
         // STEP 1 - Add each of the dials
         for (uint256 i = 0; i < len; i++) {
-            _addDial(_recipients[i], _notifies[i]);
+            _addDial(_recipients[i], _notifies[i], _fixedDistributionAmount[i]);
         }
 
         // STEP 2 - Set the last epoch storage variable to the immutable start epoch
@@ -190,11 +190,11 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @param _recipient Address of the contract that will receive rewards.
      * @param _notify If true, `notifyRewardAmount` is called in the `distributeRewards` function.
      */
-    function addDial(address _recipient, bool _notify) external onlyGovernor {
-        _addDial(_recipient, _notify);
+    function addDial(address _recipient, bool _notify, uint96 _fixedDistributionAmount) external onlyGovernor {
+        _addDial(_recipient, _notify, _fixedDistributionAmount);
     }
 
-    function _addDial(address _recipient, bool _notify) internal {
+    function _addDial(address _recipient, bool _notify, uint96 _fixedDistributionAmount) internal {
         require(_recipient != address(0), "Dial address is zero");
 
         uint256 len = dials.length;
@@ -207,6 +207,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         DialData storage newDialData = dials[len];
         newDialData.recipient = _recipient;
         newDialData.notify = _notify;
+        newDialData.fixedDistributionAmount = _fixedDistributionAmount;
         newDialData.weightedVotesPeriods.push(
             WeightedVotesPeriod({ weightedVotes: 0, epoch: _epoch(block.timestamp) })
         );
@@ -276,7 +277,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             // Sum the rewards for each dial
             totalAmount += _amounts[i];
             // Add rewards to the dial's rewards balance
-            dials[dialId].balance += toUint88(_amounts[i]);
+            dials[dialId].balance += SafeCast.toUint96(_amounts[i]);
 
             emit DonatedRewards(dialId, _amounts[i]);
         }
@@ -309,7 +310,14 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         for (uint256 dialIndex = 0; dialIndex < dialLen; dialIndex++) {
             DialData memory dialData = dials[dialIndex];
             uint256 wveLength = dialData.weightedVotesPeriods.length;
-            if (dialData.disabled || wveLength == 0) {
+            if (dialData.disabled || dialData.fixedDistributionAmount > 0 || wveLength == 0) {
+                // If dial is a fixed emissions
+                if (dialData.fixedDistributionAmount > 0) {
+                    // Remove from emission amount for the weighted votes
+                    require(emissionForEpoch > dialData.fixedDistributionAmount, "fixed dists > weekly emission");
+                    emissionForEpoch -= dialData.fixedDistributionAmount;
+                }
+
                 // TODO does this need to be initialised? Do we save gas by not initialising?
                 dialWeightedVotes[dialIndex] = 0;
                 continue;
@@ -350,8 +358,16 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
         // STEP 3 - Calculate the distribution amounts for each dial
         // For each dial
+        // TODO should this be uint96?
         uint256[] memory distributionAmounts = new uint256[](dialLen);
         for (uint256 dialIndex2 = 0; dialIndex2 < dialLen; dialIndex2++) {
+            uint96 fixedDistributionAmount = dials[dialIndex2].fixedDistributionAmount;
+            // If dial is a fixed distribution
+            if (fixedDistributionAmount > 0) {
+                distributionAmounts[dialIndex2] = fixedDistributionAmount;
+                dials[dialIndex2].balance += fixedDistributionAmount;
+                continue;
+            }
             // Skip dial if no votes or disabled
             if (dialWeightedVotes[dialIndex2] == 0) {
                 continue;
@@ -363,7 +379,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
                 totalDialVotes;
 
             // Update dial's rewards balance in storage
-            dials[dialIndex2].balance += toUint88(distributionAmounts[dialIndex2]);
+            dials[dialIndex2].balance += SafeCast.toUint96(distributionAmounts[dialIndex2]);
         }
 
         emit PeriodRewards(distributionAmounts);
@@ -550,11 +566,5 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     function _subtract(uint256 a, uint256 b) private pure returns (uint256) {
         return a - b;
-    }
-
-    /// @dev unit88 is not part of OZ's SafeCast library so will declare here.
-    function toUint88(uint256 value) internal pure returns (uint88 result) {
-        require(value <= type(uint88).max, "SafeCast: value doesn't fit in 88 bits");
-        result = uint88(value);
     }
 }

@@ -96,6 +96,7 @@ describe("EmissionsController", async () => {
         await emissionsController.initialize(
             dialAddresses,
             [true, true, false],
+            [0, 0, 0],
             [staking1.address, staking2.address],
             simpleToExactAmount(29400963),
         )
@@ -164,41 +165,56 @@ describe("EmissionsController", async () => {
             })
             const stakingContract1 = Wallet.createRandom()
             const stakingContract2 = Wallet.createRandom()
-            const tests: { desc: string; dialIndexes: number[]; notifies: boolean[]; stakingContracts: string[] }[] = [
+            const tests: {
+                desc: string
+                dialIndexes: number[]
+                notifies: boolean[]
+                fixedDistributionAmounts: number[]
+                stakingContracts: string[]
+            }[] = [
                 {
                     desc: "recipients empty",
                     dialIndexes: [],
                     notifies: [true, false],
+                    fixedDistributionAmounts: [0, 0],
                     stakingContracts: [stakingContract1.address, stakingContract2.address],
                 },
                 {
                     desc: "notifies empty",
                     dialIndexes: [0, 1],
                     notifies: [],
+                    fixedDistributionAmounts: [0, 0],
                     stakingContracts: [stakingContract1.address, stakingContract2.address],
                 },
                 {
                     desc: "different lengths",
                     dialIndexes: [0],
                     notifies: [true, false],
+                    fixedDistributionAmounts: [0, 0],
                     stakingContracts: [stakingContract1.address, stakingContract2.address],
                 },
             ]
             for (const test of tests) {
                 it(test.desc, async () => {
                     const recipients = test.dialIndexes.map((i) => dials[i].address)
-                    const tx = emissionsController.initialize(recipients, test.notifies, test.stakingContracts, 0)
+                    const tx = emissionsController.initialize(
+                        recipients,
+                        test.notifies,
+                        test.fixedDistributionAmounts,
+                        test.stakingContracts,
+                        0,
+                    )
                     await expect(tx).to.revertedWith("Initialize args mistmatch")
                 })
             }
             it("First staking contract is zero", async () => {
                 const recipients = dials.map((d) => d.address)
-                const tx = emissionsController.initialize(recipients, [true, true, false], [ZERO_ADDRESS, staking2.address], 0)
+                const tx = emissionsController.initialize(recipients, [true, true, false], [0, 0, 0], [ZERO_ADDRESS, staking2.address], 0)
                 await expect(tx).to.revertedWith("Staking contract address is zero")
             })
             it("Second staking contract is zero", async () => {
                 const recipients = dials.map((d) => d.address)
-                const tx = emissionsController.initialize(recipients, [true, true, false], [staking1.address, ZERO_ADDRESS], 0)
+                const tx = emissionsController.initialize(recipients, [true, true, false], [0, 0, 0], [staking1.address, ZERO_ADDRESS], 0)
                 await expect(tx).to.revertedWith("Staking contract address is zero")
             })
         })
@@ -235,7 +251,7 @@ describe("EmissionsController", async () => {
             expect(await emissionsController.topLineEmission(startingEpoch + 1)).eq(await nextRewardAmount(emissionsController))
         })
     })
-    describe.only("calculate rewards", () => {
+    describe("calculate rewards", () => {
         const user1Staking1Votes = simpleToExactAmount(100)
         const user1Staking2Votes = simpleToExactAmount(200)
         const user2Staking1Votes = simpleToExactAmount(600)
@@ -308,7 +324,7 @@ describe("EmissionsController", async () => {
                     await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
                     // User 2 gives all 600 votes to dial 2
                     await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 1, weight: 200 }])
-                    await increaseTime(ONE_WEEK.mul(1))
+                    await increaseTime(ONE_WEEK)
 
                     const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
@@ -334,7 +350,7 @@ describe("EmissionsController", async () => {
                         { dialId: 0, weight: 100 },
                         { dialId: 1, weight: 100 },
                     ])
-                    await increaseTime(ONE_WEEK.mul(1))
+                    await increaseTime(ONE_WEEK)
 
                     const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
@@ -356,7 +372,7 @@ describe("EmissionsController", async () => {
                     ])
                     // User 2 gives all 600 votes to dial 3
                     await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 2, weight: 200 }])
-                    await increaseTime(ONE_WEEK.mul(1))
+                    await increaseTime(ONE_WEEK)
 
                     const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
@@ -707,6 +723,97 @@ describe("EmissionsController", async () => {
                 })
             })
         })
+        context("with fixed distribution dial", () => {
+            const fixedDistributionAmount = simpleToExactAmount(10000)
+            let nextEpochEmission: BN
+            let weightedDistributionAmount: BN
+            beforeEach(async () => {
+                const newDial = await new MockRewardsDistributionRecipient__factory(sa.default.signer).deploy(
+                    rewardToken.address,
+                    DEAD_ADDRESS,
+                )
+                await emissionsController.connect(sa.governor.signer).addDial(newDial.address, true, fixedDistributionAmount)
+
+                nextEpochEmission = await nextRewardAmount(emissionsController)
+                weightedDistributionAmount = nextEpochEmission.sub(fixedDistributionAmount)
+            })
+            it("Only User 1 allocates 1% to dial 1", async () => {
+                // User 1 gives 1% of their 300 votes to dial 1
+                await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 2 }])
+                await increaseTime(ONE_WEEK)
+
+                const tx = await emissionsController.calculateRewards()
+
+                await expect(tx)
+                    .to.emit(emissionsController, "PeriodRewards")
+                    .withArgs([weightedDistributionAmount, 0, 0, fixedDistributionAmount])
+
+                expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(weightedDistributionAmount)
+                expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(0)
+                expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(0)
+                expect((await emissionsController.dials(3)).balance, "dial 4 balance after").to.eq(fixedDistributionAmount)
+            })
+            it("User 1 20/80 votes to dial 1 & 2, User 2 all votes to dial 3", async () => {
+                // User 1 splits their 300 votes with 20% to dial 1 and 80% to dial 2
+                await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
+                    { dialId: 0, weight: 40 },
+                    { dialId: 1, weight: 160 },
+                ])
+                // User 2 gives all 600 votes to dial 3
+                await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 2, weight: 200 }])
+                await increaseTime(ONE_WEEK)
+
+                const tx = await emissionsController.calculateRewards()
+
+                // User 1 20% of 300 votes
+                const dial1 = weightedDistributionAmount.mul(300).div(5).div(900)
+                // User 1 80% of 300 votes
+                const dial2 = weightedDistributionAmount.mul(300).mul(4).div(5).div(900)
+                // User 2 600 votes
+                const dial3 = weightedDistributionAmount.mul(600).div(900)
+                await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([dial1, dial2, dial3, fixedDistributionAmount])
+
+                expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(dial1)
+                expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(dial2)
+                expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(dial3)
+                expect((await emissionsController.dials(3)).balance, "dial 4 balance after").to.eq(fixedDistributionAmount)
+            })
+            it("User 1 and 2 all to dial 4 which is fixed", async () => {
+                // User 1 splits their 300 votes with 20% to dial 1 and 80% to dial 2
+                await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 3, weight: 200 }])
+                // User 2 gives all 600 votes to dial 3
+                await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 3, weight: 200 }])
+                await increaseTime(ONE_WEEK)
+
+                const tx = await emissionsController.calculateRewards()
+
+                await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([0, 0, 0, fixedDistributionAmount])
+
+                expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(0)
+                expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(0)
+                expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(0)
+                expect((await emissionsController.dials(3)).balance, "dial 4 balance after").to.eq(fixedDistributionAmount)
+            })
+            it("Fixed distributions > weekly emissions", async () => {
+                const newDial = await new MockRewardsDistributionRecipient__factory(sa.default.signer).deploy(
+                    rewardToken.address,
+                    DEAD_ADDRESS,
+                )
+                await emissionsController
+                    .connect(sa.governor.signer)
+                    .addDial(newDial.address, true, nextEpochEmission.sub(fixedDistributionAmount).add(1))
+
+                // User 1 all 300 votes to dial 1
+                await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
+                // User 2 all 600 votes to dial 2
+                await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 1, weight: 200 }])
+                await increaseTime(ONE_WEEK)
+
+                const tx = emissionsController.calculateRewards()
+
+                await expect(tx).to.revertedWith("fixed dists > weekly emission")
+            })
+        })
     })
     describe("donate", () => {
         const user1Staking1Votes = simpleToExactAmount(100)
@@ -961,22 +1068,23 @@ describe("EmissionsController", async () => {
             dials.push(newDial)
         })
         it("governor adds new dial", async () => {
-            const tx = await emissionsController.connect(sa.governor.signer).addDial(newDial.address, true)
+            const tx = await emissionsController.connect(sa.governor.signer).addDial(newDial.address, true, simpleToExactAmount(100000))
             await expect(tx).to.emit(emissionsController, "AddedDial").withArgs(3, newDial.address)
             const savedDial = await emissionsController.dials(3)
-            expect(savedDial.recipient).to.eq(newDial.address)
-            expect(savedDial.notify).to.eq(true)
+            expect(savedDial.recipient, "recipient").to.eq(newDial.address)
+            expect(savedDial.notify, "notify").to.eq(true)
+            expect(savedDial.fixedDistributionAmount, "fixedDistributionAmount").to.eq(simpleToExactAmount(100000))
         })
         it("fail to add recipient with zero address", async () => {
-            const tx = emissionsController.connect(sa.governor.signer).addDial(ZERO_ADDRESS, true)
+            const tx = emissionsController.connect(sa.governor.signer).addDial(ZERO_ADDRESS, true, 0)
             await expect(tx).to.revertedWith("Dial address is zero")
         })
         it("fail to add existing dial", async () => {
-            const tx = emissionsController.connect(sa.governor.signer).addDial(dials[0].address, true)
+            const tx = emissionsController.connect(sa.governor.signer).addDial(dials[0].address, true, 0)
             await expect(tx).to.revertedWith("Dial already exists")
         })
         it("Default user fails to add new dial", async () => {
-            const tx = emissionsController.addDial(newDial.address, true)
+            const tx = emissionsController.addDial(newDial.address, true, 0)
             await expect(tx).to.revertedWith("Only governor can execute")
         })
     })
