@@ -31,12 +31,6 @@ struct Preference {
     uint8 weight;
 }
 
-struct EpochHistory {
-    // Starting epoch of contract
-    uint32 startEpoch;
-    uint32 lastEpoch;
-}
-
 struct TopLevelConfig {
     int256 A;
     int256 B;
@@ -72,11 +66,13 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     // HIGH LEVEL EMISSION
 
+    /// @notice first weekly epoch of this contract.
+    uint32 immutable public startEpoch;
+    /// @notice the last weekly epoch to have rewards distributed.
+    uint32 public lastEpoch;
+    
     /// @notice address of rewards token. ie MTA token
     IERC20 public immutable rewardToken;
-
-    /// @dev integer configs packed into one slot
-    EpochHistory public config;
 
     // VOTING
 
@@ -128,6 +124,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         C = _config.C * 1e12;
         D = _config.D * 1e12;
         EPOCHS = _config.EPOCHS * 1e6;
+
+        // Set the weekly epoch this contract starts distributions which will be 1 - 2 week after deployment.
+        startEpoch = SafeCast.toUint32((block.timestamp + 1 weeks) / DISTRIBUTION_PERIOD);
     }
 
     /**
@@ -151,12 +150,8 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             _addDial(_recipients[i], _notifies[i]);
         }
 
-        // STEP 2 - Set the top level emission config
-        // The start of the last distribution will be set at the end of the current time period.
-        // This means there is the current period and the next period to vote before the first distribution.
-        // That is, will be at least 1 week and max of 2 weeks to vote before the first distribution is calculated.
-        uint32 startEpoch = SafeCast.toUint32((block.timestamp + 1 weeks) / DISTRIBUTION_PERIOD);
-        config = EpochHistory({ startEpoch: startEpoch, lastEpoch: startEpoch });
+        // STEP 2 - Set the last epoch storage variable to the immutable start epoch
+        lastEpoch = startEpoch;
 
         rewardToken.safeTransferFrom(msg.sender, address(this), _totalRewards);
 
@@ -300,9 +295,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     function calculateRewards() external {
         // STEP 1 - Calculate amount of rewards to distribute this week
         uint32 epoch = SafeCast.toUint32(block.timestamp) / DISTRIBUTION_PERIOD;
-        require(epoch > config.lastEpoch, "Must wait for new period");
+        require(epoch > lastEpoch, "Must wait for new period");
         // Update storage with new last epoch
-        config.lastEpoch = epoch;
+        lastEpoch = epoch;
         uint256 emissionForEpoch = topLineEmission(epoch);
 
         // STEP 2 - Calculate the total amount of dial votes ignoring any disabled dials
@@ -417,7 +412,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     function topLineEmission(uint32 epoch) public view returns (uint256 emissionForEpoch) {
         // e.g. week 1, A = -166000e12, B = 180000e12, C = -180000e12, D = 166000e12
         // e.g. epochDelta = 1e18
-        uint128 epochDelta = (epoch - config.startEpoch) * 1e18;
+        uint128 epochDelta = (epoch - startEpoch) * 1e18;
         // e.g. x = 1e18 / 312e6 = 3205128205
         int256 x = SafeCast.toInt256(epochDelta / EPOCHS);
         emissionForEpoch =

@@ -45,8 +45,9 @@ const calcWeeklyReward = (epochDelta: number): BN => {
 }
 
 const nextRewardAmount = async (emissionsController: EmissionsController): Promise<BN> => {
-    const epochs = await emissionsController.config()
-    return calcWeeklyReward(epochs.lastEpoch - epochs.startEpoch + 1)
+    const lastEpoch = await emissionsController.lastEpoch()
+    const startEpoch = await emissionsController.startEpoch()
+    return calcWeeklyReward(lastEpoch - startEpoch + 1)
 }
 
 describe("EmissionsController", async () => {
@@ -135,9 +136,8 @@ describe("EmissionsController", async () => {
             expect(dial3.notify, "dial 3 notify").to.eq(false)
         })
         it("epoch set on initialization", async () => {
-            const config = await emissionsController.config()
-            expect(config.startEpoch, "start epoch").to.eq(currentWeekEpoch().add(2))
-            expect(config.lastEpoch, "last epoch").to.eq(currentWeekEpoch().add(2))
+            expect(await emissionsController.startEpoch(), "start epoch").to.eq(currentWeekEpoch().add(2))
+            expect(await emissionsController.lastEpoch(), "last epoch").to.eq(currentWeekEpoch().add(2))
         })
         it("transfer MTA on initialization", async () => {
             expect(await rewardToken.balanceOf(emissionsController.address), "ec rewards bal").to.eq(totalRewards)
@@ -229,13 +229,13 @@ describe("EmissionsController", async () => {
         let startingEpoch
         before(async () => {
             await deployEmissionsController()
-            startingEpoch = (await emissionsController.config()).startEpoch
+            startingEpoch = await emissionsController.startEpoch()
         })
         it("fetches week 1", async () => {
             expect(await emissionsController.topLineEmission(startingEpoch + 1)).eq(await nextRewardAmount(emissionsController))
         })
     })
-    describe("calculate rewards", () => {
+    describe.only("calculate rewards", () => {
         const user1Staking1Votes = simpleToExactAmount(100)
         const user1Staking2Votes = simpleToExactAmount(200)
         const user2Staking1Votes = simpleToExactAmount(600)
@@ -259,16 +259,14 @@ describe("EmissionsController", async () => {
             expect(await emissionsController.callStatic.getVotes(sa.dummy3.address), "User 3 votes before").to.eq(simpleToExactAmount(300))
         })
         it("with no weights", async () => {
-            const configBefore = await emissionsController.config()
-            const lastEpochBefore = configBefore.lastEpoch
+            const lastEpochBefore = await emissionsController.lastEpoch()
             await increaseTime(ONE_WEEK)
 
             const tx = await emissionsController.calculateRewards()
 
             await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([0, 0, 0])
 
-            const configAfter = await emissionsController.config()
-            expect(configAfter.lastEpoch, "last epoch after").to.eq(lastEpochBefore + 1)
+            expect(await emissionsController.lastEpoch(), "last epoch after").to.eq(lastEpochBefore + 1)
 
             expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(0)
             expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(0)
@@ -286,12 +284,10 @@ describe("EmissionsController", async () => {
             context("in first emissions period", () => {
                 let lastEpochBefore: number
                 beforeEach(async () => {
-                    const config = await emissionsController.config()
-                    lastEpochBefore = config.lastEpoch
+                    lastEpochBefore = await emissionsController.lastEpoch()
                 })
                 afterEach(async () => {
-                    const config = await emissionsController.config()
-                    expect(config.lastEpoch, "last epoch after").to.eq(lastEpochBefore + 1)
+                    expect(await emissionsController.lastEpoch(), "last epoch after").to.eq(lastEpochBefore + 1)
                 })
                 it("User 1 all votes to dial 1", async () => {
                     // User 1 gives all 300 votes to dial 1
