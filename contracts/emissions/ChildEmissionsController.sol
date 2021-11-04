@@ -9,19 +9,6 @@ import { ImmutableModule } from "../shared/ImmutableModule.sol";
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-struct DialData {
-    uint128 weightedVotes;
-    uint96 balance;
-    address recipient;
-    bool disabled;
-    bool notify;
-}
-
-struct DialWeight {
-    uint256 dialId;
-    uint256 weight;
-}
-
 /**
  * @title  ChildEmissionsController
  * @author mStable
