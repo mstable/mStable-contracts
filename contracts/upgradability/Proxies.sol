@@ -65,7 +65,7 @@ contract LiquidatorProxy is TransparentUpgradeableProxy {
 }
 
 /**
- * @notice UnwrapperProxy delegates calls to a Liquidator implementation
+ * @notice UnwrapperProxy delegates calls to a Unwrapper implementation
  * @dev    Extending on OpenZeppelin's InitializableAdminUpgradabilityProxy
  * means that the proxy is upgradable through a ProxyAdmin. UnwrapperProxy upgrades
  * are implemented by a DelayedProxyAdmin, which enforces a 1 week opt-out period.
