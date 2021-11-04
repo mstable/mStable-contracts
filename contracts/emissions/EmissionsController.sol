@@ -9,19 +9,21 @@ import { ImmutableModule } from "../shared/ImmutableModule.sol";
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-struct WeightedVotesEpoch {
+struct WeightedVotesPeriod {
     uint128 weightedVotes;
     // The start of the distribution period in seconds
-    uint32 epoch;
+    uint32 periodStart;
 }
 
 struct DialData {
-    // uint128 weightedVotes;
-    uint96 balance;
     bool disabled;
     bool notify;
+    // 2^88 = 309m which is > 100m total MTA
+    uint88 balance;
+    // 20 * 8 = 160 bits
     address recipient;
-    WeightedVotesEpoch[] weightedVotesEpoch;
+    // list of weighted votes in each distribution period
+    WeightedVotesPeriod[] weightedVotesPeriods;
 }
 
 struct Preference {
@@ -42,7 +44,7 @@ struct EmissionsConfig {
  * @title  EmissionsController
  * @author mStable
  * @notice Calculates the weekly rewards to be sent to each dial based on governance votes.
- a* @dev     VERSION: 1.0
+ * @dev     VERSION: 1.0
  *          DATE:    2021-10-28
  */
 contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule {
@@ -97,9 +99,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
                     INIT
     ****************************************/
 
-    /** @notice Recipient is a module, governed by mStable governance
-     * @param _nexus System nexus that resolves module addresses
-     * @param _rewardToken token that rewards are distributed in. eg MTA
+    /** @notice Recipient is a module, governed by mStable governance.
+     * @param _nexus System nexus that resolves module addresses.
+     * @param _rewardToken token that rewards are distributed in. eg MTA.
      */
     constructor(address _nexus, address _rewardToken) ImmutableModule(_nexus) {
         require(_rewardToken != address(0), "Reward token address is zero");
@@ -110,7 +112,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @dev Initialize function to configure the first dials.
      * @param _recipients list of dial contract addressess that can receive rewards.
      * @param _notifies list of dial notify flags. If true, `notifyRewardAmount` is called in the `distributeRewards` function.
-     * @param _stakingContracts two staking contract with voting power
+     * @param _stakingContracts two staking contract with voting power.
      * @dev all recipient contracts need to implement the `IRewardsDistributionRecipient` interface.
      */
     function initialize(
@@ -162,7 +164,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     /**
      * @notice Adds a new dial that can be voted on to receive weekly rewards.
-     * @param _recipient Address of the contract that will receive rewards
+     * @param _recipient Address of the contract that will receive rewards.
      * @param _notify If true, `notifyRewardAmount` is called in the `distributeRewards` function.
      */
     function addDial(address _recipient, bool _notify) external onlyGovernor {
@@ -182,8 +184,11 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         DialData storage newDialData = dials[len];
         newDialData.recipient = _recipient;
         newDialData.notify = _notify;
-        newDialData.weightedVotesEpoch.push(
-            WeightedVotesEpoch({ weightedVotes: 0, epoch: _startCurrentPeriod(block.timestamp) })
+        newDialData.weightedVotesPeriods.push(
+            WeightedVotesPeriod({
+                weightedVotes: 0,
+                periodStart: _startCurrentPeriod(block.timestamp)
+            })
         );
 
         emit AddedDial(len, _recipient);
@@ -191,8 +196,8 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     /**
      * @notice Updates a dials recipient contract and/or disabled flag.
-     * @param _dialId Dial identifier
-     * @param _disabled If true, no rewards will be distributed to this dial
+     * @param _dialId Dial identifier which is the index of the dials array.
+     * @param _disabled If true, no rewards will be distributed to this dial.
      */
     function updateDial(uint256 _dialId, bool _disabled) external onlyGovernor {
         require(_dialId < dials.length, "Invalid dial id");
@@ -205,7 +210,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     /**
      * @notice Adds rewards to the Emission Controller for future distributions.
      * @param from account that the rewards will be transferred from. This can be different to the msg sender.
-     * @param rewards the number of rewards to be transferred to the Emissions Controller
+     * @param rewards the number of rewards to be transferred to the Emissions Controller.
      */
     function addRewards(address from, uint256 rewards) external {
         require(rewards > 0, "Zero rewards");
@@ -265,7 +270,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             // Sum the rewards for each dial
             totalAmount += _amounts[i];
             // Add rewards to the dial's rewards balance
-            dials[dialId].balance += SafeCast.toUint96(_amounts[i]);
+            dials[dialId].balance += toUint88(_amounts[i]);
 
             emit DonatedRewards(dialId, _amounts[i]);
         }
@@ -275,8 +280,12 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     }
 
     /**
-     * @notice calculates the rewards to be distributed to each dial
-     * at the start of a period.
+     * @notice Calculates the rewards to be distributed to each dial
+     * for the next weekly period to be processed.
+     * The period being processed has to be completed.
+     * Any diabled dials will be ignored and rewards redistributed proportionally
+     * to the dials that have not been disabled.
+     * Any updates to the weights after the period finished will be ignored.
      */
     function calculateRewards() external {
         // STEP 1 - Calculate amount of rewards to distribute this week
@@ -289,7 +298,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         // For each dial
         for (uint256 dialIndex = 0; dialIndex < dialLen; dialIndex++) {
             DialData memory dialData = dials[dialIndex];
-            uint256 wveLength = dialData.weightedVotesEpoch.length;
+            uint256 wveLength = dialData.weightedVotesPeriods.length;
             if (dialData.disabled || wveLength == 0) {
                 // TODO does this need to be initialised? Do we save gas by not initialising?
                 dialWeightedVotes[dialIndex] = 0;
@@ -302,11 +311,27 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             uint256 epochIndex = wveLength;
             do {
                 epochIndex--;
-                // get last weighted vote from the dial. If
-                WeightedVotesEpoch memory wve = dialData.weightedVotesEpoch[epochIndex];
-                if (wve.epoch < endPeriod) {
+                // get dial's last weighted votes before this current period ends
+                WeightedVotesPeriod memory wve = dialData.weightedVotesPeriods[epochIndex];
+                // periodStart is most likely the start of the last distribution period, but it
+                // could be older if calculateRewards has not been run for over 2 weeks.
+                // periodStart could also be in the current period which should be ignored. We only
+                // want the weighted votes from last distribution period.
+                if (wve.periodStart < endPeriod) {
                     dialWeightedVotes[dialIndex] = wve.weightedVotes;
                     totalDialVotes += wve.weightedVotes;
+
+                    // If the dial's last weighted votes
+                    if (epochIndex == wveLength - 1) {
+                        // Create a new weighted votes for the current distribution period
+                        dials[dialIndex].weightedVotesPeriods.push(
+                            WeightedVotesPeriod({
+                                weightedVotes: wve.weightedVotes,
+                                periodStart: SafeCast.toUint32(endPeriod)
+                            })
+                        );
+                    }
+
                     // break from the do loop but not the for loop
                     break;
                 }
@@ -328,7 +353,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
                 totalDialVotes;
 
             // Update dial's rewards balance in storage
-            dials[dialIndex2].balance += SafeCast.toUint96(distributionAmounts[dialIndex2]);
+            dials[dialIndex2].balance += toUint88(distributionAmounts[dialIndex2]);
         }
 
         emit PeriodRewards(distributionAmounts);
@@ -372,8 +397,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
                 REWARDS-INTERNAL
     ****************************************/
 
-    // Calculate amount of rewards to distribute this week
-    // Also updates the remaining rewards and distributions storage variables.
+    /** @notice Calculates the amount of rewards to distribute for a weekly period.
+     * @dev Also updates the remaining rewards and distributions storage variables.
+     */
     // TODO replace with curve rather than linear
     function calculateDistributionAmount()
         internal
@@ -399,8 +425,8 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     ****************************************/
 
     /**
-     * @notice allows a staker to proportion their voting power across a number of dials
-     * @param _preferences Structs containing dialId & voting weights
+     * @notice allows a staker to proportion their voting power across a number of dials.
+     * @param _preferences Structs containing dialId & voting weights.
      * @dev a staker can proportion their voting power even if they currently have zero voting power.
      * For example, they have delegated their votes.
      * When they do have voting power, their set weights will proportion their voting power. eg they undelegate.
@@ -434,11 +460,11 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     }
 
     /**
-     * @notice called by the staking contract when a staker has added or removed staked rewards.
+     * @notice called by the staking contracts when a staker has added or removed staked rewards.
      * @dev this can be called when staking, cooling down for withdraw or delegating.
-     * @param from account that rewards moved from. If a mint the account will be a zero address
-     * @param to account that rewards moved to. If a burn the account will be a zero address
-     * @param amount the number of rewards moved including the decimal places
+     * @param from account that rewards moved from. If a mint the account will be a zero address.
+     * @param to account that rewards moved to. If a burn the account will be a zero address.
+     * @param amount the number of rewards moved including the decimal places.
      */
     function moveVotingPowerHook(
         address from,
@@ -478,40 +504,40 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             // = 50e18
             uint256 amountToChange = (pref.weight * _amount) / SCALE;
 
-            uint256 len = dials[pref.dialId].weightedVotesEpoch.length;
-            WeightedVotesEpoch storage latestWeightedVotesEpoch = dials[pref.dialId]
-            .weightedVotesEpoch[len - 1];
+            uint256 len = dials[pref.dialId].weightedVotesPeriods.length;
+            WeightedVotesPeriod storage latestWeightedVotesPeriod = dials[pref.dialId]
+            .weightedVotesPeriods[len - 1];
 
             uint32 startCurrentEpoch = _startCurrentPeriod(block.timestamp);
 
             uint128 newWeightedVotes = SafeCast.toUint128(
-                _op(latestWeightedVotesEpoch.weightedVotes, amountToChange)
+                _op(latestWeightedVotesPeriod.weightedVotes, amountToChange)
             );
 
             // If in a new epoch for this dial
-            if (latestWeightedVotesEpoch.epoch < startCurrentEpoch) {
+            if (latestWeightedVotesPeriod.periodStart < startCurrentEpoch) {
                 // Add a new weighted votes epoch for the dial
-                dials[pref.dialId].weightedVotesEpoch.push(
-                    WeightedVotesEpoch({
+                dials[pref.dialId].weightedVotesPeriods.push(
+                    WeightedVotesPeriod({
                         weightedVotes: newWeightedVotes,
-                        epoch: startCurrentEpoch
+                        periodStart: startCurrentEpoch
                     })
                 );
             } else {
                 // Epoch already exists for this dial so just update the dial's weighted votes
-                latestWeightedVotesEpoch.weightedVotes = newWeightedVotes;
+                latestWeightedVotesPeriod.weightedVotes = newWeightedVotes;
             }
         }
     }
 
-    function _startCurrentPeriod(uint256 timestamp)
-        internal
-        pure
-        returns (uint32 startCurrentEpoch)
-    {
-        startCurrentEpoch =
-            (SafeCast.toUint32(timestamp) / DISTRIBUTION_PERIOD) *
-            DISTRIBUTION_PERIOD;
+    /**
+     * @notice truncates a unix timestamp in seconds to the start of the weekly period
+     * which is Thursday 00:00 UTC.
+     * @param timestamp UNIX time in seconds.
+     * @return startPeriod the start of the week the timestamp is in.
+     */
+    function _startCurrentPeriod(uint256 timestamp) internal pure returns (uint32 startPeriod) {
+        startPeriod = (SafeCast.toUint32(timestamp) / DISTRIBUTION_PERIOD) * DISTRIBUTION_PERIOD;
     }
 
     function _add(uint256 a, uint256 b) private pure returns (uint256) {
@@ -520,5 +546,11 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     function _subtract(uint256 a, uint256 b) private pure returns (uint256) {
         return a - b;
+    }
+
+    /// @dev unit88 is not part of OZ's SafeCast library so will declare here.
+    function toUint88(uint256 value) internal pure returns (uint88 result) {
+        require(value <= type(uint88).max, "SafeCast: value doesn't fit in 88 bits");
+        result = uint88(value);
     }
 }
