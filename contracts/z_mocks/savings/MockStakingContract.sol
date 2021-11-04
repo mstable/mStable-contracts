@@ -18,7 +18,7 @@ contract MockStakingContract {
         uint256 oldVotes = _votes[account];
         _votes[account] = newVotes;
 
-        if(address(govHook) != address(0)) {
+        if (address(govHook) != address(0)) {
             if (oldVotes <= newVotes) {
                 govHook.moveVotingPowerHook(address(0), account, newVotes - oldVotes);
             } else if (oldVotes > newVotes) {
@@ -27,11 +27,15 @@ contract MockStakingContract {
         }
     }
 
-    function transferVotes(address from, address to, uint256 votes) public {
+    function transferVotes(
+        address from,
+        address to,
+        uint256 votes
+    ) public {
         _votes[from] -= votes;
         _votes[to] += votes;
 
-        if(address(govHook) != address(0)) {
+        if (address(govHook) != address(0)) {
             govHook.moveVotingPowerHook(from, to, votes);
         }
     }

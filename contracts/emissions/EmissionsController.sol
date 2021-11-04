@@ -67,10 +67,10 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     // HIGH LEVEL EMISSION
 
     /// @notice first weekly epoch of this contract.
-    uint32 immutable public startEpoch;
+    uint32 public immutable startEpoch;
     /// @notice the last weekly epoch to have rewards distributed.
     uint32 public lastEpoch;
-    
+
     /// @notice address of rewards token. ie MTA token
     IERC20 public immutable rewardToken;
 
@@ -204,10 +204,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         newDialData.recipient = _recipient;
         newDialData.notify = _notify;
         newDialData.weightedVotesPeriods.push(
-            WeightedVotesPeriod({
-                weightedVotes: 0,
-                epoch: _epoch(block.timestamp)
-            })
+            WeightedVotesPeriod({ weightedVotes: 0, epoch: _epoch(block.timestamp) })
         );
 
         emit AddedDial(len, _recipient);
@@ -523,10 +520,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             if (latestWeightedVotesPeriod.epoch < currentEpoch) {
                 // Add a new weighted votes epoch for the dial
                 dials[pref.dialId].weightedVotesPeriods.push(
-                    WeightedVotesPeriod({
-                        weightedVotes: newWeightedVotes,
-                        epoch: currentEpoch
-                    })
+                    WeightedVotesPeriod({ weightedVotes: newWeightedVotes, epoch: currentEpoch })
                 );
             } else {
                 // Epoch already exists for this dial so just update the dial's weighted votes
@@ -536,7 +530,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     }
 
     /**
-     * @notice returns the epoch a UNIX timestamp in seconds is in. 
+     * @notice returns the epoch a UNIX timestamp in seconds is in.
      * This is the number of weeks since 1 Jan 1970. ie the timestamp / 604800 seconds in a week.
      * @dev each week starts on Thursday 00:00 UTC.
      * @param timestamp UNIX time in seconds.

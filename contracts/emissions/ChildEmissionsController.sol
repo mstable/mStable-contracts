@@ -50,10 +50,7 @@ contract ChildEmissionsController is Initializable, ImmutableModule {
      * @param _nexus System nexus that resolves module addresses
      * @param _childRewardToken bridged rewards token on the Polygon chain that is distributed. eg MTA
      */
-    constructor(
-        address _nexus,
-        address _childRewardToken
-    ) ImmutableModule(_nexus) {
+    constructor(address _nexus, address _childRewardToken) ImmutableModule(_nexus) {
         require(_childRewardToken != address(0), "Reward token address is zero");
         childRewardToken = IERC20(_childRewardToken);
     }
@@ -105,9 +102,7 @@ contract ChildEmissionsController is Initializable, ImmutableModule {
             childRewardToken.safeTransferFrom(childRecipient, _endRecipients[i], amount);
 
             // STEP 4 - notify final recipient of received rewards
-            IRewardsDistributionRecipient(_endRecipients[i]).notifyRewardAmount(
-                amount
-            );
+            IRewardsDistributionRecipient(_endRecipients[i]).notifyRewardAmount(amount);
 
             emit DistributedReward(_endRecipients[i], amount);
         }

@@ -11,8 +11,7 @@ import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/Saf
  * @dev     VERSION: 1.0
  *          DATE:    2021-10-28
  */
-contract PolygonChildRecipient
-{
+contract PolygonChildRecipient {
     using SafeERC20 for IERC20;
 
     /// @notice bridged rewards token on the Polygon chain.
@@ -24,11 +23,7 @@ contract PolygonChildRecipient
      * @param _childRewardsToken bridged rewards token on the Polygon chain.
      * @param _childEmissionsController Polygon contract that will distribute bridged rewards on the Polygon chain.
      */
-    constructor(
-        address _childRewardsToken,
-        address _childEmissionsController
-    )
-    {
+    constructor(address _childRewardsToken, address _childEmissionsController) {
         childRewardsToken = IERC20(_childRewardsToken);
         childEmissionsController = _childEmissionsController;
 
