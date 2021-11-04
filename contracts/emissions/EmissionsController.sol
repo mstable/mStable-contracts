@@ -16,14 +16,15 @@ struct WeightedVotesPeriod {
 }
 
 struct DialData {
+    // If true, no rewards are distributed to the dial recipient
     bool disabled;
+    // If true, `notifyRewardAmount` on the recipient contract is called
     bool notify;
-    // dial's weekly rewards distribution amount.
-    // If 0 then the weighted votes is used.
-    uint96 fixedDistributionAmount;
+    // dial recipient is a staking contract
+    bool staking;
     // dial rewards that are waiting to be distributed to recipient
     uint96 balance;
-    // 20 * 8 = 160 bits
+    // account rewards are distributed to
     address recipient;
     // list of weighted votes in each distribution period. 1 slot
     WeightedVotesPeriod[] weightedVotesPeriods;
@@ -60,6 +61,8 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     uint32 constant DISTRIBUTION_PERIOD = 1 weeks;
     /// @notice Scale of dial weights. 200 = 100%, 2 = 1%, 1 = 0.5%
     uint256 constant SCALE = 200;
+    /// @notice percentage of weekly emissions to each staking contract.
+    uint256 constant STAKING_PERCENTAGE = 10;
     /// @notice Immutable emissions config, where 1 = 1
     int256 immutable A;
     int256 immutable B;
@@ -142,7 +145,6 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     function initialize(
         address[] memory _recipients,
         bool[] memory _notifies,
-        uint96[] memory _fixedDistributionAmount,
         address[] memory _stakingContracts,
         uint128 _totalRewards
     ) external initializer {
@@ -151,7 +153,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
         // STEP 1 - Add each of the dials
         for (uint256 i = 0; i < len; i++) {
-            _addDial(_recipients[i], _notifies[i], _fixedDistributionAmount[i]);
+            _addDial(_recipients[i], _notifies[i]);
         }
 
         // STEP 2 - Set the last epoch storage variable to the immutable start epoch
@@ -190,11 +192,11 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @param _recipient Address of the contract that will receive rewards.
      * @param _notify If true, `notifyRewardAmount` is called in the `distributeRewards` function.
      */
-    function addDial(address _recipient, bool _notify, uint96 _fixedDistributionAmount) external onlyGovernor {
-        _addDial(_recipient, _notify, _fixedDistributionAmount);
+    function addDial(address _recipient, bool _notify) external onlyGovernor {
+        _addDial(_recipient, _notify);
     }
 
-    function _addDial(address _recipient, bool _notify, uint96 _fixedDistributionAmount) internal {
+    function _addDial(address _recipient, bool _notify) internal {
         require(_recipient != address(0), "Dial address is zero");
 
         uint256 len = dials.length;
@@ -207,7 +209,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         DialData storage newDialData = dials[len];
         newDialData.recipient = _recipient;
         newDialData.notify = _notify;
-        newDialData.fixedDistributionAmount = _fixedDistributionAmount;
+        newDialData.staking = isStakingContract[_recipient];
         newDialData.weightedVotesPeriods.push(
             WeightedVotesPeriod({ weightedVotes: 0, epoch: _epoch(block.timestamp) })
         );
@@ -301,6 +303,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         // Update storage with new last epoch
         lastEpoch = epoch;
         uint256 emissionForEpoch = topLineEmission(epoch);
+        uint96 stakingDistributionAmount = SafeCast.toUint96(
+            (emissionForEpoch * STAKING_PERCENTAGE) / 100
+        );
 
         // STEP 2 - Calculate the total amount of dial votes ignoring any disabled dials
         uint256 totalDialVotes;
@@ -310,12 +315,16 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         for (uint256 dialIndex = 0; dialIndex < dialLen; dialIndex++) {
             DialData memory dialData = dials[dialIndex];
             uint256 wveLength = dialData.weightedVotesPeriods.length;
-            if (dialData.disabled || dialData.fixedDistributionAmount > 0 || wveLength == 0) {
+            bool isStaking = isStakingContract[dialData.recipient];
+            if (dialData.disabled || isStaking || wveLength == 0) {
                 // If dial is a fixed emissions
-                if (dialData.fixedDistributionAmount > 0) {
+                if (isStaking) {
                     // Remove from emission amount for the weighted votes
-                    require(emissionForEpoch > dialData.fixedDistributionAmount, "fixed dists > weekly emission");
-                    emissionForEpoch -= dialData.fixedDistributionAmount;
+                    require(
+                        emissionForEpoch > stakingDistributionAmount,
+                        "staking amounts > weekly emission"
+                    );
+                    emissionForEpoch -= stakingDistributionAmount;
                 }
 
                 // TODO does this need to be initialised? Do we save gas by not initialising?
@@ -361,11 +370,11 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         // TODO should this be uint96?
         uint256[] memory distributionAmounts = new uint256[](dialLen);
         for (uint256 dialIndex2 = 0; dialIndex2 < dialLen; dialIndex2++) {
-            uint96 fixedDistributionAmount = dials[dialIndex2].fixedDistributionAmount;
             // If dial is a fixed distribution
-            if (fixedDistributionAmount > 0) {
-                distributionAmounts[dialIndex2] = fixedDistributionAmount;
-                dials[dialIndex2].balance += fixedDistributionAmount;
+            // TODO should the staking flag be included in the dialWeightedVotes memory array?
+            if (dials[dialIndex2].staking) {
+                distributionAmounts[dialIndex2] = stakingDistributionAmount;
+                dials[dialIndex2].balance += stakingDistributionAmount;
                 continue;
             }
             // Skip dial if no votes or disabled
