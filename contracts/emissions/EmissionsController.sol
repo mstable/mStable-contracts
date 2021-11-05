@@ -438,10 +438,10 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
                 VOTING-EXTERNAL
     ****************************************/
 
-    function pokeSources() external {
-        uint256 votesCast = voterPreferences[msg.sender].votesCast;
-        _moveVotingPower(msg.sender, getVotes(msg.sender) - votesCast, _add);
-        voterPreferences[msg.sender].lastSourcePoke = SafeCast.toUint32(block.timestamp);
+    function pokeSources(address _voter) external {
+        uint256 votesCast = voterPreferences[_voter].votesCast;
+        _moveVotingPower(_voter, getVotes(_voter) - votesCast, _add);
+        voterPreferences[_voter].lastSourcePoke = SafeCast.toUint32(block.timestamp);
     }
 
     /**
@@ -498,7 +498,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             require(addTime > 0, "Caller must be staking contract");
 
             // If burning (withdraw) or transferring delegated votes from a staker
-            if (from != address(0)) {
+            if (from != address(0) && voterPreferences[from].lastSourcePoke > 0) {
                 require(
                     voterPreferences[from].lastSourcePoke > addTime,
                     "Must init new contract bal"
@@ -506,7 +506,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
                 _moveVotingPower(from, amount, _subtract);
             }
             // If minting (staking) or transferring delegated votes to a staker
-            if (to != address(0)) {
+            if (to != address(0) && voterPreferences[to].lastSourcePoke > 0) {
                 require(
                     voterPreferences[to].lastSourcePoke > addTime,
                     "Must init new contract bal"
