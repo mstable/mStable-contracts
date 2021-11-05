@@ -73,7 +73,7 @@ describe("EmissionsController Polygon Integration", async () => {
         emissionsController = new EmissionsController__factory(sa.default.signer).attach(proxy.address)
 
         await rewardToken.approve(emissionsController.address, totalRewards)
-        await emissionsController.initialize([], [], [staking1.address, staking2.address], simpleToExactAmount(29400963))
+        await emissionsController.initialize([], [], [], [staking1.address, staking2.address], simpleToExactAmount(29400963))
 
         await staking1.setGovernanceHook(emissionsController.address)
         await staking2.setGovernanceHook(emissionsController.address)
@@ -165,8 +165,8 @@ describe("EmissionsController Polygon Integration", async () => {
                 emissionsController.address,
             )
 
-            await emissionsController.connect(sa.governor.signer).addDial(rootRecipient1.address, true)
-            await emissionsController.connect(sa.governor.signer).addDial(rootRecipient2.address, true)
+            await emissionsController.connect(sa.governor.signer).addDial(rootRecipient1.address, 0, true)
+            await emissionsController.connect(sa.governor.signer).addDial(rootRecipient2.address, 0, true)
             await increaseTime(ONE_WEEK.mul(2))
         })
         it("to first polygon recipient", async () => {
