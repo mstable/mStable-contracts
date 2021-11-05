@@ -25,7 +25,7 @@ export const increaseTimeTo = async (target: BN | number): Promise<void> => {
 export const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
 export const startWeek = (epochSeconds: BigNumberish): BN => BN.from(epochSeconds).div(ONE_WEEK).mul(ONE_WEEK)
-export const startCurrentWeek = (): BN => startWeek(Math.floor(Date.now() / 1000))
+export const startCurrentWeek = async (): Promise<BN> => startWeek(await getTimestamp())
 
 export const weekEpoch = (epochSeconds: BigNumberish): BN => BN.from(epochSeconds).div(ONE_WEEK)
-export const currentWeekEpoch = (): BN => weekEpoch(Math.floor(Date.now() / 1000))
+export const currentWeekEpoch = async (): Promise<BN> => weekEpoch(await getTimestamp())
