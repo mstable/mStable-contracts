@@ -2,7 +2,7 @@
 /* eslint-disable no-await-in-loop */
 import { task, types } from "hardhat/config"
 import { getSigner } from "./utils/signerFactory"
-import { alUSD, BUSD, GUSD, HBTC, isToken, mBPT, mBTC, MTA, mUSD, PMTA, PmUSD, TBTC, Token } from "./utils"
+import { alUSD, BUSD, GUSD, HBTC, isToken, mBPT, mBTC, MTA, mUSD, PMTA, PmUSD, TBTCv2, Token } from "./utils"
 import { ContractNames } from "./utils/networkAddressFactory"
 
 task("distribute-mta-mainnet", "Distributes MTA rewards on Mainnet")
@@ -11,8 +11,8 @@ task("distribute-mta-mainnet", "Distributes MTA rewards on Mainnet")
         const signer = await getSigner(hre)
         const signerAddress = await signer.getAddress()
         const rewardSymbol = MTA.symbol
-        const vaultsOrPools: Array<Token | ContractNames> = [MTA, mBPT, mUSD, mBTC, alUSD, BUSD, GUSD, HBTC, TBTC]
-        const mtaAmounts = [32500, 20000, 9218.49, 4512.31, 5774.36, 12444.89, 18320.08, 12559.79, 5824.08]
+        const vaultsOrPools: Array<Token | ContractNames> = [MTA, mBPT, mUSD, mBTC, alUSD, BUSD, GUSD, HBTC, TBTCv2]
+        const mtaAmounts = [32500, 20000, 9553.68, 4177.12, 5638.56, 9345.41, 12003.55, 22443.36, 5492.32]
         const vaultNames = [
             "Staking V2 MTA   ",
             "Staking V2 mBPT  ",
@@ -22,7 +22,7 @@ task("distribute-mta-mainnet", "Distributes MTA rewards on Mainnet")
             "BUSD Feeder Pool ",
             "GUSD Feeder Pool ",
             "HBTC Feeder Pool ",
-            "TBTC Feeder Pool ",
+            "TBTCv2 Feeder Pool ",
         ]
 
         // Create a comma separated list of token symbols and amounts
