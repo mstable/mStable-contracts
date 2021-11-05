@@ -22,7 +22,7 @@ import {
     MockStakingContract__factory,
 } from "types/generated"
 import { deployContract } from "tasks/utils/deploy-utils"
-import { currentWeekEpoch, increaseTime, increaseTimeTo, startCurrentWeek } from "@utils/time"
+import { currentWeekEpoch, increaseTime, getTimestamp, increaseTimeTo, startWeek } from "@utils/time"
 
 const defaultConfig = {
     A: -166000,
@@ -112,7 +112,8 @@ describe("EmissionsController", async () => {
         console.log(`User 3 ${sa.dummy3.address}`)
 
         // Set the time to Thursday, 01:00am UTC time which is just after the start of the distribution period
-        const startCurrentPeriod = startCurrentWeek()
+        const currentTime = await getTimestamp()
+        const startCurrentPeriod = startWeek(currentTime)
         const earlyNextPeriod = startCurrentPeriod.add(ONE_WEEK).add(ONE_HOUR)
         await increaseTimeTo(earlyNextPeriod)
         console.log(`Time at start ${new Date(earlyNextPeriod.toNumber() * 1000).toUTCString()}, epoch ${earlyNextPeriod}`)
@@ -137,8 +138,9 @@ describe("EmissionsController", async () => {
         })
         it("epoch set on initialization", async () => {
             const [startEpoch, lastEpoch] = await emissionsController.epochs()
-            expect(startEpoch, "start epoch").to.eq(currentWeekEpoch().add(2))
-            expect(lastEpoch, "last epoch").to.eq(currentWeekEpoch().add(2))
+            const e = await currentWeekEpoch()
+            expect(startEpoch, "start epoch").to.eq(e.add(1))
+            expect(lastEpoch, "last epoch").to.eq(e.add(1))
         })
         it("transfer MTA on initialization", async () => {
             expect(await rewardToken.balanceOf(emissionsController.address), "ec rewards bal").to.eq(totalRewards)
