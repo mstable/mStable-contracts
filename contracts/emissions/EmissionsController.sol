@@ -35,6 +35,12 @@ struct Preference {
     uint8 weight;
 }
 
+struct VoterPreferences {
+    Preference[16] dialWeights;
+    uint128 votesCast;
+    uint32 lastSourcePoke;
+}
+
 struct TopLevelConfig {
     int256 A;
     int256 B;
@@ -84,8 +90,8 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     // VOTING
 
-    /// @notice Flags if a contract address is a staking contract
-    mapping(address => bool) public isStakingContract;
+    /// @notice Flags the timestamp that a given staking contract was added
+    mapping(address => uint32) public stakingContractAddTime;
     /// @notice List of staking contract addresses.
     IVotes[] public stakingContracts;
 
@@ -95,21 +101,20 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     /// @dev    The sum of the weights for each staker must not be greater than SCALE = 10000.
     ///         A user can issue a subset of their voting power. eg only 20% of their voting power.
     ///         A user can not issue more than 100% of their voting power across dials.
-    mapping(address => Preference[16]) public stakerPreferences;
+    mapping(address => VoterPreferences) public voterPreferences;
 
     // EVENTS
 
     event AddedDial(uint256 indexed id, address indexed recipient);
     event UpdatedDial(uint256 indexed id, bool diabled);
     event AddStakingContract(address indexed stakingContract);
+
     event PeriodRewards(uint256[] amounts);
     event DonatedRewards(uint256 indexed dialId, uint256 amount);
     event DistributedReward(uint256 indexed dialId, uint256 amount);
 
-    modifier onlyStakingContract() {
-        require(isStakingContract[msg.sender], "Must be staking contract");
-        _;
-    }
+    event PreferencesChanged(address indexed voter, Preference[] preferences);
+    event VotesCast(address from, address to, uint256 amount);
 
     /***************************************
                     INIT
@@ -250,18 +255,10 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         _addStakingContract(_stakingContract);
     }
 
-    // TODO / FIXME - it's very important that any new staking contracts are added either during the initialization of THIS
-    // contract, or while the totalsupply of the new stakign contract is 0. This is because it will affect the internal
-    // accounting of the users votes.
-    // e.g. deploy new staking contract. User mints 1000. Add contract to list here. Vote. Now, balance is looked up,
-    // and is 1000 greater than what was originally used to vote, therefore the votes will be off
-    // Solution 1: Enforce the above, where staking contracts can only be added if this contract is uninitialized, or if their supply = 0
-    // Solution 2: Track the votes cast by each user, and use this when changing the preferences (this allows for adding/removing staking contract
-    // but increases gas)
     function _addStakingContract(address _stakingContract) internal {
         require(_stakingContract != address(0), "Staking contract address is zero");
 
-        isStakingContract[_stakingContract] = true;
+        stakingContractAddTime[_stakingContract] = SafeCast.toUint32(block.timestamp);
         stakingContracts.push(IVotes(_stakingContract));
 
         emit AddStakingContract(_stakingContract);
@@ -301,12 +298,10 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     }
 
     /**
-     * @notice Calculates the rewards to be distributed to each dial
-     * for the next weekly period to be processed.
-     * The period being processed has to be completed.
-     * Any diabled dials will be ignored and rewards redistributed proportionally
-     * to the dials that have not been disabled.
-     * Any updates to the weights after the period finished will be ignored.
+     * @notice Calculates the rewards to be distributed to each dial for the next weekly period to be processed.
+     *         The period being processed has to be completed. Any diabled dials will be ignored and rewards
+     *         redistributed proportionally to the dials that have not been disabled. Any updates to the weights
+     *         after the period finished will be ignored.
      */
     function calculateRewards() external {
         // 1 - Calculate amount of rewards to distribute this week
@@ -443,6 +438,12 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
                 VOTING-EXTERNAL
     ****************************************/
 
+    function pokeSources() external {
+        uint256 votesCast = voterPreferences[msg.sender].votesCast;
+        _moveVotingPower(msg.sender, getVotes(msg.sender) - votesCast, _add);
+        voterPreferences[msg.sender].lastSourcePoke = SafeCast.toUint32(block.timestamp);
+    }
+
     /**
      * @notice Allows a staker to proportion their voting power across a number of dials.
      * @param _preferences Structs containing dialId & voting weights.
@@ -452,13 +453,14 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      */
     function setVoterDialWeights(Preference[] memory _preferences) external {
         require(_preferences.length <= 16, "Maximum of 16 preferences");
-        // 0.0 - Get staker's voting power
-        uint256 stakerVotes = getVotes(msg.sender);
+
+        // 0.0 - Get staker's previous total votes cast
+        uint256 votesCast = voterPreferences[msg.sender].votesCast;
 
         // 1.0 - Adjust dial weighted votes from removed staker weighted votes
-        _moveVotingPower(msg.sender, stakerVotes, _subtract);
+        _moveVotingPower(msg.sender, votesCast, _subtract);
         //       Clear the old weights as they will be added back below
-        delete stakerPreferences[msg.sender];
+        delete voterPreferences[msg.sender];
 
         // 2.0 - Adjust dial weighted votes from added staker weighted votes
         uint256 newTotalWeight;
@@ -467,15 +469,16 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             require(_preferences[i].weight > 0, "Must give a dial some weight");
             newTotalWeight += _preferences[i].weight;
             //  Add staker's dial weight
-            stakerPreferences[msg.sender][i] = _preferences[i];
+            voterPreferences[msg.sender].dialWeights[i] = _preferences[i];
         }
         if (_preferences.length < 16) {
-            stakerPreferences[msg.sender][_preferences.length] = Preference(255, 0);
+            voterPreferences[msg.sender].dialWeights[_preferences.length] = Preference(255, 0);
         }
-
-        _moveVotingPower(msg.sender, stakerVotes, _add);
-
         require(newTotalWeight <= SCALE, "Imbalanced weights");
+        _moveVotingPower(msg.sender, getVotes(msg.sender), _add);
+        voterPreferences[msg.sender].lastSourcePoke = SafeCast.toUint32(block.timestamp);
+
+        emit PreferencesChanged(msg.sender, _preferences);
     }
 
     /**
@@ -489,16 +492,29 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         address from,
         address to,
         uint256 amount
-    ) external override onlyStakingContract {
+    ) external override {
         if (amount > 0) {
+            uint32 addTime = stakingContractAddTime[msg.sender];
+            require(addTime > 0, "Caller must be staking contract");
+
             // If burning (withdraw) or transferring delegated votes from a staker
             if (from != address(0)) {
+                require(
+                    voterPreferences[from].lastSourcePoke > addTime,
+                    "Must init new contract bal"
+                );
                 _moveVotingPower(from, amount, _subtract);
             }
             // If minting (staking) or transferring delegated votes to a staker
             if (to != address(0)) {
+                require(
+                    voterPreferences[to].lastSourcePoke > addTime,
+                    "Must init new contract bal"
+                );
                 _moveVotingPower(to, amount, _add);
             }
+
+            emit VotesCast(from, to, amount);
         }
     }
 
@@ -511,24 +527,33 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         uint256 _amount,
         function(uint256, uint256) pure returns (uint256) _op
     ) internal {
-        Preference[16] memory preferences = stakerPreferences[_voter];
+        // 0.0 - Get preferences and epoch data
+        VoterPreferences memory preferences = voterPreferences[_voter];
         uint32 currentEpoch = _epoch(block.timestamp);
-        // Loop through preferences until dialId == 0 or until end
+        voterPreferences[_voter].votesCast = SafeCast.toUint128(
+            _op(preferences.votesCast, _amount)
+        );
+
+        // 1.0 - Loop through preferences until dialId == 255 or until end
         for (uint256 i = 0; i < 16; i++) {
-            Preference memory pref = preferences[i];
+            Preference memory pref = preferences.dialWeights[i];
             if (pref.dialId == 255) break;
-            // e.g. 5e17 * 1e18 / 1e18 * 100e18 / 1e18 = 50e18
+
+            // 1.1 - Scale the vote by dial weight
+            //       e.g. 5e17 * 1e18 / 1e18 * 100e18 / 1e18 = 50e18
             uint256 amountToChange = (pref.weight * _amount) / SCALE;
 
+            // 1.2 - Fetch voting history for this dial
             HistoricVotes[] storage voteHistory = dials[pref.dialId].voteHistory;
             uint256 len = voteHistory.length;
             HistoricVotes storage latestHistoricVotes = voteHistory[len - 1];
 
+            // 1.3 - Determine new votes cast for dial
             uint128 newWeightedVotes = SafeCast.toUint128(
                 _op(latestHistoricVotes.weightedVotes, amountToChange)
             );
 
-            // If in a new epoch for this dial
+            // 1.4 - Update dial vote count. If first vote in new epoch, create new entry
             if (latestHistoricVotes.epoch < currentEpoch) {
                 // Add a new weighted votes epoch for the dial
                 voteHistory.push(
