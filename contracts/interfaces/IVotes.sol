@@ -2,5 +2,5 @@
 pragma solidity 0.8.6;
 
 interface IVotes {
-    function getVotes(address account) external returns (uint256);
+    function getVotes(address account) external view returns (uint256);
 }

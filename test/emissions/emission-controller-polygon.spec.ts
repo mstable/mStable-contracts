@@ -8,11 +8,11 @@ import { StandardAccounts } from "@utils/machines"
 import { expect } from "chai"
 import { ethers } from "hardhat"
 import { BN, deployContract, increaseTime, simpleToExactAmount } from "index"
-import { deployPolygonChildRecipient, deployPolygonRootRecipient } from "tasks/utils/rewardsUtils"
+import { deployL2BridgeRecipient, deployBridgeForwarder } from "tasks/utils/rewardsUtils"
 import {
     AssetProxy__factory,
-    ChildEmissionsController,
-    ChildEmissionsController__factory,
+    L2EmissionsController,
+    L2EmissionsController__factory,
     EmissionsController,
     EmissionsController__factory,
     IRootChainManager,
@@ -25,9 +25,9 @@ import {
     MockRootChainManager__factory,
     MockStakingContract,
     MockStakingContract__factory,
-    PolygonChildRecipient,
-    PolygonRootRecipient,
-    PolygonRootRecipient__factory,
+    L2BridgeRecipient,
+    BridgeForwarder,
+    BridgeForwarder__factory,
 } from "types/generated"
 
 const defaultConfig = {
@@ -93,7 +93,7 @@ describe("EmissionsController Polygon Integration", async () => {
             await deployEmissionsController()
         })
         it("successful deploy", async () => {
-            await deployPolygonRootRecipient(
+            await deployBridgeForwarder(
                 sa.default.signer,
                 nexus.address,
                 rewardToken.address,
@@ -103,7 +103,7 @@ describe("EmissionsController Polygon Integration", async () => {
             )
         })
         it("fail when zero nexus", async () => {
-            const tx = new PolygonRootRecipient__factory(sa.default.signer).deploy(
+            const tx = new BridgeForwarder__factory(sa.default.signer).deploy(
                 ZERO_ADDRESS,
                 rewardToken.address,
                 rootChainManager.address,
@@ -112,7 +112,7 @@ describe("EmissionsController Polygon Integration", async () => {
             await expect(tx).to.revertedWith("Nexus address is zero")
         })
         it("fail when zero rewards token", async () => {
-            const tx = new PolygonRootRecipient__factory(sa.default.signer).deploy(
+            const tx = new BridgeForwarder__factory(sa.default.signer).deploy(
                 nexus.address,
                 ZERO_ADDRESS,
                 rootChainManager.address,
@@ -121,7 +121,7 @@ describe("EmissionsController Polygon Integration", async () => {
             await expect(tx).to.revertedWith("Rewards token is zero")
         })
         it("fail when zero root chain manager", async () => {
-            const tx = new PolygonRootRecipient__factory(sa.default.signer).deploy(
+            const tx = new BridgeForwarder__factory(sa.default.signer).deploy(
                 nexus.address,
                 rewardToken.address,
                 ZERO_ADDRESS,
@@ -130,7 +130,7 @@ describe("EmissionsController Polygon Integration", async () => {
             await expect(tx).to.revertedWith("RootChainManager is zero")
         })
         it("fail when zero child recipient", async () => {
-            const tx = new PolygonRootRecipient__factory(sa.default.signer).deploy(
+            const tx = new BridgeForwarder__factory(sa.default.signer).deploy(
                 nexus.address,
                 rewardToken.address,
                 rootChainManager.address,
@@ -142,12 +142,12 @@ describe("EmissionsController Polygon Integration", async () => {
     describe("distribute rewards via bridge", () => {
         const childRecipient1 = Wallet.createRandom()
         const childRecipient2 = Wallet.createRandom()
-        let rootRecipient1: PolygonRootRecipient
-        let rootRecipient2: PolygonRootRecipient
+        let rootRecipient1: BridgeForwarder
+        let rootRecipient2: BridgeForwarder
         beforeEach(async () => {
             await deployEmissionsController()
 
-            rootRecipient1 = await deployPolygonRootRecipient(
+            rootRecipient1 = await deployBridgeForwarder(
                 sa.default.signer,
                 nexus.address,
                 rewardToken.address,
@@ -156,7 +156,7 @@ describe("EmissionsController Polygon Integration", async () => {
                 emissionsController.address,
             )
 
-            rootRecipient2 = await deployPolygonRootRecipient(
+            rootRecipient2 = await deployBridgeForwarder(
                 sa.default.signer,
                 nexus.address,
                 rewardToken.address,
@@ -247,9 +247,9 @@ describe("EmissionsController Polygon Integration", async () => {
     })
     describe("receive rewards from bridge", () => {
         let bridgedRewardToken: MockERC20
-        let childEmissionsController: ChildEmissionsController
-        let childRecipient1: PolygonChildRecipient
-        let childRecipient2: PolygonChildRecipient
+        let childEmissionsController: L2EmissionsController
+        let childRecipient1: L2BridgeRecipient
+        let childRecipient2: L2BridgeRecipient
         let finalRecipient1: MockRewardsDistributionRecipient
         let finalRecipient2: MockRewardsDistributionRecipient
         beforeEach(async () => {
@@ -263,9 +263,9 @@ describe("EmissionsController Polygon Integration", async () => {
                 simpleToExactAmount(10000),
             )
 
-            const childEmissionsControllerImpl = await deployContract<ChildEmissionsController>(
-                new ChildEmissionsController__factory(sa.default.signer),
-                "ChildEmissionsController",
+            const childEmissionsControllerImpl = await deployContract<L2EmissionsController>(
+                new L2EmissionsController__factory(sa.default.signer),
+                "L2EmissionsController",
                 [nexus.address, bridgedRewardToken.address],
             )
             // Proxy
@@ -275,22 +275,14 @@ describe("EmissionsController Polygon Integration", async () => {
                 DEAD_ADDRESS,
                 data,
             ])
-            childEmissionsController = new ChildEmissionsController__factory(sa.default.signer).attach(proxy.address)
+            childEmissionsController = new L2EmissionsController__factory(sa.default.signer).attach(proxy.address)
 
-            childRecipient1 = await deployPolygonChildRecipient(
-                sa.default.signer,
-                bridgedRewardToken.address,
-                childEmissionsController.address,
-            )
+            childRecipient1 = await deployL2BridgeRecipient(sa.default.signer, bridgedRewardToken.address, childEmissionsController.address)
             finalRecipient1 = await new MockRewardsDistributionRecipient__factory(sa.default.signer).deploy(
                 bridgedRewardToken.address,
                 DEAD_ADDRESS,
             )
-            childRecipient2 = await deployPolygonChildRecipient(
-                sa.default.signer,
-                bridgedRewardToken.address,
-                childEmissionsController.address,
-            )
+            childRecipient2 = await deployL2BridgeRecipient(sa.default.signer, bridgedRewardToken.address, childEmissionsController.address)
             finalRecipient2 = await new MockRewardsDistributionRecipient__factory(sa.default.signer).deploy(
                 bridgedRewardToken.address,
                 DEAD_ADDRESS,
@@ -333,11 +325,11 @@ describe("EmissionsController Polygon Integration", async () => {
     })
     context("fail to deploy child emissions controller when", () => {
         it("no nexus", async () => {
-            const tx = new ChildEmissionsController__factory(sa.default.signer).deploy(ZERO_ADDRESS, sa.dummy1.address)
+            const tx = new L2EmissionsController__factory(sa.default.signer).deploy(ZERO_ADDRESS, sa.dummy1.address)
             await expect(tx).to.revertedWith("Nexus address is zero")
         })
         it("no child rewards token", async () => {
-            const tx = new ChildEmissionsController__factory(sa.default.signer).deploy(sa.dummy1.address, ZERO_ADDRESS)
+            const tx = new L2EmissionsController__factory(sa.default.signer).deploy(sa.dummy1.address, ZERO_ADDRESS)
             await expect(tx).to.revertedWith("Reward token address is zero")
         })
     })

@@ -1,41 +1,39 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.6;
 
-// Internal
 import { IRewardsDistributionRecipient } from "../interfaces/IRewardsDistributionRecipient.sol";
 import { IRootChainManager } from "../interfaces/IRootChainManager.sol";
 import { InitializableRewardsDistributionRecipient } from "../rewards/InitializableRewardsDistributionRecipient.sol";
 import { Initializable } from "../shared/@openzeppelin-2.5/Initializable.sol";
-
-// Libs
 import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
- * @title  PolygonRootRecipient
+ * @title  BridgeForwarder
  * @author mStable
- * @notice sends reward tokens across the Polygon PoS Bridge to a specified recipient contract on the Polygon chain.
- * @dev     VERSION: 1.0
- *          DATE:    2021-10-28
+ * @notice Deployed on Ethereum L1, this RootRecipient sends reward tokens across the Polygon PoS Bridge to a
+ *         specified recipient contract on the Polygon chain.
+ * @dev    VERSION: 1.0
+ *         DATE:    2021-10-28
  */
-contract PolygonRootRecipient is
+contract BridgeForwarder is
     IRewardsDistributionRecipient,
     Initializable,
     InitializableRewardsDistributionRecipient
 {
     using SafeERC20 for IERC20;
 
-    /// @notice token the rewards are distributed in. eg MTA
-    IERC20 public immutable rewardsToken;
-    /// @notice Mainnet Proof of Stake (PoS) bridge contract to Polygon.
-    IRootChainManager public immutable rootChainManager;
-    /// @notice Polygon contract that will receive the bridged rewards on the Polygon chain.
-    address public immutable childRecipient;
+    /// @notice Token the rewards are distributed in. eg MTA
+    IERC20 public immutable REWARDS_TOKEN;
+    /// @notice Mainnet Proof of Stake (PoS) bridge contract to Polygon
+    IRootChainManager public immutable ROOT_CHAIN_MANAGER;
+    /// @notice Polygon contract that will receive the bridged rewards on the Polygon chain
+    address public immutable CHILD_RECIPIENT;
 
     /**
-     * @param _nexus mStable system Nexus address
-     * @param _rewardsToken first token that is being distributed as a reward. eg MTA
-     * @param _rootChainManager Mainnet Proof of Stake (PoS) bridge contract to Polygon.
-     * @param _childRecipient Polygon contract that will receive the bridged rewards on the Polygon chain.
+     * @param _nexus            mStable system Nexus address
+     * @param _rewardsToken     First token that is being distributed as a reward. eg MTA
+     * @param _rootChainManager Mainnet Proof of Stake (PoS) bridge contract to Polygon
+     * @param _childRecipient   Polygon contract that will receive the bridged rewards on the Polygon chain
      */
     constructor(
         address _nexus,
@@ -47,9 +45,9 @@ contract PolygonRootRecipient is
         require(_rootChainManager != address(0), "RootChainManager is zero");
         require(_childRecipient != address(0), "ChildRecipient is zero");
 
-        rewardsToken = IERC20(_rewardsToken);
-        rootChainManager = IRootChainManager(_rootChainManager);
-        childRecipient = _childRecipient;
+        REWARDS_TOKEN = IERC20(_rewardsToken);
+        ROOT_CHAIN_MANAGER = IRootChainManager(_rootChainManager);
+        CHILD_RECIPIENT = _childRecipient;
     }
 
     /**
@@ -61,20 +59,24 @@ contract PolygonRootRecipient is
         InitializableRewardsDistributionRecipient._initialize(_emissionsController);
 
         // Approve the Polygon PoS Bridge to transfer reward tokens from this contract
-        rewardsToken.safeApprove(address(rootChainManager), type(uint256).max);
+        REWARDS_TOKEN.safeApprove(address(ROOT_CHAIN_MANAGER), type(uint256).max);
     }
 
     /**
-     * @notice is called by the Emissions Controller to trigger the processing of the weekly rewards.
-     * @param _rewards the amount of reward tokens that were distributed to this contract.
-     * @dev the Emissions Controller has already transferred the MTA to this contract.
+     * @notice Called by the Emissions Controller to trigger the processing of the weekly rewards.
+     * @dev    The Emissions Controller has already transferred the MTA to this contract.
+     * @param _rewards The amount of reward tokens that were distributed to this contract
      */
     function notifyRewardAmount(uint256 _rewards)
         external
         override(IRewardsDistributionRecipient)
         onlyRewardsDistributor
     {
-        rootChainManager.depositFor(childRecipient, address(rewardsToken), abi.encode(_rewards));
+        ROOT_CHAIN_MANAGER.depositFor(
+            CHILD_RECIPIENT,
+            address(REWARDS_TOKEN),
+            abi.encode(_rewards)
+        );
     }
 
     /***************************************
@@ -90,6 +92,6 @@ contract PolygonRootRecipient is
         override(IRewardsDistributionRecipient)
         returns (IERC20)
     {
-        return rewardsToken;
+        return REWARDS_TOKEN;
     }
 }
