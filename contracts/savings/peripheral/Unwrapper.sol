@@ -3,7 +3,7 @@ pragma solidity 0.8.6;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { ImmutableModule } from "../../shared/ImmutableModule.sol";
 
 import { ISavingsContractV3 } from "../../interfaces/ISavingsContract.sol";
 import { IUnwrapper } from "../../interfaces/IUnwrapper.sol";
@@ -11,19 +11,14 @@ import { IMasset } from "../../interfaces/IMasset.sol";
 import { IFeederPool } from "../../interfaces/IFeederPool.sol";
 import { IBoostedVaultWithLockup } from "../../interfaces/IBoostedVaultWithLockup.sol";
 
-contract Unwrapper is IUnwrapper, OwnableUpgradeable {
+contract Unwrapper is IUnwrapper, ImmutableModule {
     using SafeERC20 for IERC20;
 
-    /**
-     * @dev Initialize contract
-     */
-    function initialize() public initializer {
-        __Ownable_init();
-    }
+    constructor(address _nexus) ImmutableModule(_nexus) {}
 
     /**
      * @dev Estimate output
-     * @param _routeIndex     0 || 1 -> determines action
+     * @param _isBassetOut    masset redemption or fpool swap
      * @param _router         masset or feederpool
      * @param _input          input token address
      * @param _output         output token address
@@ -31,24 +26,22 @@ contract Unwrapper is IUnwrapper, OwnableUpgradeable {
      * @return output         Units of credits burned from sender
      */
     function getUnwrapOutput(
-        uint8 _routeIndex,
+        bool _isBassetOut,
         address _router,
         address _input,
         address _output,
         uint256 _amount
     ) external view override returns (uint256 output) {
-        if (_routeIndex == 0) {
-            // basset
+        if (_isBassetOut) {
             output = IMasset(_router).getRedeemOutput(_output, _amount);
         } else {
-            // fasset
             output = IFeederPool(_router).getSwapOutput(_input, _output, _amount);
         }
     }
 
     /**
      * @dev Unwrap and send
-     * @param _routeIndex     0 || 1 -> determines action
+     * @param _isBassetOut    masset redemption or fpool swap
      * @param _router         masset or feederpool
      * @param _input          input token address
      * @param _output         output token address
@@ -58,7 +51,7 @@ contract Unwrapper is IUnwrapper, OwnableUpgradeable {
      * @return outputQuantity Units of credits burned from sender
      */
     function unwrapAndSend(
-        uint8 _routeIndex,
+        bool _isBassetOut,
         address _router,
         address _input,
         address _output,
@@ -68,7 +61,7 @@ contract Unwrapper is IUnwrapper, OwnableUpgradeable {
     ) external override returns (uint256 outputQuantity) {
         require(IERC20(_input).transferFrom(msg.sender, address(this), _amount), "Transfer input");
 
-        if (_routeIndex == 0) {
+        if (_isBassetOut) {
             outputQuantity = IMasset(_router).redeem(_output, _amount, _minAmountOut, _beneficiary);
         } else {
             outputQuantity = IFeederPool(_router).swap(
@@ -86,7 +79,10 @@ contract Unwrapper is IUnwrapper, OwnableUpgradeable {
      * @param _spenders     router addresses
      * @param _tokens       tokens to approve for router
      */
-    function approve(address[] calldata _spenders, address[] calldata _tokens) external onlyOwner {
+    function approve(address[] calldata _spenders, address[] calldata _tokens)
+        external
+        onlyGovernor
+    {
         require(_spenders.length == _tokens.length, "Array mismatch");
         for (uint256 i = 0; i < _tokens.length; i++) {
             require(_tokens[i] != address(0), "Invalid token");
