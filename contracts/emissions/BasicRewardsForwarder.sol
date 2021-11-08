@@ -25,6 +25,9 @@ contract BasicRewardsForwarder is
     /// @notice Account that ultimately receives the reward tokens
     address public endRecipient;
 
+    event RewardsReceived(uint256 amount);
+    event RecipientChanged(address newRecipient);
+
     /**
      * @dev Constructor
      * @param _nexus        mStable system Nexus address
@@ -59,6 +62,8 @@ contract BasicRewardsForwarder is
         onlyRewardsDistributor
     {
         REWARDS_TOKEN.safeTransfer(endRecipient, _rewards);
+
+        emit RewardsReceived(_rewards);
     }
 
     /***************************************
@@ -71,6 +76,8 @@ contract BasicRewardsForwarder is
      */
     function setEndRecipient(address _endRecipient) external onlyGovernor {
         endRecipient = _endRecipient;
+
+        emit RecipientChanged(_endRecipient);
     }
 
     /***************************************

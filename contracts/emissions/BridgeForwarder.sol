@@ -10,7 +10,7 @@ import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/Saf
 /**
  * @title  BridgeForwarder
  * @author mStable
- * @notice Deployed on Ethereum L1, this RootRecipient sends reward tokens across the Polygon PoS Bridge to a
+ * @notice Deployed on Ethereum L1, this Bridge Forwarder sends reward tokens across the Polygon PoS Bridge to a
  *         specified recipient contract on the Polygon chain.
  * @dev    VERSION: 1.0
  *         DATE:    2021-10-28
@@ -28,6 +28,8 @@ contract BridgeForwarder is
     IRootChainManager public immutable ROOT_CHAIN_MANAGER;
     /// @notice Polygon contract that will receive the bridged rewards on the Polygon chain
     address public immutable CHILD_RECIPIENT;
+
+    event Forwarded(uint256 amount);
 
     /**
      * @param _nexus            mStable system Nexus address
@@ -77,6 +79,8 @@ contract BridgeForwarder is
             address(REWARDS_TOKEN),
             abi.encode(_rewards)
         );
+
+        emit Forwarded(_rewards);
     }
 
     /***************************************
