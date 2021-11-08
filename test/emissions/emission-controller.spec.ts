@@ -125,7 +125,7 @@ describe("EmissionsController", async () => {
         })
         it("Immutable variables set on deployment", async () => {
             expect(await emissionsController.nexus(), "nexus").to.eq(nexus.address)
-            expect(await emissionsController.rewardToken(), "rewardToken").to.eq(rewardToken.address)
+            expect(await emissionsController.REWARD_TOKEN(), "rewardToken").to.eq(rewardToken.address)
         })
         it("Dials set on initialization", async () => {
             const dial1 = await emissionsController.dials(0)

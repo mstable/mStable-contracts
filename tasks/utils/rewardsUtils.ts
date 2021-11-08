@@ -7,10 +7,10 @@ import {
     AssetProxy__factory,
     InstantProxyAdmin__factory,
     PlatformTokenVendorFactory__factory,
-    PolygonChildRecipient,
-    PolygonChildRecipient__factory,
-    PolygonRootRecipient,
-    PolygonRootRecipient__factory,
+    L2BridgeRecipient,
+    L2BridgeRecipient__factory,
+    BridgeForwarder,
+    BridgeForwarder__factory,
     QuestManager__factory,
     SignatureVerifier__factory,
     StakedTokenBPT__factory,
@@ -202,15 +202,15 @@ export const deployStakingToken = async (
     }
 }
 
-export const deployPolygonRootRecipient = async (
+export const deployBridgeForwarder = async (
     signer: Signer,
     nexusAddress: string,
     rewardTokenAddress: string,
     rootChainManagerAddress: string,
     childRecipient1Address: string,
     emissionsController: string,
-): Promise<PolygonRootRecipient> => {
-    const impl = await deployContract(new PolygonRootRecipient__factory(signer), "PolygonRootRecipient", [
+): Promise<BridgeForwarder> => {
+    const impl = await deployContract(new BridgeForwarder__factory(signer), "BridgeForwarder", [
         nexusAddress,
         rewardTokenAddress,
         rootChainManagerAddress,
@@ -222,21 +222,20 @@ export const deployPolygonRootRecipient = async (
     const delayedProxyAdminAddress = resolveAddress("DelayedProxyAdmin")
     const proxy = await deployContract(new AssetProxy__factory(signer), "AssetProxy", [impl.address, delayedProxyAdminAddress, data])
 
-    const rootRecipient = new PolygonRootRecipient__factory(signer).attach(proxy.address)
+    const rootRecipient = new BridgeForwarder__factory(signer).attach(proxy.address)
 
     return rootRecipient
 }
 
-export const deployPolygonChildRecipient = async (
+export const deployL2BridgeRecipient = async (
     signer: Signer,
     bridgedRewardTokenAddress: string,
     childEmissionsController: string,
-): Promise<PolygonChildRecipient> => {
-    const childRecipient = await deployContract<PolygonChildRecipient>(
-        new PolygonChildRecipient__factory(signer),
-        "PolygonChildRecipient",
-        [bridgedRewardTokenAddress, childEmissionsController],
-    )
+): Promise<L2BridgeRecipient> => {
+    const childRecipient = await deployContract<L2BridgeRecipient>(new L2BridgeRecipient__factory(signer), "L2BridgeRecipient", [
+        bridgedRewardTokenAddress,
+        childEmissionsController,
+    ])
 
     return childRecipient
 }
