@@ -84,7 +84,7 @@ interface ISavingsContractV3 {
         address _output,
         address _beneficiary,
         address _router,
-        uint8 _routeIndex
+        bool _isBassetOut
     ) external returns (uint256 creditsBurned);
 
     function depositSavings(

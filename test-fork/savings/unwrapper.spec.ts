@@ -41,16 +41,11 @@ const mbtcAddress = "0x945facb997494cc2570096c74b5f66a3507330a1"
 const imbtcAddress = "0x17d8cbb6bce8cee970a4027d1198f6700a7a6c24"
 const imbtcVaultAddress = "0xF38522f63f40f9Dd81aBAfD2B8EFc2EC958a3016"
 const wbtcAddress = "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"
-
-enum Route {
-    Masset,
-    Feeder,
-}
+const hbtcAddress = "0x0316EB71485b0Ab14103307bf65a021042c6d380"
+const hbtcFeederPool = "0x48c59199da51b7e30ea200a74ea07974e62c4ba7"
 
 // TODO:
-// - Test fAsset flows in Vaults
-// - Tidy duplicated logic
-// - Test amountOut balance with more precision
+// - Test boosted balance is correct
 
 context("Unwrapper", () => {
     let deployer: Signer
@@ -83,28 +78,22 @@ context("Unwrapper", () => {
     })
 
     it("Deploys the unwrapper proxy contract ", async () => {
-        const unwrapperImpl = await deployContract<Unwrapper>(new Unwrapper__factory(deployer), "Unwrapper")
+        const unwrapperImpl = await deployContract<Unwrapper>(new Unwrapper__factory(deployer), "Unwrapper", [nexusAddress])
         expect(unwrapperImpl.address).to.length(42)
 
-        const data = unwrapperImpl.interface.encodeFunctionData("initialize")
-        const proxy = await new UnwrapperProxy__factory(deployer).deploy(unwrapperImpl.address, delayedProxyAdminAddress, data)
-
+        const proxy = await new UnwrapperProxy__factory(deployer).deploy(unwrapperImpl.address, delayedProxyAdminAddress, [])
         unwrapper = Unwrapper__factory.connect(proxy.address, musdHolder)
-        await expect(unwrapper.initialize()).to.reverted
-
-        // verify owner of unwrapper contract set as deployer
-        expect(await Unwrapper__factory.connect(proxy.address, deployer).callStatic.owner()).to.eq(deployerAddress)
 
         // approve tokens for router
-        const routers = [alusdFeederPool]
-        const tokens = [musdAddress]
-        await Unwrapper__factory.connect(proxy.address, deployer).approve(routers, tokens)
+        const routers = [alusdFeederPool, hbtcFeederPool]
+        const tokens = [musdAddress, mbtcAddress]
+        await Unwrapper__factory.connect(proxy.address, governor).approve(routers, tokens)
     })
 
     it("Upgrade the unwrapper contract", async () => {
         const admin = await impersonate(delayedProxyAdminAddress)
 
-        const unwrapperImpl = await deployContract<Unwrapper>(new Unwrapper__factory(deployer), "Unwrapper")
+        const unwrapperImpl = await deployContract<Unwrapper>(new Unwrapper__factory(deployer), "Unwrapper", [nexusAddress])
         expect(unwrapperImpl.address).to.length(42)
 
         const unwrapperProxy = UnwrapperProxy__factory.connect(unwrapper.address, admin)
@@ -121,7 +110,7 @@ context("Unwrapper", () => {
 
     const validateAssetRedemption = async (
         config: {
-            routeIndex: number
+            isBassetOut: boolean
             router: string
             input: string
             output: string
@@ -132,7 +121,7 @@ context("Unwrapper", () => {
         // Get estimated output via getUnwrapOutput
         const signerAddress = await signer.getAddress()
 
-        const amountOut = await unwrapper.getUnwrapOutput(config.routeIndex, config.router, config.input, config.output, config.amount)
+        const amountOut = await unwrapper.getUnwrapOutput(config.isBassetOut, config.router, config.input, config.output, config.amount)
         expect(amountOut.toString().length).to.be.gte(18)
         const minAmountOut = amountOut.mul(98).div(1e2)
 
@@ -152,7 +141,7 @@ context("Unwrapper", () => {
 
         // redeem to basset via unwrapAndSend
         await unwrapper.unwrapAndSend(
-            newConfig.routeIndex,
+            newConfig.isBassetOut,
             newConfig.router,
             newConfig.input,
             newConfig.output,
@@ -168,19 +157,19 @@ context("Unwrapper", () => {
 
     it("Receives the correct output from getUnwrapOutput", async () => {
         const config = {
-            routeIndex: Route.Masset,
+            isBassetOut: true,
             router: musdAddress,
             input: musdAddress,
             output: "0x6b175474e89094c44da98b954eedeac495271d0f",
             amount: simpleToExactAmount(1, 18),
         }
-        const output = await unwrapper.getUnwrapOutput(config.routeIndex, config.router, config.input, config.output, config.amount)
+        const output = await unwrapper.getUnwrapOutput(config.isBassetOut, config.router, config.input, config.output, config.amount)
         expect(output.toString()).to.be.length(19)
     })
 
     it("Unwraps to bAsset and sends to beneficiary via unwrapAndSend", async () => {
         const config = {
-            routeIndex: Route.Masset,
+            isBassetOut: true,
             router: musdAddress,
             input: musdAddress,
             output: daiAddress,
@@ -191,7 +180,7 @@ context("Unwrapper", () => {
 
     it("Unwraps to fAsset and sends to beneficiary via unwrapAndSend", async () => {
         const config = {
-            routeIndex: Route.Feeder,
+            isBassetOut: false,
             router: alusdFeederPool,
             input: musdAddress,
             output: alusdAddress,
@@ -204,19 +193,17 @@ context("Unwrapper", () => {
         const musdSaveImpl = await deployContract<SavingsContract>(
             new SavingsContract__factory(deployer),
             "mStable: mUSD Savings Contract",
-            [nexusAddress, musdAddress],
+            [nexusAddress, musdAddress, unwrapper.address],
         )
 
-        const data = musdSaveImpl.interface.encodeFunctionData("upgrade", [unwrapper.address])
         expect(await delayedProxyAdmin.callStatic.nexus(), "nexus not match").to.eq(nexusAddress)
         expect(await Nexus__factory.connect(nexusAddress, governor).callStatic.governor(), "governor not match").to.eq(governorAddress)
 
-        await delayedProxyAdmin.proposeUpgrade(imusdAddress, musdSaveImpl.address, data)
+        await delayedProxyAdmin.proposeUpgrade(imusdAddress, musdSaveImpl.address, [])
         await increaseTime(ONE_WEEK.add(60))
 
         // check request is correct
         const request = await delayedProxyAdmin.requests(imusdAddress)
-        expect(request.data).eq(data)
         expect(request.implementation).eq(musdSaveImpl.address)
 
         // accept upgrade
@@ -226,9 +213,6 @@ context("Unwrapper", () => {
         const saveContractProxy = SavingsContract__factory.connect(imusdAddress, governor)
         const unwrapperAddress = await saveContractProxy.unwrapper()
         expect(unwrapperAddress).to.eq(unwrapper.address)
-
-        // verify can't call upgrade again
-        await expect(saveContractProxy.upgrade(unwrapper.address)).to.revertedWith("Unwrapper address is not zero")
     })
 
     it("musd save contract works after upgraded", async () => {
@@ -236,7 +220,7 @@ context("Unwrapper", () => {
         const imusdHolder = await impersonate(imusdHolderAddress)
 
         const config = {
-            routeIndex: Route.Masset,
+            isBassetOut: true,
             router: musdAddress,
             input: musdAddress,
             output: daiAddress,
@@ -244,7 +228,7 @@ context("Unwrapper", () => {
         }
 
         // Get estimated output via getUnwrapOutput
-        const amountOut = await unwrapper.getUnwrapOutput(config.routeIndex, config.router, config.input, config.output, config.amount)
+        const amountOut = await unwrapper.getUnwrapOutput(config.isBassetOut, config.router, config.input, config.output, config.amount)
         expect(amountOut.toString().length).to.be.gte(18)
         const minAmountOut = amountOut.mul(98).div(1e2)
 
@@ -258,10 +242,12 @@ context("Unwrapper", () => {
             config.output,
             imusdHolderAddress,
             config.router,
-            config.routeIndex,
+            config.isBassetOut,
         )
 
         const daiBalanceAfter = await IERC20__factory.connect(daiAddress, imusdHolder).balanceOf(imusdHolderAddress)
+        const tokenBalanceDifference = daiBalanceAfter.sub(daiBalanceBefore)
+        expect(tokenBalanceDifference, "Withdrawn amount eq estimated amountOut").to.be.eq(amountOut)
         expect(daiBalanceAfter, "Token balance has increased").to.be.gt(daiBalanceBefore.add(minAmountOut))
     })
 
@@ -285,85 +271,68 @@ context("Unwrapper", () => {
         expect(await delayedProxyAdmin.getProxyImplementation(imusdVaultAddress)).eq(saveVaultImpl.address)
     })
 
-    it("Calls withdrawAndUnwrap() on musd vault sucessfully", async () => {
-        const vimusdHolderAddress = "0x0c2ef8a1b3bc00bf676053732f31a67ebba5bd81"
-        const vimusdHolder = await impersonate(vimusdHolderAddress)
+    const withdrawAndUnwrap = async (
+        holderAddress: string,
+        router: string,
+        input: "musd" | "mbtc",
+        outputAddress: string,
+        isBassetOut: boolean,
+    ) => {
+        const holder = await impersonate(holderAddress)
+        const vaultAddress = input === "musd" ? imusdVaultAddress : imbtcVaultAddress
+        const inputAddress = input === "musd" ? musdAddress : mbtcAddress
 
         const config = {
-            routeIndex: Route.Masset,
-            router: musdAddress,
-            input: musdAddress,
-            output: daiAddress,
-            amount: simpleToExactAmount(1000, 18),
+            isBassetOut,
+            router,
+            input: inputAddress,
+            output: outputAddress,
+            amount: simpleToExactAmount(input === "musd" ? 100 : 10, 18),
         }
 
         // Get estimated output via getUnwrapOutput
-        const amountOut = await unwrapper.getUnwrapOutput(config.routeIndex, config.router, config.input, config.output, config.amount)
-        expect(amountOut.toString().length).to.be.gte(18)
+        const amountOut = await unwrapper.getUnwrapOutput(config.isBassetOut, config.router, config.input, config.output, config.amount)
+        expect(amountOut.toString().length).to.be.gte(input === "musd" ? 18 : 9)
         const minAmountOut = amountOut.mul(98).div(1e2)
 
-        const daiContract = IERC20__factory.connect(config.output, vimusdHolder)
-        const tokenBalanceBefore = await daiContract.balanceOf(vimusdHolderAddress)
+        const outContract = IERC20__factory.connect(config.output, holder)
+        const tokenBalanceBefore = await outContract.balanceOf(holderAddress)
 
         // withdraw and unrap
-        const saveVault = BoostedVault__factory.connect(imusdVaultAddress, vimusdHolder)
-        await saveVault.withdrawAndUnwrap(config.amount, minAmountOut, config.output, vimusdHolderAddress, config.router, config.routeIndex)
+        const saveVault = BoostedVault__factory.connect(vaultAddress, holder)
+        await saveVault.withdrawAndUnwrap(config.amount, minAmountOut, config.output, holderAddress, config.router, config.isBassetOut)
 
-        const tokenBalanceAfter = await daiContract.balanceOf(vimusdHolderAddress)
+        const tokenBalanceAfter = await outContract.balanceOf(holderAddress)
+        const tokenBalanceDifference = tokenBalanceAfter.sub(tokenBalanceBefore)
+        expect(tokenBalanceDifference, "Withdrawn amount eq estimated amountOut").to.be.eq(amountOut)
         expect(tokenBalanceAfter, "Token balance has increased").to.be.gt(tokenBalanceBefore)
+    }
+
+    it("Calls withdrawAndUnwrap() on musd vault sucessfully", async () => {
+        const vmusdHolderAddress = "0x0c2ef8a1b3bc00bf676053732f31a67ebba5bd81"
+        await withdrawAndUnwrap(vmusdHolderAddress, musdAddress, "musd", daiAddress, true)
     })
 
-    it("Reverts when there is not enough balance in musd vault", async () => {
-        const vimusdHolderAddress = "0x0c2ef8a1b3bc00bf676053732f31a67ebba5bd81"
-        const vimusdHolder = await impersonate(vimusdHolderAddress)
-        const saveVault = BoostedVault__factory.connect(imusdVaultAddress, vimusdHolder)
-
-        const config = {
-            routeIndex: Route.Masset,
-            router: musdAddress,
-            input: musdAddress,
-            output: daiAddress,
-            amount: simpleToExactAmount(1000, 18),
-        }
-
-        // Get estimated output via getUnwrapOutput
-        const amountOut = await unwrapper.getUnwrapOutput(config.routeIndex, config.router, config.input, config.output, config.amount)
-        expect(amountOut.toString().length).to.be.gte(18)
-
-        // run again and expect revert
-        const newAmountOut = await unwrapper.getUnwrapOutput(config.routeIndex, config.router, config.input, config.output, config.amount)
-        expect(amountOut.toString().length).to.be.gte(18)
-        const newMinAmountOut = newAmountOut.mul(98).div(1e2)
-
-        await expect(
-            saveVault.withdrawAndUnwrap(
-                config.amount,
-                newMinAmountOut,
-                config.output,
-                vimusdHolderAddress,
-                config.router,
-                config.routeIndex,
-            ),
-        ).to.reverted
+    it("Calls withdrawAndUnwrap() for fasset on musd vault sucessfully", async () => {
+        const vmusdHolderAddress = "0x0c2ef8a1b3bc00bf676053732f31a67ebba5bd81"
+        await withdrawAndUnwrap(vmusdHolderAddress, alusdFeederPool, "musd", alusdAddress, false)
     })
 
     it("Upgrades the mbtc save contract", async () => {
         const mbtcSaveImpl = await deployContract<SavingsContract>(
             new SavingsContract__factory(deployer),
             "mStable: mBTC Savings Contract",
-            [nexusAddress, mbtcAddress],
+            [nexusAddress, mbtcAddress, unwrapper.address],
         )
 
-        const data = mbtcSaveImpl.interface.encodeFunctionData("upgrade", [unwrapper.address])
         expect(await delayedProxyAdmin.callStatic.nexus(), "nexus not match").to.eq(nexusAddress)
         expect(await Nexus__factory.connect(nexusAddress, governor).callStatic.governor(), "governor not match").to.eq(governorAddress)
 
-        await delayedProxyAdmin.proposeUpgrade(imbtcAddress, mbtcSaveImpl.address, data)
+        await delayedProxyAdmin.proposeUpgrade(imbtcAddress, mbtcSaveImpl.address, [])
         await increaseTime(ONE_WEEK.add(60))
 
         // check request is correct
         const request = await delayedProxyAdmin.requests(imbtcAddress)
-        expect(request.data).eq(data)
         expect(request.implementation).eq(mbtcSaveImpl.address)
 
         // accept upgrade
@@ -373,9 +342,6 @@ context("Unwrapper", () => {
         const saveContractProxy = SavingsContract__factory.connect(imbtcAddress, governor)
         const unwrapperAddress = await saveContractProxy.unwrapper()
         expect(unwrapperAddress).to.eq(unwrapper.address)
-
-        // verify can't call upgrade again
-        await expect(saveContractProxy.upgrade(unwrapper.address)).to.revertedWith("Unwrapper address is not zero")
     })
 
     it("mbtc save contract works after upgraded", async () => {
@@ -383,7 +349,7 @@ context("Unwrapper", () => {
         const imbtcHolder = await impersonate(imbtcHolderAddress)
 
         const config = {
-            routeIndex: Route.Masset,
+            isBassetOut: true,
             router: mbtcAddress,
             input: mbtcAddress,
             output: wbtcAddress,
@@ -391,16 +357,13 @@ context("Unwrapper", () => {
         }
 
         // Get estimated output via getUnwrapOutput
-        const amountOut = await unwrapper.getUnwrapOutput(config.routeIndex, config.router, config.input, config.output, config.amount)
+        const amountOut = await unwrapper.getUnwrapOutput(config.isBassetOut, config.router, config.input, config.output, config.amount)
         expect(amountOut.toString().length).to.be.gte(8)
         const minAmountOut = amountOut.mul(98).div(1e2)
 
         // wbtc balance before
         const wbtcBalanceBefore = await IERC20__factory.connect(wbtcAddress, imbtcHolder).balanceOf(imbtcHolderAddress)
-
         const saveContractProxy = SavingsContract__factory.connect(imbtcAddress, imbtcHolder)
-
-        console.log("Balance", (await saveContractProxy.balanceOf(imbtcHolderAddress)).toString())
 
         await saveContractProxy.redeemAndUnwrap(
             config.amount,
@@ -408,11 +371,12 @@ context("Unwrapper", () => {
             config.output,
             imbtcHolderAddress,
             config.router,
-            config.routeIndex,
+            config.isBassetOut,
         )
 
-        // FIXME: - Test with more precision rather than GT
         const wbtcBalanceAfter = await IERC20__factory.connect(wbtcAddress, imbtcHolder).balanceOf(imbtcHolderAddress)
+        const tokenBalanceDifference = wbtcBalanceAfter.sub(wbtcBalanceBefore)
+        expect(tokenBalanceDifference, "Withdrawn amount eq estimated amountOut").to.be.eq(amountOut)
         expect(wbtcBalanceAfter, "Token balance has increased").to.be.gt(wbtcBalanceBefore.add(minAmountOut))
     })
 
@@ -441,30 +405,12 @@ context("Unwrapper", () => {
     })
 
     it("Calls withdrawAndUnwrap() on mbtc vault successfully", async () => {
-        const vimbtcHolderAddress = "0x10d96b1fd46ce7ce092aa905274b8ed9d4585a6e"
-        const vimbtcHolder = await impersonate(vimbtcHolderAddress)
+        const vmbtcHolderAddress = "0x10d96b1fd46ce7ce092aa905274b8ed9d4585a6e"
+        await withdrawAndUnwrap(vmbtcHolderAddress, mbtcAddress, "mbtc", wbtcAddress, true)
+    })
 
-        const config = {
-            routeIndex: Route.Masset,
-            router: mbtcAddress,
-            input: mbtcAddress,
-            output: wbtcAddress,
-            amount: simpleToExactAmount(10, 18),
-        }
-
-        // Get estimated output via getUnwrapOutput
-        const amountOut = await unwrapper.getUnwrapOutput(config.routeIndex, config.router, config.input, config.output, config.amount)
-        expect(amountOut.toString().length).to.be.gte(9)
-        const minAmountOut = amountOut.mul(98).div(1e2)
-
-        const daiContract = IERC20__factory.connect(config.output, vimbtcHolder)
-        const tokenBalanceBefore = await daiContract.balanceOf(vimbtcHolderAddress)
-
-        // withdraw and unwrap
-        const saveVault = BoostedVault__factory.connect(imbtcVaultAddress, vimbtcHolder)
-        await saveVault.withdrawAndUnwrap(config.amount, minAmountOut, config.output, vimbtcHolderAddress, config.router, config.routeIndex)
-
-        const tokenBalanceAfter = await daiContract.balanceOf(vimbtcHolderAddress)
-        expect(tokenBalanceAfter, "Token balance has increased").to.be.gt(tokenBalanceBefore)
+    it("Calls withdrawAndUnwrap() for fasset on mbtc vault successfully", async () => {
+        const vhbtcmbtcHolderAddress = "0x10d96b1fd46ce7ce092aa905274b8ed9d4585a6e"
+        await withdrawAndUnwrap(vhbtcmbtcHolderAddress, hbtcFeederPool, "mbtc", hbtcAddress, false)
     })
 })

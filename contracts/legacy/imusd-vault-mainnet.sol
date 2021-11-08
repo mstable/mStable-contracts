@@ -7,7 +7,7 @@ interface ISavingsContractV3 {
         address _output,
         address _beneficiary,
         address _router,
-        uint8 _routeIndex
+        bool _isBassetOut
     ) external returns (uint256 creditsBurned);
 }
 
@@ -1538,7 +1538,7 @@ contract BoostedSavingsVaultLegacyUSD is
      * @param _output        TODO
      * @param _beneficiary   Address to send staked token to
      * @param _router        Router to redeem/swap
-     * @param _routeIndex     Route action of redeem/swap
+     * @param _isBassetOut     Route action of redeem/swap
      */
     function withdrawAndUnwrap(
         uint256 _amount,
@@ -1546,7 +1546,7 @@ contract BoostedSavingsVaultLegacyUSD is
         address _output,
         address _beneficiary,
         address _router,
-        uint8 _routeIndex
+        bool _isBassetOut
     ) external updateReward(msg.sender) updateBoost(msg.sender) {
         require(_amount > 0, "Cannot withdraw 0");
 
@@ -1563,7 +1563,7 @@ contract BoostedSavingsVaultLegacyUSD is
             _output,
             _beneficiary,
             _router,
-            _routeIndex
+            _isBassetOut
         );
 
         emit Withdrawn(msg.sender, _amount);

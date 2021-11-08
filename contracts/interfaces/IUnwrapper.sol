@@ -7,7 +7,7 @@ pragma solidity 0.8.6;
 interface IUnwrapper {
     /// @dev Estimate output
     function getUnwrapOutput(
-        uint8 _routeIndex,
+        bool _isBassetOut,
         address _router,
         address _input,
         address _output,
@@ -16,7 +16,7 @@ interface IUnwrapper {
 
     /// @dev Unwrap and send
     function unwrapAndSend(
-        uint8 _routeIndex,
+        bool _isBassetOut,
         address _router,
         address _input,
         address _output,
