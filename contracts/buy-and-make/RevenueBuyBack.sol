@@ -30,9 +30,9 @@ struct RevenueBuyBackConfig {
 /**
  * @title   RevenueBuyBack
  * @author  mStable
- * @notice  Uses protocol revenues to buy MTA rewards for stakers
+ * @notice  Uses protocol revenue to buy MTA rewards for stakers.
  * @dev     VERSION: 1.0
- *          DATE:    2021-10-19
+ *          DATE:    2021-11-09
  */
 contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
     using SafeERC20 for IERC20;
@@ -69,6 +69,12 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
         _;
     }
 
+    /**
+     * @param _nexus mStable system Nexus address
+     * @param _rewardsToken Rewards token address that are purchased. eg MTA
+     * @param _uniswapRouter Uniswap V3 Router address
+     * @param _emissionsController Emissions Controller address that rewards tokens are donated to.
+     */
     constructor(
         address _nexus,
         address _rewardsToken,
@@ -115,6 +121,10 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
         emit RevenueReceived(_mAsset, _amount);
     }
 
+    /**
+     * @notice Buys reward tokens, eg MTA, using mAssets like mUSD or mBTC from protocol revenue.
+     * @param _mAssets Addresses of mAssets that are to be sold for rewards. eg mUSD and mBTC.
+     */
     function buyBackRewards(address[] calldata _mAssets) external keeperOrGovernor {
         uint256 len = _mAssets.length;
         require(len > 0, "Invalid args");
@@ -150,15 +160,36 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
             );
             uniswapRouter.exactInput(param);
         }
+    }
 
-        // STEP 3 - Evenly donate rewards to staking contract dials on the Emissions Controller
-        uint256 rewardsBal = REWARDS_TOKEN.balanceOf(address(this));
+    /**
+     * @notice donates purchased rewards, eg MTA, to staking contracts via the Emissions Controller.
+     */
+    function donateRewards() external keeperOrGovernor {
+        // STEP 1 - Get the voting power of the staking contracts
         uint256 numberStakingContracts = stakingDialIds.length;
-        uint256[] memory rewardDonationAmounts = new uint256[](numberStakingContracts);
-        // for each staking contract
+        uint256[] memory votingPower = new uint256[](numberStakingContracts);
+        uint256 totalVotingPower;
+        // Get the voting power of each staking contract
         for (uint256 i = 0; i < numberStakingContracts; i++) {
-            rewardDonationAmounts[i] = rewardsBal / numberStakingContracts;
+            address staingContractAddress = EMISSIONS_CONTROLLER.stakingContracts(stakingDialIds[i]);
+            require(staingContractAddress != address(0), "invalid dial id");
+
+            votingPower[i] = IERC20(staingContractAddress).totalSupply();
+            totalVotingPower += votingPower[i];
         }
+        require(totalVotingPower > 0, "No voting power");
+
+        // STEP 2 - Get rewards that need to be distributed
+        uint256 rewardsBal = REWARDS_TOKEN.balanceOf(address(this));
+
+        // STEP 3 - Calculate rewards for each staking contract
+        uint256[] memory rewardDonationAmounts = new uint256[](numberStakingContracts);
+        for (uint256 i = 0; i < numberStakingContracts; i++) {
+            rewardDonationAmounts[i] = rewardsBal * votingPower[i] / totalVotingPower;
+        }
+
+        // STEP 4 - donate rewards to staking contract dials in the Emissions Controller
         EMISSIONS_CONTROLLER.donate(stakingDialIds, rewardDonationAmounts);
     }
 
