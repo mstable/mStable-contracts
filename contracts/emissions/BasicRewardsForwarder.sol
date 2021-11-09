@@ -2,7 +2,7 @@
 pragma solidity 0.8.6;
 
 import { IRewardsDistributionRecipient } from "../interfaces/IRewardsDistributionRecipient.sol";
-import { InitializableRewardsDistributionRecipient } from "../rewards/InitializableRewardsDistributionRecipient.sol";
+import { OwnableRewardsDistributionRecipient } from "../rewards/OwnableRewardsDistributionRecipient.sol";
 import { Initializable } from "../shared/@openzeppelin-2.5/Initializable.sol";
 import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -16,7 +16,7 @@ import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/Saf
 contract BasicRewardsForwarder is
     IRewardsDistributionRecipient,
     Initializable,
-    InitializableRewardsDistributionRecipient
+    OwnableRewardsDistributionRecipient
 {
     using SafeERC20 for IERC20;
 
@@ -30,12 +30,9 @@ contract BasicRewardsForwarder is
 
     /**
      * @dev Constructor
-     * @param _nexus        mStable system Nexus address
      * @param _rewardsToken Token that is being distributed as a reward. eg MTA
      */
-    constructor(address _nexus, address _rewardsToken)
-        InitializableRewardsDistributionRecipient(_nexus)
-    {
+    constructor(address _rewardsToken) {
         require(_rewardsToken != address(0), "Rewards token is zero");
         REWARDS_TOKEN = IERC20(_rewardsToken);
     }
@@ -46,7 +43,7 @@ contract BasicRewardsForwarder is
      * @param _endRecipient        Account that ultimately receives the reward tokens
      */
     function initialize(address _emissionsController, address _endRecipient) external initializer {
-        InitializableRewardsDistributionRecipient._initialize(_emissionsController);
+        OwnableRewardsDistributionRecipient._initialize(_emissionsController);
 
         endRecipient = _endRecipient;
     }
@@ -74,7 +71,7 @@ contract BasicRewardsForwarder is
      * @notice Change the endRecipient. Can only be called by mStable governor.
      * @param _endRecipient The account the reward tokens are sent to
      */
-    function setEndRecipient(address _endRecipient) external onlyGovernor {
+    function setEndRecipient(address _endRecipient) external onlyOwner {
         endRecipient = _endRecipient;
 
         emit RecipientChanged(_endRecipient);
