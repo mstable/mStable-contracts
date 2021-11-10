@@ -4,6 +4,7 @@ pragma solidity 0.8.6;
 import { IEmissionsController } from "../interfaces/IEmissionsController.sol";
 import { IMasset } from "../interfaces/IMasset.sol";
 import { IRevenueRecipient } from "../interfaces/IRevenueRecipient.sol";
+import { DialData } from "../emissions/EmissionsController.sol";
 import { ImmutableModule } from "../shared/ImmutableModule.sol";
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -11,16 +12,18 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { IUniswapV3SwapRouter } from "../peripheral/Uniswap/IUniswapV3SwapRouter.sol";
 
 struct RevenueBuyBackConfig {
-    // Percentage of mAssets that can be redeemed for bAssets in basis points (BASSET_PECENTAGE_SCALE).
-    // So if a 2% slippage is allowed, the minRedeemSlippage will be 9800.
-    // A 0.01% slippage is 9999
-    uint16 minBassetPercentage;
+    // Percentage of mAssets that can be redeemed for bAssets scaled to 1e18 (CONFIG_SCALE).
+    // 1e18 = 100%
+    // If a 2% slippage was allowed, the minRedeemSlippage will 98% which is 98e16.
+    // A 0.1% slippage 99.9% = 999e15
+    // A 0.05% slippage 99.95% = 9995e14
+    uint128 minBassetPercentage;
     // Minimum price of rewards token compared to bAssets. eg MTA/USDC or MTA/wBTC.
-    // The price is scaled by 100 (REWARDS_PRICE_SCALE).
+    // The price is scaled by 1e18 (CONFIG_SCALE).
     // Examples
-    // 0.80 MTA/USDC price = 80
-    // 50000 MTA/wBTC price = 5,000,000
-    uint32 minBasset2RewardsPrice;
+    // 0.80 MTA/USDC price = 8e17
+    // 50,000 MTA/wBTC price = 50e21
+    uint128 minBasset2RewardsPrice;
     // base asset of the mAsset that is being redeemed and then sold for reward tokens.
     address bAsset;
     // Uniswap V3 path
@@ -47,11 +50,12 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
     );
     event AddedStakingContract(uint16 stakingDialId);
 
-    uint256 public constant BASSET_PECENTAGE_SCALE = 10000;
-    uint256 public constant REWARDS_PRICE_SCALE = 100;
+    /// @notice scale of the `minBassetPercentage` and `minBasset2RewardsPrice` configuration properties.
+    uint256 public constant CONFIG_SCALE = 1e18;
 
     /// @notice address of the rewards token that is being purchased. eg MTA
     IERC20 public immutable REWARDS_TOKEN;
+    /// @notice address of the Emissions Controller that does the weekly MTA reward emissions based off on-chain voting power.
     IEmissionsController public immutable EMISSIONS_CONTROLLER;
 
     /// @notice Uniswap V3 Router address
@@ -138,8 +142,7 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
             // STEP 1 - Redeem mAssets for bAssets
             IMasset mAsset = IMasset(_mAssets[i]);
             uint256 mAssetBal = IERC20((_mAssets[i])).balanceOf(address(this));
-            uint256 minBassetOutput = (mAssetBal * config.minBassetPercentage) /
-                BASSET_PECENTAGE_SCALE;
+            uint256 minBassetOutput = (mAssetBal * config.minBassetPercentage) / CONFIG_SCALE;
             uint256 bAssetAmount = mAsset.redeem(
                 config.bAsset,
                 mAssetBal,
@@ -149,7 +152,7 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
 
             // STEP 2 - Swap bAssets for rewards using Uniswap V3
             uint256 minRewardsAmount = (bAssetAmount * config.minBasset2RewardsPrice) /
-                REWARDS_PRICE_SCALE;
+                CONFIG_SCALE;
             IUniswapV3SwapRouter.ExactInputParams memory param = IUniswapV3SwapRouter
             .ExactInputParams(
                 config.uniswapPath,
@@ -172,7 +175,8 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
         uint256 totalVotingPower;
         // Get the voting power of each staking contract
         for (uint256 i = 0; i < numberStakingContracts; i++) {
-            address staingContractAddress = EMISSIONS_CONTROLLER.stakingContracts(stakingDialIds[i]);
+            DialData memory dialData = EMISSIONS_CONTROLLER.dials(stakingDialIds[i]);
+            address staingContractAddress = dialData.recipient;
             require(staingContractAddress != address(0), "invalid dial id");
 
             votingPower[i] = IERC20(staingContractAddress).totalSupply();
@@ -186,10 +190,13 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
         // STEP 3 - Calculate rewards for each staking contract
         uint256[] memory rewardDonationAmounts = new uint256[](numberStakingContracts);
         for (uint256 i = 0; i < numberStakingContracts; i++) {
-            rewardDonationAmounts[i] = rewardsBal * votingPower[i] / totalVotingPower;
+            rewardDonationAmounts[i] = (rewardsBal * votingPower[i]) / totalVotingPower;
         }
 
-        // STEP 4 - donate rewards to staking contract dials in the Emissions Controller
+        // STEP 4 - RevenueBuyBack approves the Emissions Controller to transfer rewards. eg MTA
+        REWARDS_TOKEN.safeApprove(address(EMISSIONS_CONTROLLER), rewardsBal);
+
+        // STEP 5 - donate rewards to staking contract dials in the Emissions Controller
         EMISSIONS_CONTROLLER.donate(stakingDialIds, rewardDonationAmounts);
     }
 
@@ -201,13 +208,14 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
      * @notice Adds or updates rewards buyback config for a mAsset.
      * @param _mAsset Address of the meta asset that is received as protocol revenue.
      * @param _bAsset Address of the base asset that is redeemed from the mAsset.
-     * @param _minBassetPercentage Percentage of mAssets that can be redeemed for bAssets in basis points.
-     * So if a 2% slippage is allowed, the minRedeemSlippage will be 9800.
-     * A 0.01% slippage is 9999
+     * @param _minBassetPercentage Percentage of mAssets that can be redeemed for bAssets scaled to 1e18 (CONFIG_SCALE).
+     * 1e18 = 100% so if a 2% slippage was allowed, the minRedeemSlippage will 98% which is 98e16.
+     * A 0.1% slippage 99.9% = 999e15
+     * A 0.05% slippage 99.95% = 9995e14
      * @param _minBasset2RewardsPrice Minimum price of rewards token compared to bAssets. eg MTA/USDC or MTA/wBTC.
-     * All prices are scaled by 100. Examples:
-     * 0.80 MTA/USDC price = 80
-     * 50000 MTA/wBTC price = 5,000,000
+     * The price is scaled by 1e18 (CONFIG_SCALE). For example
+     * 0.80 MTA/USDC min price = 8e17
+     * 50,000 MTA/wBTC min price = 50e21
      * @param _uniswapPath The Uniswap V3 bytes encoded path.
      */
     function setMassetConfig(
