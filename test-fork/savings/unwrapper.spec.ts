@@ -11,6 +11,7 @@ import {
     BoostedVault__factory,
     DelayedProxyAdmin,
     DelayedProxyAdmin__factory,
+    ERC20__factory,
     IERC20__factory,
     Nexus__factory,
     SavingsContract,
@@ -19,7 +20,7 @@ import {
     UnwrapperProxy__factory,
     Unwrapper__factory,
 } from "types/generated"
-import { Chain, increaseTime, ONE_WEEK, simpleToExactAmount } from "index"
+import { Chain, DEAD_ADDRESS, increaseTime, ONE_WEEK, simpleToExactAmount } from "index"
 import { BigNumber } from "@ethersproject/bignumber"
 import { getChainAddress } from "tasks/utils/networkAddressFactory"
 
@@ -29,6 +30,7 @@ const governorAddress = getChainAddress("Governor", chain)
 const nexusAddress = getChainAddress("Nexus", chain)
 
 const deployerAddress = "0x19F12C947D25Ff8a3b748829D8001cA09a28D46d"
+const imusdHolderAddress = "0xdA1fD36cfC50ED03ca4dd388858A78C904379fb3"
 const musdHolderAddress = "0x8474ddbe98f5aa3179b3b3f5942d724afcdec9f6"
 const daiAddress = "0x6b175474e89094c44da98b954eedeac495271d0f"
 const alusdAddress = "0xBC6DA0FE9aD5f3b0d58160288917AA56653660E9"
@@ -43,9 +45,6 @@ const imbtcVaultAddress = "0xF38522f63f40f9Dd81aBAfD2B8EFc2EC958a3016"
 const wbtcAddress = "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"
 const hbtcAddress = "0x0316EB71485b0Ab14103307bf65a021042c6d380"
 const hbtcFeederPool = "0x48c59199da51b7e30ea200a74ea07974e62c4ba7"
-
-// TODO:
-// - Test boosted balance is correct
 
 context("Unwrapper", () => {
     let deployer: Signer
@@ -167,7 +166,7 @@ context("Unwrapper", () => {
         expect(output.toString()).to.be.length(19)
     })
 
-    it("Unwraps to bAsset and sends to beneficiary via unwrapAndSend", async () => {
+    it("mUSD Save redeem to bAsset via unwrapAndSend", async () => {
         const config = {
             isBassetOut: true,
             router: musdAddress,
@@ -178,7 +177,7 @@ context("Unwrapper", () => {
         await validateAssetRedemption(config, musdHolder)
     })
 
-    it("Unwraps to fAsset and sends to beneficiary via unwrapAndSend", async () => {
+    it("mUSD Save redeem to fAsset via unwrapAndSend", async () => {
         const config = {
             isBassetOut: false,
             router: alusdFeederPool,
@@ -189,7 +188,7 @@ context("Unwrapper", () => {
         await validateAssetRedemption(config, musdHolder)
     })
 
-    it("Upgrades the musd save contract", async () => {
+    it("Upgrades the mUSD Save contract", async () => {
         const musdSaveImpl = await deployContract<SavingsContract>(
             new SavingsContract__factory(deployer),
             "mStable: mUSD Savings Contract",
@@ -215,8 +214,7 @@ context("Unwrapper", () => {
         expect(unwrapperAddress).to.eq(unwrapper.address)
     })
 
-    it("musd save contract works after upgraded", async () => {
-        const imusdHolderAddress = "0xdA1fD36cfC50ED03ca4dd388858A78C904379fb3"
+    it("mUSD Save contract works after upgraded", async () => {
         const imusdHolder = await impersonate(imusdHolderAddress)
 
         const config = {
@@ -251,7 +249,7 @@ context("Unwrapper", () => {
         expect(daiBalanceAfter, "Token balance has increased").to.be.gt(daiBalanceBefore.add(minAmountOut))
     })
 
-    it("Upgrades the imUSD vault", async () => {
+    it("Upgrades the mUSD Save Vault", async () => {
         const saveVaultImpl = await deployContract<BoostedSavingsVaultLegacyUSD>(
             new BoostedSavingsVaultLegacyUSD__factory(deployer),
             "mStable: mUSD Savings Vault",
@@ -308,17 +306,17 @@ context("Unwrapper", () => {
         expect(tokenBalanceAfter, "Token balance has increased").to.be.gt(tokenBalanceBefore)
     }
 
-    it("Calls withdrawAndUnwrap() on musd vault sucessfully", async () => {
+    it("mUSD Save Vault redeem to bAsset", async () => {
         const vmusdHolderAddress = "0x0c2ef8a1b3bc00bf676053732f31a67ebba5bd81"
         await withdrawAndUnwrap(vmusdHolderAddress, musdAddress, "musd", daiAddress, true)
     })
 
-    it("Calls withdrawAndUnwrap() for fasset on musd vault sucessfully", async () => {
+    it("mUSD Save Vault redeem to fAsset", async () => {
         const vmusdHolderAddress = "0x0c2ef8a1b3bc00bf676053732f31a67ebba5bd81"
         await withdrawAndUnwrap(vmusdHolderAddress, alusdFeederPool, "musd", alusdAddress, false)
     })
 
-    it("Upgrades the mbtc save contract", async () => {
+    it("Upgrades the mBTC save contract", async () => {
         const mbtcSaveImpl = await deployContract<SavingsContract>(
             new SavingsContract__factory(deployer),
             "mStable: mBTC Savings Contract",
@@ -344,7 +342,7 @@ context("Unwrapper", () => {
         expect(unwrapperAddress).to.eq(unwrapper.address)
     })
 
-    it("mbtc save contract works after upgraded", async () => {
+    it("mBTC Save contract works after upgraded", async () => {
         const imbtcHolderAddress = "0xd2270cdc82675a3c0ad8cbee1e9c26c85b46456c"
         const imbtcHolder = await impersonate(imbtcHolderAddress)
 
@@ -380,7 +378,7 @@ context("Unwrapper", () => {
         expect(wbtcBalanceAfter, "Token balance has increased").to.be.gt(wbtcBalanceBefore.add(minAmountOut))
     })
 
-    it("Upgrades the imBTC vault", async () => {
+    it("Upgrades the mBTC Save Vault", async () => {
         const boostDirector = "0xba05fd2f20ae15b0d3f20ddc6870feca6acd3592"
         const priceCoeff = simpleToExactAmount(4800, 18)
         const boostCoeff = 9
@@ -404,13 +402,25 @@ context("Unwrapper", () => {
         expect(await delayedProxyAdmin.getProxyImplementation(imbtcVaultAddress)).eq(saveVaultImpl.address)
     })
 
-    it("Calls withdrawAndUnwrap() on mbtc vault successfully", async () => {
+    it("mBTC Save Vault redeem to bAsset", async () => {
         const vmbtcHolderAddress = "0x10d96b1fd46ce7ce092aa905274b8ed9d4585a6e"
         await withdrawAndUnwrap(vmbtcHolderAddress, mbtcAddress, "mbtc", wbtcAddress, true)
     })
 
-    it("Calls withdrawAndUnwrap() for fasset on mbtc vault successfully", async () => {
+    it("mBTC Save Vault redeem to fAsset", async () => {
         const vhbtcmbtcHolderAddress = "0x10d96b1fd46ce7ce092aa905274b8ed9d4585a6e"
         await withdrawAndUnwrap(vhbtcmbtcHolderAddress, hbtcFeederPool, "mbtc", hbtcAddress, false)
+    })
+
+    it("Emits referrer successfully", async () => {
+        const saveContractProxy = SavingsContract__factory.connect(imusdAddress, musdHolder)
+        const musdContractProxy = ERC20__factory.connect(musdAddress, musdHolder)
+        await musdContractProxy.approve(imusdAddress, simpleToExactAmount(100, 18))
+        const tx = await saveContractProxy["depositSavings(uint256,address,address)"](
+            simpleToExactAmount(1, 18),
+            musdHolderAddress,
+            DEAD_ADDRESS,
+        )
+        await expect(tx).to.emit(saveContractProxy, "Referral").withArgs(DEAD_ADDRESS, "0x8474DdbE98F5aA3179B3B3F5942D724aFcdec9f6")
     })
 })
