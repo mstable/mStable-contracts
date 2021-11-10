@@ -2,12 +2,15 @@
 pragma solidity 0.8.6;
 
 import { IVotes } from "../interfaces/IVotes.sol";
+import { DialData } from "../emissions/EmissionsController.sol";
 
 /**
  * @title IEmissionsController
  * @dev Emissions Controller interface used for by RevenueBuyBack
  */
 interface IEmissionsController {
+    function dials(uint256 dialId) external returns (DialData memory);
+
     function donate(uint256[] memory _dialIds, uint256[] memory _amounts) external;
 
     function stakingContracts(uint256 dialId) external returns (address);
