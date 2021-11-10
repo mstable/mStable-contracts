@@ -1,8 +1,6 @@
 # Emissions Controller
 
-The weekly MTA rewards will be moved to an on-chain governance platform that allows MTA token holders, or their delegated account, to decide where MTA rewards are directed each week. This builds on the Staking V2 contracts that were recently launched that has voting power and voter delegation. This forum post describes the Emissions Controller which is the key piece of infrastructure to enable on-chain voting on MTA rewards.
-
-The MTA Emissions Controller will distribute weekly MTA rewards in accordance with the votes of the MTA stakers. This is similar to [Curve’s GaugeController](https://dao.curve.fi/gaugeweight).
+The Emissions Controller is an on-chain governance platform that allows MTA token holders, or their delegated account, to decide where MTA rewards are directed each week.This is similar to [Curve’s GaugeController](https://dao.curve.fi/gaugeweight).
 
 ## Design
 
