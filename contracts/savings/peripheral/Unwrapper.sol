@@ -10,11 +10,31 @@ import { IUnwrapper } from "../../interfaces/IUnwrapper.sol";
 import { IMasset } from "../../interfaces/IMasset.sol";
 import { IFeederPool } from "../../interfaces/IFeederPool.sol";
 import { IBoostedVaultWithLockup } from "../../interfaces/IBoostedVaultWithLockup.sol";
+import { BassetPersonal } from "../../masset/MassetStructs.sol";
 
 contract Unwrapper is IUnwrapper, ImmutableModule {
     using SafeERC20 for IERC20;
 
     constructor(address _nexus) ImmutableModule(_nexus) {}
+
+    /**
+     * @dev Query whether output address is a bAsset for given mAsset
+     * @param _masset    masset
+     * @param _output    output asset
+     * @return isBassetOut   boolean status of output asset
+     */
+    function getIsBassetOut(address _masset, address _output)
+        external
+        view
+        override
+        returns (bool isBassetOut)
+    {
+        (BassetPersonal[] memory bAssets, ) = IMasset(_masset).getBassets();
+        for (uint256 i = 0; i < bAssets.length; i++) {
+            if (bAssets[i].addr == _output) return true;
+        }
+        return false;
+    }
 
     /**
      * @dev Estimate output

@@ -14,6 +14,12 @@ interface IUnwrapper {
         uint256 _amount
     ) external view returns (uint256 output);
 
+    // @dev Get bAssetOut status
+    function getIsBassetOut(address _masset, address _output)
+        external
+        view
+        returns (bool isBassetOut);
+
     /// @dev Unwrap and send
     function unwrapAndSend(
         bool _isBassetOut,

@@ -17,8 +17,6 @@ interface IBoostedVaultWithLockup {
      */
     function stake(address _beneficiary, uint256 _amount) external;
 
-    // TODO add referrer overload?
-
     /**
      * @dev Withdraws stake from pool and claims any unlocked rewards.
      * Note, this function is costly - the args for _claimRewards

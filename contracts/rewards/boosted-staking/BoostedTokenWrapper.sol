@@ -132,7 +132,7 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
      * @param _amount Units of StakingToken
      */
     function _withdrawRaw(uint256 _amount) internal nonReentrant {
-        _reduceRaw(_amount);
+        _rawBalances[msg.sender] -= _amount;
         stakingToken.safeTransfer(msg.sender, _amount);
     }
 

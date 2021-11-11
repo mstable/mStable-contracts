@@ -273,9 +273,6 @@ contract BoostedVault is
         // Reduce raw balance (but do not transfer `stakingToken`)
         _reduceRaw(_amount);
 
-        // Approve SavingsContract to spend this contract's `stakingToken`
-        IERC20(stakingToken).approve(address(stakingToken), _amount);
-
         // Unwrap `stakingToken` into `output` and send to `beneficiary`
         ISavingsContractV3(address(stakingToken)).redeemAndUnwrap(
             _amount,

@@ -51,7 +51,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     event PokedRaw();
 
     // Tracking events
-    event Referral(address indexed referrer, address beneficiary);
+    event Referral(address indexed referrer, address beneficiary, uint256 amount);
 
     // Rate between 'savings credits' and underlying
     // e.g. 1 credit (1e17) mulTruncate(exchangeRate) = underlying, starts at 10:1
@@ -254,7 +254,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         address _beneficiary,
         address _referrer
     ) external override returns (uint256 creditsIssued) {
-        emit Referral(_referrer, _beneficiary);
+        emit Referral(_referrer, _beneficiary, _underlying);
         return _deposit(_underlying, _beneficiary, true);
     }
 
