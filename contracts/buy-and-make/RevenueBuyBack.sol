@@ -12,17 +12,9 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { IUniswapV3SwapRouter } from "../peripheral/Uniswap/IUniswapV3SwapRouter.sol";
 
 struct RevenueBuyBackConfig {
-    // Percentage of mAssets that can be redeemed for bAssets scaled to 1e18 (CONFIG_SCALE).
-    // 1e18 = 100%
-    // If a 2% slippage was allowed, the minRedeemSlippage will 98% which is 98e16.
-    // A 0.1% slippage 99.9% = 999e15
-    // A 0.05% slippage 99.95% = 9995e14
-    uint128 minBassetPercentage;
-    // Minimum price of rewards token compared to bAssets. eg MTA/USDC or MTA/wBTC.
-    // The price is scaled by 1e18 (CONFIG_SCALE).
-    // Examples
-    // 0.80 MTA/USDC price = 8e17
-    // 50,000 MTA/wBTC price = 50e21
+    // Minimum price of bAssets compared to mAssets scaled to 1e18 (CONFIG_SCALE).
+    uint128 minMasset2BassetPrice;
+    // Minimum price of rewards token compared to bAssets scaled to 1e18 (CONFIG_SCALE).
     uint128 minBasset2RewardsPrice;
     // base asset of the mAsset that is being redeemed and then sold for reward tokens.
     address bAsset;
@@ -41,25 +33,31 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
     using SafeERC20 for IERC20;
 
     event RevenueReceived(address indexed mAsset, uint256 amountIn);
+    event BuyBackRewards(
+        address indexed mAsset,
+        uint256 mAssetAmount,
+        uint256 bAssetAmount,
+        uint256 rewardsAmount
+    );
+    event DonatedRewards(uint256 totalRewards);
     event AddedMassetConfig(
         address mAsset,
         address bAsset,
-        uint16 minBassetPercentage,
-        uint32 minBasset2RewardsPrice,
+        uint128 minMasset2BassetPrice,
+        uint128 minBasset2RewardsPrice,
         bytes uniswapPath
     );
     event AddedStakingContract(uint16 stakingDialId);
 
-    /// @notice scale of the `minBassetPercentage` and `minBasset2RewardsPrice` configuration properties.
+    /// @notice scale of the `minMasset2BassetPrice` and `minBasset2RewardsPrice` configuration properties.
     uint256 public constant CONFIG_SCALE = 1e18;
 
     /// @notice address of the rewards token that is being purchased. eg MTA
     IERC20 public immutable REWARDS_TOKEN;
     /// @notice address of the Emissions Controller that does the weekly MTA reward emissions based off on-chain voting power.
     IEmissionsController public immutable EMISSIONS_CONTROLLER;
-
     /// @notice Uniswap V3 Router address
-    IUniswapV3SwapRouter public immutable uniswapRouter;
+    IUniswapV3SwapRouter public immutable UNISWAP_ROUTER;
 
     /// @notice Account that can execute `buyBackRewards`. eg Operations account.
     address public keeper;
@@ -89,7 +87,7 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
         REWARDS_TOKEN = IERC20(_rewardsToken);
 
         require(_uniswapRouter != address(0), "Uniswap Router is zero");
-        uniswapRouter = IUniswapV3SwapRouter(_uniswapRouter);
+        UNISWAP_ROUTER = IUniswapV3SwapRouter(_uniswapRouter);
 
         require(_uniswapRouter != address(0), "Emissions controller is zero");
         EMISSIONS_CONTROLLER = IEmissionsController(_emissionsController);
@@ -141,8 +139,8 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
 
             // STEP 1 - Redeem mAssets for bAssets
             IMasset mAsset = IMasset(_mAssets[i]);
-            uint256 mAssetBal = IERC20((_mAssets[i])).balanceOf(address(this));
-            uint256 minBassetOutput = (mAssetBal * config.minBassetPercentage) / CONFIG_SCALE;
+            uint256 mAssetBal = IERC20(_mAssets[i]).balanceOf(address(this));
+            uint256 minBassetOutput = (mAssetBal * config.minMasset2BassetPrice) / CONFIG_SCALE;
             uint256 bAssetAmount = mAsset.redeem(
                 config.bAsset,
                 mAssetBal,
@@ -151,6 +149,7 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
             );
 
             // STEP 2 - Swap bAssets for rewards using Uniswap V3
+            IERC20(config.bAsset).safeApprove(address(UNISWAP_ROUTER), bAssetAmount);
             uint256 minRewardsAmount = (bAssetAmount * config.minBasset2RewardsPrice) /
                 CONFIG_SCALE;
             IUniswapV3SwapRouter.ExactInputParams memory param = IUniswapV3SwapRouter
@@ -161,7 +160,9 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
                 bAssetAmount,
                 minRewardsAmount
             );
-            uniswapRouter.exactInput(param);
+            uint256 rewardsAmount = UNISWAP_ROUTER.exactInput(param);
+
+            emit BuyBackRewards(_mAssets[i], mAssetBal, bAssetAmount, rewardsAmount);
         }
     }
 
@@ -198,6 +199,10 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
 
         // STEP 5 - donate rewards to staking contract dials in the Emissions Controller
         EMISSIONS_CONTROLLER.donate(stakingDialIds, rewardDonationAmounts);
+
+        // To get a details split of rewards to staking contracts,
+        // see the `DonatedRewards` event on the `EmissionsController`
+        emit DonatedRewards(rewardsBal);
     }
 
     /***************************************
@@ -208,12 +213,12 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
      * @notice Adds or updates rewards buyback config for a mAsset.
      * @param _mAsset Address of the meta asset that is received as protocol revenue.
      * @param _bAsset Address of the base asset that is redeemed from the mAsset.
-     * @param _minBassetPercentage Percentage of mAssets that can be redeemed for bAssets scaled to 1e18 (CONFIG_SCALE).
-     * 1e18 = 100% so if a 2% slippage was allowed, the minRedeemSlippage will 98% which is 98e16.
-     * A 0.1% slippage 99.9% = 999e15
-     * A 0.05% slippage 99.95% = 9995e14
-     * @param _minBasset2RewardsPrice Minimum price of rewards token compared to bAssets. eg MTA/USDC or MTA/wBTC.
-     * The price is scaled by 1e18 (CONFIG_SCALE). For example
+     * @param _minMasset2BassetPrice Minimum price of bAssets compared to mAssets scaled to 1e18 (CONFIG_SCALE).
+     * eg USDC/mUSD and wBTC/mBTC exchange rates.
+     * USDC has 6 decimal places so `minMasset2BassetPrice` with no slippage is 1e6.
+     * If a 2% slippage is allowed, the `minMasset2BassetPrice` is 98e4.
+     * @param _minBasset2RewardsPrice Minimum price of rewards token compared to bAssets scaled to 1e18 (CONFIG_SCALE).
+     * eg MTA/USDC and MTA/wBTC exchange rates.
      * 0.80 MTA/USDC min price = 8e17
      * 50,000 MTA/wBTC min price = 50e21
      * @param _uniswapPath The Uniswap V3 bytes encoded path.
@@ -221,17 +226,14 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
     function setMassetConfig(
         address _mAsset,
         address _bAsset,
-        uint16 _minBassetPercentage,
-        uint32 _minBasset2RewardsPrice,
+        uint128 _minMasset2BassetPrice,
+        uint128 _minBasset2RewardsPrice,
         bytes calldata _uniswapPath
     ) external onlyGovernor {
         require(_mAsset != address(0), "mAsset token is zero");
         require(_bAsset != address(0), "bAsset token is zero");
         // bAsset slippage must be plus or minus 10%
-        require(
-            _minBassetPercentage > 9000 && _minBassetPercentage <= 11000,
-            "Invalid min bAsset %"
-        );
+        require(_minMasset2BassetPrice > 0, "Invalid min bAsset price");
         require(_minBasset2RewardsPrice > 0, "Invalid min reward price");
         require(
             _validUniswapPath(_bAsset, address(REWARDS_TOKEN), _uniswapPath),
@@ -240,7 +242,7 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
 
         massetConfig[_mAsset] = RevenueBuyBackConfig({
             bAsset: _bAsset,
-            minBassetPercentage: _minBassetPercentage,
+            minMasset2BassetPrice: _minMasset2BassetPrice,
             minBasset2RewardsPrice: _minBasset2RewardsPrice,
             uniswapPath: _uniswapPath
         });
@@ -248,7 +250,7 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
         emit AddedMassetConfig(
             _mAsset,
             _bAsset,
-            _minBassetPercentage,
+            _minMasset2BassetPrice,
             _minBasset2RewardsPrice,
             _uniswapPath
         );

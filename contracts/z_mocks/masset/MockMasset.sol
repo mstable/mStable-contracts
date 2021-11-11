@@ -56,13 +56,28 @@ contract MockMasset is MockERC20 {
         uint256 _inputQuantity,
         uint256 _minOutputQuantity,
         address _recipient
-    ) external returns (uint256) {
+    ) external returns (uint256 out_amt) {
         uint256 decimals = IBasicToken(_input).decimals();
-        uint256 out_amt = (_inputQuantity * (10**(18 - decimals)) * ratio) / 1e18;
+        out_amt = (_inputQuantity * (10**(18 - decimals)) * ratio) / 1e18;
         require(out_amt >= _minOutputQuantity, "MINT: Output amount not enough");
         IERC20(_input).transferFrom(msg.sender, address(this), _inputQuantity);
         _mint(_recipient, out_amt);
-        return out_amt;
+    }
+
+    function redeem(
+        address _output,
+        uint256 _mAssetQuantity,
+        uint256 _minOutputQuantity,
+        address _recipient
+    ) external returns (uint256 outputQuantity) {
+        _burn(msg.sender, _mAssetQuantity);
+
+        uint256 decimals = IBasicToken(_output).decimals();
+        outputQuantity = (_mAssetQuantity * ratio * (10**decimals)) / 1e36;
+        require(outputQuantity >= _minOutputQuantity, "bAsset qty < min qty");
+        require(outputQuantity > 0, "Output == 0");
+
+        IERC20(_output).transfer(_recipient, outputQuantity);
     }
 }
 

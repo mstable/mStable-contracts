@@ -72,11 +72,11 @@ The emissions controller will allow anyone to donate MTA rewards to a dial that 
 
 ### Polygon Integration
 
-Polygon’s [Proof of Stake (PoS) Bridge](https://docs.polygon.technology/docs/develop/ethereum-polygon/pos/getting-started) will be used by the Emissions Controller to send MTA to the existing [child MTA](https://polygonscan.com/token/0xF501dd45a1198C2E1b5aEF5314A68B9006D842E0) token on Polygon. This will be done indirectly using a dial recipient contract that interfaces with the PoS Bridge.
+Polygon’s [Proof of Stake (PoS) Bridge](https://docs.polygon.technology/docs/develop/ethereum-polygon/pos/getting-started) will be used by the Emissions Controller to send MTA to the existing [Polygon MTA](https://polygonscan.com/token/0xF501dd45a1198C2E1b5aEF5314A68B9006D842E0) token on Polygon. This will be done indirectly using a dial recipient contract that interfaces with the PoS Bridge.
 
-MTA rewards can be sent directly to the dial contract on Polygon. eg FRAX. Or MTA rewards can be sent via the Child Emissions Controller which will notify the recipient contract that the rewards have been transferred. eg the imUSD Vault on Polygon.
+MTA rewards can be sent directly to the dial contract on Polygon. eg FRAX. Or MTA rewards can be sent via the L2 Emissions Controller which will notify the recipient contract that the rewards have been transferred. eg the imUSD Vault on Polygon.
 
-Voting can not be done on Polygon. All voting of dials is done on Ehtereum mainnet.
+Voting can not be done on Polygon. All voting of dials is done on Ethereum mainnet.
 
 ### Weekly Distribution
 
@@ -135,7 +135,7 @@ It’s possible the MTA rewards can be calculated but not transferred. Each new 
 
 ## Polygon Integration
 
-Polygon's [Proof of Stake (PoS) Bridge](https://docs.polygon.technology/docs/develop/ethereum-polygon/pos/getting-started) will be used by the Emissions Controller to send MTA to the existing child MTA token on Polygon. This will be done indirectly using a dial recipient contract that interfaces with the PoS Bridge.
+Polygon's [Proof of Stake (PoS) Bridge](https://docs.polygon.technology/docs/develop/ethereum-polygon/pos/getting-started) will be used by the Emissions Controller to send MTA to the existing Polygon MTA token on Polygon. This will be done indirectly using a dial recipient contract that interfaces with the PoS Bridge.
 
 ### Contract dependencies
 
@@ -162,8 +162,8 @@ For sending to the Polygon imUSD Vault:
 
 The bridged MTA Token grants the Child Chain Manager the `DEPOSITOR` role so it can call the `deposit` function which mints bridged MTA for MTA that has been locked in the Root Chain Manager on Mainnet.
 
-**L2 Bridge Recipients** - Are contracts that receive bridged MTA tokens from the PoS Bridge. Separate contracts are used so the Child Emissions Controller knows the amounts to be distributed to the final reward recipient contracts.
+**L2 Bridge Recipients** - Are contracts that receive bridged MTA tokens from the PoS Bridge. Separate contracts are used so the L2 Emissions Controller knows the amounts to be distributed to the final reward recipient contracts.
 
-**Child Emission Controller** - is used transfer all bridged MTA Tokens from the L2 Bridge Recipients to the end contracts that implement the `IRewardsDistributionRecipient` interface. For example, the Polygon imUSD Vault. After the tokens are transferred, the `notifyRewardsAmount` is called on the recipient contract so it can process the rewards.
+**L2 Emission Controller** - is used transfer all bridged MTA Tokens from the L2 Bridge Recipients to the end contracts that implement the `IRewardsDistributionRecipient` interface. For example, the Polygon imUSD Vault. After the tokens are transferred, the `notifyRewardsAmount` is called on the recipient contract so it can process the rewards.
 
 The L2 Bridge Recipients need to have approved the L2 Emissions Controller to transfer the Bridged MTA tokens.
