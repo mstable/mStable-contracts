@@ -350,7 +350,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      */
     function calculateRewards() external {
         // 1 - Calculate amount of rewards to distribute this week
-        uint32 epoch = SafeCast.toUint32(block.timestamp) / DISTRIBUTION_PERIOD;
+        uint32 epoch = _epoch(block.timestamp);
         require(epoch > epochs.lastEpoch, "Must wait for new period");
         //     Update storage with new last epoch
         epochs.lastEpoch = epoch;
@@ -527,21 +527,11 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             require(addTime > 0, "Caller must be staking contract");
 
             // If burning (withdraw) or transferring delegated votes from a staker
-            if (from != address(0) && voterPreferences[from].lastSourcePoke > 0) {
-                // If this staking contract has been recently added, the sources must be poked to include this
-                // voting weight in the users overall votes.
-                require(
-                    voterPreferences[from].lastSourcePoke > addTime,
-                    "Must init new contract bal"
-                );
+            if (from != address(0) && voterPreferences[from].lastSourcePoke > addTime) {
                 _moveVotingPower(from, amount, _subtract);
             }
             // If minting (staking) or transferring delegated votes to a staker
-            if (to != address(0) && voterPreferences[to].lastSourcePoke > 0) {
-                require(
-                    voterPreferences[to].lastSourcePoke > addTime,
-                    "Must init new contract bal"
-                );
+            if (to != address(0) && voterPreferences[to].lastSourcePoke > addTime) {
                 _moveVotingPower(to, amount, _add);
             }
 
