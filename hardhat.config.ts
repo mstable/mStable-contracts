@@ -47,26 +47,50 @@ export const hardhatConfig = {
         compilers: [
             {
                 version: "0.8.6",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 200,
+                    },
+                    outputSelection: {
+                        "*": {
+                            Masset: ["storageLayout"],
+                            FeederPool: ["storageLayout"],
+                        },
+                    },
+                },
             },
             {
                 version: "0.5.16",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 200,
+                    },
+                    outputSelection: {
+                        "*": {
+                            Masset: ["storageLayout"],
+                            FeederPool: ["storageLayout"],
+                        },
+                    },
+                },
             },
             {
                 version: "0.8.2",
-            },
-        ],
-        settings: {
-            optimizer: {
-                enabled: true,
-                runs: 200,
-            },
-            outputSelection: {
-                "*": {
-                    Masset: ["storageLayout"],
-                    FeederPool: ["storageLayout"],
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 200,
+                    },
+                    outputSelection: {
+                        "*": {
+                            Masset: ["storageLayout"],
+                            FeederPool: ["storageLayout"],
+                        },
+                    },
                 },
             },
-        },
+        ],
     },
     paths: { artifacts: "./build" },
     abiExporter: {
