@@ -35,7 +35,8 @@ contract BasicRewardsForwarder is
      * @param _rewardsToken Token that is being distributed as a reward. eg MTA
      */
     constructor(address _nexus, address _rewardsToken)
-        InitializableRewardsDistributionRecipient(_nexus) {
+        InitializableRewardsDistributionRecipient(_nexus)
+    {
         require(_rewardsToken != address(0), "Rewards token is zero");
         REWARDS_TOKEN = IERC20(_rewardsToken);
     }

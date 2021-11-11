@@ -7,11 +7,16 @@ pragma solidity 0.8.6;
 contract MockStakingContract {
     mapping(address => uint256) private _balances;
     mapping(address => uint256) private _votes;
+    uint256 public totalSupply;
 
     IGovernanceHook govHook;
 
     function setBalanceOf(address account, uint256 balance) public {
         _balances[account] = balance;
+    }
+
+    function setTotalSupply(uint256 _totalSupply) public {
+        totalSupply = _totalSupply;
     }
 
     function setVotes(address account, uint256 newVotes) public {
