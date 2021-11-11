@@ -1,6 +1,6 @@
 # Emissions Controller
 
-The Emissions Controller is an on-chain governance platform that allows MTA token holders, or their delegated account, to decide where MTA rewards are directed each week.This is similar to [Curve’s GaugeController](https://dao.curve.fi/gaugeweight).
+The Emissions Controller is an on-chain governance platform that allows MTA token holders, or their delegated account, to decide where MTA rewards are directed each week. This is similar to [Curve’s GaugeController](https://dao.curve.fi/gaugeweight).
 
 ## Design
 
@@ -60,7 +60,7 @@ Once the voting weights across the dials are set, this will be used for each wee
 
 The emissions controller will maintain the weighted votes for each dial. If a voter’s voting power changes, then the dial weight will be updated. This can be from staking, withdrawing or changes to delegation.
 
-To prevent voters from just giving all the MTA to themselves, each staking contract will receive 10% of the MTA distributions each week. There are currently two staking contracts so that’s 20% of the MTA rewards going to the stakers.
+To prevent voters from just giving all the MTA to themselves, each staking contract will receive maximum of 10% of the MTA distributions each week. There are currently two staking contracts so that’s a maximum of 20% of the MTA rewards going to the stakers.
 
 To generate more value for the MTA holders, the Protocol revenue will be used to buy MTA and distribute to stakers. This incentivises the voters to maximise the protocols revenues.
 
@@ -69,8 +69,6 @@ There is no cap on the amount of MTA a dial that is not a staking contract can r
 ### Donations
 
 The emissions controller will allow anyone to donate MTA rewards to a dial that is in addition to the weekly emissions schedule. These additional MTA rewards will be included in the weekly distribution. This can be used by mStable or third parties to incentivize dials.
-
-In addition, third party tokens can also be donated to dials and distributed in the weekly process. These are not voted on. It’s up to the party that is donating the tokens to decide how much will be distributed to which dials.
 
 ### Polygon Integration
 
@@ -85,7 +83,7 @@ Voting can not be done on Polygon. All voting of dials is done on Ehtereum mainn
 The weekly distribution of the MTA rewards will be done in two transactions
 
 1. The amount of MTA rewards for each dial is calculated
-  -  calculate the amount of MTA rewards to be distributed for the week.
+  - calculate the amount of MTA rewards to be distributed for the week.
   - calculate the total weight votes across all dials that have not been disabled.
   - calculate the MTA rewards for each dial that has not been disabled
 
