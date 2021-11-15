@@ -19,6 +19,8 @@ import {
     PausableModule,
     MockERC20,
     MockRevenueRecipient__factory,
+    Unwrapper__factory,
+    Unwrapper,
 } from "types/generated"
 import { Account } from "types"
 import { shouldBehaveLikePausableModule, IPausableModuleBehaviourContext } from "../shared/PausableModule.behaviour"
@@ -37,14 +39,19 @@ describe("SavingsManager", async () => {
     let nexus: MockNexus
     let savingsContract: SavingsContract
     let savingsManager: SavingsManager
+    let unwrapperFactory: Unwrapper__factory
+    let unwrapperContract: Unwrapper
     let mUSD: MockMasset
     let liquidator: Account
 
     async function createNewSavingsManager(mintAmount: BN = INITIAL_MINT): Promise<void> {
         mUSD = await (await new MockMasset__factory(sa.default.signer)).deploy("MOCK", "MOCK", 18, sa.default.address, mintAmount)
 
+        unwrapperFactory = await new Unwrapper__factory(sa.default.signer)
+        unwrapperContract = await unwrapperFactory.deploy(nexus.address)
+
         const savingsFactory = await new SavingsContract__factory(sa.default.signer)
-        savingsContract = await savingsFactory.deploy(nexus.address, mUSD.address)
+        savingsContract = await savingsFactory.deploy(nexus.address, mUSD.address, unwrapperContract.address)
         await savingsContract.initialize(sa.default.address, "Savings Credit", "imUSD")
 
         savingsManager = await new SavingsManager__factory(sa.default.signer).deploy(

@@ -21,6 +21,8 @@ import {
     MockVaultConnector__factory,
     MockLendingConnector,
     MockVaultConnector,
+    Unwrapper__factory,
+    Unwrapper,
 } from "types/generated"
 import { Account } from "types"
 import { shouldBehaveLikeModule, IModuleBehaviourContext } from "../shared/Module.behaviour"
@@ -122,6 +124,8 @@ describe("SavingsContract", async () => {
     let savingsContract: SavingsContract
     let savingsFactory: SavingsContract__factory
     let connectorFactory: MockConnector__factory
+    let unwrapperFactory: Unwrapper__factory
+    let unwrapperContract: Unwrapper
     let nexus: MockNexus
     let masset: MockMasset
 
@@ -131,8 +135,11 @@ describe("SavingsContract", async () => {
         // Use a mock mAsset so we can dictate the interest generated
         masset = await (await new MockMasset__factory(sa.default.signer)).deploy("MOCK", "MOCK", 18, sa.default.address, 1000000000)
 
+        unwrapperFactory = await new Unwrapper__factory(sa.default.signer)
+        unwrapperContract = await unwrapperFactory.deploy(nexus.address)
+
         savingsFactory = await new SavingsContract__factory(sa.default.signer)
-        const impl = await savingsFactory.deploy(nexus.address, masset.address)
+        const impl = await savingsFactory.deploy(nexus.address, masset.address, unwrapperContract.address)
         const data = impl.interface.encodeFunctionData("initialize", [sa.default.address, "Savings Credit", "imUSD"])
         const proxy = await (await new AssetProxy__factory(sa.default.signer)).deploy(impl.address, sa.dummy4.address, data)
         savingsContract = await savingsFactory.attach(proxy.address)
@@ -166,9 +173,11 @@ describe("SavingsContract", async () => {
 
     describe("constructor", async () => {
         it("should fail when masset address is zero", async () => {
-            await expect(savingsFactory.deploy(nexus.address, ZERO_ADDRESS)).to.be.revertedWith("mAsset address is zero")
+            await expect(savingsFactory.deploy(nexus.address, ZERO_ADDRESS, unwrapperContract.address)).to.be.revertedWith(
+                "mAsset address is zero",
+            )
 
-            savingsContract = await savingsFactory.deploy(nexus.address, masset.address)
+            savingsContract = await savingsFactory.deploy(nexus.address, masset.address, unwrapperContract.address)
             await expect(savingsContract.initialize(ZERO_ADDRESS, "Savings Credit", "imUSD")).to.be.revertedWith("Invalid poker address")
         })
 

@@ -23,6 +23,7 @@ import {
     MockUniswapV3,
     MockUniswapV3__factory,
     MockStakedAave__factory,
+    Unwrapper__factory,
 } from "types/generated"
 import { increaseTime } from "@utils/time"
 import { EncodedPaths, encodeUniswapPath } from "@utils/peripheral/uniswap"
@@ -123,7 +124,10 @@ describe("Liquidator", () => {
         const proxy = await new AssetProxy__factory(sa.default.signer).deploy(impl.address, sa.other.address, data)
         liquidator = await Liquidator__factory.connect(proxy.address, sa.default.signer)
 
-        const save = await new SavingsContract__factory(sa.default.signer).deploy(nexus.address, mUSD.address)
+        const unwrapperFactory = await new Unwrapper__factory(sa.default.signer)
+        const unwrapperContract = await unwrapperFactory.deploy(nexus.address)
+
+        const save = await new SavingsContract__factory(sa.default.signer).deploy(nexus.address, mUSD.address, unwrapperContract.address)
         await save.initialize(sa.default.address, "Savings Credit", "imUSD")
         savings = await new SavingsManager__factory(sa.default.signer).deploy(
             nexus.address,

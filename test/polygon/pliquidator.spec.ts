@@ -25,6 +25,7 @@ import {
     MockAaveIncentivesController__factory,
     PLiquidator__factory,
     PLiquidator,
+    Unwrapper__factory,
 } from "types/generated"
 import { increaseTime } from "@utils/time"
 import { shouldBehaveLikeModule, IModuleBehaviourContext } from "../shared/Module.behaviour"
@@ -99,7 +100,10 @@ describe("Liquidator", () => {
         const proxy = await new AssetProxy__factory(sa.default.signer).deploy(impl.address, sa.other.address, "0x")
         liquidator = await PLiquidator__factory.connect(proxy.address, sa.default.signer)
 
-        const save = await new SavingsContract__factory(sa.default.signer).deploy(nexus.address, mUSD.address)
+        const unwrapperFactory = await new Unwrapper__factory(sa.default.signer)
+        const unwrapperContract = await unwrapperFactory.deploy(nexus.address)
+
+        const save = await new SavingsContract__factory(sa.default.signer).deploy(nexus.address, mUSD.address, unwrapperContract.address)
         await save.initialize(sa.default.address, "Savings Credit", "imUSD")
         savings = await new SavingsManager__factory(sa.default.signer).deploy(
             nexus.address,
