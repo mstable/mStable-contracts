@@ -326,7 +326,38 @@ describe("EmissionsController", async () => {
             })
         })
         describe("adding staking contract", () => {
-            // TODO - should fail if duplicate. Should add time of addition
+            let newStakingContract: MockStakingContract
+            before(async () => {
+                await deployEmissionsController()
+
+                newStakingContract = await new MockStakingContract__factory(sa.default.signer).deploy()
+            })
+            context("should fail when", () => {
+                it("Only governor", async () => {
+                    const tx = emissionsController.addStakingContract(newStakingContract.address)
+
+                    await expect(tx).to.revertedWith("Only governor can execute")
+                })
+                it("staking contract already exists", async () => {
+                    const tx = emissionsController.connect(sa.governor.signer).addStakingContract(staking1.address)
+
+                    await expect(tx).to.revertedWith("StakingContract already exists")
+                })
+                it("staking contract is zero", async () => {
+                    const tx = emissionsController.connect(sa.governor.signer).addStakingContract(ZERO_ADDRESS)
+
+                    await expect(tx).to.revertedWith("Staking contract address is zero")
+                })
+            })
+            it("should add staking contract", async () => {
+                const tx = await emissionsController.connect(sa.governor.signer).addStakingContract(newStakingContract.address)
+
+                await expect(tx).to.emit(emissionsController, "AddStakingContract").withArgs(newStakingContract.address)
+
+                const currentTime = await getTimestamp()
+                expect(await emissionsController.stakingContractAddTime(newStakingContract.address), "add timestamp").to.gte(currentTime)
+                expect(await emissionsController.stakingContracts(2), "add to staking contract array").to.eq(newStakingContract.address)
+            })
         })
     })
     describe("donating", () => {

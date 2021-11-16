@@ -102,7 +102,7 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
         keeper = _keeper;
 
         for (uint256 i = 0; i < _stakingDialIds.length; i++) {
-            stakingDialIds.push(_stakingDialIds[i]);
+            _addStakingContract(_stakingDialIds[i]);
         }
     }
 
@@ -262,7 +262,16 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
      * @param _stakingDialId dial identifier from the Emissions Controller of the staking contract.
      */
     function addStakingContract(uint16 _stakingDialId) external onlyGovernor {
-        require(_stakingDialId != 0, "Staking dial id is zero");
+        _addStakingContract(_stakingDialId);
+    }
+
+    function _addStakingContract(uint16 _stakingDialId) internal {
+        for (uint256 i = 0; i < stakingDialIds.length; i++) {
+            require(stakingDialIds[i] != _stakingDialId, "Staking dial id already exists");
+        }
+        // Make sure the dial id of the staking contract is valid
+        require(EMISSIONS_CONTROLLER.getDialRecipient(_stakingDialId) != address(0), "Missing staking dial");
+
         stakingDialIds.push(_stakingDialId);
 
         emit AddedStakingContract(_stakingDialId);

@@ -20,7 +20,7 @@ import {
     EmissionsController__factory,
 } from "types/generated"
 import { EncodedPaths, encodeUniswapPath } from "@utils/peripheral/uniswap"
-import { DEAD_ADDRESS } from "@utils/constants"
+import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
 
 describe("RevenueBuyBack", () => {
     let sa: StandardAccounts
@@ -261,7 +261,7 @@ describe("RevenueBuyBack", () => {
             expect(await mBTC.balanceOf(revenueBuyBack.address), "revenueBuyBack's mUSD Bal after").to.eq(0)
         })
     })
-    describe.only("donate rewards to Emissions Controller", () => {
+    describe("donate rewards to Emissions Controller", () => {
         const totalRewards = simpleToExactAmount(40000)
         beforeEach(async () => {
             await setupRevenueBuyBack()
@@ -288,6 +288,176 @@ describe("RevenueBuyBack", () => {
 
             const tx = revenueBuyBack.connect(sa.fundManager.signer).donateRewards()
             await expect(tx).to.revertedWith("No rewards to donate")
+        })
+    })
+    describe("setMassetConfig", () => {
+        let newMasset: MockMasset
+        let newBasset: MockERC20
+        let uniswapNewPaths: EncodedPaths
+        const minMasset2BassetPrice = simpleToExactAmount(99, 16)
+        const minBasset2RewardsPrice = simpleToExactAmount(110, 16)
+        before(async () => {
+            newMasset = await new MockMasset__factory(sa.default.signer).deploy(
+                "EURO",
+                "mEUR",
+                18,
+                sa.default.address,
+                simpleToExactAmount(2000000),
+            )
+            newBasset = await mAssetMachine.loadBassetProxy("EUR bAsset", "bEUR", 18)
+            uniswapNewPaths = encodeUniswapPath([newBasset.address, DEAD_ADDRESS, rewardsToken.address], [3000, 3000])
+        })
+        it("should set", async () => {
+            const tx = await revenueBuyBack
+                .connect(sa.governor.signer)
+                .setMassetConfig(
+                    newMasset.address,
+                    newBasset.address,
+                    minMasset2BassetPrice,
+                    minBasset2RewardsPrice,
+                    uniswapNewPaths.encoded,
+                )
+
+            await expect(tx)
+                .to.emit(revenueBuyBack, "AddedMassetConfig")
+                .withArgs(newMasset.address, newBasset.address, minMasset2BassetPrice, minBasset2RewardsPrice, uniswapNewPaths.encoded)
+
+            const config = await revenueBuyBack.massetConfig(newMasset.address)
+            expect(config.bAsset, "bAsset").to.eq(newBasset.address)
+            expect(config.minMasset2BassetPrice, "minMasset2BassetPrice").to.eq(minMasset2BassetPrice)
+            expect(config.minBasset2RewardsPrice, "minBasset2RewardsPrice").to.eq(minBasset2RewardsPrice)
+            expect(config.uniswapPath, "uniswapPath").to.eq(uniswapNewPaths.encoded)
+        })
+        context("should fail when", () => {
+            before(async () => {
+                await setupRevenueBuyBack()
+            })
+            it("not governor", async () => {
+                const tx = revenueBuyBack.setMassetConfig(
+                    newMasset.address,
+                    newBasset.address,
+                    minMasset2BassetPrice,
+                    minBasset2RewardsPrice,
+                    uniswapNewPaths.encoded,
+                )
+
+                await expect(tx).to.revertedWith("Only governor can execute")
+            })
+            it("mAsset is zero", async () => {
+                const tx = revenueBuyBack
+                    .connect(sa.governor.signer)
+                    .setMassetConfig(
+                        ZERO_ADDRESS,
+                        newBasset.address,
+                        minMasset2BassetPrice,
+                        minBasset2RewardsPrice,
+                        uniswapNewPaths.encoded,
+                    )
+                await expect(tx).to.revertedWith("mAsset token is zero")
+            })
+            it("bAsset is zero", async () => {
+                const tx = revenueBuyBack
+                    .connect(sa.governor.signer)
+                    .setMassetConfig(
+                        newMasset.address,
+                        ZERO_ADDRESS,
+                        minMasset2BassetPrice,
+                        minBasset2RewardsPrice,
+                        uniswapNewPaths.encoded,
+                    )
+                await expect(tx).to.revertedWith("bAsset token is zero")
+            })
+            it("minMasset2BassetPrice is zero", async () => {
+                const tx = revenueBuyBack
+                    .connect(sa.governor.signer)
+                    .setMassetConfig(newMasset.address, ZERO_ADDRESS, 0, minBasset2RewardsPrice, uniswapNewPaths.encoded)
+                await expect(tx).to.revertedWith("bAsset token is zero")
+            })
+            it("minBasset2RewardsPrice is zero", async () => {
+                const tx = revenueBuyBack
+                    .connect(sa.governor.signer)
+                    .setMassetConfig(newMasset.address, ZERO_ADDRESS, minMasset2BassetPrice, 0, uniswapNewPaths.encoded)
+                await expect(tx).to.revertedWith("bAsset token is zero")
+            })
+            context("uniswap path is", () => {
+                it("zero", async () => {
+                    const tx = revenueBuyBack
+                        .connect(sa.governor.signer)
+                        .setMassetConfig(newMasset.address, ZERO_ADDRESS, minMasset2BassetPrice, minBasset2RewardsPrice, "0x")
+                    await expect(tx).to.revertedWith("bAsset token is zero")
+                })
+                it("from mAsset to rewards", async () => {
+                    uniswapNewPaths = encodeUniswapPath([newMasset.address, DEAD_ADDRESS, rewardsToken.address], [3000, 3000])
+                    const tx = revenueBuyBack
+                        .connect(sa.governor.signer)
+                        .setMassetConfig(
+                            newMasset.address,
+                            ZERO_ADDRESS,
+                            minMasset2BassetPrice,
+                            minBasset2RewardsPrice,
+                            uniswapNewPaths.encoded,
+                        )
+                    await expect(tx).to.revertedWith("bAsset token is zero")
+                })
+                it("from bAsset to mAsset", async () => {
+                    uniswapNewPaths = encodeUniswapPath([newBasset.address, DEAD_ADDRESS, newMasset.address], [3000, 3000])
+                    const tx = revenueBuyBack
+                        .connect(sa.governor.signer)
+                        .setMassetConfig(
+                            newMasset.address,
+                            ZERO_ADDRESS,
+                            minMasset2BassetPrice,
+                            minBasset2RewardsPrice,
+                            uniswapNewPaths.encoded,
+                        )
+                    await expect(tx).to.revertedWith("bAsset token is zero")
+                })
+                it("is too short", async () => {
+                    uniswapNewPaths = encodeUniswapPath([newBasset.address, newMasset.address], [3000])
+                    const tx = revenueBuyBack
+                        .connect(sa.governor.signer)
+                        .setMassetConfig(
+                            newMasset.address,
+                            ZERO_ADDRESS,
+                            minMasset2BassetPrice,
+                            minBasset2RewardsPrice,
+                            uniswapNewPaths.encoded.slice(0, 42),
+                        )
+                    await expect(tx).to.revertedWith("bAsset token is zero")
+                })
+            })
+        })
+    })
+    describe("addStakingContract", () => {
+        before(async () => {
+            await setupRevenueBuyBack()
+        })
+        context("should fail when", () => {
+            it("duplicate", async () => {
+                const tx = revenueBuyBack.connect(sa.governor.signer).addStakingContract(0)
+
+                await expect(tx).to.revertedWith("Staking dial id already exists")
+            })
+            it("invalid dial id", async () => {
+                const tx = revenueBuyBack.connect(sa.governor.signer).addStakingContract(3)
+
+                await expect(tx).to.revertedWith("reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)")
+            })
+            it("not governor", async () => {
+                const tx = revenueBuyBack.addStakingContract(4)
+
+                await expect(tx).to.revertedWith("Only governor can execute")
+            })
+        })
+        it("should add staking contract", async () => {
+            const newStakingContract = await new MockStakingContract__factory(sa.default.signer).deploy()
+            await emissionController.connect(sa.governor.signer).addDial(newStakingContract.address, 10, true)
+            const newDialId = 2
+            expect(await emissionController.getDialRecipient(newDialId), "new dial added").to.eq(newStakingContract.address)
+
+            const tx = await revenueBuyBack.connect(sa.governor.signer).addStakingContract(newDialId)
+
+            await expect(tx).to.emit(revenueBuyBack, "AddedStakingContract").withArgs(newDialId)
         })
     })
 })
