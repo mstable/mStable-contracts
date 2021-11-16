@@ -21,13 +21,13 @@ contract L2BridgeRecipient {
 
     /**
      * @param _childRewardsToken Bridged rewards token on the Polygon chain.
-     * @param _childEmissionsController Polygon contract that will distribute bridged rewards on the Polygon chain.
+     * @param _l2EmissionsController Polygon contract that will distribute bridged rewards on the Polygon chain.
      */
-    constructor(address _childRewardsToken, address _childEmissionsController) {
+    constructor(address _childRewardsToken, address _l2EmissionsController) {
         REWARDS_TOKEN = IERC20(_childRewardsToken);
-        L2_EMISSIONS_CONTROLLER = _childEmissionsController;
+        L2_EMISSIONS_CONTROLLER = _l2EmissionsController;
 
         // Approve the Polygon PoS Bridge to transfer reward tokens from this contract
-        IERC20(_childRewardsToken).safeApprove(_childEmissionsController, type(uint256).max);
+        IERC20(_childRewardsToken).safeApprove(_l2EmissionsController, type(uint256).max);
     }
 }

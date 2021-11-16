@@ -149,17 +149,15 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @dev Initialisation function to configure the first dials. All recipient contracts with _notifies = true need to
      *      implement the `IRewardsDistributionRecipient` interface.
      * @param _recipients       List of dial contract addresses that can receive rewards
-     * @param _caps             Limit on the percentage of the weekly top line emission the corresponding dial can receive (where 10% = 10)
+     * @param _caps             Limit on the percentage of the weekly top line emission the corresponding dial can receive (where 10% = 10 and uncapped = 0)
      * @param _notifies         If true, `notifyRewardAmount` is called in the `distributeRewards` function
      * @param _stakingContracts Initial staking contracts used for voting power lookup
-     * @param _totalRewards     Total reward units that will be distributed during the emission lifetime
      */
     function initialize(
         address[] memory _recipients,
         uint8[] memory _caps,
         bool[] memory _notifies,
-        address[] memory _stakingContracts,
-        uint128 _totalRewards
+        address[] memory _stakingContracts
     ) external initializer {
         uint256 len = _recipients.length;
         require(_notifies.length == len && _caps.length == len, "Initialize args mistmatch");
@@ -173,8 +171,6 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         //       Set the weekly epoch this contract starts distributions which will be 1 - 2 week after deployment.
         uint32 startEpoch = SafeCast.toUint32((block.timestamp + 1 weeks) / DISTRIBUTION_PERIOD);
         epochs = EpochHistory({ startEpoch: startEpoch, lastEpoch: startEpoch });
-
-        REWARD_TOKEN.safeTransferFrom(msg.sender, address(this), _totalRewards);
 
         // 3.0 - Initialize the staking contracts
         for (uint256 i = 0; i < _stakingContracts.length; i++) {

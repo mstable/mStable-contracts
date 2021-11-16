@@ -95,14 +95,13 @@ describe("RevenueBuyBack", () => {
             rewardsToken.address,
             defaultConfig,
         )
-        await rewardsToken.approve(emissionController.address, simpleToExactAmount(10000))
         await emissionController.initialize(
             [staking1.address, staking2.address],
             [10, 10],
             [true, true],
             [staking1.address, staking2.address],
-            simpleToExactAmount(10000),
         )
+        await rewardsToken.transfer(emissionController.address, simpleToExactAmount(10000))
 
         // Deploy and initialize test RevenueBuyBack
         revenueBuyBack = await new RevenueBuyBack__factory(sa.default.signer).deploy(

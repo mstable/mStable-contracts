@@ -27,7 +27,7 @@ contract BridgeForwarder is
     /// @notice Mainnet Proof of Stake (PoS) bridge contract to Polygon
     IRootChainManager public immutable ROOT_CHAIN_MANAGER;
     /// @notice Polygon contract that will receive the bridged rewards on the Polygon chain
-    address public immutable CHILD_RECIPIENT;
+    address public immutable BRIDGE_RECIPIENT;
 
     event Forwarded(uint256 amount);
 
@@ -35,21 +35,21 @@ contract BridgeForwarder is
      * @param _nexus            mStable system Nexus address
      * @param _rewardsToken     First token that is being distributed as a reward. eg MTA
      * @param _rootChainManager Mainnet Proof of Stake (PoS) bridge contract to Polygon
-     * @param _childRecipient   Polygon contract that will receive the bridged rewards on the Polygon chain
+     * @param _bridgeRecipient  Polygon contract that will receive the bridged rewards on the Polygon chain
      */
     constructor(
         address _nexus,
         address _rewardsToken,
         address _rootChainManager,
-        address _childRecipient
+        address _bridgeRecipient
     ) InitializableRewardsDistributionRecipient(_nexus) {
         require(_rewardsToken != address(0), "Rewards token is zero");
         require(_rootChainManager != address(0), "RootChainManager is zero");
-        require(_childRecipient != address(0), "ChildRecipient is zero");
+        require(_bridgeRecipient != address(0), "Bridge recipient is zero");
 
         REWARDS_TOKEN = IERC20(_rewardsToken);
         ROOT_CHAIN_MANAGER = IRootChainManager(_rootChainManager);
-        CHILD_RECIPIENT = _childRecipient;
+        BRIDGE_RECIPIENT = _bridgeRecipient;
     }
 
     /**
@@ -75,7 +75,7 @@ contract BridgeForwarder is
         onlyRewardsDistributor
     {
         ROOT_CHAIN_MANAGER.depositFor(
-            CHILD_RECIPIENT,
+            BRIDGE_RECIPIENT,
             address(REWARDS_TOKEN),
             abi.encode(_rewards)
         );

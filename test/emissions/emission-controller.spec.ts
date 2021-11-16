@@ -17,7 +17,6 @@ import {
     MockStakingContract,
     MockStakingContract__factory,
 } from "types/generated"
-import { deployContract } from "tasks/utils/deploy-utils"
 import { currentWeekEpoch, increaseTime, getTimestamp, increaseTimeTo, startWeek } from "@utils/time"
 
 const defaultConfig = {
@@ -80,21 +79,17 @@ describe("EmissionsController", async () => {
         )
 
         // Deploy proxy and initialize
-        const proxy = await deployContract(new AssetProxy__factory(sa.default.signer), "AssetProxy", [
-            emissionsControllerImpl.address,
-            DEAD_ADDRESS,
-            "0x",
-        ])
-        emissionsController = new EmissionsController__factory(sa.default.signer).attach(proxy.address)
-
-        await rewardToken.approve(emissionsController.address, totalRewards)
-        await emissionsController.initialize(
+        const initializeData = emissionsControllerImpl.interface.encodeFunctionData("initialize", [
             dialAddresses,
             [0, 0, 0],
             [true, true, false],
             [staking1.address, staking2.address],
-            simpleToExactAmount(29400963),
-        )
+        ])
+        const proxy = await new AssetProxy__factory(sa.default.signer).deploy(emissionsControllerImpl.address, DEAD_ADDRESS, initializeData)
+        emissionsController = new EmissionsController__factory(sa.default.signer).attach(proxy.address)
+
+        // await emissionsController.initialize(dialAddresses, [0, 0, 0], [true, true, false], [staking1.address, staking2.address])
+        await rewardToken.transfer(emissionsController.address, totalRewards)
 
         await staking1.setGovernanceHook(emissionsController.address)
         await staking2.setGovernanceHook(emissionsController.address)
@@ -199,18 +194,18 @@ describe("EmissionsController", async () => {
             for (const test of tests) {
                 it(test.desc, async () => {
                     const recipients = test.dialIndexes.map((i) => dials[i].address)
-                    const tx = emissionsController.initialize(recipients, test.caps, test.notifies, test.stakingContracts, 0)
+                    const tx = emissionsController.initialize(recipients, test.caps, test.notifies, test.stakingContracts)
                     await expect(tx).to.revertedWith("Initialize args mistmatch")
                 })
             }
             it("First staking contract is zero", async () => {
                 const recipients = dials.map((d) => d.address)
-                const tx = emissionsController.initialize(recipients, [0, 0, 0], [true, true, false], [ZERO_ADDRESS, staking2.address], 0)
+                const tx = emissionsController.initialize(recipients, [0, 0, 0], [true, true, false], [ZERO_ADDRESS, staking2.address])
                 await expect(tx).to.revertedWith("Staking contract address is zero")
             })
             it("Second staking contract is zero", async () => {
                 const recipients = dials.map((d) => d.address)
-                const tx = emissionsController.initialize(recipients, [0, 0, 0], [true, true, false], [staking1.address, ZERO_ADDRESS], 0)
+                const tx = emissionsController.initialize(recipients, [0, 0, 0], [true, true, false], [staking1.address, ZERO_ADDRESS])
                 await expect(tx).to.revertedWith("Staking contract address is zero")
             })
         })

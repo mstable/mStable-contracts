@@ -65,15 +65,20 @@ describe("EmissionsController Polygon Integration", async () => {
         )
 
         // Deploy proxy and initialize
+        const initializeData = await emissionsControllerImpl.interface.encodeFunctionData("initialize", [
+            [],
+            [],
+            [],
+            [staking1.address, staking2.address],
+        ])
         const proxy = await deployContract(new AssetProxy__factory(sa.default.signer), "AssetProxy", [
             emissionsControllerImpl.address,
             DEAD_ADDRESS,
-            "0x",
+            initializeData,
         ])
         emissionsController = new EmissionsController__factory(sa.default.signer).attach(proxy.address)
 
-        await rewardToken.approve(emissionsController.address, totalRewards)
-        await emissionsController.initialize([], [], [], [staking1.address, staking2.address], simpleToExactAmount(29400963))
+        await rewardToken.transfer(emissionsController.address, totalRewards)
 
         await staking1.setGovernanceHook(emissionsController.address)
         await staking2.setGovernanceHook(emissionsController.address)
@@ -129,19 +134,19 @@ describe("EmissionsController Polygon Integration", async () => {
             )
             await expect(tx).to.revertedWith("RootChainManager is zero")
         })
-        it("fail when zero child recipient", async () => {
+        it("fail when zero bridge recipient", async () => {
             const tx = new BridgeForwarder__factory(sa.default.signer).deploy(
                 nexus.address,
                 rewardToken.address,
                 rootChainManager.address,
                 ZERO_ADDRESS,
             )
-            await expect(tx).to.revertedWith("ChildRecipient is zero")
+            await expect(tx).to.revertedWith("Bridge recipient is zero")
         })
     })
     describe("distribute rewards via bridge", () => {
-        const childRecipient1 = Wallet.createRandom()
-        const childRecipient2 = Wallet.createRandom()
+        const bridgeRecipient1 = Wallet.createRandom()
+        const bridgeRecipient2 = Wallet.createRandom()
         let rootRecipient1: BridgeForwarder
         let rootRecipient2: BridgeForwarder
         beforeEach(async () => {
@@ -152,7 +157,7 @@ describe("EmissionsController Polygon Integration", async () => {
                 nexus.address,
                 rewardToken.address,
                 rootChainManager.address,
-                childRecipient1.address,
+                bridgeRecipient1.address,
                 emissionsController.address,
             )
 
@@ -161,7 +166,7 @@ describe("EmissionsController Polygon Integration", async () => {
                 nexus.address,
                 rewardToken.address,
                 rootChainManager.address,
-                childRecipient2.address,
+                bridgeRecipient2.address,
                 emissionsController.address,
             )
 
@@ -182,7 +187,7 @@ describe("EmissionsController Polygon Integration", async () => {
             await expect(tx).to.emit(emissionsController, "DistributedReward").withArgs(0, amountRecipient1)
             await expect(tx)
                 .to.emit(rootChainManager, "DepositFor")
-                .withArgs(childRecipient1.address, rewardToken.address, amountRecipient1)
+                .withArgs(bridgeRecipient1.address, rewardToken.address, amountRecipient1)
 
             expect(await rewardToken.balanceOf(rootRecipient1.address), "recipient 1 balance after").to.eq(0)
             expect(await rewardToken.balanceOf(rootChainManager.address), "root chain manager balance after").to.eq(amountRecipient1)
@@ -203,10 +208,10 @@ describe("EmissionsController Polygon Integration", async () => {
             await expect(tx).to.emit(emissionsController, "DistributedReward").withArgs(1, amountRecipient2)
             await expect(tx)
                 .to.emit(rootChainManager, "DepositFor")
-                .withArgs(childRecipient1.address, rewardToken.address, amountRecipient1)
+                .withArgs(bridgeRecipient1.address, rewardToken.address, amountRecipient1)
             await expect(tx)
                 .to.emit(rootChainManager, "DepositFor")
-                .withArgs(childRecipient2.address, rewardToken.address, amountRecipient2)
+                .withArgs(bridgeRecipient2.address, rewardToken.address, amountRecipient2)
 
             expect(await rewardToken.balanceOf(rootRecipient1.address), "recipient 1 balance after").to.eq(0)
             expect(await rewardToken.balanceOf(rootRecipient1.address), "recipient 2 balance after").to.eq(0)
@@ -229,7 +234,7 @@ describe("EmissionsController Polygon Integration", async () => {
             await expect(tx).to.emit(emissionsController, "DistributedReward").withArgs(1, amountRecipient2)
             await expect(tx)
                 .to.emit(rootChainManager, "DepositFor")
-                .withArgs(childRecipient2.address, rewardToken.address, amountRecipient2)
+                .withArgs(bridgeRecipient2.address, rewardToken.address, amountRecipient2)
 
             expect(await rewardToken.balanceOf(rootRecipient1.address), "recipient 1 balance after").to.eq(0)
             expect(await rewardToken.balanceOf(rootRecipient1.address), "recipient 2 balance after").to.eq(0)
@@ -247,9 +252,9 @@ describe("EmissionsController Polygon Integration", async () => {
     })
     describe("receive rewards from bridge", () => {
         let bridgedRewardToken: MockERC20
-        let childEmissionsController: L2EmissionsController
-        let childRecipient1: L2BridgeRecipient
-        let childRecipient2: L2BridgeRecipient
+        let l2EmissionsController: L2EmissionsController
+        let bridgeRecipient1: L2BridgeRecipient
+        let bridgeRecipient2: L2BridgeRecipient
         let finalRecipient1: MockRewardsDistributionRecipient
         let finalRecipient2: MockRewardsDistributionRecipient
         beforeEach(async () => {
@@ -263,67 +268,67 @@ describe("EmissionsController Polygon Integration", async () => {
                 simpleToExactAmount(10000),
             )
 
-            const childEmissionsControllerImpl = await deployContract<L2EmissionsController>(
+            const l2EmissionsControllerImpl = await deployContract<L2EmissionsController>(
                 new L2EmissionsController__factory(sa.default.signer),
                 "L2EmissionsController",
                 [nexus.address, bridgedRewardToken.address],
             )
             // Proxy
-            const data = childEmissionsControllerImpl.interface.encodeFunctionData("initialize")
+            const data = l2EmissionsControllerImpl.interface.encodeFunctionData("initialize")
             const proxy = await deployContract(new AssetProxy__factory(sa.default.signer), "AssetProxy", [
-                childEmissionsControllerImpl.address,
+                l2EmissionsControllerImpl.address,
                 DEAD_ADDRESS,
                 data,
             ])
-            childEmissionsController = new L2EmissionsController__factory(sa.default.signer).attach(proxy.address)
+            l2EmissionsController = new L2EmissionsController__factory(sa.default.signer).attach(proxy.address)
 
-            childRecipient1 = await deployL2BridgeRecipient(sa.default.signer, bridgedRewardToken.address, childEmissionsController.address)
+            bridgeRecipient1 = await deployL2BridgeRecipient(sa.default.signer, bridgedRewardToken.address, l2EmissionsController.address)
             finalRecipient1 = await new MockRewardsDistributionRecipient__factory(sa.default.signer).deploy(
                 bridgedRewardToken.address,
                 DEAD_ADDRESS,
             )
-            childRecipient2 = await deployL2BridgeRecipient(sa.default.signer, bridgedRewardToken.address, childEmissionsController.address)
+            bridgeRecipient2 = await deployL2BridgeRecipient(sa.default.signer, bridgedRewardToken.address, l2EmissionsController.address)
             finalRecipient2 = await new MockRewardsDistributionRecipient__factory(sa.default.signer).deploy(
                 bridgedRewardToken.address,
                 DEAD_ADDRESS,
             )
-            await childEmissionsController.connect(sa.governor.signer).addRecipient(childRecipient1.address, finalRecipient1.address)
-            await childEmissionsController.connect(sa.governor.signer).addRecipient(childRecipient2.address, finalRecipient2.address)
+            await l2EmissionsController.connect(sa.governor.signer).addRecipient(bridgeRecipient1.address, finalRecipient1.address)
+            await l2EmissionsController.connect(sa.governor.signer).addRecipient(bridgeRecipient2.address, finalRecipient2.address)
         })
-        it("received rewards in both child recipients", async () => {
+        it("received rewards in both bridge recipients", async () => {
             expect(await bridgedRewardToken.balanceOf(finalRecipient1.address), "final recipient 1 bal before").to.eq(0)
             expect(await bridgedRewardToken.balanceOf(finalRecipient2.address), "final recipient 2 bal before").to.eq(0)
 
             const amountRecipient1 = simpleToExactAmount(1000)
-            await bridgedRewardToken.transfer(childRecipient1.address, amountRecipient1)
+            await bridgedRewardToken.transfer(bridgeRecipient1.address, amountRecipient1)
 
             const amountRecipient2 = simpleToExactAmount(2000)
-            await bridgedRewardToken.transfer(childRecipient2.address, amountRecipient2)
+            await bridgedRewardToken.transfer(bridgeRecipient2.address, amountRecipient2)
 
-            const tx = await childEmissionsController.distributeRewards([finalRecipient1.address, finalRecipient2.address])
+            const tx = await l2EmissionsController.distributeRewards([finalRecipient1.address, finalRecipient2.address])
 
-            await expect(tx).to.emit(childEmissionsController, "DistributedReward").withArgs(finalRecipient1.address, amountRecipient1)
-            await expect(tx).to.emit(childEmissionsController, "DistributedReward").withArgs(finalRecipient2.address, amountRecipient2)
+            await expect(tx).to.emit(l2EmissionsController, "DistributedReward").withArgs(finalRecipient1.address, amountRecipient1)
+            await expect(tx).to.emit(l2EmissionsController, "DistributedReward").withArgs(finalRecipient2.address, amountRecipient2)
 
             expect(await bridgedRewardToken.balanceOf(finalRecipient1.address), "final recipient 1 bal after").to.eq(amountRecipient1)
             expect(await bridgedRewardToken.balanceOf(finalRecipient2.address), "final recipient 2 bal after").to.eq(amountRecipient2)
         })
         context("fail to add recipient", () => {
-            it("no child recipient", async () => {
-                const tx = childEmissionsController.connect(sa.governor.signer).addRecipient(ZERO_ADDRESS, sa.dummy1.address)
-                await expect(tx).to.revertedWith("Child recipient address is zero")
+            it("no bridge recipient", async () => {
+                const tx = l2EmissionsController.connect(sa.governor.signer).addRecipient(ZERO_ADDRESS, sa.dummy1.address)
+                await expect(tx).to.revertedWith("Bridge recipient address is zero")
             })
             it("no end recipient", async () => {
-                const tx = childEmissionsController.connect(sa.governor.signer).addRecipient(sa.dummy1.address, ZERO_ADDRESS)
+                const tx = l2EmissionsController.connect(sa.governor.signer).addRecipient(sa.dummy1.address, ZERO_ADDRESS)
                 await expect(tx).to.revertedWith("End recipient address is zero")
             })
         })
         it("fail to distribute to unmapped end recipient", async () => {
-            const tx = childEmissionsController.distributeRewards([sa.dummy1.address])
+            const tx = l2EmissionsController.distributeRewards([sa.dummy1.address])
             await expect(tx).to.revertedWith("Unmapped recipient")
         })
     })
-    context("fail to deploy child emissions controller when", () => {
+    context("fail to deploy bridge emissions controller when", () => {
         it("no nexus", async () => {
             const tx = new L2EmissionsController__factory(sa.default.signer).deploy(ZERO_ADDRESS, sa.dummy1.address)
             await expect(tx).to.revertedWith("Nexus address is zero")
