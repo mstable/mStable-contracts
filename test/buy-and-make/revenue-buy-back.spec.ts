@@ -12,12 +12,12 @@ import {
     RevenueBuyBack,
     MockUniswapV3,
     MockUniswapV3__factory,
-    MockEmissionController__factory,
-    MockEmissionController,
+    EmissionsController,
     MockStakingContract,
     MockStakingContract__factory,
     MockMasset__factory,
     MockMasset,
+    EmissionsController__factory,
 } from "types/generated"
 import { EncodedPaths, encodeUniswapPath } from "@utils/peripheral/uniswap"
 import { DEAD_ADDRESS } from "@utils/constants"
@@ -34,7 +34,7 @@ describe("RevenueBuyBack", () => {
     let rewardsToken: MockERC20
     let staking1: MockStakingContract
     let staking2: MockStakingContract
-    let emissionController: MockEmissionController
+    let emissionController: EmissionsController
     let uniswap: MockUniswapV3
     let uniswapMusdBasset1Paths: EncodedPaths
     let uniswapMbtcBasset2Paths: EncodedPaths
@@ -82,10 +82,27 @@ describe("RevenueBuyBack", () => {
         uniswapMusdBasset1Paths = encodeUniswapPath([bAsset1.address, DEAD_ADDRESS, rewardsToken.address], [3000, 3000])
         uniswapMbtcBasset2Paths = encodeUniswapPath([bAsset2.address, DEAD_ADDRESS, rewardsToken.address], [3000, 3000])
 
-        // Deploy Mock Emissions Controller
-        emissionController = await new MockEmissionController__factory(sa.default.signer).deploy()
-        await emissionController.addStakingContract(staking1.address)
-        await emissionController.addStakingContract(staking2.address)
+        // Deploy Emissions Controller
+        const defaultConfig = {
+            A: -166000,
+            B: 180000,
+            C: -180000,
+            D: 166000,
+            EPOCHS: 312,
+        }
+        emissionController = await new EmissionsController__factory(sa.default.signer).deploy(
+            nexus.address,
+            rewardsToken.address,
+            defaultConfig,
+        )
+        await rewardsToken.approve(emissionController.address, simpleToExactAmount(10000))
+        await emissionController.initialize(
+            [staking1.address, staking2.address],
+            [10, 10],
+            [true, true],
+            [staking1.address, staking2.address],
+            simpleToExactAmount(10000),
+        )
 
         // Deploy and initialize test RevenueBuyBack
         revenueBuyBack = await new RevenueBuyBack__factory(sa.default.signer).deploy(
@@ -94,7 +111,8 @@ describe("RevenueBuyBack", () => {
             uniswap.address,
             emissionController.address,
         )
-        await revenueBuyBack.initialize(sa.fundManager.address, [1, 2])
+        // reverse the order to make sure dial id != staking contract id for testing purposes
+        await revenueBuyBack.initialize(sa.fundManager.address, [1, 0])
 
         // Add config to buy rewards from mAssets
         await revenueBuyBack
@@ -137,7 +155,9 @@ describe("RevenueBuyBack", () => {
         it("should have storage variables set", async () => {
             expect(await revenueBuyBack.keeper(), "Keeper").eq(sa.fundManager.address)
             expect(await revenueBuyBack.stakingDialIds(0), "Staking Contract 1 dial id").eq(1)
-            expect(await revenueBuyBack.stakingDialIds(1), "Staking Contract 2 dial id").eq(2)
+            expect(await revenueBuyBack.stakingDialIds(1), "Staking Contract 2 dial id").eq(0)
+            expect((await emissionController.dials(0)).recipient, "first dial is first staking contract").to.eq(staking1.address)
+            expect((await emissionController.dials(1)).recipient, "second dial is second staking contract").to.eq(staking2.address)
         })
     })
     describe("notification of revenue", () => {
@@ -199,11 +219,11 @@ describe("RevenueBuyBack", () => {
 
             const tx = revenueBuyBack.connect(sa.fundManager.signer).buyBackRewards([mUSD.address])
 
-            const bAssetAmount = musdRevenue.mul(98).div(100)
+            const bAsset1Amount = musdRevenue.mul(98).div(100)
             // Exchange rate = 0.80 MTA/USD = 8 / 18
             // Swap fee is 0.3% = 997 / 1000
-            const rewardsAmount = bAssetAmount.mul(8).div(10).mul(997).div(1000)
-            await expect(tx).to.emit(revenueBuyBack, "BuyBackRewards").withArgs(mUSD.address, musdRevenue, bAssetAmount, rewardsAmount)
+            const rewardsAmount = bAsset1Amount.mul(8).div(10).mul(997).div(1000)
+            await expect(tx).to.emit(revenueBuyBack, "BuyBackRewards").withArgs(mUSD.address, musdRevenue, bAsset1Amount, rewardsAmount)
 
             expect(await mUSD.balanceOf(revenueBuyBack.address), "revenueBuyBack's mUSD Bal after").to.eq(0)
         })
@@ -213,13 +233,61 @@ describe("RevenueBuyBack", () => {
 
             const tx = revenueBuyBack.connect(sa.fundManager.signer).buyBackRewards([mBTC.address])
 
-            const bAssetAmount = mbtcRevenue.mul(98).div(100).div(1e12)
+            const bAsset2Amount = mbtcRevenue.mul(98).div(100).div(1e12)
             // Exchange rate = 50,000 MTA/BTC
             // Swap fee is 0.3% = 997 / 1000
-            const rewardsAmount = bAssetAmount.mul(50000).mul(997).div(1000).mul(1e12)
-            await expect(tx).to.emit(revenueBuyBack, "BuyBackRewards").withArgs(mBTC.address, mbtcRevenue, bAssetAmount, rewardsAmount)
+            const rewardsAmount = bAsset2Amount.mul(50000).mul(997).div(1000).mul(1e12)
+            await expect(tx).to.emit(revenueBuyBack, "BuyBackRewards").withArgs(mBTC.address, mbtcRevenue, bAsset2Amount, rewardsAmount)
 
             expect(await mBTC.balanceOf(revenueBuyBack.address), "revenueBuyBack's mBTC Bal after").to.eq(0)
+        })
+        it("should sell mUSD and mBTC for MTA", async () => {
+            const tx = revenueBuyBack.connect(sa.fundManager.signer).buyBackRewards([mUSD.address, mBTC.address])
+
+            //
+            const bAsset1Amount = musdRevenue.mul(98).div(100)
+            // Exchange rate = 0.80 MTA/USD = 8 / 18
+            // Swap fee is 0.3% = 997 / 1000
+            const musdRewardsAmount = bAsset1Amount.mul(8).div(10).mul(997).div(1000)
+            await expect(tx).to.emit(revenueBuyBack, "BuyBackRewards").withArgs(mUSD.address, musdRevenue, bAsset1Amount, musdRewardsAmount)
+
+            const bAsset2Amount = mbtcRevenue.mul(98).div(100).div(1e12)
+            // Exchange rate = 50,000 MTA/BTC
+            // Swap fee is 0.3% = 997 / 1000
+            const mbtcRewardsAmount = bAsset2Amount.mul(50000).mul(997).div(1000).mul(1e12)
+            await expect(tx).to.emit(revenueBuyBack, "BuyBackRewards").withArgs(mBTC.address, mbtcRevenue, bAsset2Amount, mbtcRewardsAmount)
+
+            expect(await mUSD.balanceOf(revenueBuyBack.address), "revenueBuyBack's mUSD Bal after").to.eq(0)
+            expect(await mBTC.balanceOf(revenueBuyBack.address), "revenueBuyBack's mUSD Bal after").to.eq(0)
+        })
+    })
+    describe.only("donate rewards to Emissions Controller", () => {
+        const totalRewards = simpleToExactAmount(40000)
+        beforeEach(async () => {
+            await setupRevenueBuyBack()
+        })
+        it("should donate rewards", async () => {
+            // Put some reward tokens in the RevenueBuyBack contract for donation to the Emissions Controller
+            await rewardsToken.transfer(revenueBuyBack.address, totalRewards)
+            expect(await rewardsToken.balanceOf(revenueBuyBack.address), "revenue buy back rewards before").to.eq(totalRewards)
+            const rewardsECbefore = await rewardsToken.balanceOf(emissionController.address)
+
+            const tx = revenueBuyBack.connect(sa.fundManager.signer).donateRewards()
+
+            await expect(tx).to.emit(revenueBuyBack, "DonatedRewards").withArgs(totalRewards)
+            await expect(tx).to.emit(emissionController, "DonatedRewards").withArgs(1, totalRewards.div(4))
+            await expect(tx).to.emit(emissionController, "DonatedRewards").withArgs(0, totalRewards.mul(3).div(4))
+
+            expect(await rewardsToken.balanceOf(revenueBuyBack.address), "revenue buy back rewards after").to.eq(0)
+            expect(await rewardsToken.balanceOf(emissionController.address), "emission controller rewards after").to.eq(
+                rewardsECbefore.add(totalRewards),
+            )
+        })
+        it("fail to donate no rewards", async () => {
+            expect(await rewardsToken.balanceOf(revenueBuyBack.address), "revenue buy back rewards before").to.eq(0)
+
+            const tx = revenueBuyBack.connect(sa.fundManager.signer).donateRewards()
+            await expect(tx).to.revertedWith("No rewards to donate")
         })
     })
 })
