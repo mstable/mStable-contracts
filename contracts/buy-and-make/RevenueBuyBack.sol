@@ -102,7 +102,6 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
         keeper = _keeper;
 
         for (uint256 i = 0; i < _stakingDialIds.length; i++) {
-            require(_stakingDialIds[i] != 0, "Staking dial id is zero");
             stakingDialIds.push(_stakingDialIds[i]);
         }
     }
@@ -176,8 +175,9 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
         uint256 totalVotingPower;
         // Get the voting power of each staking contract
         for (uint256 i = 0; i < numberStakingContracts; i++) {
-            DialData memory dialData = EMISSIONS_CONTROLLER.dials(stakingDialIds[i]);
-            address staingContractAddress = dialData.recipient;
+            address staingContractAddress = EMISSIONS_CONTROLLER.getDialRecipient(
+                stakingDialIds[i]
+            );
             require(staingContractAddress != address(0), "invalid dial id");
 
             votingPower[i] = IERC20(staingContractAddress).totalSupply();
@@ -187,6 +187,7 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
 
         // STEP 2 - Get rewards that need to be distributed
         uint256 rewardsBal = REWARDS_TOKEN.balanceOf(address(this));
+        require(rewardsBal > 0, "No rewards to donate");
 
         // STEP 3 - Calculate rewards for each staking contract
         uint256[] memory rewardDonationAmounts = new uint256[](numberStakingContracts);

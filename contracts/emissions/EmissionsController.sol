@@ -222,6 +222,15 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             1e6; // e.g. SUM = 1,6542492e17 * 1e6 = 165424e18
     }
 
+    /**
+     * @notice Gets a dial's recipient address
+     * @param dialId dial identifier
+     * @return recipient address of the recipient account associated with
+     */
+    function getDialRecipient(uint256 dialId) public view returns (address recipient) {
+        recipient = dials[dialId].recipient;
+    }
+
     /***************************************
                     ADMIN
     ****************************************/
