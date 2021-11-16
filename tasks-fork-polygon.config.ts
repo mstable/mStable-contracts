@@ -1,5 +1,6 @@
 import config from "./hardhat-fork-polygon.config"
 
+import "./tasks/deployEmissionsController"
 import "./tasks/deployIntegration"
 import "./tasks/deployFeeders"
 import "./tasks/deployPolygon"

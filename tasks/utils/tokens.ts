@@ -1,3 +1,4 @@
+import { DEAD_ADDRESS } from "@utils/constants"
 import { ethereumAddress } from "@utils/regex"
 
 export enum Chain {
@@ -25,6 +26,8 @@ export interface Token {
     vault?: string
     savings?: string // interest-bearing savings contracts
     platformTokenVendor?: string // hold WMATIC on Polygon's v-imUSD vault
+    bridgeForwarder?: string // Mainnet contract that forwards MTA rewards from the Emissions Controller to the L2 Bridge
+    bridgeRecipient?: string // L2 contract that receives bridge MTA rewards from the L2 Bridge
 }
 
 export function isToken(asset: unknown): asset is Token {
@@ -40,6 +43,8 @@ export const assetAddressTypes = [
     "integrator",
     "liquidityProvider",
     "platformTokenVendor",
+    "bridgeForwarder",
+    "bridgeRecipient",
 ] as const
 export type AssetAddressTypes = typeof assetAddressTypes[number]
 
@@ -74,6 +79,8 @@ export const PmUSD: Token = {
     savings: "0x5290Ad3d83476CA6A2b178Cd9727eE1EF72432af",
     vault: "0x32aBa856Dc5fFd5A56Bcd182b13380e5C855aa29",
     platformTokenVendor: "0x7b19a4f4ee26037ffef77bc7d99f56209acc8db1",
+    bridgeForwarder: DEAD_ADDRESS, // TODO after deployment
+    bridgeRecipient: DEAD_ADDRESS, // TODO after deployment
 }
 export const MmUSD: Token = {
     symbol: "MmUSD",
@@ -227,6 +234,8 @@ export const PFRAX: Token = {
     quantityFormatter: "USD",
     parent: "PmUSD",
     feederPool: "0xB30a907084AC8a0d25dDDAB4E364827406Fd09f0",
+    bridgeForwarder: DEAD_ADDRESS, // TODO after deployment
+    bridgeRecipient: DEAD_ADDRESS, // TODO after deployment
 }
 export const MFRAX: Token = {
     symbol: "MFRAX",

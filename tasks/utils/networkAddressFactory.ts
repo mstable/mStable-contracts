@@ -14,6 +14,9 @@ export const contractNames = [
     "SavingsManager",
     "Liquidator",
     "RewardsDistributor",
+    "EmissionsController",
+    "L2EmissionsController",
+    "RootChainManager",
     "BoostDirector",
     "VoterProxy",
     "Collector",
@@ -92,6 +95,10 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xe595D67181D701A5356e010D9a58EB9A341f1DbD"
             case "RewardsDistributor":
                 return "0x04dfDfa471b79cc9E6E8C355e6C71F8eC4916C50"
+            case "EmissionsController":
+                return DEAD_ADDRESS // TODO set after deployment
+            case "RootChainManager":
+                return "0xA0c68C638235ee32657e8f720a23ceC1bFc77C77"
             case "BoostDirector":
                 return "0xBa05FD2f20AE15B0D3f20DDc6870FeCa6ACd3592"
             case "VoterProxy":

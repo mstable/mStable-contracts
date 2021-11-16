@@ -23,7 +23,7 @@ contract L2EmissionsController is Initializable, ImmutableModule {
     /// @notice Maps the end recipient contracts, eg vaults, to the child recipients that receive rewards from the PoS Bridge.
     mapping(address => address) public recipientMap;
 
-    event AddedDial(address indexed childRecipient, address indexed endRecipient);
+    event AddedDial(address indexed bridgeRecipient, address indexed endRecipient);
     event DistributedReward(address indexed endRecipient, uint256 amount);
 
     /***************************************
@@ -51,23 +51,23 @@ contract L2EmissionsController is Initializable, ImmutableModule {
 
     /**
      * @notice Adds a new mapping of a contract that receives rewards from the PoS Bridge to the contract that ultimately receives the rewards.
-     * @param _childRecipient   Address of the contract that will receive rewards
+     * @param _bridgeRecipient  Address of the contract that will receive rewards from the bridge
      * @param _endRecipient     Address of the contract that ultimately receive rewards and implements the `IRewardsDistributionRecipient` interface.
      */
-    function addRecipient(address _childRecipient, address _endRecipient) external onlyGovernor {
-        _addRecipient(_childRecipient, _endRecipient);
+    function addRecipient(address _bridgeRecipient, address _endRecipient) external onlyGovernor {
+        _addRecipient(_bridgeRecipient, _endRecipient);
     }
 
     /**
      * @dev Internal addition fn, see parent
      */
-    function _addRecipient(address _childRecipient, address _endRecipient) internal {
-        require(_childRecipient != address(0), "Child recipient address is zero");
+    function _addRecipient(address _bridgeRecipient, address _endRecipient) internal {
+        require(_bridgeRecipient != address(0), "Bridge recipient address is zero");
         require(_endRecipient != address(0), "End recipient address is zero");
 
-        recipientMap[_endRecipient] = _childRecipient;
+        recipientMap[_endRecipient] = _bridgeRecipient;
 
-        emit AddedDial(_childRecipient, _endRecipient);
+        emit AddedDial(_bridgeRecipient, _endRecipient);
     }
 
     /**
@@ -80,14 +80,14 @@ contract L2EmissionsController is Initializable, ImmutableModule {
         uint256 len = _endRecipients.length;
         for (uint256 i = 0; i < len; i++) {
             // 1.0 - get the child recipient from the recipient map
-            address childRecipient = recipientMap[_endRecipients[i]];
-            require(childRecipient != address(0), "Unmapped recipient");
+            address bridgeRecipient = recipientMap[_endRecipients[i]];
+            require(bridgeRecipient != address(0), "Unmapped recipient");
 
             // 2.0 - Get the balance of bridged rewards in the child recipient
-            uint256 amount = REWARD_TOKEN.balanceOf(childRecipient);
+            uint256 amount = REWARD_TOKEN.balanceOf(bridgeRecipient);
 
             // 3.0 - transfer the bridged rewards to the final recipient
-            REWARD_TOKEN.safeTransferFrom(childRecipient, _endRecipients[i], amount);
+            REWARD_TOKEN.safeTransferFrom(bridgeRecipient, _endRecipients[i], amount);
 
             // 4.0 - notify final recipient of received rewards
             IRewardsDistributionRecipient(_endRecipients[i]).notifyRewardAmount(amount);
