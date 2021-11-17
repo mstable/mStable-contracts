@@ -9,11 +9,15 @@ import {
     L2BridgeRecipient__factory,
     L2EmissionsController,
     L2EmissionsController__factory,
+    RevenueBuyBack,
+    RevenueBuyBack__factory,
 } from "types/generated"
 import { deployContract } from "./deploy-utils"
 import { verifyEtherscan } from "./etherscan"
 import { getChain, resolveAddress } from "./networkAddressFactory"
 import { Chain } from "./tokens"
+
+export const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
 export const deployEmissionsController = async (signer: Signer, hre: any): Promise<EmissionsController> => {
     const chain = getChain(hre)
@@ -64,11 +68,12 @@ export const deployEmissionsController = async (signer: Signer, hre: any): Promi
     }
 
     // Deploy logic contract
-    const emissionsControllerImpl = await deployContract(new EmissionsController__factory(signer), "EmissionsController", [
-        nexusAddress,
-        mtaAddress,
-        defaultConfig,
-    ])
+    const constructorArguments = [nexusAddress, mtaAddress, defaultConfig]
+    const emissionsControllerImpl = await deployContract(
+        new EmissionsController__factory(signer),
+        "EmissionsController Implementation",
+        constructorArguments,
+    )
     // Deploy proxy and initialize
     const initializeData = emissionsControllerImpl.interface.encodeFunctionData("initialize", [
         dialRecipients,
@@ -84,7 +89,9 @@ export const deployEmissionsController = async (signer: Signer, hre: any): Promi
     const emissionsController = new EmissionsController__factory(signer).attach(proxy.address)
 
     await verifyEtherscan(hre, {
-        address: emissionsController.address,
+        address: emissionsControllerImpl.address,
+        constructorArguments,
+        contract: "contracts/emissions/EmissionsController.sol:EmissionsController",
     })
 
     return emissionsController
@@ -98,10 +105,12 @@ export const deployL2EmissionsController = async (signer: Signer, hre: any): Pro
     const mtaAddress = resolveAddress("MTA", chain)
 
     // Deploy logic contract
-    const l2EmissionsControllerImpl = await deployContract(new L2EmissionsController__factory(signer), "EmissionsController", [
-        nexusAddress,
-        mtaAddress,
-    ])
+    const constructorArguments = [nexusAddress, mtaAddress]
+    const l2EmissionsControllerImpl = await deployContract(
+        new L2EmissionsController__factory(signer),
+        "L2EmissionsController Implementation",
+        constructorArguments,
+    )
 
     // Deploy proxy and initialize
     const initializeData = l2EmissionsControllerImpl.interface.encodeFunctionData("initialize", [])
@@ -113,7 +122,9 @@ export const deployL2EmissionsController = async (signer: Signer, hre: any): Pro
     const l2EmissionsController = new L2EmissionsController__factory(signer).attach(proxy.address)
 
     await verifyEtherscan(hre, {
-        address: l2EmissionsController.address,
+        address: l2EmissionsControllerImpl.address,
+        constructorArguments,
+        contract: "contracts/emissions/L2EmissionsController.sol:L2EmissionsController",
     })
 
     return l2EmissionsController
@@ -127,15 +138,18 @@ export const deployL2BridgeRecipients = async (
     const chain = getChain(hre)
 
     const mtaAddress = resolveAddress("MTA", chain)
+    const constructorArguments = [mtaAddress, l2EmissionsControllerAddress]
 
     const mUSDBridgeRecipient = await deployContract<L2BridgeRecipient>(
         new L2BridgeRecipient__factory(signer),
         "mUSD Vault Bridge Recipient",
         [mtaAddress, l2EmissionsControllerAddress],
     )
-    console.log(`mUSD Vault L2 Bridge Recipient ${mUSDBridgeRecipient.address}`)
+    console.log(`Set PmUSD bridgeRecipient to ${mUSDBridgeRecipient.address}`)
     await verifyEtherscan(hre, {
         address: mUSDBridgeRecipient.address,
+        constructorArguments,
+        contract: "contracts/emissions/L2BridgeRecipient.sol:L2BridgeRecipient",
     })
 
     const fraxBridgeRecipient = await deployContract<L2BridgeRecipient>(
@@ -143,9 +157,11 @@ export const deployL2BridgeRecipients = async (
         "FRAX Farm Bridge Recipient",
         [mtaAddress, l2EmissionsControllerAddress],
     )
-    console.log(`FRAX Farm L2 Bridge Recipient ${fraxBridgeRecipient.address}`)
+    console.log(`Set PFRAX bridgeRecipient to ${fraxBridgeRecipient.address}`)
     await verifyEtherscan(hre, {
         address: fraxBridgeRecipient.address,
+        constructorArguments,
+        contract: "contracts/emissions/L2BridgeRecipient.sol:L2BridgeRecipient",
     })
 
     return [mUSDBridgeRecipient, fraxBridgeRecipient]
@@ -158,14 +174,14 @@ export const deployBridgeForwarder = async (signer: Signer, hre: any, bridgeReci
     const mtaAddress = resolveAddress("MTA", chain)
     const rootChainManagerAddress = resolveAddress("RootChainManager", chain)
     const proxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)
-    const emissionsControllerAddress = resolveAddress("EmissionsController", chain)
+    const emissionsControllerAddress = resolveAddress("RewardsDistributor", chain)
 
-    const bridgeForrwarderImpl = await deployContract(new BridgeForwarder__factory(signer), "mUSD Vault Bridge Forwarder", [
-        nexusAddress,
-        mtaAddress,
-        rootChainManagerAddress,
-        bridgeRecipientAddress,
-    ])
+    const constructorArguments = [nexusAddress, mtaAddress, rootChainManagerAddress, bridgeRecipientAddress]
+    const bridgeForrwarderImpl = await deployContract(
+        new BridgeForwarder__factory(signer),
+        "mUSD Vault Bridge Forwarder",
+        constructorArguments,
+    )
 
     // Deploy proxy and initialize
     const initializeData = bridgeForrwarderImpl.interface.encodeFunctionData("initialize", [emissionsControllerAddress])
@@ -176,9 +192,46 @@ export const deployBridgeForwarder = async (signer: Signer, hre: any, bridgeReci
     ])
     const bridgeForwarder = new BridgeForwarder__factory(signer).attach(proxy.address)
 
+    console.log(`\nSet bridgeForwarder to ${bridgeForwarder.address}`)
+    console.log(`Governor calls EmissionsController.addDial ${emissionsControllerAddress} with params:`)
+    console.log(`recipient ${bridgeForwarder.address}, cap 0, notify true`)
+
+    // wait 10 seconds
+    await sleep(10000)
+
     await verifyEtherscan(hre, {
-        address: bridgeForwarder.address,
+        address: bridgeForrwarderImpl.address,
+        constructorArguments,
+        contract: "contracts/emissions/BridgeForwarder.sol:BridgeForwarder",
     })
 
     return bridgeForwarder
+}
+
+export const deployRevenueBuyBack = async (signer: Signer, hre: any): Promise<RevenueBuyBack> => {
+    const chain = getChain(hre)
+
+    const nexusAddress = resolveAddress("Nexus", chain)
+    const mtaAddress = resolveAddress("MTA", chain)
+    const uniswapRouterAddress = resolveAddress("UniswapRouterV3", chain)
+    const emissionsControllerAddress = resolveAddress("RewardsDistributor", chain)
+    const devOpsAddress = resolveAddress("OperationsSigner", chain)
+
+    // Deploy RevenueBuyBack
+    const constructorArguments: [string, string, string, string] = [
+        nexusAddress,
+        mtaAddress,
+        uniswapRouterAddress,
+        emissionsControllerAddress,
+    ]
+    const revenueBuyBack = await new RevenueBuyBack__factory(signer).deploy(...constructorArguments)
+    await revenueBuyBack.initialize(devOpsAddress, [0, 1])
+
+    await verifyEtherscan(hre, {
+        address: revenueBuyBack.address,
+        constructorArguments,
+        contract: "contracts/buy-and-make/RevenueBuyBack.sol:RevenueBuyBack",
+    })
+
+    return revenueBuyBack
 }

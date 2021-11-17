@@ -79,7 +79,7 @@ export const PmUSD: Token = {
     savings: "0x5290Ad3d83476CA6A2b178Cd9727eE1EF72432af",
     vault: "0x32aBa856Dc5fFd5A56Bcd182b13380e5C855aa29",
     platformTokenVendor: "0x7b19a4f4ee26037ffef77bc7d99f56209acc8db1",
-    bridgeForwarder: DEAD_ADDRESS, // TODO after deployment
+    bridgeForwarder: DEAD_ADDRESS, // TODO after deployment,
     bridgeRecipient: DEAD_ADDRESS, // TODO after deployment
 }
 export const MmUSD: Token = {
@@ -88,6 +88,8 @@ export const MmUSD: Token = {
     chain: Chain.mumbai,
     decimals: 18,
     quantityFormatter: "USD",
+    bridgeForwarder: "0x1dAdDae168636fE28b5eA34F1b3D4ea9367e8b6F",
+    bridgeRecipient: DEAD_ADDRESS, // TODO after deployment
 }
 // Ropsten
 export const RmUSD: Token = {
@@ -477,6 +479,8 @@ export const tokens = [
     PWMATIC,
     RmUSD,
     RmBTC,
+    MmUSD,
+    MFRAX,
     mBPT,
     RmBPT,
     BAL,

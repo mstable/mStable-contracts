@@ -13,8 +13,8 @@ export const contractNames = [
     "BadgerSafe",
     "SavingsManager",
     "Liquidator",
+    // Will become the EmissionsController
     "RewardsDistributor",
-    "EmissionsController",
     "L2EmissionsController",
     "RootChainManager",
     "BoostDirector",
@@ -94,9 +94,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "Liquidator":
                 return "0xe595D67181D701A5356e010D9a58EB9A341f1DbD"
             case "RewardsDistributor":
+                // TODO change after Emissions Controller deployment
                 return "0x04dfDfa471b79cc9E6E8C355e6C71F8eC4916C50"
-            case "EmissionsController":
-                return DEAD_ADDRESS // TODO set after deployment
             case "RootChainManager":
                 return "0xA0c68C638235ee32657e8f720a23ceC1bFc77C77"
             case "BoostDirector":
@@ -237,6 +236,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xeD04Cd19f50F893792357eA53A549E23Baf3F6cB"
             case "DelayedProxyAdmin":
                 return "0x2d369F83E9DC764a759a74e87a9Bc542a2BbfdF0"
+            case "OperationsSigner":
+                return "0xb805220e070bca63441233a1ca569afe392bb840"
             case "BoostDirector":
                 return "0x363FDC050722e74C5549C11B7d2c9d68FB9D7411"
             case "SignatureVerifier":
@@ -260,7 +261,16 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "QuestSigner":
                 return "0x04617083205b2fdd18b15bcf60d06674c6e2c1dc"
             case "RewardsDistributor":
-                return DEAD_ADDRESS
+                // EmissionsController proxy to 0x127fcF98F9d8Ab68B263081FFDc66BFd76eBFf55
+                return "0x973E0B9E1b0bf43B1B8dDf9D6A2f817138cf3C10"
+            case "RootChainManager":
+                // Is MockRootChainManager
+                return "0x0C4964457610970a2884B8A74a397Eb9ba37D9d4"
+            case "UniswapRouterV3":
+                return "0xE592427A0AEce92De3Edee1F18E0157C05861564"
+            case "RevenueRecipient":
+                // RevenueBuyBack
+                return "0x51E014D7862d4Ba8A14a778dA59890264458F5E4"
             default:
         }
     }
