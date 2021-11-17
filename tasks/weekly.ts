@@ -106,7 +106,7 @@ task("distribute-mta-polygon", "Distributes MTA and Matic rewards on Polygon")
         console.log("\n\nTransfer 10k MTA to FRAX")
         const fraxAmount = 10000
         await hre.run("token-transfer", {
-            asset: "PMTA",
+            asset: rewardSymbol,
             recipient: "FraxVault",
             amount: fraxAmount,
             speed,

@@ -70,7 +70,7 @@ export const mBTC: Token = {
 
 // mStable on Polygon mainnet
 export const PmUSD: Token = {
-    symbol: "PmUSD",
+    symbol: "mUSD",
     address: "0xE840B73E5287865EEc17d250bFb1536704B43B21",
     integrator: "0xeab7831c96876433dB9B8953B4e7e8f66c3125c3",
     chain: Chain.polygon,
@@ -83,7 +83,7 @@ export const PmUSD: Token = {
     bridgeRecipient: DEAD_ADDRESS, // TODO after deployment
 }
 export const MmUSD: Token = {
-    symbol: "MmUSD",
+    symbol: "mUSD",
     address: "0x0f7a5734f208A356AB2e5Cf3d02129c17028F3cf",
     chain: Chain.mumbai,
     decimals: 18,
@@ -91,7 +91,7 @@ export const MmUSD: Token = {
 }
 // Ropsten
 export const RmUSD: Token = {
-    symbol: "RmUSD",
+    symbol: "mUSD",
     address: "0x4E1000616990D83e56f4b5fC6CC8602DcfD20459",
     chain: Chain.ropsten,
     decimals: 18,
@@ -100,7 +100,7 @@ export const RmUSD: Token = {
     vault: "0xDEFc008BAC1e38F13F081DDD20acf89985DFa7C8",
 }
 export const RmBTC: Token = {
-    symbol: "RmBTC",
+    symbol: "mBTC",
     address: "0x4A677A48A790f26eac4c97f495E537558Abf6A79",
     chain: Chain.ropsten,
     decimals: 18,
@@ -157,35 +157,35 @@ export const DAI: Token = {
 
 // USD Main Pool Assets on Polygon
 export const PUSDC: Token = {
-    symbol: "PUSDC",
+    symbol: "USDC",
     address: "0x2791bca1f2de4661ed88a30c99a7a9449aa84174",
     chain: Chain.polygon,
     platform: Platform.Aave,
     integrator: "0xeab7831c96876433dB9B8953B4e7e8f66c3125c3",
     decimals: 6,
     quantityFormatter: "USD",
-    parent: "PmUSD",
+    parent: "mUSD",
 }
 
 export const PUSDT: Token = {
-    symbol: "PUSDT",
+    symbol: "USDT",
     address: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
     chain: Chain.polygon,
     platform: Platform.Aave,
     integrator: "0xeab7831c96876433dB9B8953B4e7e8f66c3125c3",
     decimals: 6,
     quantityFormatter: "USD",
-    parent: "PmUSD",
+    parent: "mUSD",
 }
 export const PDAI: Token = {
-    symbol: "PDAI",
+    symbol: "DAI",
     address: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
     chain: Chain.polygon,
     platform: Platform.Aave,
     integrator: "0xeab7831c96876433dB9B8953B4e7e8f66c3125c3",
     decimals: 18,
     quantityFormatter: "USD",
-    parent: "PmUSD",
+    parent: "mUSD",
 }
 
 // USD Feeder Pool Assets on Mainnet
@@ -227,23 +227,23 @@ export const FRAX: Token = {
 }
 // USD Feeder Pool Assets on Polygon
 export const PFRAX: Token = {
-    symbol: "PFRAX",
+    symbol: "FRAX",
     address: "0x104592a158490a9228070E0A8e5343B499e125D0",
     chain: Chain.polygon,
     decimals: 18,
     quantityFormatter: "USD",
-    parent: "PmUSD",
+    parent: "mUSD",
     feederPool: "0xB30a907084AC8a0d25dDDAB4E364827406Fd09f0",
     bridgeForwarder: DEAD_ADDRESS, // TODO after deployment
     bridgeRecipient: DEAD_ADDRESS, // TODO after deployment
 }
 export const MFRAX: Token = {
-    symbol: "MFRAX",
+    symbol: "FRAX",
     address: "0x8F6F8064A0222F138d56C077a7F27009BDBBE3B1",
     chain: Chain.mumbai,
     decimals: 18,
     quantityFormatter: "USD",
-    parent: "MmUSD",
+    parent: "mUSD",
 }
 
 // Alchemix
@@ -338,7 +338,7 @@ export const MTA: Token = {
 }
 
 export const PMTA: Token = {
-    symbol: "PMTA",
+    symbol: "MTA",
     address: "0xF501dd45a1198C2E1b5aEF5314A68B9006D842E0",
     chain: Chain.polygon,
     decimals: 18,
@@ -346,7 +346,7 @@ export const PMTA: Token = {
 }
 
 export const RMTA: Token = {
-    symbol: "RMTA",
+    symbol: "MTA",
     address: "0x273bc479E5C21CAA15aA8538DecBF310981d14C0",
     chain: Chain.ropsten,
     decimals: 18,
@@ -365,7 +365,7 @@ export const vMTA: Token = {
 }
 
 export const PWMATIC: Token = {
-    symbol: "PWMATIC",
+    symbol: "WMATIC",
     address: "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
     chain: Chain.polygon,
     decimals: 18,
@@ -421,7 +421,7 @@ export const BAL: Token = {
 }
 
 export const RBAL: Token = {
-    symbol: "RBAL",
+    symbol: "BAL",
     address: "0x0Aa94D9Db9dA74Bb86A437E28EE4ecf22365843E",
     chain: Chain.ropsten,
     decimals: 18,
@@ -438,7 +438,7 @@ export const mBPT: Token = {
 }
 
 export const RmBPT: Token = {
-    symbol: "RmBPT",
+    symbol: "mBPT",
     address: "0x021c343C6180f03cE9E48FaE3ff432309b9aF199",
     chain: Chain.ropsten,
     decimals: 18,
