@@ -25,7 +25,7 @@ task("BoostDirector.deploy", "Deploys a new BoostDirector")
     .addOptionalParam("stakingToken", "Symbol of the staking token", "MTA", types.string)
     .addOptionalParam(
         "vaults",
-        "Comma separated list of vault underlying token symbols, eg RmUSD,RmBTC",
+        "Comma separated list of vault underlying token symbols, eg mUSD,mBTC",
         "mUSD,mBTC,GUSD,BUSD,alUSD,HBTC,TBTC",
         types.string,
     )
@@ -53,8 +53,8 @@ task("Vault.deploy", "Deploys a vault contract")
     .addParam("boosted", "True if a mainnet boosted vault", true, types.boolean)
     .addParam("vaultName", "Vault name", undefined, types.string, false)
     .addParam("vaultSymbol", "Vault symbol", undefined, types.string, false)
-    .addOptionalParam("stakingToken", "Symbol of staking token. eg MTA, BAL, RMTA, mUSD, RmUSD", "MTA", types.string)
-    .addOptionalParam("rewardsToken", "Symbol of rewards token. eg MTA or RMTA for Ropsten", "MTA", types.string)
+    .addOptionalParam("stakingToken", "Symbol of staking token. eg MTA, BAL or mUSD", "MTA", types.string)
+    .addOptionalParam("rewardsToken", "Symbol of rewards token. eg MTA", "MTA", types.string)
     .addOptionalParam("dualRewardsToken", "Symbol of dual rewards token. eg WMATIC", undefined, types.string)
     .addOptionalParam("priceCoeff", "Price coefficient without 18 decimal places. eg 1 or 4800", 1, types.int)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
@@ -75,9 +75,9 @@ task("Vault.deploy", "Deploys a vault contract")
     })
 
 task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
-    .addOptionalParam("rewardsToken", "Symbol of rewards token. eg MTA or RMTA for Ropsten", "MTA", types.string)
-    .addOptionalParam("stakedToken", "Symbol of staked token. eg MTA, RMTA, mBPT or RmBPT", "MTA", types.string)
-    .addOptionalParam("balToken", "Symbol of balancer token. eg BAL or RBAL", "BAL", types.string)
+    .addOptionalParam("rewardsToken", "Symbol of rewards token. eg MTA", "MTA", types.string)
+    .addOptionalParam("stakedToken", "Symbol of staked token. eg MTA or mBPT", "MTA", types.string)
+    .addOptionalParam("balToken", "Symbol of balancer token. eg BAL", "BAL", types.string)
     .addOptionalParam("balPoolId", "Balancer Pool Id", "0001", types.string)
     .addOptionalParam("name", "Staked Token name", "Staked MTA", types.string)
     .addOptionalParam("symbol", "Staked Token symbol", "stkMTA", types.string)

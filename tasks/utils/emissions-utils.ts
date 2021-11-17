@@ -13,6 +13,7 @@ import {
 import { deployContract } from "./deploy-utils"
 import { verifyEtherscan } from "./etherscan"
 import { getChain, resolveAddress } from "./networkAddressFactory"
+import { Chain } from "./tokens"
 
 export const deployEmissionsController = async (signer: Signer, hre: any): Promise<EmissionsController> => {
     const chain = getChain(hre)
@@ -22,20 +23,37 @@ export const deployEmissionsController = async (signer: Signer, hre: any): Promi
     const mtaAddress = resolveAddress("MTA", chain)
     const mtaStakingAddress = resolveAddress("StakedTokenMTA", chain)
     const mbptStakingAddress = resolveAddress("StakedTokenBPT", chain)
-    const dialRecipients = [
-        mtaStakingAddress,
-        mbptStakingAddress,
-        resolveAddress("mUSD", chain, "vault"),
-        resolveAddress("mBTC", chain, "vault"),
-        resolveAddress("GUSD", chain, "vault"),
-        resolveAddress("BUSD", chain, "vault"),
-        resolveAddress("alUSD", chain, "vault"),
-        resolveAddress("tBTCv2", chain, "vault"),
-        resolveAddress("HBTC", chain, "vault"),
-        resolveAddress("VisorRouter", chain),
-    ]
-    const caps = [10, 10, 0, 0, 0, 0, 0, 0, 0, 0]
-    const notifies = [true, true, true, true, true, true, true, true, true, false]
+
+    let dialRecipients: string[]
+    let caps: number[]
+    let notifies: boolean[]
+    if (chain === Chain.mainnet) {
+        dialRecipients = [
+            mtaStakingAddress,
+            mbptStakingAddress,
+            resolveAddress("mUSD", chain, "vault"),
+            resolveAddress("mBTC", chain, "vault"),
+            resolveAddress("GUSD", chain, "vault"),
+            resolveAddress("BUSD", chain, "vault"),
+            resolveAddress("alUSD", chain, "vault"),
+            resolveAddress("tBTCv2", chain, "vault"),
+            resolveAddress("HBTC", chain, "vault"),
+            resolveAddress("VisorRouter", chain),
+        ]
+        caps = [10, 10, 0, 0, 0, 0, 0, 0, 0, 0]
+        notifies = [true, true, true, true, true, true, true, true, true, false]
+    } else if (chain === Chain.ropsten) {
+        dialRecipients = [
+            mtaStakingAddress,
+            mbptStakingAddress,
+            resolveAddress("mUSD", chain, "vault"),
+            resolveAddress("mBTC", chain, "vault"),
+        ]
+        caps = [10, 10, 0, 0]
+        notifies = [true, true, true, true]
+    } else {
+        throw Error("Chain must be mainnet or Ropsten")
+    }
 
     const defaultConfig = {
         A: -166000,
@@ -51,7 +69,6 @@ export const deployEmissionsController = async (signer: Signer, hre: any): Promi
         mtaAddress,
         defaultConfig,
     ])
-
     // Deploy proxy and initialize
     const initializeData = emissionsControllerImpl.interface.encodeFunctionData("initialize", [
         dialRecipients,
@@ -66,9 +83,9 @@ export const deployEmissionsController = async (signer: Signer, hre: any): Promi
     ])
     const emissionsController = new EmissionsController__factory(signer).attach(proxy.address)
 
-    // await verifyEtherscan(hre, {
-    //     address: emissionsController.address,
-    // })
+    await verifyEtherscan(hre, {
+        address: emissionsController.address,
+    })
 
     return emissionsController
 }
@@ -78,7 +95,7 @@ export const deployL2EmissionsController = async (signer: Signer, hre: any): Pro
 
     const nexusAddress = resolveAddress("Nexus", chain)
     const proxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)
-    const mtaAddress = resolveAddress("PMTA", chain)
+    const mtaAddress = resolveAddress("MTA", chain)
 
     // Deploy logic contract
     const l2EmissionsControllerImpl = await deployContract(new L2EmissionsController__factory(signer), "EmissionsController", [
@@ -109,7 +126,7 @@ export const deployL2BridgeRecipients = async (
 ): Promise<L2BridgeRecipient[]> => {
     const chain = getChain(hre)
 
-    const mtaAddress = resolveAddress("PMTA", chain)
+    const mtaAddress = resolveAddress("MTA", chain)
 
     const mUSDBridgeRecipient = await deployContract<L2BridgeRecipient>(
         new L2BridgeRecipient__factory(signer),

@@ -8,7 +8,7 @@ import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getChain, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
 
 subtask("token-approve", "Approve address or contract to spend (transferFrom) an amount of tokens from the signer's account")
-    .addParam("asset", "Symbol of the asset being approved. eg mUSD, imUSD, PmUSD, GUSD, alUSD, MTA", undefined, types.string)
+    .addParam("asset", "Symbol of the asset being approved. eg mUSD, imUSD, GUSD, alUSD, MTA", undefined, types.string)
     .addOptionalParam("tokenType", "Asset token type: address, savings, vault or feederPool.", "address", types.string)
     .addParam("spender", "Address or contract name that will send the transferFrom transaction.", undefined, types.string)
     .addOptionalParam(
@@ -76,7 +76,7 @@ task("token-transfer").setAction(async (_, __, runSuper) => {
 })
 
 subtask("token-transfer-from", "Transfer an amount of tokens from the sender to the recipient")
-    .addParam("asset", "Symbol of the asset being approved. eg mUSD, imUSD, PmUSD, GUSD, alUSD, MTA", undefined, types.string)
+    .addParam("asset", "Symbol of the asset being approved. eg mUSD, imUSD, GUSD, alUSD, MTA", undefined, types.string)
     .addOptionalParam("tokenType", "Asset token type: address, savings, vault or feederPool.", "address", types.string)
     .addParam("sender", "Address or contract name the tokens will be sent from.", undefined, types.string)
     .addOptionalParam(
@@ -118,7 +118,7 @@ task("token-transfer-from").setAction(async (_, __, runSuper) => {
 })
 
 subtask("token-allowance", "Logs the amount of tokens a spender can transfer from an owner")
-    .addParam("token", "Symbol of the token. eg mUSD, imUSD, PmUSD, GUSD, alUSD, MTA", undefined, types.string)
+    .addParam("token", "Symbol of the token. eg mUSD, imUSD, GUSD, alUSD, MTA", undefined, types.string)
     .addOptionalParam("tokenType", "Token address, savings, vault or feederPool.", "address", types.string)
     .addParam("owner", "Address or contract name where the tokens are held.", undefined, types.string)
     .addOptionalParam("ownerTokenType", "If owner is a token, then either address, savings, vault or feederPool.", "address", types.string)
@@ -151,7 +151,7 @@ task("token-allowance").setAction(async (_, __, runSuper) => {
 })
 
 subtask("token-balance", "Logs the token balance of an owner")
-    .addParam("token", "Symbol of the token. eg mUSD, imUSD, PmUSD, GUSD, alUSD, MTA", undefined, types.string)
+    .addParam("token", "Symbol of the token. eg mUSD, imUSD, GUSD, alUSD, MTA", undefined, types.string)
     .addOptionalParam("tokenType", "Token address, savings, vault or feederPool.", "address", types.string)
     .addParam("owner", "Address or contract name where the tokens are held.", undefined, types.string)
     .addOptionalParam("ownerTokenType", "If owner is a token, then either address, savings, vault or feederPool.", "address", types.string)

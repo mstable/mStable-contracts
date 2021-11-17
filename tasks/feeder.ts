@@ -340,18 +340,8 @@ task("feeder-redeem", "Redeem some Feeder Pool tokens")
     })
 
 task("feeder-swap", "Swap some Feeder Pool tokens")
-    .addParam(
-        "input",
-        "Token symbol of the input token to the swap. eg mUSD, PmUSD, mBTC, HBTC, GUSD, PFRAX or alUSD",
-        undefined,
-        types.string,
-    )
-    .addParam(
-        "output",
-        "Token symbol of the output token from the swap. eg mUSD, PmUSD, mBTC, HBTC, GUSD, PFRAX or alUSD",
-        undefined,
-        types.string,
-    )
+    .addParam("input", "Token symbol of the input token to the swap. eg mUSD, mBTC, HBTC, GUSD, FRAX or alUSD", undefined, types.string)
+    .addParam("output", "Token symbol of the output token from the swap. eg mUSD, mBTC, HBTC, GUSD, FRAX or alUSD", undefined, types.string)
     .addParam("amount", "Amount of input tokens to swap", undefined, types.float)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
