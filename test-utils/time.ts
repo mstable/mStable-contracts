@@ -20,6 +20,7 @@ export const increaseTimeTo = async (target: BN | number): Promise<void> => {
     if (later.lt(now)) throw Error(`Cannot increase current time (${now.toNumber()}) to a moment in the past (${later.toNumber()})`)
     const diff = later.sub(now)
     await increaseTime(diff)
+    await advanceBlock()
 }
 
 export const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))

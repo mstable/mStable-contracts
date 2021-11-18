@@ -397,14 +397,19 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             // 3.1 - If the dial has a cap and isn't disabled, check if it's over the threshold
             if (dialData.cap > 0 && !dialData.disabled) {
                 uint256 maxVotes = (dialData.cap * totalDialVotes) / 100;
+                // If dial has move votes than its cap
                 if (dialVotes[k] > maxVotes) {
-                    // Calculate amount of rewards for the dial & set storage
+                    // Calculate amount of rewards for the dial
                     distributionAmounts[k] = (dialData.cap * emissionForEpoch) / 100;
+                    // Add dial rewards to balance in storage.
+                    // Is addition and not set as rewards could have been donated.
                     dials[k].balance += SafeCast.toUint96(distributionAmounts[k]);
 
-                    // Calculate amount of rewards for the dial & set storage
+                    // Remove dial votes from total votes
                     postCappedVotes -= dialVotes[k];
+                    // Remove capped rewards from total reward
                     postCappedEmission -= distributionAmounts[k];
+                    // Set to zero votes so it'll be skipped in the next loop
                     dialVotes[k] = 0;
                 }
             }
@@ -412,7 +417,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
         // 4.0 - Calculate the distribution amounts for each dial
         for (uint256 l = 0; l < dialLen; l++) {
-            // Skip dial if no votes or disabled
+            // Skip dial if no votes, disabled or was over cap
             if (dialVotes[l] == 0) {
                 continue;
             }
@@ -596,7 +601,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     }
 
     /**
-     * @notice Returns the epoch a UNIX timestamp in seconds is in.
+     * @notice Returns the epoch index the timestamp is on.
      *         This is the number of weeks since 1 Jan 1970. ie the timestamp / 604800 seconds in a week.
      * @dev    Each week starts on Thursday 00:00 UTC.
      * @param timestamp UNIX time in seconds.
