@@ -109,6 +109,7 @@ export const deployFeederPool = async (signer: Signer, feederData: FeederData, h
             FeederManager: feederManagerAddress,
             FeederLogic: feederLogicAddress,
         },
+        contract: "contracts/feeders/NonPeggedFeederPool.sol:NonPeggedFeederPool",
     })
 
     // Initialization Data
@@ -215,6 +216,7 @@ export const deployVault = async (
     await verifyEtherscan(hre, {
         address: vault.address,
         constructorArguments,
+        contract: "contracts/rewards/boosted-staking/BoostedDualVault.sol:BoostedDualVault",
     })
 
     const initializeData = vault.interface.encodeFunctionData("initialize", [rewardsDistributorAddress, vaultData.name, vaultData.symbol])

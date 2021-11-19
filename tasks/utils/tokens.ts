@@ -216,13 +216,13 @@ export const RAI: Token = {
     address: "0x03ab458634910aad20ef5f1c8ee96f1d6ac54919",
     chain: Chain.mainnet,
     platform: Platform.Aave,
-    integrator: "",
-    liquidityProvider: "0xc9bc48c72154ef3e5425641a3c747242112a46af", // aRAI,
+    integrator: "0x8CC6A1aE38743d453F2522C5228B775D145f43B7",
+    liquidityProvider: "0xc9BC48c72154ef3e5425641a3c747242112a46AF", // aRAI,
     decimals: 18,
     quantityFormatter: "USD",
     parent: "mUSD",
-    feederPool: "",
-    vault: "",
+    feederPool: "0x36F944B7312EAc89381BD78326Df9C84691D8A5B",
+    vault: "0x6243d8CEA23066d098a15582d81a598b4e8391F4",
     priceGetter: "0x07210B8871073228626AB79c296d9b22238f63cE",
 }
 
