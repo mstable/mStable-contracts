@@ -46,6 +46,7 @@ describe("EmissionsController Polygon Integration", async () => {
     let rewardToken: MockERC20
     let emissionsController: EmissionsController
     let rootChainManager: IRootChainManager
+    const bridgeTokenLocker = Wallet.createRandom()
     const totalRewardsSupply = simpleToExactAmount(100000000)
     const totalRewards = simpleToExactAmount(29400963)
 
@@ -102,6 +103,7 @@ describe("EmissionsController Polygon Integration", async () => {
                 sa.default.signer,
                 nexus.address,
                 rewardToken.address,
+                bridgeTokenLocker.address,
                 rootChainManager.address,
                 Wallet.createRandom().address,
                 emissionsController.address,
@@ -111,6 +113,7 @@ describe("EmissionsController Polygon Integration", async () => {
             const tx = new BridgeForwarder__factory(sa.default.signer).deploy(
                 ZERO_ADDRESS,
                 rewardToken.address,
+                bridgeTokenLocker.address,
                 rootChainManager.address,
                 sa.dummy1.address,
             )
@@ -120,15 +123,27 @@ describe("EmissionsController Polygon Integration", async () => {
             const tx = new BridgeForwarder__factory(sa.default.signer).deploy(
                 nexus.address,
                 ZERO_ADDRESS,
+                bridgeTokenLocker.address,
                 rootChainManager.address,
                 sa.dummy1.address,
             )
             await expect(tx).to.revertedWith("Rewards token is zero")
         })
+        it("fail when zero bridge token locker", async () => {
+            const tx = new BridgeForwarder__factory(sa.default.signer).deploy(
+                nexus.address,
+                rewardToken.address,
+                ZERO_ADDRESS,
+                rootChainManager.address,
+                sa.dummy1.address,
+            )
+            await expect(tx).to.revertedWith("Bridge locker is zero")
+        })
         it("fail when zero root chain manager", async () => {
             const tx = new BridgeForwarder__factory(sa.default.signer).deploy(
                 nexus.address,
                 rewardToken.address,
+                bridgeTokenLocker.address,
                 ZERO_ADDRESS,
                 sa.dummy1.address,
             )
@@ -138,6 +153,7 @@ describe("EmissionsController Polygon Integration", async () => {
             const tx = new BridgeForwarder__factory(sa.default.signer).deploy(
                 nexus.address,
                 rewardToken.address,
+                bridgeTokenLocker.address,
                 rootChainManager.address,
                 ZERO_ADDRESS,
             )
@@ -157,6 +173,7 @@ describe("EmissionsController Polygon Integration", async () => {
                 nexus.address,
                 rewardToken.address,
                 rootChainManager.address,
+                rootChainManager.address,
                 bridgeRecipient1.address,
                 emissionsController.address,
             )
@@ -165,6 +182,7 @@ describe("EmissionsController Polygon Integration", async () => {
                 sa.default.signer,
                 nexus.address,
                 rewardToken.address,
+                rootChainManager.address,
                 rootChainManager.address,
                 bridgeRecipient2.address,
                 emissionsController.address,

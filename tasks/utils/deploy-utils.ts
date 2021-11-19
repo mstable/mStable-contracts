@@ -26,11 +26,11 @@ export const deployContract = async <T extends Contract>(
 }
 
 export const logTxDetails = async (tx: ContractTransaction, method: string): Promise<ContractReceipt> => {
-    console.log(`Sent ${method} transaction with hash ${tx.hash} from ${tx.from} with gas price ${tx.gasPrice.toNumber() / 1e9} Gwei`)
+    console.log(`Sent ${method} transaction with hash ${tx.hash} from ${tx.from} with gas price ${tx.gasPrice?.toNumber() / 1e9} Gwei`)
     const receipt = await tx.wait()
 
     // Calculate tx cost in Wei
-    const txCost = receipt.gasUsed.mul(tx.gasPrice)
+    const txCost = receipt.gasUsed.mul(tx.gasPrice ?? 0)
     console.log(`Processed ${method} tx in block ${receipt.blockNumber}, using ${receipt.gasUsed} gas costing ${formatUnits(txCost)} ETH`)
 
     return receipt

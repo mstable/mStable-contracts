@@ -16,7 +16,8 @@ export const contractNames = [
     // Will become the EmissionsController
     "RewardsDistributor",
     "L2EmissionsController",
-    "RootChainManager",
+    "PolygonPoSBridge",
+    "PolygonRootChainManager",
     "BoostDirector",
     "VoterProxy",
     "Collector",
@@ -96,8 +97,10 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "RewardsDistributor":
                 // TODO change after Emissions Controller deployment
                 return "0x04dfDfa471b79cc9E6E8C355e6C71F8eC4916C50"
-            case "RootChainManager":
+            case "PolygonRootChainManager":
                 return "0xA0c68C638235ee32657e8f720a23ceC1bFc77C77"
+            case "PolygonPoSBridge":
+                return "0x40ec5B33f54e0E8A33A975908C5BA1c14e5BbbDf"
             case "BoostDirector":
                 return "0xBa05FD2f20AE15B0D3f20DDc6870FeCa6ACd3592"
             case "VoterProxy":
@@ -263,8 +266,10 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "RewardsDistributor":
                 // EmissionsController proxy to 0x127fcF98F9d8Ab68B263081FFDc66BFd76eBFf55
                 return "0x973E0B9E1b0bf43B1B8dDf9D6A2f817138cf3C10"
-            case "RootChainManager":
+            case "PolygonRootChainManager":
                 // Is MockRootChainManager
+                return "0x0C4964457610970a2884B8A74a397Eb9ba37D9d4"
+            case "PolygonPoSBridge":
                 return "0x0C4964457610970a2884B8A74a397Eb9ba37D9d4"
             case "UniswapRouterV3":
                 return "0xE592427A0AEce92De3Edee1F18E0157C05861564"
