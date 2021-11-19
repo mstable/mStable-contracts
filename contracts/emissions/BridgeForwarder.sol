@@ -24,30 +24,36 @@ contract BridgeForwarder is
 
     /// @notice Token the rewards are distributed in. eg MTA
     IERC20 public immutable REWARDS_TOKEN;
-    /// @notice Mainnet Proof of Stake (PoS) bridge contract to Polygon
+    /// @notice Polygon PoS Bridge contract that takes deposits on mainnet.
     IRootChainManager public immutable ROOT_CHAIN_MANAGER;
+    /// @notice Polygon PoS Bridge contract that locks tokens on mainnet.
+    address public immutable BRIDGE_TOKEN_LOCKER;
     /// @notice Polygon contract that will receive the bridged rewards on the Polygon chain
     address public immutable BRIDGE_RECIPIENT;
 
     event Forwarded(uint256 amount);
 
     /**
-     * @param _nexus            mStable system Nexus address
-     * @param _rewardsToken     First token that is being distributed as a reward. eg MTA
-     * @param _rootChainManager Mainnet Proof of Stake (PoS) bridge contract to Polygon
-     * @param _bridgeRecipient  Polygon contract that will receive the bridged rewards on the Polygon chain
+     * @param _nexus             mStable system Nexus address
+     * @param _rewardsToken      First token that is being distributed as a reward. eg MTA
+     * @param _bridgeTokenLocker Mainnet bridge contract that receives and locks tokens for the L2 bridge.
+     * @param _rootChainManager  Mainnet contract called to deposit tokens to the L2 bridge.
+     * @param _bridgeRecipient   Polygon contract that will receive the bridged rewards on the Polygon chain
      */
     constructor(
         address _nexus,
         address _rewardsToken,
+        address _bridgeTokenLocker,
         address _rootChainManager,
         address _bridgeRecipient
     ) InitializableRewardsDistributionRecipient(_nexus) {
         require(_rewardsToken != address(0), "Rewards token is zero");
+        require(_bridgeTokenLocker != address(0), "Bridge locker is zero");
         require(_rootChainManager != address(0), "RootChainManager is zero");
         require(_bridgeRecipient != address(0), "Bridge recipient is zero");
 
         REWARDS_TOKEN = IERC20(_rewardsToken);
+        BRIDGE_TOKEN_LOCKER = _bridgeTokenLocker;
         ROOT_CHAIN_MANAGER = IRootChainManager(_rootChainManager);
         BRIDGE_RECIPIENT = _bridgeRecipient;
     }
@@ -60,8 +66,8 @@ contract BridgeForwarder is
     function initialize(address _emissionsController) external initializer {
         InitializableRewardsDistributionRecipient._initialize(_emissionsController);
 
-        // Approve the Polygon PoS Bridge to transfer reward tokens from this contract
-        REWARDS_TOKEN.safeApprove(address(ROOT_CHAIN_MANAGER), type(uint256).max);
+        // Approve the L2 Bridge to transfer reward tokens from this contract
+        REWARDS_TOKEN.safeApprove(BRIDGE_TOKEN_LOCKER, type(uint256).max);
     }
 
     /**

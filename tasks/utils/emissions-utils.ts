@@ -15,7 +15,7 @@ import {
 import { deployContract } from "./deploy-utils"
 import { verifyEtherscan } from "./etherscan"
 import { getChain, resolveAddress } from "./networkAddressFactory"
-import { Chain } from "./tokens"
+import { Chain, MTA } from "./tokens"
 
 export const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -24,7 +24,7 @@ export const deployEmissionsController = async (signer: Signer, hre: any): Promi
 
     const nexusAddress = resolveAddress("Nexus", chain)
     const proxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)
-    const mtaAddress = resolveAddress("MTA", chain)
+    const mtaAddress = MTA.address
     const mtaStakingAddress = resolveAddress("StakedTokenMTA", chain)
     const mbptStakingAddress = resolveAddress("StakedTokenBPT", chain)
 
@@ -102,7 +102,7 @@ export const deployL2EmissionsController = async (signer: Signer, hre: any): Pro
 
     const nexusAddress = resolveAddress("Nexus", chain)
     const proxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)
-    const mtaAddress = resolveAddress("MTA", chain)
+    const mtaAddress = MTA.address
 
     // Deploy logic contract
     const constructorArguments = [nexusAddress, mtaAddress]
@@ -137,7 +137,7 @@ export const deployL2BridgeRecipients = async (
 ): Promise<L2BridgeRecipient[]> => {
     const chain = getChain(hre)
 
-    const mtaAddress = resolveAddress("MTA", chain)
+    const mtaAddress = MTA.address
     const constructorArguments = [mtaAddress, l2EmissionsControllerAddress]
 
     const mUSDBridgeRecipient = await deployContract<L2BridgeRecipient>(
@@ -167,16 +167,22 @@ export const deployL2BridgeRecipients = async (
     return [mUSDBridgeRecipient, fraxBridgeRecipient]
 }
 
-export const deployBridgeForwarder = async (signer: Signer, hre: any, bridgeRecipientAddress: string): Promise<BridgeForwarder> => {
+export const deployBridgeForwarder = async (
+    signer: Signer,
+    hre: any,
+    bridgeRecipientAddress: string,
+    _emissionsControllerAddress?: string,
+): Promise<BridgeForwarder> => {
     const chain = getChain(hre)
 
     const nexusAddress = resolveAddress("Nexus", chain)
-    const mtaAddress = resolveAddress("MTA", chain)
-    const rootChainManagerAddress = resolveAddress("RootChainManager", chain)
+    const mtaAddress = MTA.address
     const proxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)
-    const emissionsControllerAddress = resolveAddress("RewardsDistributor", chain)
+    const tokenBridgeAddress = resolveAddress("PolygonPoSBridge", chain)
+    const rootChainManagerAddress = resolveAddress("PolygonRootChainManager", chain)
+    const emissionsControllerAddress = _emissionsControllerAddress || resolveAddress("RewardsDistributor", chain)
 
-    const constructorArguments = [nexusAddress, mtaAddress, rootChainManagerAddress, bridgeRecipientAddress]
+    const constructorArguments = [nexusAddress, mtaAddress, tokenBridgeAddress, rootChainManagerAddress, bridgeRecipientAddress]
     const bridgeForrwarderImpl = await deployContract(
         new BridgeForwarder__factory(signer),
         "mUSD Vault Bridge Forwarder",
@@ -212,7 +218,7 @@ export const deployRevenueBuyBack = async (signer: Signer, hre: any): Promise<Re
     const chain = getChain(hre)
 
     const nexusAddress = resolveAddress("Nexus", chain)
-    const mtaAddress = resolveAddress("MTA", chain)
+    const mtaAddress = MTA.address
     const uniswapRouterAddress = resolveAddress("UniswapRouterV3", chain)
     const emissionsControllerAddress = resolveAddress("RewardsDistributor", chain)
     const devOpsAddress = resolveAddress("OperationsSigner", chain)

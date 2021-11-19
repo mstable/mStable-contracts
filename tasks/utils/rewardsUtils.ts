@@ -206,6 +206,7 @@ export const deployBridgeForwarder = async (
     signer: Signer,
     nexusAddress: string,
     rewardTokenAddress: string,
+    bridgeTokenLockerAddress: string,
     rootChainManagerAddress: string,
     childRecipient1Address: string,
     emissionsController: string,
@@ -213,6 +214,7 @@ export const deployBridgeForwarder = async (
     const impl = await deployContract(new BridgeForwarder__factory(signer), "BridgeForwarder", [
         nexusAddress,
         rewardTokenAddress,
+        bridgeTokenLockerAddress,
         rootChainManagerAddress,
         childRecipient1Address,
     ])
