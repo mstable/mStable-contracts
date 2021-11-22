@@ -154,8 +154,7 @@ export const deployFeederPool = async (signer: Signer, feederData: FeederData, h
 }
 
 export const deployVault = async (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-module-boundary-types
-    hre: any,
+    hre: HardhatRuntimeEnvironment,
     vaultParams: VaultData,
 ): Promise<BoostedDualVault | BoostedVault | StakingRewardsWithPlatformToken | StakingRewards> => {
     const signer = await getSigner(hre)

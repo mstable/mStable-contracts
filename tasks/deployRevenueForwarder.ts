@@ -4,7 +4,6 @@ import { task, types } from "hardhat/config"
 import { RevenueForwarder__factory } from "types/generated"
 import { deployContract } from "./utils/deploy-utils"
 import { getSigner } from "./utils/signerFactory"
-import { verifyEtherscan } from "./utils/etherscan"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
 
 task("deploy-RevenueForwarder")

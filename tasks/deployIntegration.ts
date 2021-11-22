@@ -10,7 +10,6 @@ import {
     Liquidator,
     Liquidator__factory,
     Masset__factory,
-    FeederPool__factory,
     PAaveIntegration,
     PAaveIntegration__factory,
 } from "types/generated"
