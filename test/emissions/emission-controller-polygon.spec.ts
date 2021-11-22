@@ -342,6 +342,20 @@ describe("EmissionsController Polygon Integration", async () => {
             expect(await bridgedRewardToken.balanceOf(finalRecipient1.address), "final recipient 1 bal after").to.eq(amountRecipient1)
             expect(await bridgedRewardToken.balanceOf(finalRecipient2.address), "final recipient 2 bal after").to.eq(amountRecipient2)
         })
+        it("received rewards in only one bridge recipients", async () => {
+            expect(await bridgedRewardToken.balanceOf(finalRecipient1.address), "final recipient 1 bal before").to.eq(0)
+            expect(await bridgedRewardToken.balanceOf(finalRecipient2.address), "final recipient 2 bal before").to.eq(0)
+
+            const amountRecipient2 = simpleToExactAmount(2000)
+            await bridgedRewardToken.transfer(bridgeRecipient2.address, amountRecipient2)
+
+            const tx = await l2EmissionsController.distributeRewards([finalRecipient1.address, finalRecipient2.address])
+
+            await expect(tx).to.emit(l2EmissionsController, "DistributedReward").withArgs(finalRecipient2.address, amountRecipient2)
+
+            expect(await bridgedRewardToken.balanceOf(finalRecipient1.address), "final recipient 1 bal after").to.eq(0)
+            expect(await bridgedRewardToken.balanceOf(finalRecipient2.address), "final recipient 2 bal after").to.eq(amountRecipient2)
+        })
         context("fail to add recipient", () => {
             it("no bridge recipient", async () => {
                 const tx = l2EmissionsController.connect(sa.governor.signer).addRecipient(ZERO_ADDRESS, sa.dummy1.address)
