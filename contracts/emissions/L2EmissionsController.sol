@@ -64,6 +64,7 @@ contract L2EmissionsController is Initializable, ImmutableModule {
     function _addRecipient(address _bridgeRecipient, address _endRecipient) internal {
         require(_bridgeRecipient != address(0), "Bridge recipient address is zero");
         require(_endRecipient != address(0), "End recipient address is zero");
+        require(recipientMap[_endRecipient] == address(0), "End recipient already mapped");
 
         recipientMap[_endRecipient] = _bridgeRecipient;
 
@@ -85,6 +86,9 @@ contract L2EmissionsController is Initializable, ImmutableModule {
 
             // 2.0 - Get the balance of bridged rewards in the child recipient
             uint256 amount = REWARD_TOKEN.balanceOf(bridgeRecipient);
+            if (amount == 0) {
+                continue;
+            }
 
             // 3.0 - transfer the bridged rewards to the final recipient
             REWARD_TOKEN.safeTransferFrom(bridgeRecipient, _endRecipients[i], amount);

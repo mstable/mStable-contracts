@@ -158,6 +158,44 @@ describe("RevenueBuyBack", () => {
             expect((await emissionController.dials(0)).recipient, "first dial is first staking contract").to.eq(staking1.address)
             expect((await emissionController.dials(1)).recipient, "second dial is second staking contract").to.eq(staking2.address)
         })
+        describe("it should fail if zero", () => {
+            it("nexus", async () => {
+                const tx = new RevenueBuyBack__factory(sa.default.signer).deploy(
+                    ZERO_ADDRESS,
+                    rewardsToken.address,
+                    uniswap.address,
+                    emissionController.address,
+                )
+                await expect(tx).to.revertedWith("Nexus address is zero")
+            })
+            it("rewards token", async () => {
+                const tx = new RevenueBuyBack__factory(sa.default.signer).deploy(
+                    nexus.address,
+                    ZERO_ADDRESS,
+                    uniswap.address,
+                    emissionController.address,
+                )
+                await expect(tx).to.revertedWith("Rewards token is zero")
+            })
+            it("Uniswap router", async () => {
+                const tx = new RevenueBuyBack__factory(sa.default.signer).deploy(
+                    nexus.address,
+                    rewardsToken.address,
+                    ZERO_ADDRESS,
+                    emissionController.address,
+                )
+                await expect(tx).to.revertedWith("Uniswap Router is zero")
+            })
+            it("Emissions controller", async () => {
+                const tx = new RevenueBuyBack__factory(sa.default.signer).deploy(
+                    nexus.address,
+                    rewardsToken.address,
+                    uniswap.address,
+                    ZERO_ADDRESS,
+                )
+                await expect(tx).to.revertedWith("Emissions controller is zero")
+            })
+        })
     })
     describe("notification of revenue", () => {
         before(async () => {
@@ -182,6 +220,11 @@ describe("RevenueBuyBack", () => {
             )
         })
         describe("it should fail if", () => {
+            it("not configured mAsset", async () => {
+                await expect(revenueBuyBack.notifyRedistributionAmount(sa.dummy1.address, simpleToExactAmount(1, 18))).to.be.revertedWith(
+                    "Invalid mAsset",
+                )
+            })
             it("approval is not given from sender", async () => {
                 await expect(revenueBuyBack.notifyRedistributionAmount(mUSD.address, simpleToExactAmount(100, 18))).to.be.revertedWith(
                     "ERC20: transfer amount exceeds allowance",

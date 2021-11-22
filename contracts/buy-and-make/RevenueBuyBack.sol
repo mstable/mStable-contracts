@@ -89,7 +89,7 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
         require(_uniswapRouter != address(0), "Uniswap Router is zero");
         UNISWAP_ROUTER = IUniswapV3SwapRouter(_uniswapRouter);
 
-        require(_uniswapRouter != address(0), "Emissions controller is zero");
+        require(_emissionsController != address(0), "Emissions controller is zero");
         EMISSIONS_CONTROLLER = IEmissionsController(_emissionsController);
     }
 
@@ -116,6 +116,8 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
      * @param _amount Units of mAsset collected
      */
     function notifyRedistributionAmount(address _mAsset, uint256 _amount) external override {
+        require(massetConfig[_mAsset].bAsset != address(0), "Invalid mAsset");
+
         // Transfer from sender to here
         IERC20(_mAsset).safeTransferFrom(msg.sender, address(this), _amount);
 
@@ -175,12 +177,12 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
         uint256 totalVotingPower;
         // Get the voting power of each staking contract
         for (uint256 i = 0; i < numberStakingContracts; i++) {
-            address staingContractAddress = EMISSIONS_CONTROLLER.getDialRecipient(
+            address stakingContractAddress = EMISSIONS_CONTROLLER.getDialRecipient(
                 stakingDialIds[i]
             );
-            require(staingContractAddress != address(0), "invalid dial id");
+            require(stakingContractAddress != address(0), "invalid dial id");
 
-            votingPower[i] = IERC20(staingContractAddress).totalSupply();
+            votingPower[i] = IERC20(stakingContractAddress).totalSupply();
             totalVotingPower += votingPower[i];
         }
         require(totalVotingPower > 0, "No voting power");

@@ -20,14 +20,17 @@ contract L2BridgeRecipient {
     address public immutable L2_EMISSIONS_CONTROLLER;
 
     /**
-     * @param _childRewardsToken Bridged rewards token on the Polygon chain.
+     * @param _rewardsToken Bridged rewards token on the Polygon chain.
      * @param _l2EmissionsController Polygon contract that will distribute bridged rewards on the Polygon chain.
      */
-    constructor(address _childRewardsToken, address _l2EmissionsController) {
-        REWARDS_TOKEN = IERC20(_childRewardsToken);
+    constructor(address _rewardsToken, address _l2EmissionsController) {
+         require(_rewardsToken != address(0), "Invalid Rewards token");
+         require(_l2EmissionsController != address(0), "Invalid Emissions Controller");
+
+        REWARDS_TOKEN = IERC20(_rewardsToken);
         L2_EMISSIONS_CONTROLLER = _l2EmissionsController;
 
         // Approve the Polygon PoS Bridge to transfer reward tokens from this contract
-        IERC20(_childRewardsToken).safeApprove(_l2EmissionsController, type(uint256).max);
+        IERC20(_rewardsToken).safeApprove(_l2EmissionsController, type(uint256).max);
     }
 }
