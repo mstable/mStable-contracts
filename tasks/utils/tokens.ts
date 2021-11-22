@@ -222,7 +222,7 @@ export const RAI: Token = {
     quantityFormatter: "USD",
     parent: "mUSD",
     feederPool: "0x36F944B7312EAc89381BD78326Df9C84691D8A5B",
-    vault: "0x6243d8CEA23066d098a15582d81a598b4e8391F4",
+    vault: "0xF93e0ddE0F7C48108abbD880DB7697A86169f13b",
     priceGetter: "0x07210B8871073228626AB79c296d9b22238f63cE",
 }
 
