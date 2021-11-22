@@ -47,7 +47,6 @@ interface BPTDeployment {
 
 describe("Staked Token BPT", () => {
     let sa: StandardAccounts
-    let deployTime: BN
 
     let nexus: MockNexus
     let rewardToken: MockERC20
@@ -78,7 +77,6 @@ describe("Staked Token BPT", () => {
     }
 
     const redeployStakedToken = async (useFakePrice = false): Promise<Deployment> => {
-        deployTime = await getTimestamp()
         nexus = await new MockNexus__factory(sa.default.signer).deploy(sa.governor.address, DEAD_ADDRESS, DEAD_ADDRESS)
         await nexus.setRecollateraliser(sa.mockRecollateraliser.address)
         rewardToken = await new MockERC20__factory(sa.default.signer).deploy("Reward", "RWD", 18, sa.default.address, 10000000)
@@ -113,6 +111,7 @@ describe("Staked Token BPT", () => {
                 sa.mockRewardsDistributor.address,
             ])
             const stakedTokenProxy = await new AssetProxy__factory(sa.default.signer).deploy(stakedTokenImpl.address, DEAD_ADDRESS, data)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             sToken = stakedTokenFactory.attach(stakedTokenProxy.address) as any as StakedTokenBPT
         } else {
             const stakedTokenFactory = new StakedTokenBPT__factory(stakedTokenLibraryAddresses, sa.default.signer)
@@ -358,7 +357,8 @@ describe("Staked Token BPT", () => {
         const stakedAmount = simpleToExactAmount(1000)
         let mockStakedToken: MockStakedTokenWithPrice
         before(async () => {
-            ;({ stakedToken, bpt, questManager } = await redeployStakedToken(true))
+            ({ stakedToken, bpt, questManager } = await redeployStakedToken(true))
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             mockStakedToken = stakedToken as any as MockStakedTokenWithPrice
             await bpt.bpt.connect(sa.default.signer).approve(mockStakedToken.address, stakedAmount.mul(3))
         })
