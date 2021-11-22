@@ -28,7 +28,7 @@ contract BasicRewardsForwarder is
     address public endRecipient;
 
     event RewardsReceived(uint256 amount);
-    event RecipientChanged(address newRecipient);
+    event RecipientChanged(address indexed newRecipient);
 
     /**
      * @param _nexus        mStable system Nexus address

@@ -7,7 +7,7 @@ import { DEAD_ADDRESS, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { StandardAccounts } from "@utils/machines"
 import { expect } from "chai"
 import { ethers } from "hardhat"
-import { BN, deployContract, increaseTime, simpleToExactAmount } from "index"
+import { BN, deployContract, increaseTime, mUSD, simpleToExactAmount } from "index"
 import { deployL2BridgeRecipient, deployBridgeForwarder } from "tasks/utils/rewardsUtils"
 import {
     AssetProxy__factory,
@@ -28,6 +28,7 @@ import {
     L2BridgeRecipient,
     BridgeForwarder,
     BridgeForwarder__factory,
+    L2BridgeRecipient__factory,
 } from "types/generated"
 
 const defaultConfig = {
@@ -313,6 +314,16 @@ describe("EmissionsController Polygon Integration", async () => {
             await l2EmissionsController.connect(sa.governor.signer).addRecipient(bridgeRecipient1.address, finalRecipient1.address)
             await l2EmissionsController.connect(sa.governor.signer).addRecipient(bridgeRecipient2.address, finalRecipient2.address)
         })
+        describe("deploy L2BridgeRecipient should fail if zero", () => {
+            it("rewards token", async () => {
+                const tx = new L2BridgeRecipient__factory(sa.default.signer).deploy(ZERO_ADDRESS, l2EmissionsController.address)
+                await expect(tx).to.revertedWith("Invalid Rewards token")
+            })
+            it("emissions controller", async () => {
+                const tx = new L2BridgeRecipient__factory(sa.default.signer).deploy(bridgedRewardToken.address, ZERO_ADDRESS)
+                await expect(tx).to.revertedWith("Invalid Emissions Controller")
+            })
+        })
         it("received rewards in both bridge recipients", async () => {
             expect(await bridgedRewardToken.balanceOf(finalRecipient1.address), "final recipient 1 bal before").to.eq(0)
             expect(await bridgedRewardToken.balanceOf(finalRecipient2.address), "final recipient 2 bal before").to.eq(0)
@@ -339,6 +350,10 @@ describe("EmissionsController Polygon Integration", async () => {
             it("no end recipient", async () => {
                 const tx = l2EmissionsController.connect(sa.governor.signer).addRecipient(sa.dummy1.address, ZERO_ADDRESS)
                 await expect(tx).to.revertedWith("End recipient address is zero")
+            })
+            it("mAsset already mapped", async () => {
+                const tx = l2EmissionsController.connect(sa.governor.signer).addRecipient(sa.dummy2.address, finalRecipient1.address)
+                await expect(tx).to.revertedWith("End recipient already mapped")
             })
         })
         it("fail to distribute to unmapped end recipient", async () => {
