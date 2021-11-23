@@ -28,6 +28,7 @@
         "flatten": "npx sol-merger \"./contracts/**/*.sol\" ./_flat",
         "coverage": "yarn hardhat compile --force && node --max_old_space_size=6144 node_modules/.bin/hardhat coverage --temp 'build/contracts' --testfiles 'test/**/*.spec.ts' --show-stack-traces",
         "convertTestFiles": "cd test-utils/validator-data; ts-node ./convertCsvTestFiles.ts",
+        "commit": "cz",
         "task": "yarn hardhat --config tasks.config.ts",
         "task:fork": "yarn hardhat --config tasks-fork.config.ts",
         "task:fork:polly": "yarn hardhat --config tasks-fork-polygon.config.ts",
@@ -45,8 +46,8 @@
         "url": "git+https://github.com/mstable/mstable-contracts.git"
     },
     "devDependencies": {
-        "@commitlint/cli": "^12.1.1",
-        "@commitlint/config-conventional": "^12.1.1",
+        "@commitlint/cli": "^12.1.4",
+        "@commitlint/config-conventional": "^12.1.4",
         "@nomiclabs/hardhat-etherscan": "^2.1.6",
         "@types/lodash": "^4.14.138",
         "@types/mocha": "^9.0.0",
@@ -56,7 +57,9 @@
         "@typescript-eslint/parser": "^4.14.0",
         "axios": "^0.21.1",
         "chalk": "^4.1.0",
+        "commitizen": "^4.2.4",
         "commitlint": "^12.1.1",
+        "cz-conventional-changelog": "3.3.0",
         "eslint": "^7.18.0",
         "eslint-config-airbnb-typescript": "^12.0.0",
         "eslint-config-prettier": "^7.2.0",
@@ -106,5 +109,10 @@
         "ts-node": "^10.2.0",
         "tsconfig-paths": "^3.10.1",
         "typechain": "^5.1.2"
+    },
+    "config": {
+        "commitizen": {
+            "path": "./node_modules/cz-conventional-changelog"
+        }
     }
 }
