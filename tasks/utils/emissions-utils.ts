@@ -43,11 +43,16 @@ export const deployEmissionsController = async (signer: Signer, hre: HardhatRunt
             resolveAddress("GUSD", chain, "vault"),
             resolveAddress("BUSD", chain, "vault"),
             resolveAddress("alUSD", chain, "vault"),
-            resolveAddress("tBTCv2", chain, "vault"),
+            resolveAddress("RAI", chain, "vault"),
+            // resolveAddress("FEI", chain, "vault"),
             resolveAddress("HBTC", chain, "vault"),
+            resolveAddress("tBTCv2", chain, "vault"),
         ]
-        caps = [10, 10, 0, 0, 0, 0, 0, 0, 0]
-        notifies = [true, true, true, true, true, true, true, true, true]
+        caps = dialRecipients.map((_, i) => {
+            if (i < 2) return 10
+            return 0
+        })
+        notifies = dialRecipients.map(() => true)
     } else if (chain === Chain.ropsten) {
         dialRecipients = [
             mtaStakingAddress,
