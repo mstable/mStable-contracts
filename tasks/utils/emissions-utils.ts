@@ -1,6 +1,9 @@
 import { Signer } from "@ethersproject/abstract-signer"
+import { HardhatRuntimeEnvironment } from "hardhat/types"
 import {
     AssetProxy__factory,
+    BasicRewardsForwarder,
+    BasicRewardsForwarder__factory,
     BridgeForwarder,
     BridgeForwarder__factory,
     EmissionsController,
@@ -19,7 +22,7 @@ import { Chain, MTA } from "./tokens"
 
 export const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
-export const deployEmissionsController = async (signer: Signer, hre: any): Promise<EmissionsController> => {
+export const deployEmissionsController = async (signer: Signer, hre: HardhatRuntimeEnvironment): Promise<EmissionsController> => {
     const chain = getChain(hre)
 
     const nexusAddress = resolveAddress("Nexus", chain)
@@ -42,10 +45,9 @@ export const deployEmissionsController = async (signer: Signer, hre: any): Promi
             resolveAddress("alUSD", chain, "vault"),
             resolveAddress("tBTCv2", chain, "vault"),
             resolveAddress("HBTC", chain, "vault"),
-            resolveAddress("VisorRouter", chain),
         ]
-        caps = [10, 10, 0, 0, 0, 0, 0, 0, 0, 0]
-        notifies = [true, true, true, true, true, true, true, true, true, false]
+        caps = [10, 10, 0, 0, 0, 0, 0, 0, 0]
+        notifies = [true, true, true, true, true, true, true, true, true]
     } else if (chain === Chain.ropsten) {
         dialRecipients = [
             mtaStakingAddress,
@@ -97,7 +99,26 @@ export const deployEmissionsController = async (signer: Signer, hre: any): Promi
     return emissionsController
 }
 
-export const deployL2EmissionsController = async (signer: Signer, hre: any): Promise<L2EmissionsController> => {
+export const deployVisorFinanceDial = async (
+    signer: Signer,
+    emissionsControllerAddress: string,
+    hre: HardhatRuntimeEnvironment,
+): Promise<BasicRewardsForwarder> => {
+    const chain = getChain(hre)
+    const nexusAddress = resolveAddress("Nexus", chain)
+    const visorFinanceAddress = resolveAddress("VisorRouter", chain)
+
+    const visorFinanceForwarder = await deployContract<BasicRewardsForwarder>(
+        new BasicRewardsForwarder__factory(signer),
+        "Visor Finance BasicRewardsForwarder",
+        [nexusAddress, MTA.address],
+    )
+    await visorFinanceForwarder.initialize(emissionsControllerAddress, visorFinanceAddress)
+
+    return visorFinanceForwarder
+}
+
+export const deployL2EmissionsController = async (signer: Signer, hre: HardhatRuntimeEnvironment): Promise<L2EmissionsController> => {
     const chain = getChain(hre)
 
     const nexusAddress = resolveAddress("Nexus", chain)
@@ -132,11 +153,9 @@ export const deployL2EmissionsController = async (signer: Signer, hre: any): Pro
 
 export const deployL2BridgeRecipients = async (
     signer: Signer,
-    hre: any,
+    hre: HardhatRuntimeEnvironment,
     l2EmissionsControllerAddress: string,
 ): Promise<L2BridgeRecipient[]> => {
-    const chain = getChain(hre)
-
     const mtaAddress = MTA.address
     const constructorArguments = [mtaAddress, l2EmissionsControllerAddress]
 
@@ -169,7 +188,7 @@ export const deployL2BridgeRecipients = async (
 
 export const deployBridgeForwarder = async (
     signer: Signer,
-    hre: any,
+    hre: HardhatRuntimeEnvironment,
     bridgeRecipientAddress: string,
     _emissionsControllerAddress?: string,
 ): Promise<BridgeForwarder> => {
@@ -214,13 +233,17 @@ export const deployBridgeForwarder = async (
     return bridgeForwarder
 }
 
-export const deployRevenueBuyBack = async (signer: Signer, hre: any): Promise<RevenueBuyBack> => {
+export const deployRevenueBuyBack = async (
+    signer: Signer,
+    hre: HardhatRuntimeEnvironment,
+    _emissionsControllerAddress?: string,
+): Promise<RevenueBuyBack> => {
     const chain = getChain(hre)
 
     const nexusAddress = resolveAddress("Nexus", chain)
     const mtaAddress = MTA.address
     const uniswapRouterAddress = resolveAddress("UniswapRouterV3", chain)
-    const emissionsControllerAddress = resolveAddress("RewardsDistributor", chain)
+    const emissionsControllerAddress = _emissionsControllerAddress || resolveAddress("RewardsDistributor", chain)
     const devOpsAddress = resolveAddress("OperationsSigner", chain)
 
     // Deploy RevenueBuyBack

@@ -220,10 +220,14 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
      * eg USDC/mUSD and wBTC/mBTC exchange rates.
      * USDC has 6 decimal places so `minMasset2BassetPrice` with no slippage is 1e6.
      * If a 2% slippage is allowed, the `minMasset2BassetPrice` is 98e4.
+     * WBTC has 8 decimal places so `minMasset2BassetPrice` with no slippage is 1e8.
+     * If a 5% slippage is allowed, the `minMasset2BassetPrice` is 95e6.
      * @param _minBasset2RewardsPrice Minimum price of rewards token compared to bAssets scaled to 1e18 (CONFIG_SCALE).
-     * eg MTA/USDC and MTA/wBTC exchange rates.
-     * 0.80 MTA/USDC min price = 8e17
-     * 50,000 MTA/wBTC min price = 50e21
+     * eg USDC/MTA and wBTC/MTA exchange rates scaled to 1e18.
+     * USDC only has 6 decimal places
+     * 2 MTA/USDC = 0.5 USDC/MTA * (1e18 / 1e6) * 1e18 = 0.5e30 = 5e29
+     * wBTC only has 8 decimal places
+     * 0.000033 MTA/wBTC = 30,000 WBTC/MTA * (1e18 / 1e8) * 1e18 = 3e4 * 1e28 = 3e32
      * @param _uniswapPath The Uniswap V3 bytes encoded path.
      */
     function setMassetConfig(
@@ -272,7 +276,10 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
             require(stakingDialIds[i] != _stakingDialId, "Staking dial id already exists");
         }
         // Make sure the dial id of the staking contract is valid
-        require(EMISSIONS_CONTROLLER.getDialRecipient(_stakingDialId) != address(0), "Missing staking dial");
+        require(
+            EMISSIONS_CONTROLLER.getDialRecipient(_stakingDialId) != address(0),
+            "Missing staking dial"
+        );
 
         stakingDialIds.push(_stakingDialId);
 

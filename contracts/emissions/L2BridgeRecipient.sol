@@ -24,8 +24,8 @@ contract L2BridgeRecipient {
      * @param _l2EmissionsController Polygon contract that will distribute bridged rewards on the Polygon chain.
      */
     constructor(address _rewardsToken, address _l2EmissionsController) {
-         require(_rewardsToken != address(0), "Invalid Rewards token");
-         require(_l2EmissionsController != address(0), "Invalid Emissions Controller");
+        require(_rewardsToken != address(0), "Invalid Rewards token");
+        require(_l2EmissionsController != address(0), "Invalid Emissions Controller");
 
         REWARDS_TOKEN = IERC20(_rewardsToken);
         L2_EMISSIONS_CONTROLLER = _l2EmissionsController;

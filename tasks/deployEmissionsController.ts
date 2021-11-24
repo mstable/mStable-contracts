@@ -59,7 +59,8 @@ task("deploy-revenue-buy-back")
 
         const revenueRecipient = await deployRevenueBuyBack(signer, hre)
 
-        console.log(`Set RevenueRecipient to ${revenueRecipient.address}`)
+        console.log(`Governor call SavingsManager.setRevenueRecipient to ${revenueRecipient.address} for mUSD and mBTC`)
+        console.log(`Governor call setMassetConfig for mUSD and mBTC`)
     })
 
 task("deploy-mock-root-chain-manager", "Deploys a mocked Polygon PoS Bridge")
