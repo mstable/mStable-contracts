@@ -48,6 +48,7 @@ contract BasicRewardsForwarder is
      */
     function initialize(address _emissionsController, address _endRecipient) external initializer {
         InitializableRewardsDistributionRecipient._initialize(_emissionsController);
+        require(_endRecipient != address(0), "Recipient address is zero");
 
         endRecipient = _endRecipient;
     }

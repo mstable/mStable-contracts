@@ -12,22 +12,22 @@ A dial recipient can be any contract that can either receive MTA tokens or can b
 
 Types of dial recipients include
 
-* MTA staking contracts like MTA Staking Token and mBPT Staking Token
-* mStable vaults that stake interest-earning mAssets like imUSD and imBTC
-* mStable vaults that stake feeder pool liquidity provider tokens like fPmUSD/GUSD, fPmUSD/alUSD and fPmBTC/HBTC
-* Third-party contracts like Visor Finance
-* Polygon
-  - mStable 's imUSD Vault on Polygon
-  - FRAX’s farming contract for staked fPmUSD/FRAX tokens
-  - An account that disperses MTA to an off-chain generated list of Balancer MTA/WMATIC/WETH Pool liquidity providers.
+-   MTA staking contracts like MTA Staking Token and mBPT Staking Token
+-   mStable vaults that stake interest-earning mAssets like imUSD and imBTC
+-   mStable vaults that stake feeder pool liquidity provider tokens like fPmUSD/GUSD, fPmUSD/alUSD and fPmBTC/HBTC
+-   Third-party contracts like Visor Finance
+-   Polygon
+    -   mStable 's imUSD Vault on Polygon
+    -   FRAX’s farming contract for staked fPmUSD/FRAX tokens
+    -   An account that disperses MTA to an off-chain generated list of Balancer MTA/WMATIC/WETH Pool liquidity providers.
 
 Dials recipients can do anything with their received MTA rewards. Some possibilities are:
 
-* mStable Vault for liquidity provider tokens. eg Curve or Balancer
-* A multisig wallet that allows signers to distribute at their discretion
-* An Olympus DAO bond that purchases liquidity for the protocol at a discounted MTA price.
-* A contract that sends the MTA rewards back to the emissions controller
-* A contract that burns MTA rewards so they are removed from the total supply
+-   mStable Vault for liquidity provider tokens. eg Curve or Balancer
+-   A multisig wallet that allows signers to distribute at their discretion
+-   An Olympus DAO bond that purchases liquidity for the protocol at a discounted MTA price.
+-   A contract that sends the MTA rewards back to the emissions controller
+-   A contract that burns MTA rewards so they are removed from the total supply
 
 ### Emissions Schedule
 
@@ -83,15 +83,16 @@ Voting can not be done on Polygon. All voting of dials is done on Ethereum mainn
 The weekly distribution of the MTA rewards will be done in two transactions
 
 1. The amount of MTA rewards for each dial is calculated
-  - calculate the amount of MTA rewards to be distributed for the week.
-  - calculate the total weight votes across all dials that have not been disabled.
-  - calculate the MTA rewards for each dial that has not been disabled
+
+-   calculate the amount of MTA rewards to be distributed for the week.
+-   calculate the total weight votes across all dials that have not been disabled.
+-   calculate the MTA rewards for each dial that has not been disabled
 
 2. Transfer MTA rewards to specified dials and optionally notify
-This can be broken down into a smaller number of transactions depending on gas usage.
+   This can be broken down into a smaller number of transactions depending on gas usage.
 
-  - Transfers the previously calculated MTA rewards plus any donated MTA to the specified dial recipient contracts.
-  - If the dial is configured for notifications, the dial is notified of the distributed MTA amount so it can process the received MTA.
+-   Transfers the previously calculated MTA rewards plus any donated MTA to the specified dial recipient contracts.
+-   If the dial is configured for notifications, the dial is notified of the distributed MTA amount so it can process the received MTA.
 
 The weekly distributions can be run after Thursday, 00:00am UTC time.
 
@@ -101,17 +102,17 @@ It’s possible the MTA rewards can be calculated but not transferred. Each new 
 
 ### Main Emissions Controller contract
 
-* [EmissionsController](./EmissionsController.sol)
-* [BasicRewardsForwarder](./BasicRewardsForwarder.sol)
-* [RevenueBuyBack](../buy-and-make/RevenueBuyBack.sol)
+-   [EmissionsController](./EmissionsController.sol)
+-   [BasicRewardsForwarder](./BasicRewardsForwarder.sol)
+-   [RevenueBuyBack](../buy-and-make/RevenueBuyBack.sol)
 
 ![Emissions Controller Contracts](../../docs/emissions/EmissionsController.png)
 
 ### Polygon Integration Contracts
 
-* [L2EmissionsController](./L2BridgeRecipient.sol)
-* [L2BridgeRecipient](./L2BridgeRecipient.sol)
-* [BridgeForwarder](./BridgeForwarder.sol)
+-   [L2EmissionsController](./L2BridgeRecipient.sol)
+-   [L2BridgeRecipient](./L2BridgeRecipient.sol)
+-   [BridgeForwarder](./BridgeForwarder.sol)
 
 ![Emissions Controller Polygon Integration Contracts](../../docs/emissions/EmissionsControllerPolygon.png)
 
@@ -150,9 +151,10 @@ The Bridge Forwarder contracts will receive MTA rewards from the Emissions Contr
 `depositFor(userAddress, rootToken, abiEncodedAmount)`
 
 For sending to the Polygon imUSD Vault:
-* `userAddress` will be the L2 imUSD Recipient address
-* `rootToken` is the Mainnet MTA address
-* `abiEncodedAmount` is bytes of the ABI encoded amount of MTA rewards.
+
+-   `userAddress` will be the L2 imUSD Recipient address
+-   `rootToken` is the Mainnet MTA address
+-   `abiEncodedAmount` is bytes of the ABI encoded amount of MTA rewards.
 
 **PoS Bridge** - is Polygon's of-chain process that listens for `StateSync` events from the RootChildManager and relays them to the Child Chain Manager on Polygon by calling the `onStateReceived` function. Note the call to `onStateReceived` is a system transaction so is not visible in a blockchain explorer.
 
