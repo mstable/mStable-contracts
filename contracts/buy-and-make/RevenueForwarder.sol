@@ -18,19 +18,24 @@ contract RevenueForwarder is IRevenueRecipient, ImmutableModule {
 
     event RevenueReceived(address indexed mAsset, uint256 amountIn);
     event Withdrawn(uint256 amountOut);
+    event SetForwarder(address newForwarder);
 
-    IERC20 public immutable musd;
+    IERC20 public immutable mAsset;
 
     address public immutable keeper;
     address public forwarder;
 
     constructor(
         address _nexus,
-        address _musd,
+        address _mAsset,
         address _keeper,
         address _forwarder
     ) ImmutableModule(_nexus) {
-        musd = IERC20(_musd);
+        require(_mAsset != address(0), "mAsset is zero");
+        require(_keeper != address(0), "Keeper is zero");
+        require(_forwarder != address(0), "Forwarder is zero");
+
+        mAsset = IERC20(_mAsset);
         keeper = _keeper;
         forwarder = _forwarder;
     }
@@ -46,7 +51,7 @@ contract RevenueForwarder is IRevenueRecipient, ImmutableModule {
      * @param _amount Units of mAsset collected
      */
     function notifyRedistributionAmount(address _mAsset, uint256 _amount) external override {
-        require(_mAsset == address(musd), "This Recipient is only for mUSD");
+        require(_mAsset == address(mAsset), "Recipient is not mAsset");
         // Transfer from sender to here
         IERC20(_mAsset).safeTransferFrom(msg.sender, address(this), _amount);
 
@@ -57,8 +62,12 @@ contract RevenueForwarder is IRevenueRecipient, ImmutableModule {
      * @dev Withdraws to forwarder
      */
     function forward() external keeperOrGovernor {
-        uint256 amt = musd.balanceOf(address(this));
-        musd.safeTransfer(forwarder, amt);
+        uint256 amt = mAsset.balanceOf(address(this));
+        if (amt == 0) {
+            return;
+        }
+
+        mAsset.safeTransfer(forwarder, amt);
 
         emit Withdrawn(amt);
     }
@@ -70,6 +79,8 @@ contract RevenueForwarder is IRevenueRecipient, ImmutableModule {
     function setConfig(address _forwarder) external onlyGovernor {
         require(_forwarder != address(0), "Invalid forwarder");
         forwarder = _forwarder;
+
+        emit SetForwarder(_forwarder);
     }
 
     /**
