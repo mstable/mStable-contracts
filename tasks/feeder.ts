@@ -391,8 +391,8 @@ task("feeder-collect-interest", "Collects and interest from feeder pools")
         const lastBatchDate = new Date(lastBatchCollected.mul(1000).toNumber())
         console.log(`The last interest collection was ${lastBatchDate.toUTCString()}, epoch ${lastBatchCollected} seconds`)
 
-        const currentEpoc = new Date().getTime() / 1000
-        if (currentEpoc - lastBatchCollected.toNumber() < 60 * 60 * 12) {
+        const currentEpoch = new Date().getTime() / 1000
+        if (currentEpoch - lastBatchCollected.toNumber() < 60 * 60 * 12) {
             console.error(`Can not run again as the last run was less then 12 hours ago`)
             process.exit(3)
         }

@@ -35,12 +35,12 @@ const defaultConfig = {
 const calcWeeklyReward = (epochDelta: number): BN => {
     const { A, B, C, D, EPOCHS } = defaultConfig
     const inputScale = simpleToExactAmount(1, 3)
-    const calulationScale = 12
+    const calculationScale = 12
 
-    const x = BN.from(epochDelta).mul(simpleToExactAmount(1,calulationScale)).div(BN.from(EPOCHS))
-    const a = BN.from(A).mul(inputScale).mul(x.pow(3)).div(simpleToExactAmount(1, calulationScale * 3))
-    const b = BN.from(B).mul(inputScale).mul(x.pow(2)).div(simpleToExactAmount(1, calulationScale * 2))
-    const c = BN.from(C).mul(inputScale).mul(x).div(simpleToExactAmount(1, calulationScale))
+    const x = BN.from(epochDelta).mul(simpleToExactAmount(1,calculationScale)).div(BN.from(EPOCHS))
+    const a = BN.from(A).mul(inputScale).mul(x.pow(3)).div(simpleToExactAmount(1, calculationScale * 3))
+    const b = BN.from(B).mul(inputScale).mul(x.pow(2)).div(simpleToExactAmount(1, calculationScale * 2))
+    const c = BN.from(C).mul(inputScale).mul(x).div(simpleToExactAmount(1, calculationScale))
     const d = BN.from(D).mul(inputScale)
     return a.add(b).add(c).add(d).mul(simpleToExactAmount(1, 6))
 }
@@ -61,11 +61,11 @@ const nextRewardAmount = async (emissionsController: EmissionsController, epoch 
  *
  * @param {EmissionsController} emissionsController
  * @param {number} startingEpoch - The starting epoch.
- * @param {number} deltaEpoc - The delta epoch.
+ * @param {number} deltaEpoch- The delta epoch.
  */
-const expectTopLineEmissionForEpoc = (emissionsController: EmissionsController, startingEpoch: number) => async (deltaEpoc: number) => {
-    const emissionForEpoch = await emissionsController.topLineEmission(startingEpoch + deltaEpoc)
-    const expectedEmissionAmount = await nextRewardAmount(emissionsController, deltaEpoc)
+const expectTopLineEmissionForEpoch = (emissionsController: EmissionsController, startingEpoch: number) => async (deltaEpoch: number) => {
+    const emissionForEpoch = await emissionsController.topLineEmission(startingEpoch + deltaEpoch)
+    const expectedEmissionAmount = await nextRewardAmount(emissionsController, deltaEpoch)
     expect(emissionForEpoch).eq(expectedEmissionAmount)
 }
 
@@ -220,7 +220,7 @@ describe("EmissionsController", async () => {
                 it(test.desc, async () => {
                     const recipients = test.dialIndexes.map((i) => dials[i].address)
                     const tx = emissionsController.initialize(recipients, test.caps, test.notifies, test.stakingContracts)
-                    await expect(tx).to.revertedWith("Initialize args mistmatch")
+                    await expect(tx).to.revertedWith("Initialize args mismatch")
                 })
             }
             it("First staking contract is zero", async () => {
@@ -236,7 +236,7 @@ describe("EmissionsController", async () => {
         })
     })
     describe("calling view functions", () => {
-        // TODO - `getVotes` and `topLineEmission`
+                // TODO - `getVotes`
 
         describe("fetch weekly emissions", () => {
             let startingEpoch
@@ -244,7 +244,7 @@ describe("EmissionsController", async () => {
             before(async () => {
                 await deployEmissionsController()
                 ;[startingEpoch] = await emissionsController.epochs()
-                expectTopLineEmissions= expectTopLineEmissionForEpoc(emissionsController, startingEpoch);
+                expectTopLineEmissions= expectTopLineEmissionForEpoch(emissionsController, startingEpoch);
             })
             it("fails fetching an smaller epoch than deployed time", async () => {
                 const tx = emissionsController.topLineEmission(startingEpoch - 1)
@@ -529,7 +529,7 @@ describe("EmissionsController", async () => {
     // TODO - add tests for:
     //        - new epoch, update balances, then calculate (should read most recent)
     //        - updating voteHistory during calculate
-    //        - reading votehistory of NEW dials, and of OLD dials
+    //        - reading voteHistory of NEW dials, and of OLD dials
     //        - dials that go enabled -> disabled and vice versa
     //        - capped dials and vote redistribution
     //          - cap not met (< maxVotes)

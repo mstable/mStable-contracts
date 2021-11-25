@@ -44,8 +44,8 @@ task("collect-interest", "Collects and streams interest from platforms")
         const lastBatchDate = new Date(lastBatchCollected.mul(1000).toNumber())
         console.log(`The last interest collection was ${lastBatchDate.toUTCString()}, epoch ${lastBatchCollected} seconds`)
 
-        const currentEpoc = new Date().getTime() / 1000
-        if (currentEpoc - lastBatchCollected.toNumber() < 60 * 60 * 6) {
+        const currentEpoch= new Date().getTime() / 1000
+        if (currentEpoch- lastBatchCollected.toNumber() < 60 * 60 * 6) {
             console.error(`Can not run again as the last run was less then 6 hours ago`)
             process.exit(3)
         }
