@@ -79,13 +79,14 @@ interface ISavingsContractV3 {
     // --------------------------------------------
 
     function redeemAndUnwrap(
-        uint256 _underlying,
+        uint256 _amount,
+        bool _isCreditAmt,
         uint256 _minAmountOut,
         address _output,
         address _beneficiary,
         address _router,
         bool _isBassetOut
-    ) external returns (uint256 creditsBurned);
+    ) external returns (uint256 creditsBurned, uint256 massetReturned);
 
     function depositSavings(
         uint256 _underlying,

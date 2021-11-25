@@ -276,6 +276,7 @@ contract BoostedVault is
         // Unwrap `stakingToken` into `output` and send to `beneficiary`
         ISavingsContractV3(address(stakingToken)).redeemAndUnwrap(
             _amount,
+            true,
             _minAmountOut,
             _output,
             _beneficiary,
