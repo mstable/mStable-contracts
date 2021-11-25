@@ -20,28 +20,53 @@ import {
 import { currentWeekEpoch, increaseTime, getTimestamp, increaseTimeTo, startWeek } from "@utils/time"
 
 const defaultConfig = {
-    A: -166000,
-    B: 180000,
-    C: -180000,
-    D: 166000,
+    A: -166000000000000,
+    B:  168479942061125,
+    C: -168479942061125,
+    D:  166000000000000,
     EPOCHS: 312,
 }
-
+/**
+ * Mocks EmissionsController.topLineEmission function.
+ *
+ * @param {number} epochDelta - The number of epochs to move forward.
+ * @return {emissionForEpoch}  {BN} - The amount of emission for the given epoch, with 18 decimal numbers ex. 165461e18.
+ */
 const calcWeeklyReward = (epochDelta: number): BN => {
     const { A, B, C, D, EPOCHS } = defaultConfig
-    const x = BN.from(epochDelta)
-        .mul(simpleToExactAmount(1))
-        .div(BN.from(EPOCHS).mul(simpleToExactAmount(1, 6)))
-    const a = BN.from(A).mul(x.pow(3)).div(simpleToExactAmount(1, 24))
-    const b = BN.from(B).mul(x.pow(2)).div(simpleToExactAmount(1, 12))
-    const c = BN.from(C).mul(x)
-    const d = BN.from(D).mul(simpleToExactAmount(1, 12))
+    const inputScale = simpleToExactAmount(1, 3)
+    const calulationScale = 12
+
+    const x = BN.from(epochDelta).mul(simpleToExactAmount(1,calulationScale)).div(BN.from(EPOCHS))
+    const a = BN.from(A).mul(inputScale).mul(x.pow(3)).div(simpleToExactAmount(1, calulationScale * 3))
+    const b = BN.from(B).mul(inputScale).mul(x.pow(2)).div(simpleToExactAmount(1, calulationScale * 2))
+    const c = BN.from(C).mul(inputScale).mul(x).div(simpleToExactAmount(1, calulationScale))
+    const d = BN.from(D).mul(inputScale)
     return a.add(b).add(c).add(d).mul(simpleToExactAmount(1, 6))
 }
-
-const nextRewardAmount = async (emissionsController: EmissionsController): Promise<BN> => {
+/**
+ * Calculates the amount of emission for the given epoch,
+ * it retrieves the lastEpoch from the instance of EmissionsController.
+ *
+ * @param {EmissionsController} emissionsController
+ * @param {number} [epoch=1]
+ * @return {emissionForEpoch}  {BN} - The amount of emission for the given epoch.
+ */
+const nextRewardAmount = async (emissionsController: EmissionsController, epoch = 1): Promise<BN> => {
     const [startEpoch, lastEpoch] = await emissionsController.epochs()
-    return calcWeeklyReward(lastEpoch - startEpoch + 1)
+    return calcWeeklyReward(lastEpoch - startEpoch + epoch)
+}
+/**
+ * Expectations for the EmissionsController.topLineEmission function.
+ *
+ * @param {EmissionsController} emissionsController
+ * @param {number} startingEpoch - The starting epoch.
+ * @param {number} deltaEpoc - The delta epoch.
+ */
+const expectTopLineEmissionForEpoc = (emissionsController: EmissionsController, startingEpoch: number) => async (deltaEpoc: number) => {
+    const emissionForEpoch = await emissionsController.topLineEmission(startingEpoch + deltaEpoc)
+    const expectedEmissionAmount = await nextRewardAmount(emissionsController, deltaEpoc)
+    expect(emissionForEpoch).eq(expectedEmissionAmount)
 }
 
 describe("EmissionsController", async () => {
@@ -215,13 +240,50 @@ describe("EmissionsController", async () => {
 
         describe("fetch weekly emissions", () => {
             let startingEpoch
+            let expectTopLineEmissions
             before(async () => {
                 await deployEmissionsController()
                 ;[startingEpoch] = await emissionsController.epochs()
+                expectTopLineEmissions= expectTopLineEmissionForEpoc(emissionsController, startingEpoch);
             })
+            it("fails fetching an smaller epoch than deployed time", async () => {
+                const tx = emissionsController.topLineEmission(startingEpoch - 1)
+                await expect(tx).to.revertedWith("Wrong epoch number")
+            })
+            it("fails fetching same epoch as deployed time", async () => {
+                const tx = emissionsController.topLineEmission(startingEpoch)
+                await expect(tx).to.revertedWith("Wrong epoch number")
+            })
+
             it("fetches week 1", async () => {
-                expect(await emissionsController.topLineEmission(startingEpoch + 1)).eq(await nextRewardAmount(emissionsController))
+                // ~= 165,461,725,488,656,000
+                expectTopLineEmissions(1)
             })
+            it("fetches week 8 - Two months", async () => {
+                // ~= 161,787,972,249,455,000
+                expectTopLineEmissions(8)
+            })
+            it("fetches week 100 - one year eleven months", async () => {
+                // ~= 123,842,023,609,600,000
+                expectTopLineEmissions(100)
+            })
+            it("fetches week 311 - six years, pre-last epoch", async () => {
+                // ~= 1,052,774,388,460,220
+                expectTopLineEmissions(311)
+            })   
+            it("fetches week 312 - six years, last epoch", async () => {
+                // = 0
+                expectTopLineEmissions(312)
+            })   
+            it("fails fetching week 313 - six years + one week", async () => {
+                const tx = emissionsController.topLineEmission(startingEpoch+313)
+                await expect(tx).to.revertedWith("Wrong epoch number")
+
+            })     
+            it("fails fetching week 5200 - Ten years", async () => {
+                const tx = emissionsController.topLineEmission(startingEpoch+5200)
+                await expect(tx).to.revertedWith("Wrong epoch number")
+            })  
         })
     })
     describe("using admin functions", () => {
