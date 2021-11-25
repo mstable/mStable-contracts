@@ -110,7 +110,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     mapping(address => VoterPreferences) public voterPreferences;
 
     event AddedDial(uint256 indexed id, address indexed recipient);
-    event UpdatedDial(uint256 indexed id, bool diabled);
+    event UpdatedDial(uint256 indexed id, bool disabled);
     event AddStakingContract(address indexed stakingContract);
 
     event PeriodRewards(uint256[] amounts);
@@ -160,7 +160,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         address[] memory _stakingContracts
     ) external initializer {
         uint256 len = _recipients.length;
-        require(_notifies.length == len && _caps.length == len, "Initialize args mistmatch");
+        require(_notifies.length == len && _caps.length == len, "Initialize args mismatch");
 
         // 1.0 - Add each of the dials
         for (uint256 i = 0; i < len; i++) {
