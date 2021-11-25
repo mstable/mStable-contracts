@@ -175,7 +175,7 @@ context("Unwrapper", () => {
         expect(output.toString()).to.be.length(19)
     })
 
-    it("mUSD Save redeem to bAsset via unwrapAndSend", async () => {
+    it("imUSD redeem to bAsset via unwrapAndSend", async () => {
         const config = {
             router: musdAddress,
             input: musdAddress,
@@ -185,7 +185,7 @@ context("Unwrapper", () => {
         await validateAssetRedemption(config, musdHolder)
     })
 
-    it("mUSD Save redeem to fAsset via unwrapAndSend", async () => {
+    it("imUSD redeem to fAsset via unwrapAndSend", async () => {
         const config = {
             router: alusdFeederPool,
             input: musdAddress,
@@ -195,7 +195,7 @@ context("Unwrapper", () => {
         await validateAssetRedemption(config, musdHolder)
     })
 
-    it("Upgrades the mUSD Save contract", async () => {
+    it("Upgrades the imUSD contract", async () => {
         const musdSaveImpl = await deployContract<SavingsContract>(
             new SavingsContract__factory(deployer),
             "mStable: mUSD Savings Contract",
@@ -221,7 +221,7 @@ context("Unwrapper", () => {
         expect(unwrapperAddress).to.eq(unwrapper.address)
     })
 
-    it("mUSD Save contract works after upgraded", async () => {
+    it("imUSD contract works after upgraded", async () => {
         const imusdHolder = await impersonate(imusdHolderAddress)
 
         const config = {
@@ -249,7 +249,7 @@ context("Unwrapper", () => {
         expect(daiBalanceAfter, "Token balance has increased").to.be.gt(daiBalanceBefore.add(minAmountOut))
     })
 
-    it("Upgrades the mUSD Save Vault", async () => {
+    it("Upgrades the imUSD Vault", async () => {
         const saveVaultImpl = await deployContract<BoostedSavingsVaultLegacyUSD>(
             new BoostedSavingsVaultLegacyUSD__factory(deployer),
             "mStable: mUSD Savings Vault",
@@ -300,17 +300,17 @@ context("Unwrapper", () => {
         expect(tokenBalanceAfter, "Token balance has increased").to.be.gt(tokenBalanceBefore)
     }
 
-    it("mUSD Save Vault redeem to bAsset", async () => {
+    it("imUSD Vault redeem to bAsset", async () => {
         const vmusdHolderAddress = "0x0c2ef8a1b3bc00bf676053732f31a67ebba5bd81"
         await withdrawAndUnwrap(vmusdHolderAddress, musdAddress, "musd", daiAddress)
     })
 
-    it("mUSD Save Vault redeem to fAsset", async () => {
+    it("imUSD Vault redeem to fAsset", async () => {
         const vmusdHolderAddress = "0x0c2ef8a1b3bc00bf676053732f31a67ebba5bd81"
         await withdrawAndUnwrap(vmusdHolderAddress, alusdFeederPool, "musd", alusdAddress)
     })
 
-    it("Upgrades the mBTC save contract", async () => {
+    it("Upgrades the imBTC contract", async () => {
         const mbtcSaveImpl = await deployContract<SavingsContract>(
             new SavingsContract__factory(deployer),
             "mStable: mBTC Savings Contract",
@@ -336,7 +336,7 @@ context("Unwrapper", () => {
         expect(unwrapperAddress).to.eq(unwrapper.address)
     })
 
-    it("mBTC Save contract works after upgraded", async () => {
+    it("imBTC contract works after upgraded", async () => {
         const imbtcHolderAddress = "0xd2270cdc82675a3c0ad8cbee1e9c26c85b46456c"
         const imbtcHolder = await impersonate(imbtcHolderAddress)
 
@@ -365,7 +365,7 @@ context("Unwrapper", () => {
         expect(wbtcBalanceAfter, "Token balance has increased").to.be.gt(wbtcBalanceBefore.add(minAmountOut))
     })
 
-    it("Upgrades the mBTC Save Vault", async () => {
+    it("Upgrades the imBTC Vault", async () => {
         const boostDirector = "0xba05fd2f20ae15b0d3f20ddc6870feca6acd3592"
         const priceCoeff = simpleToExactAmount(4800, 18)
         const boostCoeff = 9
@@ -389,12 +389,12 @@ context("Unwrapper", () => {
         expect(await delayedProxyAdmin.getProxyImplementation(imbtcVaultAddress)).eq(saveVaultImpl.address)
     })
 
-    it("mBTC Save Vault redeem to bAsset", async () => {
+    it("imBTC Vault redeem to bAsset", async () => {
         const vmbtcHolderAddress = "0x10d96b1fd46ce7ce092aa905274b8ed9d4585a6e"
         await withdrawAndUnwrap(vmbtcHolderAddress, mbtcAddress, "mbtc", wbtcAddress)
     })
 
-    it("mBTC Save Vault redeem to fAsset", async () => {
+    it("imBTC Vault redeem to fAsset", async () => {
         const vhbtcmbtcHolderAddress = "0x10d96b1fd46ce7ce092aa905274b8ed9d4585a6e"
         await withdrawAndUnwrap(vhbtcmbtcHolderAddress, hbtcFeederPool, "mbtc", hbtcAddress)
     })
