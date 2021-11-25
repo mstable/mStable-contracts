@@ -23,8 +23,8 @@ import { YieldValidator } from "../shared/YieldValidator.sol";
  * @notice  Savings contract uses the ever increasing "exchangeRate" to increase
  *          the value of the Savers "credits" (ERC20) relative to the amount of additional
  *          underlying collateral that has been deposited into this contract ("interest")
- * @dev     VERSION: 2.0
- *          DATE:    2020-12-15
+ * @dev     VERSION: 2.1
+ *          DATE:    2021-11-25
  */
 contract SavingsContract is ISavingsContractV3, Initializable, InitializableToken, ImmutableModule {
     using StableMath for uint256;

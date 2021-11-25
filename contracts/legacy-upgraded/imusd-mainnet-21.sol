@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity 0.5.16;
 
 interface IUnwrapper {
     function unwrapAndSend(
@@ -25,9 +24,18 @@ interface ISavingsManager {
 
     /** @dev Public privs */
     function collectAndDistributeInterest(address _mAsset) external;
+}
 
-    /** @dev getter for public lastBatchCollected mapping */
-    function lastBatchCollected(address _mAsset) external view returns (uint256);
+interface ISavingsContractV1 {
+    function depositInterest(uint256 _amount) external;
+
+    function depositSavings(uint256 _amount) external returns (uint256 creditsIssued);
+
+    function redeem(uint256 _amount) external returns (uint256 massetReturned);
+
+    function exchangeRate() external view returns (uint256);
+
+    function creditBalances(address) external view returns (uint256);
 }
 
 interface ISavingsContractV3 {
@@ -87,14 +95,15 @@ interface ISavingsContractV3 {
  *
  * This contract is only required for intermediate, library-like contracts.
  */
-abstract contract Context {
+contract Context {
     // Empty internal constructor, to prevent people from mistakenly deploying
     // an instance of this contract, which should be used via inheritance.
-    // constructor () internal { }
+    constructor() internal {}
+
     // solhint-disable-previous-line no-empty-blocks
 
     function _msgSender() internal view returns (address payable) {
-        return payable(msg.sender);
+        return msg.sender;
     }
 
     function _msgData() internal view returns (bytes memory) {
@@ -103,6 +112,10 @@ abstract contract Context {
     }
 }
 
+/**
+ * @dev Interface of the ERC20 standard as defined in the EIP. Does not include
+ * the optional functions; to access them see {ERC20Detailed}.
+ */
 interface IERC20 {
     /**
      * @dev Returns the amount of tokens in existence.
@@ -178,7 +191,176 @@ interface IERC20 {
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
-contract ERC205 is Context, IERC20 {
+/**
+ * @dev Wrappers over Solidity's arithmetic operations with added overflow
+ * checks.
+ *
+ * Arithmetic operations in Solidity wrap on overflow. This can easily result
+ * in bugs, because programmers usually assume that an overflow raises an
+ * error, which is the standard behavior in high level programming languages.
+ * `SafeMath` restores this intuition by reverting the transaction when an
+ * operation overflows.
+ *
+ * Using this library instead of the unchecked operations eliminates an entire
+ * class of bugs, so it's recommended to use it always.
+ */
+library SafeMath {
+    /**
+     * @dev Returns the addition of two unsigned integers, reverting on
+     * overflow.
+     *
+     * Counterpart to Solidity's `+` operator.
+     *
+     * Requirements:
+     * - Addition cannot overflow.
+     */
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        uint256 c = a + b;
+        require(c >= a, "SafeMath: addition overflow");
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the subtraction of two unsigned integers, reverting on
+     * overflow (when the result is negative).
+     *
+     * Counterpart to Solidity's `-` operator.
+     *
+     * Requirements:
+     * - Subtraction cannot overflow.
+     */
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+        return sub(a, b, "SafeMath: subtraction overflow");
+    }
+
+    /**
+     * @dev Returns the subtraction of two unsigned integers, reverting with custom message on
+     * overflow (when the result is negative).
+     *
+     * Counterpart to Solidity's `-` operator.
+     *
+     * Requirements:
+     * - Subtraction cannot overflow.
+     *
+     * _Available since v2.4.0._
+     */
+    function sub(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
+        require(b <= a, errorMessage);
+        uint256 c = a - b;
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the multiplication of two unsigned integers, reverting on
+     * overflow.
+     *
+     * Counterpart to Solidity's `*` operator.
+     *
+     * Requirements:
+     * - Multiplication cannot overflow.
+     */
+    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
+        // benefit is lost if 'b' is also tested.
+        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
+        if (a == 0) {
+            return 0;
+        }
+
+        uint256 c = a * b;
+        require(c / a == b, "SafeMath: multiplication overflow");
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the integer division of two unsigned integers. Reverts on
+     * division by zero. The result is rounded towards zero.
+     *
+     * Counterpart to Solidity's `/` operator. Note: this function uses a
+     * `revert` opcode (which leaves remaining gas untouched) while Solidity
+     * uses an invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     */
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+        return div(a, b, "SafeMath: division by zero");
+    }
+
+    /**
+     * @dev Returns the integer division of two unsigned integers. Reverts with custom message on
+     * division by zero. The result is rounded towards zero.
+     *
+     * Counterpart to Solidity's `/` operator. Note: this function uses a
+     * `revert` opcode (which leaves remaining gas untouched) while Solidity
+     * uses an invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     *
+     * _Available since v2.4.0._
+     */
+    function div(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
+        // Solidity only automatically asserts when dividing by 0
+        require(b > 0, errorMessage);
+        uint256 c = a / b;
+        // assert(a == b * c + a % b); // There is no case in which this doesn't hold
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
+     * Reverts when dividing by zero.
+     *
+     * Counterpart to Solidity's `%` operator. This function uses a `revert`
+     * opcode (which leaves remaining gas untouched) while Solidity uses an
+     * invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     */
+    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+        return mod(a, b, "SafeMath: modulo by zero");
+    }
+
+    /**
+     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
+     * Reverts with custom message when dividing by zero.
+     *
+     * Counterpart to Solidity's `%` operator. This function uses a `revert`
+     * opcode (which leaves remaining gas untouched) while Solidity uses an
+     * invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     *
+     * _Available since v2.4.0._
+     */
+    function mod(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
+        require(b != 0, errorMessage);
+        return a % b;
+    }
+}
+
+contract ERC20 is Context, IERC20 {
+    using SafeMath for uint256;
+
     mapping(address => uint256) private _balances;
 
     mapping(address => mapping(address => uint256)) private _allowances;
@@ -188,14 +370,14 @@ contract ERC205 is Context, IERC20 {
     /**
      * @dev See {IERC20-totalSupply}.
      */
-    function totalSupply() public view virtual override returns (uint256) {
+    function totalSupply() public view returns (uint256) {
         return _totalSupply;
     }
 
     /**
      * @dev See {IERC20-balanceOf}.
      */
-    function balanceOf(address account) public view virtual override returns (uint256) {
+    function balanceOf(address account) public view returns (uint256) {
         return _balances[account];
     }
 
@@ -207,7 +389,7 @@ contract ERC205 is Context, IERC20 {
      * - `recipient` cannot be the zero address.
      * - the caller must have a balance of at least `amount`.
      */
-    function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
+    function transfer(address recipient, uint256 amount) public returns (bool) {
         _transfer(_msgSender(), recipient, amount);
         return true;
     }
@@ -215,13 +397,7 @@ contract ERC205 is Context, IERC20 {
     /**
      * @dev See {IERC20-allowance}.
      */
-    function allowance(address owner, address spender)
-        public
-        view
-        virtual
-        override
-        returns (uint256)
-    {
+    function allowance(address owner, address spender) public view returns (uint256) {
         return _allowances[owner][spender];
     }
 
@@ -232,7 +408,7 @@ contract ERC205 is Context, IERC20 {
      *
      * - `spender` cannot be the zero address.
      */
-    function approve(address spender, uint256 amount) public virtual override returns (bool) {
+    function approve(address spender, uint256 amount) public returns (bool) {
         _approve(_msgSender(), spender, amount);
         return true;
     }
@@ -241,26 +417,28 @@ contract ERC205 is Context, IERC20 {
      * @dev See {IERC20-transferFrom}.
      *
      * Emits an {Approval} event indicating the updated allowance. This is not
-     * required by the EIP. See the note at the beginning of {ERC20}.
+     * required by the EIP. See the note at the beginning of {ERC20};
      *
      * Requirements:
-     *
      * - `sender` and `recipient` cannot be the zero address.
      * - `sender` must have a balance of at least `amount`.
-     * - the caller must have allowance for ``sender``'s tokens of at least
+     * - the caller must have allowance for `sender`'s tokens of at least
      * `amount`.
      */
     function transferFrom(
         address sender,
         address recipient,
         uint256 amount
-    ) public virtual override returns (bool) {
+    ) public returns (bool) {
         _transfer(sender, recipient, amount);
-
-        uint256 currentAllowance = _allowances[sender][_msgSender()];
-        require(currentAllowance >= amount, "ERC20: transfer amount exceeds allowance");
-        _approve(sender, _msgSender(), currentAllowance - amount);
-
+        _approve(
+            sender,
+            _msgSender(),
+            _allowances[sender][_msgSender()].sub(
+                amount,
+                "ERC20: transfer amount exceeds allowance"
+            )
+        );
         return true;
     }
 
@@ -276,8 +454,8 @@ contract ERC205 is Context, IERC20 {
      *
      * - `spender` cannot be the zero address.
      */
-    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
-        _approve(_msgSender(), spender, _allowances[_msgSender()][spender] + addedValue);
+    function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].add(addedValue));
         return true;
     }
 
@@ -295,15 +473,15 @@ contract ERC205 is Context, IERC20 {
      * - `spender` must have allowance for the caller of at least
      * `subtractedValue`.
      */
-    function decreaseAllowance(address spender, uint256 subtractedValue)
-        public
-        virtual
-        returns (bool)
-    {
-        uint256 currentAllowance = _allowances[_msgSender()][spender];
-        require(currentAllowance >= subtractedValue, "ERC20: decreased allowance below zero");
-        _approve(_msgSender(), spender, currentAllowance - subtractedValue);
-
+    function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
+        _approve(
+            _msgSender(),
+            spender,
+            _allowances[_msgSender()][spender].sub(
+                subtractedValue,
+                "ERC20: decreased allowance below zero"
+            )
+        );
         return true;
     }
 
@@ -325,15 +503,12 @@ contract ERC205 is Context, IERC20 {
         address sender,
         address recipient,
         uint256 amount
-    ) internal virtual {
+    ) internal {
         require(sender != address(0), "ERC20: transfer from the zero address");
         require(recipient != address(0), "ERC20: transfer to the zero address");
 
-        uint256 senderBalance = _balances[sender];
-        require(senderBalance >= amount, "ERC20: transfer amount exceeds balance");
-        _balances[sender] = senderBalance - amount;
-        _balances[recipient] += amount;
-
+        _balances[sender] = _balances[sender].sub(amount, "ERC20: transfer amount exceeds balance");
+        _balances[recipient] = _balances[recipient].add(amount);
         emit Transfer(sender, recipient, amount);
     }
 
@@ -342,15 +517,15 @@ contract ERC205 is Context, IERC20 {
      *
      * Emits a {Transfer} event with `from` set to the zero address.
      *
-     * Requirements:
+     * Requirements
      *
      * - `to` cannot be the zero address.
      */
-    function _mint(address account, uint256 amount) internal virtual {
+    function _mint(address account, uint256 amount) internal {
         require(account != address(0), "ERC20: mint to the zero address");
 
-        _totalSupply += amount;
-        _balances[account] += amount;
+        _totalSupply = _totalSupply.add(amount);
+        _balances[account] = _balances[account].add(amount);
         emit Transfer(address(0), account, amount);
     }
 
@@ -360,26 +535,23 @@ contract ERC205 is Context, IERC20 {
      *
      * Emits a {Transfer} event with `to` set to the zero address.
      *
-     * Requirements:
+     * Requirements
      *
      * - `account` cannot be the zero address.
      * - `account` must have at least `amount` tokens.
      */
-    function _burn(address account, uint256 amount) internal virtual {
+    function _burn(address account, uint256 amount) internal {
         require(account != address(0), "ERC20: burn from the zero address");
 
-        uint256 accountBalance = _balances[account];
-        require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
-        _balances[account] = accountBalance - amount;
-        _totalSupply -= amount;
-
+        _balances[account] = _balances[account].sub(amount, "ERC20: burn amount exceeds balance");
+        _totalSupply = _totalSupply.sub(amount);
         emit Transfer(account, address(0), amount);
     }
 
     /**
-     * @dev Sets `amount` as the allowance of `spender` over the `owner` s tokens.
+     * @dev Sets `amount` as the allowance of `spender` over the `owner`s tokens.
      *
-     * This internal function is equivalent to `approve`, and can be used to
+     * This is internal function is equivalent to `approve`, and can be used to
      * e.g. set automatic allowances for certain subsystems, etc.
      *
      * Emits an {Approval} event.
@@ -393,16 +565,31 @@ contract ERC205 is Context, IERC20 {
         address owner,
         address spender,
         uint256 amount
-    ) internal virtual {
+    ) internal {
         require(owner != address(0), "ERC20: approve from the zero address");
         require(spender != address(0), "ERC20: approve to the zero address");
 
         _allowances[owner][spender] = amount;
         emit Approval(owner, spender, amount);
     }
+
+    /**
+     * @dev Destroys `amount` tokens from `account`.`amount` is then deducted
+     * from the caller's allowance.
+     *
+     * See {_burn} and {_approve}.
+     */
+    function _burnFrom(address account, uint256 amount) internal {
+        _burn(account, amount);
+        _approve(
+            account,
+            _msgSender(),
+            _allowances[account][_msgSender()].sub(amount, "ERC20: burn amount exceeds allowance")
+        );
+    }
 }
 
-abstract contract InitializableERC20Detailed is IERC20 {
+contract InitializableERC20Detailed is IERC20 {
     string private _name;
     string private _symbol;
     uint8 private _decimals;
@@ -455,7 +642,7 @@ abstract contract InitializableERC20Detailed is IERC20 {
     }
 }
 
-abstract contract InitializableToken is ERC205, InitializableERC20Detailed {
+contract InitializableToken is ERC20, InitializableERC20Detailed {
     /**
      * @dev Initialization function for implementing contract
      * @notice To avoid variable shadowing appended `Arg` after arguments name.
@@ -498,9 +685,6 @@ contract ModuleKeys {
     // keccak256("Liquidator");
     bytes32 internal constant KEY_LIQUIDATOR =
         0x1e9cb14d7560734a61fa5ff9273953e971ff3cd9283c03d8346e3264617933d4;
-    // keccak256("InterestValidator");
-    bytes32 internal constant KEY_INTEREST_VALIDATOR =
-        0xc10a28f028c7f7282a03c90608e38a4a646e136e614e4b07d119280c5f7f839f;
 }
 
 interface INexus {
@@ -523,28 +707,15 @@ interface INexus {
     function lockModule(bytes32 _key) external;
 }
 
-abstract contract ImmutableModule is ModuleKeys {
-    INexus public immutable nexus;
-
-    /**
-     * @dev Initialization function for upgradable proxy contracts
-     * @param _nexus Nexus contract address
-     */
-    constructor(address _nexus) {
-        require(_nexus != address(0), "Nexus address is zero");
-        nexus = INexus(_nexus);
-    }
+contract InitializableModule2 is ModuleKeys {
+    INexus public constant nexus = INexus(0xAFcE80b19A8cE13DEc0739a1aaB7A028d6845Eb3);
 
     /**
      * @dev Modifier to allow function calls only from the Governor.
      */
     modifier onlyGovernor() {
-        _onlyGovernor();
-        _;
-    }
-
-    function _onlyGovernor() internal view {
         require(msg.sender == _governor(), "Only governor can execute");
+        _;
     }
 
     /**
@@ -556,6 +727,22 @@ abstract contract ImmutableModule is ModuleKeys {
             msg.sender == _governor() || msg.sender == _governance(),
             "Only governance can execute"
         );
+        _;
+    }
+
+    /**
+     * @dev Modifier to allow function calls only from the ProxyAdmin.
+     */
+    modifier onlyProxyAdmin() {
+        require(msg.sender == _proxyAdmin(), "Only ProxyAdmin can execute");
+        _;
+    }
+
+    /**
+     * @dev Modifier to allow function calls only from the Manager.
+     */
+    modifier onlyManager() {
+        require(msg.sender == _manager(), "Only manager can execute");
         _;
     }
 
@@ -576,6 +763,46 @@ abstract contract ImmutableModule is ModuleKeys {
     }
 
     /**
+     * @dev Return Staking Module address from the Nexus
+     * @return Address of the Staking Module contract
+     */
+    function _staking() internal view returns (address) {
+        return nexus.getModule(KEY_STAKING);
+    }
+
+    /**
+     * @dev Return ProxyAdmin Module address from the Nexus
+     * @return Address of the ProxyAdmin Module contract
+     */
+    function _proxyAdmin() internal view returns (address) {
+        return nexus.getModule(KEY_PROXY_ADMIN);
+    }
+
+    /**
+     * @dev Return MetaToken Module address from the Nexus
+     * @return Address of the MetaToken Module contract
+     */
+    function _metaToken() internal view returns (address) {
+        return nexus.getModule(KEY_META_TOKEN);
+    }
+
+    /**
+     * @dev Return OracleHub Module address from the Nexus
+     * @return Address of the OracleHub Module contract
+     */
+    function _oracleHub() internal view returns (address) {
+        return nexus.getModule(KEY_ORACLE_HUB);
+    }
+
+    /**
+     * @dev Return Manager Module address from the Nexus
+     * @return Address of the Manager Module contract
+     */
+    function _manager() internal view returns (address) {
+        return nexus.getModule(KEY_MANAGER);
+    }
+
+    /**
      * @dev Return SavingsManager Module address from the Nexus
      * @return Address of the SavingsManager Module contract
      */
@@ -589,22 +816,6 @@ abstract contract ImmutableModule is ModuleKeys {
      */
     function _recollateraliser() internal view returns (address) {
         return nexus.getModule(KEY_RECOLLATERALISER);
-    }
-
-    /**
-     * @dev Return Recollateraliser Module address from the Nexus
-     * @return  Address of the Recollateraliser Module contract (Phase 2)
-     */
-    function _liquidator() internal view returns (address) {
-        return nexus.getModule(KEY_LIQUIDATOR);
-    }
-
-    /**
-     * @dev Return ProxyAdmin Module address from the Nexus
-     * @return Address of the ProxyAdmin Module contract
-     */
-    function _proxyAdmin() internal view returns (address) {
-        return nexus.getModule(KEY_PROXY_ADMIN);
     }
 }
 
@@ -690,6 +901,8 @@ contract Initializable {
 }
 
 library StableMath {
+    using SafeMath for uint256;
+
     /**
      * @dev Scaling unit for use in specific calculations,
      * where 1 * 10**18, or 1e18 represents a unit '1'
@@ -697,9 +910,9 @@ library StableMath {
     uint256 private constant FULL_SCALE = 1e18;
 
     /**
-     * @dev Token Ratios are used when converting between units of bAsset, mAsset and MTA
+     * @notice Token Ratios are used when converting between units of bAsset, mAsset and MTA
      * Reasoning: Takes into account token decimals, and difference in base unit (i.e. grams to Troy oz for gold)
-     * bAsset ratio unit for use in exact calculations,
+     * @dev bAsset ratio unit for use in exact calculations,
      * where (1 bAsset unit * bAsset.ratio) / ratioScale == x mAsset unit
      */
     uint256 private constant RATIO_SCALE = 1e8;
@@ -726,7 +939,7 @@ library StableMath {
      * @return    Scaled value a to an exact number
      */
     function scaleInteger(uint256 x) internal pure returns (uint256) {
-        return x * FULL_SCALE;
+        return x.mul(FULL_SCALE);
     }
 
     /***************************************
@@ -760,8 +973,9 @@ library StableMath {
     ) internal pure returns (uint256) {
         // e.g. assume scale = fullScale
         // z = 10e18 * 9e17 = 9e36
+        uint256 z = x.mul(y);
         // return 9e38 / 1e18 = 9e18
-        return (x * y) / scale;
+        return z.div(scale);
     }
 
     /**
@@ -773,11 +987,11 @@ library StableMath {
      */
     function mulTruncateCeil(uint256 x, uint256 y) internal pure returns (uint256) {
         // e.g. 8e17 * 17268172638 = 138145381104e17
-        uint256 scaled = x * y;
+        uint256 scaled = x.mul(y);
         // e.g. 138145381104e17 + 9.99...e17 = 138145381113.99...e17
-        uint256 ceil = scaled + FULL_SCALE - 1;
+        uint256 ceil = scaled.add(FULL_SCALE.sub(1));
         // e.g. 13814538111.399...e18 / 1e18 = 13814538111
-        return ceil / FULL_SCALE;
+        return ceil.div(FULL_SCALE);
     }
 
     /**
@@ -790,8 +1004,9 @@ library StableMath {
      */
     function divPrecisely(uint256 x, uint256 y) internal pure returns (uint256) {
         // e.g. 8e18 * 1e18 = 8e36
+        uint256 z = x.mul(FULL_SCALE);
         // e.g. 8e36 / 10e18 = 8e17
-        return (x * FULL_SCALE) / y;
+        return z.div(y);
     }
 
     /***************************************
@@ -803,7 +1018,7 @@ library StableMath {
      *      i.e. How much mAsset is this bAsset worth?
      * @param x     Left hand operand to multiplication (i.e Exact quantity)
      * @param ratio bAsset ratio
-     * @return c    Result after multiplying the two inputs and then dividing by the ratio scale
+     * @return      Result after multiplying the two inputs and then dividing by the ratio scale
      */
     function mulRatioTruncate(uint256 x, uint256 ratio) internal pure returns (uint256 c) {
         return mulTruncateScale(x, ratio, RATIO_SCALE);
@@ -820,11 +1035,11 @@ library StableMath {
     function mulRatioTruncateCeil(uint256 x, uint256 ratio) internal pure returns (uint256) {
         // e.g. How much mAsset should I burn for this bAsset (x)?
         // 1e18 * 1e8 = 1e26
-        uint256 scaled = x * ratio;
+        uint256 scaled = x.mul(ratio);
         // 1e26 + 9.99e7 = 100..00.999e8
-        uint256 ceil = scaled + RATIO_SCALE - 1;
+        uint256 ceil = scaled.add(RATIO_SCALE.sub(1));
         // return 100..00.999e8 / 1e8 = 1e18
-        return ceil / RATIO_SCALE;
+        return ceil.div(RATIO_SCALE);
     }
 
     /**
@@ -832,13 +1047,14 @@ library StableMath {
      *      i.e. How much bAsset is this mAsset worth?
      * @param x     Left hand operand in division
      * @param ratio bAsset ratio
-     * @return c    Result after multiplying the left operand by the scale, and
+     * @return      Result after multiplying the left operand by the scale, and
      *              executing the division on the right hand input.
      */
     function divRatioPrecisely(uint256 x, uint256 ratio) internal pure returns (uint256 c) {
         // e.g. 1e14 * 1e8 = 1e22
+        uint256 y = x.mul(RATIO_SCALE);
         // return 1e22 / 1e12 = 1e10
-        return (x * RATIO_SCALE) / ratio;
+        return y.div(ratio);
     }
 
     /***************************************
@@ -876,83 +1092,23 @@ library StableMath {
     }
 }
 
-library YieldValidator {
-    uint256 private constant SECONDS_IN_YEAR = 365 days;
-    uint256 private constant THIRTY_MINUTES = 30 minutes;
-
-    uint256 private constant MAX_APY = 15e18;
-    uint256 private constant TEN_BPS = 1e15;
-
-    /**
-     * @dev Validates that an interest collection does not exceed a maximum APY. If last collection
-     * was under 30 mins ago, simply check it does not exceed 10bps
-     * @param _newSupply               New total supply of the mAsset
-     * @param _interest                Increase in total supply since last collection
-     * @param _timeSinceLastCollection Seconds since last collection
-     */
-    function validateCollection(
-        uint256 _newSupply,
-        uint256 _interest,
-        uint256 _timeSinceLastCollection
-    ) internal pure returns (uint256 extrapolatedAPY) {
-        return
-            validateCollection(_newSupply, _interest, _timeSinceLastCollection, MAX_APY, TEN_BPS);
-    }
-
-    /**
-     * @dev Validates that an interest collection does not exceed a maximum APY. If last collection
-     * was under 30 mins ago, simply check it does not exceed 10bps
-     * @param _newSupply               New total supply of the mAsset
-     * @param _interest                Increase in total supply since last collection
-     * @param _timeSinceLastCollection Seconds since last collection
-     * @param _maxApy                  Max APY where 100% == 1e18
-     * @param _baseApy                 If less than 30 mins, do not exceed this % increase
-     */
-    function validateCollection(
-        uint256 _newSupply,
-        uint256 _interest,
-        uint256 _timeSinceLastCollection,
-        uint256 _maxApy,
-        uint256 _baseApy
-    ) internal pure returns (uint256 extrapolatedAPY) {
-        uint256 protectedTime = _timeSinceLastCollection == 0 ? 1 : _timeSinceLastCollection;
-
-        // Percentage increase in total supply
-        // e.g. (1e20 * 1e18) / 1e24 = 1e14 (or a 0.01% increase)
-        // e.g. (5e18 * 1e18) / 1.2e24 = 4.1667e12
-        // e.g. (1e19 * 1e18) / 1e21 = 1e16
-        uint256 oldSupply = _newSupply - _interest;
-        uint256 percentageIncrease = (_interest * 1e18) / oldSupply;
-
-        //      If over 30 mins, extrapolate APY
-        // e.g. day: (86400 * 1e18) / 3.154e7 = 2.74..e15
-        // e.g. 30 mins: (1800 * 1e18) / 3.154e7 = 5.7..e13
-        // e.g. epoch: (1593596907 * 1e18) / 3.154e7 = 50.4..e18
-        uint256 yearsSinceLastCollection = (protectedTime * 1e18) / SECONDS_IN_YEAR;
-
-        // e.g. 0.01% (1e14 * 1e18) / 2.74..e15 = 3.65e16 or 3.65% apr
-        // e.g. (4.1667e12 * 1e18) / 5.7..e13 = 7.1e16 or 7.1% apr
-        // e.g. (1e16 * 1e18) / 50e18 = 2e14
-        extrapolatedAPY = (percentageIncrease * 1e18) / yearsSinceLastCollection;
-
-        if (protectedTime > THIRTY_MINUTES) {
-            require(extrapolatedAPY < _maxApy, "Interest protected from inflating past maxAPY");
-        } else {
-            require(percentageIncrease < _baseApy, "Interest protected from inflating past 10 Bps");
-        }
-    }
-}
-
 /**
  * @title   SavingsContract
- * @author  mStable
+ * @author  Stability Labs Pty. Ltd.
  * @notice  Savings contract uses the ever increasing "exchangeRate" to increase
  *          the value of the Savers "credits" (ERC20) relative to the amount of additional
  *          underlying collateral that has been deposited into this contract ("interest")
- * @dev     VERSION: 2.0
- *          DATE:    2020-12-15
+ * @dev     VERSION: 2.1
+ *          DATE:    2021-11-25
  */
-contract SavingsContract is ISavingsContractV3, Initializable, InitializableToken, ImmutableModule {
+contract SavingsContract_imusd_mainnet_21 is
+    ISavingsContractV1,
+    ISavingsContractV3,
+    Initializable,
+    InitializableToken,
+    InitializableModule2
+{
+    using SafeMath for uint256;
     using StableMath for uint256;
 
     // Core events for depositing and withdrawing
@@ -983,10 +1139,10 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     // e.g. 1 credit (1e17) mulTruncate(exchangeRate) = underlying, starts at 10:1
     // exchangeRate increases over time
     uint256 private constant startingRate = 1e17;
-    uint256 public override exchangeRate;
+    uint256 public exchangeRate;
 
     // Underlying asset is underlying
-    IERC20 public immutable underlying;
+    IERC20 public constant underlying = IERC20(0xe2f2a5C287993345a840Db3B0845fbC70f5935a5);
     bool private automateInterestCollection;
 
     // Yield
@@ -1006,18 +1162,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     uint256 private constant MAX_APY = 4e18;
     uint256 private constant SECONDS_IN_YEAR = 365 days;
     // Proxy contract for easy redemption
-    address public immutable unwrapper;
-
-    constructor(
-        address _nexus,
-        address _underlying,
-        address _unwrapper
-    ) ImmutableModule(_nexus) {
-        require(_underlying != address(0), "mAsset address is zero");
-        require(_unwrapper != address(0), "Unwrapper address is zero");
-        underlying = IERC20(_underlying);
-        unwrapper = _unwrapper;
-    }
+    address public constant unwrapper = address(0x0); // TODO!!
 
     // Add these constants to bytecode at deploytime
     function initialize(
@@ -1050,7 +1195,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
      * @param _user     Address of the user to check
      * @return balance  Units of underlying owned by the user
      */
-    function balanceOfUnderlying(address _user) external view override returns (uint256 balance) {
+    function balanceOfUnderlying(address _user) external view returns (uint256 balance) {
         (balance, ) = _creditsToUnderlying(balanceOf(_user));
     }
 
@@ -1059,12 +1204,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
      * @param _underlying  Units of underlying
      * @return credits     Credit units (a.k.a imUSD)
      */
-    function underlyingToCredits(uint256 _underlying)
-        external
-        view
-        override
-        returns (uint256 credits)
-    {
+    function underlyingToCredits(uint256 _underlying) external view returns (uint256 credits) {
         (credits, ) = _underlyingToCredits(_underlying);
     }
 
@@ -1073,14 +1213,14 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
      * @param _credits  Units of credits
      * @return amount   Corresponding underlying amount
      */
-    function creditsToUnderlying(uint256 _credits) external view override returns (uint256 amount) {
+    function creditsToUnderlying(uint256 _credits) external view returns (uint256 amount) {
         (amount, ) = _creditsToUnderlying(_credits);
     }
 
     // Deprecated in favour of `balanceOf(address)`
     // Maintained for backwards compatibility
     // Returns the credit balance of a given user
-    function creditBalances(address _user) external view override returns (uint256) {
+    function creditBalances(address _user) external view returns (uint256) {
         return balanceOf(_user);
     }
 
@@ -1095,7 +1235,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
      *
      * @param _amount   Units of underlying to add to the savings vault
      */
-    function depositInterest(uint256 _amount) external override onlySavingsManager {
+    function depositInterest(uint256 _amount) external onlySavingsManager {
         require(_amount > 0, "Must deposit something");
 
         // Transfer the interest from sender to here
@@ -1108,7 +1248,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
             // _totalCredits * exchangeRate = totalSavings
             // exchangeRate = totalSavings/_totalCredits
             (uint256 totalCollat, ) = _creditsToUnderlying(totalCredits);
-            uint256 newExchangeRate = _calcExchangeRate(totalCollat + _amount, totalCredits);
+            uint256 newExchangeRate = _calcExchangeRate(totalCollat.add(_amount), totalCredits);
             exchangeRate = newExchangeRate;
 
             emit ExchangeRateUpdated(newExchangeRate, _amount);
@@ -1147,7 +1287,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
      * @param _underlying      Units of underlying to deposit into savings vault
      * @return creditsIssued   Units of credits (imUSD) issued
      */
-    function depositSavings(uint256 _underlying) external override returns (uint256 creditsIssued) {
+    function depositSavings(uint256 _underlying) external returns (uint256 creditsIssued) {
         return _deposit(_underlying, msg.sender, true);
     }
 
@@ -1162,7 +1302,6 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
      */
     function depositSavings(uint256 _underlying, address _beneficiary)
         external
-        override
         returns (uint256 creditsIssued)
     {
         return _deposit(_underlying, _beneficiary, true);
@@ -1179,7 +1318,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         uint256 _underlying,
         address _beneficiary,
         address _referrer
-    ) external override returns (uint256 creditsIssued) {
+    ) external returns (uint256 creditsIssued) {
         emit Referral(_referrer, _beneficiary, _underlying);
         return _deposit(_underlying, _beneficiary, true);
     }
@@ -1220,7 +1359,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     // Deprecated in favour of redeemCredits
     // Maintaining backwards compatibility, this fn minimics the old redeem fn, in which
     // credits are redeemed but the interest from the underlying is not collected.
-    function redeem(uint256 _credits) external override returns (uint256 massetReturned) {
+    function redeem(uint256 _credits) external returns (uint256 massetReturned) {
         require(_credits > 0, "Must withdraw something");
 
         (, uint256 payout) = _redeem(_credits, true, true);
@@ -1240,7 +1379,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
      * @param _credits         Amount of credits to redeem
      * @return massetReturned  Units of underlying mAsset paid out
      */
-    function redeemCredits(uint256 _credits) external override returns (uint256 massetReturned) {
+    function redeemCredits(uint256 _credits) external returns (uint256 massetReturned) {
         require(_credits > 0, "Must withdraw something");
 
         // Collect recent interest generated by basket and update exchange rate
@@ -1260,11 +1399,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
      * @param _underlying     Amount of underlying to redeem
      * @return creditsBurned  Units of credits burned from sender
      */
-    function redeemUnderlying(uint256 _underlying)
-        external
-        override
-        returns (uint256 creditsBurned)
-    {
+    function redeemUnderlying(uint256 _underlying) external returns (uint256 creditsBurned) {
         require(_underlying > 0, "Must withdraw something");
 
         // Collect recent interest generated by basket and update exchange rate
@@ -1304,7 +1439,6 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
 
         // Burn required credits from the sender FIRST
         _burn(msg.sender, credits_);
-
         // Optionally, transfer tokens from here to sender
         if (_transferUnderlying) {
             require(underlying.transfer(msg.sender, underlying_), "Must send tokens");
@@ -1347,7 +1481,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         address _beneficiary,
         address _router,
         bool _isBassetOut
-    ) external override returns (uint256 creditsBurned, uint256 massetReturned) {
+    ) external returns (uint256 creditsBurned, uint256 massetReturned) {
         require(_amount > 0, "Must withdraw something");
 
         // Collect recent interest generated by basket and update exchange rate
@@ -1398,9 +1532,11 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         // Total units of underlying collateralised
         uint256 totalCollat = _data.totalCredits.mulTruncate(_exchangeRate);
         // Max amount of underlying that can be held in the connector
-        uint256 limit = totalCollat.mulTruncate(_data.fraction + 2e17);
+        uint256 limit = totalCollat.mulTruncate(_data.fraction.add(2e17));
         // Derives amount of underlying present in the connector
-        uint256 inConnector = _data.rawBalance >= totalCollat ? 0 : totalCollat - _data.rawBalance;
+        uint256 inConnector = _data.rawBalance >= totalCollat
+            ? 0
+            : totalCollat.sub(_data.rawBalance);
 
         return ConnectorStatus(limit, inConnector);
     }
@@ -1504,8 +1640,8 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         require(_data.totalCredits > 0, "Must have something to poke");
 
         // 1. Verify that poke cadence is valid, unless this is a manual action by governance
-        uint256 currentTime = uint256(block.timestamp);
-        uint256 timeSinceLastPoke = currentTime - lastPoke;
+        uint256 currentTime = uint256(now);
+        uint256 timeSinceLastPoke = currentTime.sub(lastPoke);
         require(_ignoreCadence || timeSinceLastPoke > POKE_CADENCE, "Not enough time elapsed");
         lastPoke = currentTime;
 
@@ -1519,21 +1655,19 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
             require(connectorBalance >= lastBalance_, "Invalid yield");
             if (connectorBalance > 0) {
                 //  Validate the collection by ensuring that the APY is not ridiculous
-                YieldValidator.validateCollection(
+                _validateCollection(
                     connectorBalance,
-                    connectorBalance - lastBalance_,
-                    timeSinceLastPoke,
-                    MAX_APY,
-                    1e15
+                    connectorBalance.sub(lastBalance_),
+                    timeSinceLastPoke
                 );
             }
 
             // 3. Level the assets to Fraction (connector) & 100-fraction (raw)
-            uint256 sum = _data.rawBalance + connectorBalance;
+            uint256 sum = _data.rawBalance.add(connectorBalance);
             uint256 ideal = sum.mulTruncate(_data.fraction);
             //     If there is not enough mAsset in the connector, then deposit
             if (ideal > connectorBalance) {
-                uint256 deposit = ideal - connectorBalance;
+                uint256 deposit = ideal.sub(connectorBalance);
                 underlying.approve(address(connector_), deposit);
                 connector_.deposit(deposit);
             }
@@ -1544,7 +1678,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
                     connector_.withdrawAll();
                     sum = IERC20(underlying).balanceOf(address(this));
                 } else {
-                    connector_.withdraw(connectorBalance - ideal);
+                    connector_.withdraw(connectorBalance.sub(ideal));
                 }
             }
             //     Else ideal == connectorBalance (e.g. 0), do nothing
@@ -1553,7 +1687,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
             // 4i. Refresh exchange rate and emit event
             lastBalance = ideal;
             _refreshExchangeRate(sum, _data.totalCredits, false);
-            emit Poked(lastBalance_, ideal, connectorBalance - lastBalance_);
+            emit Poked(lastBalance_, ideal, connectorBalance.sub(lastBalance_));
         } else {
             // 4ii. Refresh exchange rate and emit event
             lastBalance = 0;
@@ -1584,8 +1718,39 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
 
         emit ExchangeRateUpdated(
             newExchangeRate,
-            _realSum > totalCredited ? _realSum - totalCredited : 0
+            _realSum > totalCredited ? _realSum.sub(totalCredited) : 0
         );
+    }
+
+    /**
+     * FORKED DIRECTLY FROM SAVINGSMANAGER.sol
+     * ---------------------------------------
+     * @dev Validates that an interest collection does not exceed a maximum APY. If last collection
+     * was under 30 mins ago, simply check it does not exceed 10bps
+     * @param _newBalance              New balance of the underlying
+     * @param _interest                Increase in total supply since last collection
+     * @param _timeSinceLastCollection Seconds since last collection
+     */
+    function _validateCollection(
+        uint256 _newBalance,
+        uint256 _interest,
+        uint256 _timeSinceLastCollection
+    ) internal pure returns (uint256 extrapolatedAPY) {
+        // Protect against division by 0
+        uint256 protectedTime = StableMath.max(1, _timeSinceLastCollection);
+
+        uint256 oldSupply = _newBalance.sub(_interest);
+        uint256 percentageIncrease = _interest.divPrecisely(oldSupply);
+
+        uint256 yearsSinceLastCollection = protectedTime.divPrecisely(SECONDS_IN_YEAR);
+
+        extrapolatedAPY = percentageIncrease.divPrecisely(yearsSinceLastCollection);
+
+        if (protectedTime > 30 minutes) {
+            require(extrapolatedAPY < MAX_APY, "Interest protected from inflating past maxAPY");
+        } else {
+            require(percentageIncrease < 1e15, "Interest protected from inflating past 10 Bps");
+        }
     }
 
     /***************************************
@@ -1623,7 +1788,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         // e.g. (1e20 * 1e18) / 14e17 = 7.1429e19
         // e.g. 1 * 1e18 / 1e17 + 1 = 11 => 11 * 1e17 / 1e18 = 1.1e18 / 1e18 = 1
         exchangeRate_ = exchangeRate;
-        credits = _underlying.divPrecisely(exchangeRate_) + 1;
+        credits = _underlying.divPrecisely(exchangeRate_).add(1);
     }
 
     /**
@@ -1635,7 +1800,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         pure
         returns (uint256 _exchangeRate)
     {
-        _exchangeRate = _totalCollateral.divPrecisely(_totalCredits - 1);
+        _exchangeRate = _totalCollateral.divPrecisely(_totalCredits.sub(1));
     }
 
     /**

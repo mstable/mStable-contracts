@@ -1,17 +1,5 @@
 pragma solidity 0.5.16;
 
-interface ISavingsContractV3 {
-    function redeemAndUnwrap(
-        uint256 _amount,
-        bool _isCreditAmt,
-        uint256 _minAmountOut,
-        address _output,
-        address _beneficiary,
-        address _router,
-        bool _isBassetOut
-    ) external returns (uint256 creditsBurned, uint256 massetReturned);
-}
-
 interface IERC20 {
     /**
      * @dev Returns the amount of tokens in existence.
@@ -1148,14 +1136,6 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
     }
 
     /**
-     * @dev Reduced a given staked balance of sender (no transfer)
-     * @param _amount Units of StakingToken
-     */
-    function _reduceRaw(uint256 _amount) internal nonReentrant {
-        _rawBalances[msg.sender] = _rawBalances[msg.sender].sub(_amount);
-    }
-
-    /**
      * @dev Updates the boost for the given address according to the formula
      * boost = min(0.5 + c * vMTA_balance / imUSD_locked^(7/8), 1.5)
      * If rawBalance <= MIN_DEPOSIT, boost is 0
@@ -1189,7 +1169,7 @@ contract BoostedTokenWrapper is InitializableReentrancyGuard {
      */
     function _computeBoost(uint256 _scaledDeposit, uint256 _votingWeight)
         private
-        view
+        pure
         returns (uint256 boost)
     {
         if (_votingWeight == 0) return MIN_BOOST;
@@ -1347,7 +1327,7 @@ library SafeCast {
  *          - Struct packing of common data
  *          - Searching for and claiming of unlocked rewards
  */
-contract BoostedSavingsVaultLegacyUSD is
+contract BoostedSavingsVault_imusd_mainnet_1 is
     IBoostedVaultWithLockup,
     Initializable,
     InitializableRewardsDistributionRecipient,
@@ -1529,43 +1509,6 @@ contract BoostedSavingsVaultLegacyUSD is
      */
     function withdraw(uint256 _amount) external updateReward(msg.sender) updateBoost(msg.sender) {
         _withdraw(_amount);
-    }
-
-    /**
-     * @dev Withdraws given stake amount from the pool and
-     * redeems the staking token into a given asset.
-     * @param _amount        Units of the staked token to withdraw
-     * @param _minAmountOut  Minimum amount of `output` to unwrap for
-     * @param _output        Asset to unwrap from underlying
-     * @param _beneficiary   Address to send staked token to
-     * @param _router        Router to redeem/swap
-     * @param _isBassetOut     Route action of redeem/swap
-     */
-    function withdrawAndUnwrap(
-        uint256 _amount,
-        uint256 _minAmountOut,
-        address _output,
-        address _beneficiary,
-        address _router,
-        bool _isBassetOut
-    ) external updateReward(msg.sender) updateBoost(msg.sender) {
-        require(_amount > 0, "Cannot withdraw 0");
-
-        // Reduce raw balance (but do not transfer `stakingToken`)
-        _reduceRaw(_amount);
-
-        // Unwrap `stakingToken` into `output` and send to `beneficiary`
-        ISavingsContractV3(address(stakingToken)).redeemAndUnwrap(
-            _amount,
-            true,
-            _minAmountOut,
-            _output,
-            _beneficiary,
-            _router,
-            _isBassetOut
-        );
-
-        emit Withdrawn(msg.sender, _amount);
     }
 
     /**

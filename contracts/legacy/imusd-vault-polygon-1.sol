@@ -1,17 +1,5 @@
 pragma solidity 0.8.2;
 
-interface ISavingsContractV3 {
-    function redeemAndUnwrap(
-        uint256 _amount,
-        bool _isCreditAmt,
-        uint256 _minAmountOut,
-        address _output,
-        address _beneficiary,
-        address _router,
-        bool _isBassetOut
-    ) external returns (uint256 creditsBurned, uint256 massetReturned);
-}
-
 interface IERC20 {
     /**
      * @dev Returns the amount of tokens in existence.
@@ -700,18 +688,6 @@ contract StakingTokenWrapper is InitializableReentrancyGuard {
 
         emit Transfer(msg.sender, address(0), _amount);
     }
-
-    /**
-     * @dev Withdraws a given stake from sender
-     * @param _amount Units of StakingToken
-     */
-    function _withdrawRaw(uint256 _amount) internal nonReentrant {
-        require(_balances[msg.sender] >= _amount, "Not enough user rewards");
-        _totalSupply = _totalSupply - _amount;
-        _balances[msg.sender] = _balances[msg.sender] - _amount;
-
-        emit Transfer(msg.sender, address(0), _amount);
-    }
 }
 
 library MassetHelpers {
@@ -740,7 +716,7 @@ contract PlatformTokenVendor {
     address public immutable parentStakingContract;
 
     /** @dev Simple constructor that stores the parent address */
-    constructor(IERC20 _platformToken) public {
+    constructor(IERC20 _platformToken) {
         parentStakingContract = msg.sender;
         platformToken = _platformToken;
         MassetHelpers.safeInfiniteApprove(address(_platformToken), msg.sender);
@@ -1027,7 +1003,7 @@ abstract contract Initializable {
  * @dev    Derives from ./StakingRewards.sol and implements a secondary token into the core logic
  * @dev StakingRewardsWithPlatformToken is a StakingTokenWrapper and InitializableRewardsDistributionRecipient
  */
-contract StakingRewardsWithPlatformToken is
+contract StakingRewardsWithPlatformToken_imusd_polygon_1 is
     Initializable,
     StakingTokenWrapper,
     IRewardsRecipientWithPlatformToken,
@@ -1075,7 +1051,7 @@ contract StakingRewardsWithPlatformToken is
         address _stakingToken,
         address _rewardsToken,
         address _platformToken
-    ) public StakingTokenWrapper(_stakingToken) InitializableRewardsDistributionRecipient(_nexus) {
+    ) StakingTokenWrapper(_stakingToken) InitializableRewardsDistributionRecipient(_nexus) {
         // InitializableRewardsDistributionRecipient._initialize(_rewardsDistributor);
         rewardsToken = IERC20(_rewardsToken);
         platformToken = IERC20(_platformToken);
@@ -1174,43 +1150,6 @@ contract StakingRewardsWithPlatformToken is
     function withdraw(uint256 _amount) public updateReward(msg.sender) {
         require(_amount > 0, "Cannot withdraw 0");
         _withdraw(_amount);
-        emit Withdrawn(msg.sender, _amount);
-    }
-
-    /**
-     * @dev Withdraws given stake amount from the pool and
-     * redeems the staking token into a given asset.
-     * @param _amount        Units of the staked token to withdraw
-     * @param _minAmountOut  Minimum amount of `output` to unwrap for
-     * @param _output        Asset to unwrap from underlying
-     * @param _beneficiary   Address to send staked token to
-     * @param _router        Router to redeem/swap
-     * @param _isBassetOut     Route action of redeem/swap
-     */
-    function withdrawAndUnwrap(
-        uint256 _amount,
-        uint256 _minAmountOut,
-        address _output,
-        address _beneficiary,
-        address _router,
-        bool _isBassetOut
-    ) external updateReward(msg.sender) {
-        require(_amount > 0, "Cannot withdraw 0");
-
-        // Reduce raw balance (but do not transfer `stakingToken`)
-        _withdrawRaw(_amount);
-
-        // Unwrap `stakingToken` into `output` and send to `beneficiary`
-        ISavingsContractV3(address(stakingToken)).redeemAndUnwrap(
-            _amount,
-            true,
-            _minAmountOut,
-            _output,
-            _beneficiary,
-            _router,
-            _isBassetOut
-        );
-
         emit Withdrawn(msg.sender, _amount);
     }
 

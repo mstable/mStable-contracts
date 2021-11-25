@@ -1441,7 +1441,7 @@ library SafeCast {
  *          - Struct packing of common data
  *          - Searching for and claiming of unlocked rewards
  */
-contract BoostedSavingsVaultLegacyBTC is
+contract BoostedSavingsVault_imbtc_mainnet_2 is
     IBoostedVaultWithLockup,
     Initializable,
     InitializableRewardsDistributionRecipient,
