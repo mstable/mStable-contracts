@@ -77,6 +77,7 @@ contract BasicRewardsForwarder is
      * @param _endRecipient The account the reward tokens are sent to
      */
     function setEndRecipient(address _endRecipient) external onlyOwner {
+        require(endRecipient != _endRecipient, "Same end recipient");
         endRecipient = _endRecipient;
 
         emit RecipientChanged(_endRecipient);

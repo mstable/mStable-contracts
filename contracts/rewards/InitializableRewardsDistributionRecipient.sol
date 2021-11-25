@@ -23,6 +23,7 @@ abstract contract InitializableRewardsDistributionRecipient is
 
     /** @dev Recipient is a module, governed by mStable governance */
     function _initialize(address _rewardsDistributor) internal virtual {
+        require(_rewardsDistributor != address(0), "Rewards distributor is zero");
         rewardsDistributor = _rewardsDistributor;
     }
 
