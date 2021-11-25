@@ -138,11 +138,11 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     ) ImmutableModule(_nexus) {
         require(_rewardToken != address(0), "Reward token address is zero");
         REWARD_TOKEN = IERC20(_rewardToken);
-        A = _config.A * 1e12;
-        B = _config.B * 1e12;
-        C = _config.C * 1e12;
-        D = _config.D * 1e12;
-        EPOCHS = _config.EPOCHS * 1e6;
+        A = _config.A * 1e3;
+        B = _config.B * 1e3;
+        C = _config.C * 1e3;
+        D = _config.D * 1e3;
+        EPOCHS = _config.EPOCHS;
     }
 
     /**
@@ -203,19 +203,19 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @return emissionForEpoch Units of MTA to be distributed at this epoch
      */
     function topLineEmission(uint32 epoch) public view returns (uint256 emissionForEpoch) {
-        // e.g. week 1, A = -166000e12, B = 180000e12, C = -180000e12, D = 166000e12
-        // e.g. epochDelta = 1e18
-        uint128 epochDelta = (epoch - epochs.startEpoch) * 1e18;
-        // e.g. x = 1e18 / 312e6 = 3205128205
-        int256 x = SafeCast.toInt256(epochDelta / EPOCHS);
+        require(epochs.startEpoch < epoch && epoch<= epochs.startEpoch + 312 , "Wrong epoch number");
+        // e.g. week 1, A = -166000e12, B = 168479942061125e3, C = -168479942061125e3, D = 166000e12
+        // e.g. epochDelta = 1
+        uint128 epochDelta = (epoch - epochs.startEpoch);
+        // e.g. x = 1e12 / 312 = 3205128205
+        int256 x = SafeCast.toInt256(epochDelta  * 1e12 / EPOCHS);
         emissionForEpoch =
             SafeCast.toUint256(
-                ((A * (x**3)) / 1e36) + // e.g. -166000e12 * (3205128205 ^ 3) / 1e36 =   -5465681315
-                    ((B * (x**2)) / 1e24) + // e.g.  180000e12 * (3205128205 ^ 2) / 1e24.0 = 1849112425887
-                    ((C * (x)) / 1e12) + // e.g. -180000e12 * 3205128205 / 1e12 =    -576923076900000
-                    D // e.g.                                   166000000000000000
-            ) *
-            1e6; // e.g. SUM = 1,6542492e17 * 1e6 = 165424e18
+                ((A * (x**3)) / 1e36) + // e.g. -166000e12         * (3205128205 ^ 3) / 1e36 = -5465681315
+                ((B * (x**2)) / 1e24) + // e.g.  168479942061125e3 * (3205128205 ^ 2) / 1e24 =  1730768635433
+                ((C * (x))    / 1e12) + // e.g. -168479942061125e3 *  3205128205      / 1e12 = -539999814276877
+                  D                     // e.g.  166000e12
+            ) * 1e6; // e.g. SUM = 165461725488677241 * 1e6 = 165461e18
     }
 
     /**
