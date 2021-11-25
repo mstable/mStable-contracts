@@ -1,4 +1,5 @@
 import { ethereumAddress } from "@utils/regex"
+import { chain } from "lodash"
 
 export enum Chain {
     mainnet,
@@ -230,6 +231,30 @@ export const RAI: Token = {
 export const FLX: Token = {
     symbol: "FLX",
     address: "0x6243d8cea23066d098a15582d81a598b4e8391f4",
+    chain: Chain.mainnet,
+    decimals: 18,
+    quantityFormatter: "USD",
+}
+
+// FEI Feeder Pool Asset on Mainnet
+export const FEI: Token = {
+    symbol: "FEI",
+    address: "0x956F47F50A910163D8BF957Cf5846D573E7f87CA",
+    chain: Chain.mainnet,
+    platform: Platform.Aave,
+    integrator: "", // TODO: add integrator PAAVE
+    liquidityProvider: "0x683923dB55Fead99A79Fa01A27EeC3cB19679cC3", // aFEI
+    decimals: 18,
+    quantityFormatter: "USD",
+    parent: "mUSD",
+    feederPool: "0x2F1423D27f9B20058d9D1843E342726fDF985Eb4",
+    vault: "0xD24099Eb4CD604198071958655E4f2D263a5539B",
+}
+
+// TRIBE token for FEI
+export const TRIBE: Token = {
+    symbol: "TRIBE",
+    address: "0xc7283b66Eb1EB5FB86327f08e1B5816b0720212B",
     chain: Chain.mainnet,
     decimals: 18,
     quantityFormatter: "USD",
@@ -480,6 +505,8 @@ export const tokens = [
     BUSD,
     RAI,
     FLX,
+    FEI,
+    TRIBE,
     renBTC,
     sBTC,
     WBTC,

@@ -109,7 +109,7 @@ export const deployFeederPool = async (signer: Signer, feederData: FeederData, h
             FeederManager: feederManagerAddress,
             FeederLogic: feederLogicAddress,
         },
-        contract: "contracts/feeders/NonPeggedFeederPool.sol:NonPeggedFeederPool",
+        contract: "contracts/feeders/FeederPool.sol:FeederPool",
     })
 
     // Initialization Data
