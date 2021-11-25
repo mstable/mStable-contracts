@@ -254,8 +254,8 @@ contract BoostedVault is
      * @dev Withdraws given stake amount from the pool and
      * redeems the staking token into a given asset.
      * @param _amount        Units of the staked token to withdraw
-     * @param _minAmountOut  TODO
-     * @param _output        TODO
+     * @param _minAmountOut  Minimum amount of `output` to unwrap for
+     * @param _output        Asset to unwrap from underlying
      * @param _beneficiary   Address to send staked token to
      * @param _router        Router to redeem/swap
      * @param _isBassetOut     Route action of redeem/swap

@@ -2,13 +2,14 @@ pragma solidity 0.8.2;
 
 interface ISavingsContractV3 {
     function redeemAndUnwrap(
-        uint256 _underlying,
+        uint256 _amount,
+        bool _isCreditAmt,
         uint256 _minAmountOut,
         address _output,
         address _beneficiary,
         address _router,
         bool _isBassetOut
-    ) external returns (uint256 creditsBurned);
+    ) external returns (uint256 creditsBurned, uint256 massetReturned);
 }
 
 interface IERC20 {
@@ -708,6 +709,8 @@ contract StakingTokenWrapper is InitializableReentrancyGuard {
         require(_balances[msg.sender] >= _amount, "Not enough user rewards");
         _totalSupply = _totalSupply - _amount;
         _balances[msg.sender] = _balances[msg.sender] - _amount;
+
+        emit Transfer(msg.sender, address(0), _amount);
     }
 }
 
@@ -1178,8 +1181,8 @@ contract StakingRewardsWithPlatformToken is
      * @dev Withdraws given stake amount from the pool and
      * redeems the staking token into a given asset.
      * @param _amount        Units of the staked token to withdraw
-     * @param _minAmountOut  Minimum amount of `_output` to receive
-     * @param _output        Address of desired output b/f-Asset
+     * @param _minAmountOut  Minimum amount of `output` to unwrap for
+     * @param _output        Asset to unwrap from underlying
      * @param _beneficiary   Address to send staked token to
      * @param _router        Router to redeem/swap
      * @param _isBassetOut     Route action of redeem/swap
@@ -1191,14 +1194,16 @@ contract StakingRewardsWithPlatformToken is
         address _beneficiary,
         address _router,
         bool _isBassetOut
-    ) external {
+    ) external updateReward(msg.sender) {
         require(_amount > 0, "Cannot withdraw 0");
 
+        // Reduce raw balance (but do not transfer `stakingToken`)
         _withdrawRaw(_amount);
 
         // Unwrap `stakingToken` into `output` and send to `beneficiary`
         ISavingsContractV3(address(stakingToken)).redeemAndUnwrap(
             _amount,
+            true,
             _minAmountOut,
             _output,
             _beneficiary,

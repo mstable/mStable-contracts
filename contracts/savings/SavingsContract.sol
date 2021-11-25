@@ -385,7 +385,10 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
 
         // Ensure that the payout was sufficient
         (creditsBurned, massetReturned) = _redeem(_amount, _isCreditAmt, false);
-        require(_isCreditAmt || massetReturned == _amount, "Invalid output");
+        require(
+            _isCreditAmt ? creditsBurned == _amount : massetReturned == _amount,
+            "Invalid output"
+        );
 
         // Approve wrapper to spend contract's underlying; just for this tx
         underlying.approve(unwrapper, massetReturned);
