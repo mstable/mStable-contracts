@@ -178,6 +178,17 @@ describe("RevenueForwarder", () => {
             expect(await mAsset.balanceOf(revenueForwarder.address), "revenue forwarder's mAsset bal after").to.eq(0)
             expect(await mAsset.balanceOf(forwarderAddress), "forwarder's mAsset bal after").to.eq(notificationAmount)
         })
+        it("should forward with no rewards balance", async () => {
+            // Forward whatever balance it currently has
+            await revenueForwarder.connect(keeper.signer).forward()
+
+            expect(await mAsset.balanceOf(revenueForwarder.address), "revenue forwarder's mAsset bal before").to.eq(0)
+
+            const tx = await revenueForwarder.connect(keeper.signer).forward()
+
+            await expect(tx).to.not.emit(revenueForwarder, "Withdrawn")
+            expect(await mAsset.balanceOf(revenueForwarder.address), "revenue forwarder's mAsset bal after").to.eq(0)
+        })
         it("Not governor or keeper fail set new forwarder", async () => {
             const tx = revenueForwarder.connect(sa.dummy1.signer).forward()
 
