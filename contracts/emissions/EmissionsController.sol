@@ -109,8 +109,8 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     ///         A user can not issue more than 100% of their voting power across dials.
     mapping(address => VoterPreferences) public voterPreferences;
 
-    event AddedDial(uint256 indexed id, address indexed recipient);
-    event UpdatedDial(uint256 indexed id, bool disabled);
+    event AddedDial(uint256 indexed dialId, address indexed recipient);
+    event UpdatedDial(uint256 indexed dialId, bool disabled);
     event AddStakingContract(address indexed stakingContract);
 
     event PeriodRewards(uint256[] amounts);
@@ -118,7 +118,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     event DistributedReward(uint256 indexed dialId, uint256 amount);
 
     event PreferencesChanged(address indexed voter, Preference[] preferences);
-    event VotesCast(address from, address to, uint256 amount);
+    event VotesCast(address indexed from, address indexed to, uint256 amount);
     event SourcesPoked(address indexed voter);
 
     /***************************************

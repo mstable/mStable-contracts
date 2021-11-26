@@ -41,8 +41,8 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
     );
     event DonatedRewards(uint256 totalRewards);
     event AddedMassetConfig(
-        address mAsset,
-        address bAsset,
+        address indexed mAsset,
+        address indexed bAsset,
         uint128 minMasset2BassetPrice,
         uint128 minBasset2RewardsPrice,
         bytes uniswapPath

@@ -18,7 +18,7 @@ contract RevenueForwarder is IRevenueRecipient, ImmutableModule {
 
     event RevenueReceived(address indexed mAsset, uint256 amountIn);
     event Withdrawn(uint256 amountOut);
-    event SetForwarder(address newForwarder);
+    event SetForwarder(address indexed newForwarder);
 
     IERC20 public immutable mAsset;
 
