@@ -19,17 +19,18 @@ contract Unwrapper is IUnwrapper, ImmutableModule {
 
     /**
      * @dev Query whether output address is a bAsset for given mAsset
-     * @param _masset    masset
-     * @param _output    output asset
-     * @return isBassetOut   boolean status of output asset
+     * @param _input          input asset (either mAsset or imAsset)
+     * @param _inputIsCredit  true if imAsset, false if mAsset
+     * @param _output         output asset
+     * @return isBassetOut    boolean status of output asset
      */
-    function getIsBassetOut(address _masset, address _output)
-        external
-        view
-        override
-        returns (bool isBassetOut)
-    {
-        (BassetPersonal[] memory bAssets, ) = IMasset(_masset).getBassets();
+    function getIsBassetOut(
+        address _input,
+        bool _inputIsCredit,
+        address _output
+    ) external view override returns (bool isBassetOut) {
+        address input = _inputIsCredit ? address(ISavingsContractV3(_input).underlying()) : _input;
+        (BassetPersonal[] memory bAssets, ) = IMasset(input).getBassets();
         for (uint256 i = 0; i < bAssets.length; i++) {
             if (bAssets[i].addr == _output) return true;
         }
@@ -40,7 +41,8 @@ contract Unwrapper is IUnwrapper, ImmutableModule {
      * @dev Estimate output
      * @param _isBassetOut    masset redemption or fpool swap
      * @param _router         masset or feederpool
-     * @param _input          input token address
+     * @param _input          either mAsset or imAsset address
+     * @param _inputIsCredit  true if imAsset, false if mAsset
      * @param _output         output token address
      * @param _amount         amount
      * @return output         Units of credits burned from sender
@@ -49,13 +51,20 @@ contract Unwrapper is IUnwrapper, ImmutableModule {
         bool _isBassetOut,
         address _router,
         address _input,
+        bool _inputIsCredit,
         address _output,
         uint256 _amount
     ) external view override returns (uint256 output) {
+        uint256 amt = _inputIsCredit
+            ? ISavingsContractV3(_input).creditsToUnderlying(_amount)
+            : _amount;
         if (_isBassetOut) {
-            output = IMasset(_router).getRedeemOutput(_output, _amount);
+            output = IMasset(_router).getRedeemOutput(_output, amt);
         } else {
-            output = IFeederPool(_router).getSwapOutput(_input, _output, _amount);
+            address input = _inputIsCredit
+                ? address(ISavingsContractV3(_input).underlying())
+                : _input;
+            output = IFeederPool(_router).getSwapOutput(input, _output, amt);
         }
     }
 

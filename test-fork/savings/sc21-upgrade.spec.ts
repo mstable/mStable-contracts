@@ -39,7 +39,7 @@ import {
     Unwrapper,
     Unwrapper__factory,
 } from "types/generated"
-import { Chain, DEAD_ADDRESS, increaseTime, ONE_WEEK, simpleToExactAmount } from "index"
+import { assertBNClosePercent, Chain, DEAD_ADDRESS, increaseTime, ONE_WEEK, simpleToExactAmount } from "index"
 import { BigNumber } from "@ethersproject/bignumber"
 import { getChainAddress, resolveAddress } from "tasks/utils/networkAddressFactory"
 
@@ -270,8 +270,15 @@ context("Unwrapper and Vault upgrades", () => {
                 }
 
                 // Get estimated output via getUnwrapOutput
-                const isBassetOut = await unwrapper.callStatic.getIsBassetOut(config.input, config.output)
-                const amountOut = await unwrapper.getUnwrapOutput(isBassetOut, config.router, config.input, config.output, config.amount)
+                const isBassetOut = await unwrapper.callStatic.getIsBassetOut(config.input, false, config.output)
+                const amountOut = await unwrapper.getUnwrapOutput(
+                    isBassetOut,
+                    config.router,
+                    config.input,
+                    false,
+                    config.output,
+                    config.amount,
+                )
                 expect(amountOut.toString().length).to.be.gte(8)
                 const minAmountOut = amountOut.mul(98).div(1e2)
 
@@ -300,12 +307,12 @@ context("Unwrapper and Vault upgrades", () => {
     context("Stage 3", () => {
         describe("3.1 Directly", () => {
             it("Can call getIsBassetOut & it functions correctly", async () => {
-                expect(await unwrapper.callStatic.getIsBassetOut(musdAddress, daiAddress)).to.eq(true)
-                expect(await unwrapper.callStatic.getIsBassetOut(musdAddress, musdAddress)).to.eq(false)
-                expect(await unwrapper.callStatic.getIsBassetOut(musdAddress, alusdAddress)).to.eq(false)
-                expect(await unwrapper.callStatic.getIsBassetOut(mbtcAddress, wbtcAddress)).to.eq(true)
-                expect(await unwrapper.callStatic.getIsBassetOut(mbtcAddress, mbtcAddress)).to.eq(false)
-                expect(await unwrapper.callStatic.getIsBassetOut(mbtcAddress, hbtcAddress)).to.eq(false)
+                expect(await unwrapper.callStatic.getIsBassetOut(musdAddress, false, daiAddress)).to.eq(true)
+                expect(await unwrapper.callStatic.getIsBassetOut(musdAddress, false, musdAddress)).to.eq(false)
+                expect(await unwrapper.callStatic.getIsBassetOut(musdAddress, false, alusdAddress)).to.eq(false)
+                expect(await unwrapper.callStatic.getIsBassetOut(mbtcAddress, false, wbtcAddress)).to.eq(true)
+                expect(await unwrapper.callStatic.getIsBassetOut(mbtcAddress, false, mbtcAddress)).to.eq(false)
+                expect(await unwrapper.callStatic.getIsBassetOut(mbtcAddress, false, hbtcAddress)).to.eq(false)
             })
 
             const validateAssetRedemption = async (
@@ -319,9 +326,16 @@ context("Unwrapper and Vault upgrades", () => {
             ) => {
                 // Get estimated output via getUnwrapOutput
                 const signerAddress = await signer.getAddress()
-                const isBassetOut = await unwrapper.callStatic.getIsBassetOut(config.input, config.output)
+                const isBassetOut = await unwrapper.callStatic.getIsBassetOut(config.input, false, config.output)
 
-                const amountOut = await unwrapper.getUnwrapOutput(isBassetOut, config.router, config.input, config.output, config.amount)
+                const amountOut = await unwrapper.getUnwrapOutput(
+                    isBassetOut,
+                    config.router,
+                    config.input,
+                    false,
+                    config.output,
+                    config.amount,
+                )
                 expect(amountOut.toString().length).to.be.gte(18)
                 const minAmountOut = amountOut.mul(98).div(1e2)
 
@@ -364,8 +378,15 @@ context("Unwrapper and Vault upgrades", () => {
                     output: "0x6b175474e89094c44da98b954eedeac495271d0f",
                     amount: simpleToExactAmount(1, 18),
                 }
-                const isBassetOut = await unwrapper.callStatic.getIsBassetOut(config.input, config.output)
-                const output = await unwrapper.getUnwrapOutput(isBassetOut, config.router, config.input, config.output, config.amount)
+                const isBassetOut = await unwrapper.callStatic.getIsBassetOut(config.input, false, config.output)
+                const output = await unwrapper.getUnwrapOutput(
+                    isBassetOut,
+                    config.router,
+                    config.input,
+                    false,
+                    config.output,
+                    config.amount,
+                )
                 expect(output.toString()).to.be.length(19)
             })
 
@@ -396,8 +417,8 @@ context("Unwrapper and Vault upgrades", () => {
             const withdrawAndUnwrap = async (holderAddress: string, router: string, input: "musd" | "mbtc", outputAddress: string) => {
                 const holder = await impersonate(holderAddress)
                 const vaultAddress = input === "musd" ? imusdVaultAddress : imbtcVaultAddress
-                const inputAddress = input === "musd" ? musdAddress : mbtcAddress
-                const isBassetOut = await unwrapper.callStatic.getIsBassetOut(inputAddress, outputAddress)
+                const inputAddress = input === "musd" ? imusdAddress : imbtcAddress
+                const isBassetOut = await unwrapper.callStatic.getIsBassetOut(inputAddress, true, outputAddress)
 
                 const config = {
                     router,
@@ -406,8 +427,18 @@ context("Unwrapper and Vault upgrades", () => {
                     amount: simpleToExactAmount(input === "musd" ? 100 : 10, 18),
                 }
 
+                const saveVault = BoostedVault__factory.connect(vaultAddress, holder)
+                await saveVault.withdrawAndUnwrap(simpleToExactAmount(1), 0, config.output, holderAddress, config.router, isBassetOut)
+
                 // Get estimated output via getUnwrapOutput
-                const amountOut = await unwrapper.getUnwrapOutput(isBassetOut, config.router, config.input, config.output, config.amount)
+                const amountOut = await unwrapper.getUnwrapOutput(
+                    isBassetOut,
+                    config.router,
+                    config.input,
+                    true,
+                    config.output,
+                    config.amount,
+                )
                 expect(amountOut.toString().length).to.be.gte(input === "musd" ? 18 : 9)
                 console.log(amountOut.toString())
                 const minAmountOut = amountOut.mul(98).div(100)
@@ -416,19 +447,11 @@ context("Unwrapper and Vault upgrades", () => {
                 const tokenBalanceBefore = await outContract.balanceOf(holderAddress)
 
                 // withdraw and unrap
-                const saveVault = BoostedVault__factory.connect(vaultAddress, holder)
-                await saveVault.withdrawAndUnwrap(
-                    config.amount.mul(10),
-                    minAmountOut,
-                    config.output,
-                    holderAddress,
-                    config.router,
-                    isBassetOut,
-                )
+                await saveVault.withdrawAndUnwrap(config.amount, minAmountOut, config.output, holderAddress, config.router, isBassetOut)
 
                 const tokenBalanceAfter = await outContract.balanceOf(holderAddress)
                 const tokenBalanceDifference = tokenBalanceAfter.sub(tokenBalanceBefore)
-                // expect(tokenBalanceDifference, "Withdrawn amount eq estimated amountOut").to.be.eq(amountOut)
+                assertBNClosePercent(tokenBalanceDifference, amountOut, 0.0001)
                 expect(tokenBalanceAfter, "Token balance has increased").to.be.gt(tokenBalanceBefore)
             }
             // it("imUSD Vault redeem to bAsset", async () => {
