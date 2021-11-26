@@ -1,5 +1,4 @@
 import { ethereumAddress } from "@utils/regex"
-import { chain } from "lodash"
 
 export enum Chain {
     mainnet,
