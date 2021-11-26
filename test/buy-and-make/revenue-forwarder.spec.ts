@@ -205,10 +205,15 @@ describe("RevenueForwarder", () => {
             await expect(tx).to.emit(revenueForwarder, "SetForwarder").withArgs(newForwarderAddress)
             expect(await revenueForwarder.forwarder(), "forwarder after").to.eq(newForwarderAddress)
         })
-        it("keeper fail set new forwarder", async () => {
+        it("keeper should fail to set new forwarder", async () => {
             const tx = revenueForwarder.connect(keeper.signer).setConfig(newForwarderAddress)
 
             await expect(tx).to.revertedWith("Only governor can execute")
+        })
+        it("should fail to set zero forwarder", async () => {
+            const tx = revenueForwarder.connect(sa.governor.signer).setConfig(ZERO_ADDRESS)
+
+            await expect(tx).to.revertedWith("Invalid forwarder")
         })
     })
 })
