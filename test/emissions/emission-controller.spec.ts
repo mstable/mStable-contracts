@@ -21,9 +21,9 @@ import { currentWeekEpoch, increaseTime, getTimestamp, increaseTimeTo, startWeek
 
 const defaultConfig = {
     A: -166000000000000,
-    B:  168479942061125,
+    B: 168479942061125,
     C: -168479942061125,
-    D:  166000000000000,
+    D: 166000000000000,
     EPOCHS: 312,
 }
 /**
@@ -37,9 +37,15 @@ const calcWeeklyReward = (epochDelta: number): BN => {
     const inputScale = simpleToExactAmount(1, 3)
     const calculationScale = 12
 
-    const x = BN.from(epochDelta).mul(simpleToExactAmount(1,calculationScale)).div(BN.from(EPOCHS))
-    const a = BN.from(A).mul(inputScale).mul(x.pow(3)).div(simpleToExactAmount(1, calculationScale * 3))
-    const b = BN.from(B).mul(inputScale).mul(x.pow(2)).div(simpleToExactAmount(1, calculationScale * 2))
+    const x = BN.from(epochDelta).mul(simpleToExactAmount(1, calculationScale)).div(BN.from(EPOCHS))
+    const a = BN.from(A)
+        .mul(inputScale)
+        .mul(x.pow(3))
+        .div(simpleToExactAmount(1, calculationScale * 3))
+    const b = BN.from(B)
+        .mul(inputScale)
+        .mul(x.pow(2))
+        .div(simpleToExactAmount(1, calculationScale * 2))
     const c = BN.from(C).mul(inputScale).mul(x).div(simpleToExactAmount(1, calculationScale))
     const d = BN.from(D).mul(inputScale)
     return a.add(b).add(c).add(d).mul(simpleToExactAmount(1, 6))
@@ -113,7 +119,7 @@ describe("EmissionsController", async () => {
         const proxy = await new AssetProxy__factory(sa.default.signer).deploy(emissionsControllerImpl.address, DEAD_ADDRESS, initializeData)
         emissionsController = new EmissionsController__factory(sa.default.signer).attach(proxy.address)
 
-        // await emissionsController.initialize(dialAddresses, [0, 0, 0], [true, true, false], [staking1.address, staking2.address])
+        // Transfer MTA into the Emissions Controller
         await rewardToken.transfer(emissionsController.address, totalRewards)
 
         await staking1.setGovernanceHook(emissionsController.address)
@@ -165,13 +171,15 @@ describe("EmissionsController", async () => {
             expect(await emissionsController.stakingContracts(0), "staking contract 1").to.eq(staking1.address)
             expect(await emissionsController.stakingContracts(1), "staking contract 2").to.eq(staking2.address)
         })
-        it("Zero nexus address", async () => {
-            const tx = new EmissionsController__factory(sa.default.signer).deploy(ZERO_ADDRESS, rewardToken.address, defaultConfig)
-            await expect(tx).to.revertedWith("Nexus address is zero")
-        })
-        it("Zero rewards address", async () => {
-            const tx = new EmissionsController__factory(sa.default.signer).deploy(nexus.address, ZERO_ADDRESS, defaultConfig)
-            await expect(tx).to.revertedWith("Reward token address is zero")
+        context("should fail when", () => {
+            it("nexus is zero", async () => {
+                const tx = new EmissionsController__factory(sa.default.signer).deploy(ZERO_ADDRESS, rewardToken.address, defaultConfig)
+                await expect(tx).to.revertedWith("Nexus address is zero")
+            })
+            it("rewards token is zero", async () => {
+                const tx = new EmissionsController__factory(sa.default.signer).deploy(nexus.address, ZERO_ADDRESS, defaultConfig)
+                await expect(tx).to.revertedWith("Reward token address is zero")
+            })
         })
         context("initialize recipients and notifies", () => {
             before(async () => {
@@ -236,7 +244,8 @@ describe("EmissionsController", async () => {
         })
     })
     describe("calling view functions", () => {
-                // TODO - `getVotes`
+        // TODO - `getVotes`
+        // TODO - `getDialVoteHistory`
 
         describe("fetch weekly emissions", () => {
             let startingEpoch
@@ -244,7 +253,7 @@ describe("EmissionsController", async () => {
             before(async () => {
                 await deployEmissionsController()
                 ;[startingEpoch] = await emissionsController.epochs()
-                expectTopLineEmissions= expectTopLineEmissionForEpoch(emissionsController, startingEpoch);
+                expectTopLineEmissions = expectTopLineEmissionForEpoch(emissionsController, startingEpoch)
             })
             it("fails fetching an smaller epoch than deployed time", async () => {
                 const tx = emissionsController.topLineEmission(startingEpoch - 1)
@@ -270,20 +279,19 @@ describe("EmissionsController", async () => {
             it("fetches week 311 - six years, pre-last epoch", async () => {
                 // ~= 1,052,774,388,460,220
                 expectTopLineEmissions(311)
-            })   
+            })
             it("fetches week 312 - six years, last epoch", async () => {
                 // = 0
                 expectTopLineEmissions(312)
-            })   
+            })
             it("fails fetching week 313 - six years + one week", async () => {
-                const tx = emissionsController.topLineEmission(startingEpoch+313)
+                const tx = emissionsController.topLineEmission(startingEpoch + 313)
                 await expect(tx).to.revertedWith("Wrong epoch number")
-
-            })     
+            })
             it("fails fetching week 5200 - Ten years", async () => {
-                const tx = emissionsController.topLineEmission(startingEpoch+5200)
+                const tx = emissionsController.topLineEmission(startingEpoch + 5200)
                 await expect(tx).to.revertedWith("Wrong epoch number")
-            })  
+            })
         })
     })
     describe("using admin functions", () => {
@@ -1213,16 +1221,174 @@ describe("EmissionsController", async () => {
         })
     })
     // TODO - poke sources
+    describe("Poke sources", () => {})
     // TODO - setVoterDialWeights
-    //          - preferences > 16 entries
-    //          - preferences == 16 entries
     //          - read and update cached voting power
-    //          - weight on a dial == 0
-    describe("setting preferences and poking sources", () => {
-        describe("setVoterDialWeights fails when", () => {
-            before(async () => {
-                await deployEmissionsController()
-            })
+    describe("setting preferences", () => {
+        before(async () => {
+            await deployEmissionsController()
+
+            // Add 2 staking contracts to the existing 3 dials
+            await emissionsController.connect(sa.governor.signer).addDial(staking1.address, 10, true)
+            await emissionsController.connect(sa.governor.signer).addDial(staking2.address, 10, true)
+            // Add another 15 dials to make 20 dials
+            for (let i = 0; i < 15; i += 1) {
+                await emissionsController.connect(sa.governor.signer).addDial(Wallet.createRandom().address, 0, true)
+            }
+        })
+        it("should set 15 preferences", async () => {
+            const voter = sa.dummy1
+            // using 15 dials
+            const preferences = [
+                { dialId: 0, weight: 1 },
+                { dialId: 1, weight: 2 },
+                { dialId: 2, weight: 3 },
+                { dialId: 3, weight: 4 },
+                { dialId: 4, weight: 5 },
+                { dialId: 5, weight: 6 },
+                { dialId: 6, weight: 7 },
+                { dialId: 7, weight: 8 },
+                { dialId: 8, weight: 9 },
+                { dialId: 9, weight: 10 },
+                { dialId: 10, weight: 11 },
+                { dialId: 11, weight: 12 },
+                { dialId: 12, weight: 13 },
+                { dialId: 13, weight: 14 },
+                { dialId: 14, weight: 15 },
+            ]
+            const tx = await emissionsController.connect(voter.signer).setVoterDialWeights(preferences)
+            await expect(tx).to.emit(emissionsController, "PreferencesChanged")
+            const receipt = await tx.wait()
+            expect(receipt.events[0].args[0], "sender").to.eq(voter.address)
+            expect(receipt.events[0].args[1], "preferences length").to.lengthOf(15)
+            expect(receipt.events[0].args[1][0].dialId, "first preference dial id").to.eq(preferences[0].dialId)
+            expect(receipt.events[0].args[1][0].weight, "first preference weight").to.eq(preferences[0].weight)
+            expect(receipt.events[0].args[1][14].dialId, "last preference dial id").to.eq(preferences[14].dialId)
+            expect(receipt.events[0].args[1][14].weight, "last preference weight").to.eq(preferences[14].weight)
+
+            const voterPreferencesAfter = await emissionsController.getVoterPreferences(voter.address)
+            expect(voterPreferencesAfter[0].dialId, "pos 1 dial id after").to.eq(preferences[0].dialId)
+            expect(voterPreferencesAfter[0].weight, "pos 1 weight after").to.eq(preferences[0].weight)
+            expect(voterPreferencesAfter[1].dialId, "pos 2 dial id after").to.eq(preferences[1].dialId)
+            expect(voterPreferencesAfter[1].weight, "pos 2 weight after").to.eq(preferences[1].weight)
+            expect(voterPreferencesAfter[14].dialId, "pos 15 dial id after").to.eq(preferences[14].dialId)
+            expect(voterPreferencesAfter[14].weight, "pos 15 weight after").to.eq(preferences[14].weight)
+            expect(voterPreferencesAfter[15].dialId, "pos 16 dial id after").to.eq(255)
+            expect(voterPreferencesAfter[15].weight, "pos 16 weight after").to.eq(0)
+        })
+        it("should set 16 preferences", async () => {
+            const voter = sa.dummy1
+            // using 16 dials
+            const preferences = [
+                { dialId: 0, weight: 1 },
+                { dialId: 1, weight: 2 },
+                { dialId: 2, weight: 3 },
+                { dialId: 3, weight: 4 },
+                { dialId: 4, weight: 5 },
+                { dialId: 5, weight: 6 },
+                { dialId: 6, weight: 7 },
+                { dialId: 7, weight: 8 },
+                { dialId: 8, weight: 9 },
+                { dialId: 9, weight: 10 },
+                { dialId: 10, weight: 11 },
+                { dialId: 11, weight: 12 },
+                { dialId: 12, weight: 13 },
+                { dialId: 13, weight: 14 },
+                { dialId: 14, weight: 15 },
+                { dialId: 15, weight: 16 },
+            ]
+            const tx = await emissionsController.connect(voter.signer).setVoterDialWeights(preferences)
+            await expect(tx).to.emit(emissionsController, "PreferencesChanged")
+            const receipt = await tx.wait()
+            expect(receipt.events[0].args[0], "sender").to.eq(voter.address)
+            expect(receipt.events[0].args[1], "preferences length").to.lengthOf(16)
+            expect(receipt.events[0].args[1][0].dialId, "first preference dial id").to.eq(preferences[0].dialId)
+            expect(receipt.events[0].args[1][0].weight, "first preference weight").to.eq(preferences[0].weight)
+            expect(receipt.events[0].args[1][15].dialId, "last preference dial id").to.eq(preferences[15].dialId)
+            expect(receipt.events[0].args[1][15].weight, "last preference weight").to.eq(preferences[15].weight)
+
+            const voterPreferencesAfter = await emissionsController.getVoterPreferences(voter.address)
+            expect(voterPreferencesAfter[0].dialId, "pos 1 dial id after").to.eq(preferences[0].dialId)
+            expect(voterPreferencesAfter[0].weight, "pos 1 weight after").to.eq(preferences[0].weight)
+            expect(voterPreferencesAfter[1].dialId, "pos 2 dial id after").to.eq(preferences[1].dialId)
+            expect(voterPreferencesAfter[1].weight, "pos 2 weight after").to.eq(preferences[1].weight)
+            expect(voterPreferencesAfter[14].dialId, "pos 15 dial id after").to.eq(preferences[14].dialId)
+            expect(voterPreferencesAfter[14].weight, "pos 15 weight after").to.eq(preferences[14].weight)
+            expect(voterPreferencesAfter[15].dialId, "pos 16 dial id after").to.eq(preferences[15].dialId)
+            expect(voterPreferencesAfter[15].weight, "pos 16 weight after").to.eq(preferences[15].weight)
+        })
+        it("should set 100% on dial 20", async () => {
+            const voter = sa.dummy2
+            // dial 20 has dial identifier 19
+            const preferences = [{ dialId: 19, weight: 200 }]
+
+            const tx = await emissionsController.connect(voter.signer).setVoterDialWeights(preferences)
+
+            await expect(tx).to.emit(emissionsController, "PreferencesChanged")
+            const receipt = await tx.wait()
+            expect(receipt.events[0].args[0], "sender").to.eq(voter.address)
+            expect(receipt.events[0].args[1], "preferences length").to.lengthOf(1)
+            expect(receipt.events[0].args[1][0].dialId, "first preference dial id").to.eq(preferences[0].dialId)
+            expect(receipt.events[0].args[1][0].weight, "first preference weight").to.eq(preferences[0].weight)
+
+            const voterPreferencesAfter = await emissionsController.getVoterPreferences(voter.address)
+            expect(voterPreferencesAfter[0].dialId, "pos 1 dial id after").to.eq(preferences[0].dialId)
+            expect(voterPreferencesAfter[0].weight, "pos 1 weight after").to.eq(preferences[0].weight)
+            expect(voterPreferencesAfter[1].dialId, "pos 2 dial id after").to.eq(255)
+            expect(voterPreferencesAfter[1].weight, "pos 2 weight after").to.eq(0)
+            expect(voterPreferencesAfter[2].dialId, "pos 3 dial id after").to.eq(0)
+            expect(voterPreferencesAfter[2].weight, "pos 3 weight after").to.eq(0)
+        })
+        it("should override previous dial weights", async () => {
+            const voter = sa.dummy1
+            const previousPreferences = [
+                { dialId: 0, weight: 120 },
+                { dialId: 1, weight: 60 },
+                { dialId: 2, weight: 20 },
+            ]
+
+            await emissionsController.connect(voter.signer).setVoterDialWeights(previousPreferences)
+
+            const voterPreferencesBefore = await emissionsController.getVoterPreferences(voter.address)
+            expect(voterPreferencesBefore[0].dialId, "pos 1 dial id before").to.eq(0)
+            expect(voterPreferencesBefore[0].weight, "pos 1 weight before").to.eq(120)
+            expect(voterPreferencesBefore[1].dialId, "pos 2 dial id before").to.eq(1)
+            expect(voterPreferencesBefore[1].weight, "pos 2 weight before").to.eq(60)
+            expect(voterPreferencesBefore[2].dialId, "pos 3 dial id before").to.eq(2)
+            expect(voterPreferencesBefore[2].weight, "pos 3 weight before").to.eq(20)
+            expect(voterPreferencesBefore[3].dialId, "pos 4 dial id before").to.eq(255)
+            expect(voterPreferencesBefore[3].weight, "pos 4 weight before").to.eq(0)
+            expect(voterPreferencesBefore[4].dialId, "pos 5 dial id before").to.eq(0)
+            expect(voterPreferencesBefore[4].weight, "pos 5 weight before").to.eq(0)
+            expect(voterPreferencesBefore[15].dialId, "pos 16 dial id before").to.eq(0)
+            expect(voterPreferencesBefore[15].weight, "pos 16 weight before").to.eq(0)
+
+            const newPreferences = [
+                { dialId: 1, weight: 60 },
+                { dialId: 2, weight: 20 },
+                { dialId: 5, weight: 30 },
+                { dialId: 19, weight: 70 },
+            ]
+
+            await emissionsController.connect(voter.signer).setVoterDialWeights(newPreferences)
+
+            const voterPreferencesAfter = await emissionsController.getVoterPreferences(voter.address)
+            expect(voterPreferencesAfter[0].dialId, "pos 1 dial id after").to.eq(1)
+            expect(voterPreferencesAfter[0].weight, "pos 1 weight after").to.eq(60)
+            expect(voterPreferencesAfter[1].dialId, "pos 2 dial id after").to.eq(2)
+            expect(voterPreferencesAfter[1].weight, "pos 2 weight after").to.eq(20)
+            expect(voterPreferencesAfter[2].dialId, "pos 3 dial id after").to.eq(5)
+            expect(voterPreferencesAfter[2].weight, "pos 3 weight after").to.eq(30)
+            expect(voterPreferencesAfter[3].dialId, "pos 4 dial id after").to.eq(19)
+            expect(voterPreferencesAfter[3].weight, "pos 4 weight after").to.eq(70)
+            expect(voterPreferencesAfter[4].dialId, "pos 5 dial id after").to.eq(255)
+            expect(voterPreferencesAfter[4].weight, "pos 5 weight after").to.eq(0)
+            expect(voterPreferencesBefore[5].dialId, "pos 6 dial id after").to.eq(0)
+            expect(voterPreferencesBefore[5].weight, "pos 6 weight after").to.eq(0)
+            expect(voterPreferencesBefore[15].dialId, "pos 16 dial id after").to.eq(0)
+            expect(voterPreferencesBefore[15].weight, "pos 16 weight after").to.eq(0)
+        })
+        describe("should fail when", () => {
             it("weights > 100% to a single dial", async () => {
                 // User 1 gives 100.01% to dial 1
                 const tx = emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 201 }])
@@ -1237,8 +1403,38 @@ describe("EmissionsController", async () => {
                 await expect(tx).to.revertedWith("Imbalanced weights")
             })
             it("invalid dial id", async () => {
-                const tx = emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 3, weight: 200 }])
+                const tx = emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 20, weight: 200 }])
                 await expect(tx).to.revertedWith("Invalid dial id")
+            })
+            it("0% weight", async () => {
+                const tx = emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
+                    { dialId: 1, weight: 100 },
+                    { dialId: 18, weight: 0 },
+                ])
+                await expect(tx).to.revertedWith("Must give a dial some weight")
+            })
+            it("setting 17 preferences", async () => {
+                // using 17 dials with 5% (10/2) each
+                const tx = emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
+                    { dialId: 0, weight: 10 },
+                    { dialId: 1, weight: 10 },
+                    { dialId: 2, weight: 10 },
+                    { dialId: 3, weight: 10 },
+                    { dialId: 4, weight: 10 },
+                    { dialId: 5, weight: 10 },
+                    { dialId: 6, weight: 10 },
+                    { dialId: 7, weight: 10 },
+                    { dialId: 8, weight: 10 },
+                    { dialId: 9, weight: 10 },
+                    { dialId: 10, weight: 10 },
+                    { dialId: 11, weight: 10 },
+                    { dialId: 12, weight: 10 },
+                    { dialId: 13, weight: 10 },
+                    { dialId: 14, weight: 10 },
+                    { dialId: 15, weight: 10 },
+                    { dialId: 16, weight: 10 },
+                ])
+                await expect(tx).to.revertedWith("Max of 16 preferences")
             })
         })
     })
