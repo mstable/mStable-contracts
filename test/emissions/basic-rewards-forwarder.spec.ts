@@ -69,11 +69,6 @@ describe("BasicRewardsForwarder", () => {
                 const tx = new BasicRewardsForwarder__factory(sa.default.signer).deploy(nexus.address, ZERO_ADDRESS)
                 await expect(tx).to.revertedWith("Rewards token is zero")
             })
-            it("Emissions controller", async () => {
-                const newForwarder = await new BasicRewardsForwarder__factory(sa.default.signer).deploy(nexus.address, rewardsToken.address)
-                const tx = newForwarder.initialize(ZERO_ADDRESS, endRecipientAddress)
-                await expect(tx).to.revertedWith("Rewards distributor is zero")
-            })
             it("End recipient", async () => {
                 const newForwarder = await new BasicRewardsForwarder__factory(sa.default.signer).deploy(nexus.address, rewardsToken.address)
                 const tx = newForwarder.initialize(emissionsController.address, ZERO_ADDRESS)
