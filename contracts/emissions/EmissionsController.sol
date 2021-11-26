@@ -41,7 +41,7 @@ struct Preference {
 struct VoterPreferences {
     // List of preferences (0 <= n <= 16 preferences)
     Preference[16] dialWeights;
-    // Latest tally of votes cast by this voter
+    // Total voting power cast by this voter across the staking contracts.
     uint128 votesCast;
     // Last time balance was looked up across all staking contracts
     uint32 lastSourcePoke;
@@ -126,10 +126,10 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     ****************************************/
 
     /**
-     * @notice Recipient is a module, governed by mStable governance
-     * @param _nexus        System Nexus that resolves module addresses
-     * @param _rewardToken  Token that rewards are distributed in. eg MTA
-     * @param _config       Arguments for polynomial top level emission function (raw, not scaled)
+     * @notice Recipient is a module, governed by mStable governance.
+     * @param _nexus        System Nexus that resolves module addresses.
+     * @param _rewardToken  Token that rewards are distributed in. eg MTA.
+     * @param _config       Arguments for polynomial top level emission function (raw, not scaled).
      */
     constructor(
         address _nexus,
@@ -148,10 +148,10 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     /**
      * @dev Initialisation function to configure the first dials. All recipient contracts with _notifies = true need to
      *      implement the `IRewardsDistributionRecipient` interface.
-     * @param _recipients       List of dial contract addresses that can receive rewards
-     * @param _caps             Limit on the percentage of the weekly top line emission the corresponding dial can receive (where 10% = 10 and uncapped = 0)
-     * @param _notifies         If true, `notifyRewardAmount` is called in the `distributeRewards` function
-     * @param _stakingContracts Initial staking contracts used for voting power lookup
+     * @param _recipients        List of dial contract addresses that can receive rewards.
+     * @param _caps              Limit on the percentage of the weekly top line emission the corresponding dial can receive (where 10% = 10 and uncapped = 0).
+     * @param _notifies          If true, `notifyRewardAmount` is called in the `distributeRewards` function.
+     * @param _stakingContracts  Initial staking contracts used for voting power lookup.
      */
     function initialize(
         address[] memory _recipients,
@@ -185,8 +185,8 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     /**
      * @notice Gets the users aggregate voting power across all voting contracts.
      * @dev    Voting power can be from staking or it could be delegated to the account.
-     * @param account       For which to fetch voting power
-     * @return votingPower  Units of voting power owned by account
+     * @param account       For which to fetch voting power.
+     * @return votingPower  Units of voting power owned by account.
      */
     function getVotes(address account) public view returns (uint256 votingPower) {
         // For each configured staking contract
@@ -196,35 +196,66 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     }
 
     /**
-     * @notice Calculates top line distribution amount for the current epoch as per the polynomial
-     *                  (f(x)=A*(x/div)^3+B*(x/div)^2+C*(x/div)+D)
-     * @dev    Values are effectively scaled to 1e12 to avoid integer overflow on pow
-     * @param epoch             Index of the epoch to look up
-     * @return emissionForEpoch Units of MTA to be distributed at this epoch
+     * @notice Calculates top line distribution amount for the current epoch as per the polynomial.
+     *          (f(x)=A*(x/div)^3+B*(x/div)^2+C*(x/div)+D)
+     * @dev    Values are effectively scaled to 1e12 to avoid integer overflow on pow.
+     * @param epoch              The number of weeks since 1 Jan 1970.
+     * @return emissionForEpoch  Units of MTA to be distributed at this epoch.
      */
     function topLineEmission(uint32 epoch) public view returns (uint256 emissionForEpoch) {
-        require(epochs.startEpoch < epoch && epoch<= epochs.startEpoch + 312 , "Wrong epoch number");
+        require(
+            epochs.startEpoch < epoch && epoch <= epochs.startEpoch + 312,
+            "Wrong epoch number"
+        );
         // e.g. week 1, A = -166000e12, B = 168479942061125e3, C = -168479942061125e3, D = 166000e12
         // e.g. epochDelta = 1
         uint128 epochDelta = (epoch - epochs.startEpoch);
         // e.g. x = 1e12 / 312 = 3205128205
-        int256 x = SafeCast.toInt256(epochDelta  * 1e12 / EPOCHS);
+        int256 x = SafeCast.toInt256((epochDelta * 1e12) / EPOCHS);
         emissionForEpoch =
             SafeCast.toUint256(
                 ((A * (x**3)) / 1e36) + // e.g. -166000e12         * (3205128205 ^ 3) / 1e36 = -5465681315
-                ((B * (x**2)) / 1e24) + // e.g.  168479942061125e3 * (3205128205 ^ 2) / 1e24 =  1730768635433
-                ((C * (x))    / 1e12) + // e.g. -168479942061125e3 *  3205128205      / 1e12 = -539999814276877
-                  D                     // e.g.  166000e12
-            ) * 1e6; // e.g. SUM = 165461725488677241 * 1e6 = 165461e18
+                    ((B * (x**2)) / 1e24) + // e.g.  168479942061125e3 * (3205128205 ^ 2) / 1e24 =  1730768635433
+                    ((C * (x)) / 1e12) + // e.g. -168479942061125e3 *  3205128205      / 1e12 = -539999814276877
+                    D // e.g.  166000e12
+            ) *
+            1e6; // e.g. SUM = 165461725488677241 * 1e6 = 165461e18
     }
 
     /**
-     * @notice Gets a dial's recipient address
-     * @param dialId dial identifier
-     * @return recipient address of the recipient account associated with
+     * @notice Gets a dial's recipient address.
+     * @param dialId      Dial identifier starting from 0.
+     * @return recipient  Address of the recipient account associated with.
      */
     function getDialRecipient(uint256 dialId) public view returns (address recipient) {
         recipient = dials[dialId].recipient;
+    }
+
+    /**
+     * @notice Gets a dial's weighted votes for each distribution period.
+     * @param dialId        Dial identifier starting from 0.
+     * @return voteHistory  List of weighted votes with the first distribution at index 0.
+     */
+    function getDialVoteHistory(uint256 dialId)
+        public
+        view
+        returns (HistoricVotes[] memory voteHistory)
+    {
+        voteHistory = dials[dialId].voteHistory;
+    }
+
+    /**
+     * @notice Gets a voter's weights for each dial.
+     * @dev    A dial identifier of 255 marks the end  of the array. It should be ignored.
+     * @param voter         Address of the voter that has set weights.
+     * @return preferences  List of dial identifiers and weights where a weight of 100% = 200.
+     */
+    function getVoterPreferences(address voter)
+        public
+        view
+        returns (Preference[16] memory preferences)
+    {
+        preferences = voterPreferences[voter].dialWeights;
     }
 
     /***************************************
@@ -233,9 +264,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     /**
      * @notice Adds a new dial that can be voted on to receive weekly rewards. Callable by system governor.
-     * @param _recipient Address of the contract that will receive rewards
-     * @param _cap       Cap where 0 = uncapped and 10 = 10%
-     * @param _notify    If true, `notifyRewardAmount` is called in the `distributeRewards` function
+     * @param _recipient  Address of the contract that will receive rewards.
+     * @param _cap        Cap where 0 = uncapped and 10 = 10%.
+     * @param _notify     If true, `notifyRewardAmount` is called in the `distributeRewards` function.
      */
     function addDial(
         address _recipient,
@@ -274,8 +305,8 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     /**
      * @notice Updates a dials recipient contract and/or disabled flag.
-     * @param _dialId    Dial identifier which is the index of the dials array
-     * @param _disabled  If true, no rewards will be distributed to this dial
+     * @param _dialId    Dial identifier which is the index of the dials array.
+     * @param _disabled  If true, no rewards will be distributed to this dial.
      */
     function updateDial(uint256 _dialId, bool _disabled) external onlyGovernor {
         require(_dialId < dials.length, "Invalid dial id");
@@ -319,8 +350,8 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     /**
      * @notice Allows arbitrary reward donation to a dial on top of the weekly rewards.
-     * @param _dialIds  Dial identifiers that will receive donated rewards
-     * @param _amounts  Units of rewards to be sent to each dial including decimals
+     * @param _dialIds  Dial identifiers that will receive donated rewards.
+     * @param _amounts  Units of rewards to be sent to each dial including decimals.
      */
     function donate(uint256[] memory _dialIds, uint256[] memory _amounts) external {
         uint256 dialLen = _dialIds.length;
@@ -350,8 +381,8 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @notice Calculates the rewards to be distributed to each dial for the next weekly period.
      * @dev    Callable once an epoch has fully passed. Top level emission for the epoch is distributed
      *         proportionately to vote count with the following exceptions:
-     *          - Disabled dials are ignored and votes not counted
-     *          - Dials with a cap are capped and their votes/emission removed (effectively redistributing rewards)
+     *          - Disabled dials are ignored and votes not counted.
+     *          - Dials with a cap are capped and their votes/emission removed (effectively redistributing rewards).
      */
     function calculateRewards() external {
         // 1 - Calculate amount of rewards to distribute this week
@@ -432,7 +463,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     /**
      * @notice Transfers all accrued rewards to dials and notifies them of the amount.
-     * @param _dialIds Dial id's for which to distribute rewards
+     * @param _dialIds  Dial identifiers for which to distribute rewards.
      */
     function distributeRewards(uint256[] memory _dialIds) external {
         // For each specified dial
@@ -470,7 +501,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     /**
      * @notice Re-cast a voters votes by retrieving balance across all staking contracts
      *         and updating `lastSourcePoke`.
-     * @param _voter    Address of the voter for which to re-cast
+     * @param _voter    Address of the voter for which to re-cast.
      */
     function pokeSources(address _voter) external {
         uint256 votesCast = voterPreferences[_voter].votesCast;
@@ -484,10 +515,10 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @dev    A staker can proportion their voting power even if they currently have zero voting power.
      *         For example, they have delegated their votes. When they do have voting power (e.g. they undelegate),
      *         their set weights will proportion their voting power.
-     * @param _preferences Structs containing dialId & voting weights, with 0 <= n <= 16 entries
+     * @param _preferences  Structs containing dialId & voting weights, with 0 <= n <= 16 entries.
      */
     function setVoterDialWeights(Preference[] memory _preferences) external {
-        require(_preferences.length <= 16, "Maximum of 16 preferences");
+        require(_preferences.length <= 16, "Max of 16 preferences");
 
         // 1.0 - Get staker's previous total votes cast
         uint256 votesCast = voterPreferences[msg.sender].votesCast;
@@ -555,9 +586,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     /**
      * @dev Internal voting power updater. Adds/subtracts votes across the array of user preferences.
-     * @param _voter    Address of the source of movement
-     * @param _amount   Total amount of votes to be added/removed (proportionately across the user preferences)
-     * @param _op       Function (either addition or subtraction) that dictates how the `_amount` of votes affects balance
+     * @param _voter    Address of the source of movement.
+     * @param _amount   Total amount of votes to be added/removed (proportionately across the user preferences).
+     * @param _op       Function (either addition or subtraction) that dictates how the `_amount` of votes affects balance.
      */
     function _moveVotingPower(
         address _voter,
@@ -605,21 +636,21 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      *         This is the number of weeks since 1 Jan 1970. ie the timestamp / 604800 seconds in a week.
      * @dev    Each week starts on Thursday 00:00 UTC.
      * @param timestamp UNIX time in seconds.
-     * @return epoch    The number of weeks since 1 Jan 1970
+     * @return epoch    The number of weeks since 1 Jan 1970.
      */
     function _epoch(uint256 timestamp) internal pure returns (uint32 epoch) {
         epoch = SafeCast.toUint32(timestamp) / DISTRIBUTION_PERIOD;
     }
 
     /**
-     * @dev Simple addition function, used in the `_moveVotingPower` fn
+     * @dev Simple addition function, used in the `_moveVotingPower` fn.
      */
     function _add(uint256 a, uint256 b) private pure returns (uint256) {
         return a + b;
     }
 
     /**
-     * @dev Simple subtraction function, used in the `_moveVotingPower` fn
+     * @dev Simple subtraction function, used in the `_moveVotingPower` fn.
      */
     function _subtract(uint256 a, uint256 b) private pure returns (uint256) {
         return a - b;
