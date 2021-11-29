@@ -67,10 +67,10 @@ export const deployEmissionsController = async (signer: Signer, hre: HardhatRunt
     }
 
     const defaultConfig = {
-        A: -166000,
-        B: 180000,
-        C: -180000,
-        D: 166000,
+        A: -166000000000000,
+        B: 168479942061125,
+        C: -168479942061125,
+        D: 166000000000000,
         EPOCHS: 312,
     }
 

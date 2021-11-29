@@ -119,7 +119,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     event PreferencesChanged(address indexed voter, Preference[] preferences);
     event VotesCast(address indexed from, address indexed to, uint256 amount);
-    event SourcesPoked(address indexed voter);
+    event SourcesPoked(address indexed voter, uint256 newVotesCast);
 
     /***************************************
                     INIT
@@ -162,15 +162,15 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         uint256 len = _recipients.length;
         require(_notifies.length == len && _caps.length == len, "Initialize args mismatch");
 
-        // 1.0 - Add each of the dials
+        // 1.0 - Set the last epoch storage variable to the immutable start epoch
+        //       Set the weekly epoch this contract starts distributions which will be 1 - 2 week after deployment.
+        uint32 startEpoch = _epoch(block.timestamp) + 1;
+        epochs = EpochHistory({ startEpoch: startEpoch, lastEpoch: startEpoch });
+
+        // 2.0 - Add each of the dials
         for (uint256 i = 0; i < len; i++) {
             _addDial(_recipients[i], _caps[i], _notifies[i]);
         }
-
-        // 2.0 - Set the last epoch storage variable to the immutable start epoch
-        //       Set the weekly epoch this contract starts distributions which will be 1 - 2 week after deployment.
-        uint32 startEpoch = SafeCast.toUint32((block.timestamp + 1 weeks) / DISTRIBUTION_PERIOD);
-        epochs = EpochHistory({ startEpoch: startEpoch, lastEpoch: startEpoch });
 
         // 3.0 - Initialize the staking contracts
         for (uint256 i = 0; i < _stakingContracts.length; i++) {
@@ -245,6 +245,35 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     }
 
     /**
+     * @notice Gets the number of weighted votes for each dial for a given week's distribution.
+     * @param epoch      The week of the distribution measured as the number of weeks since 1 Jan 1970.
+     * @return dialVotes A list of dials votes for that week. The index of the array is the dialId.
+     */
+    function getEpochVotes(uint32 epoch) public view returns (uint256[] memory dialVotes) {
+        uint256 dialLen = dials.length;
+        dialVotes = new uint256[](dialLen);
+        require(epoch <= epochs.lastEpoch, "invalid epoch");
+
+        for (uint256 i = 0; i < dialLen; i++) {
+            DialData memory dialData = dials[i];
+
+            // If no distributions for this dial yet
+            if (dialData.voteHistory.length == 0) {
+                continue;
+            }
+            // If the epoch is before distributions for this dial
+            uint256 firstDialEpoch = dialData.voteHistory[0].epoch;
+            if (epoch < firstDialEpoch) {
+                continue;
+            }
+
+            // The following assume rewards were calculated every week
+            uint256 voteHistoryIndex = epoch - firstDialEpoch;
+            dialVotes[i] = dialData.voteHistory[voteHistoryIndex].votes;
+        }
+    }
+
+    /**
      * @notice Gets a voter's weights for each dial.
      * @dev    A dial identifier of 255 marks the end  of the array. It should be ignored.
      * @param voter         Address of the voter that has set weights.
@@ -298,7 +327,11 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         newDialData.recipient = _recipient;
         newDialData.notify = _notify;
         newDialData.cap = _cap;
-        newDialData.voteHistory.push(HistoricVotes({ votes: 0, epoch: _epoch(block.timestamp) }));
+        uint32 currentEpoch = _epoch(block.timestamp);
+        if (currentEpoch < epochs.startEpoch) {
+            currentEpoch = epochs.startEpoch;
+        }
+        newDialData.voteHistory.push(HistoricVotes({ votes: 0, epoch: currentEpoch }));
 
         emit AddedDial(len, _recipient);
     }
@@ -501,13 +534,17 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     /**
      * @notice Re-cast a voters votes by retrieving balance across all staking contracts
      *         and updating `lastSourcePoke`.
+     * @dev    This would need to be called if a staking contract was added to the emissions controller
+     * when a voter already had voting power in the new staking contract.
      * @param _voter    Address of the voter for which to re-cast.
      */
-    function pokeSources(address _voter) external {
+    function pokeSources(address _voter) public {
         uint256 votesCast = voterPreferences[_voter].votesCast;
-        _moveVotingPower(_voter, getVotes(_voter) - votesCast, _add);
+        uint256 newVotesCast = getVotes(_voter) - votesCast;
+        _moveVotingPower(_voter, newVotesCast, _add);
         voterPreferences[_voter].lastSourcePoke = SafeCast.toUint32(block.timestamp);
-        emit SourcesPoked(_voter);
+
+        emit SourcesPoked(_voter, newVotesCast);
     }
 
     /**
@@ -568,12 +605,20 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             require(addTime > 0, "Caller must be staking contract");
 
             // If burning (withdraw) or transferring delegated votes from a staker
-            if (from != address(0) && voterPreferences[from].lastSourcePoke > addTime) {
-                _moveVotingPower(from, amount, _subtract);
+            if (from != address(0)) {
+                if (voterPreferences[from].lastSourcePoke > addTime) {
+                    _moveVotingPower(from, amount, _subtract);
+                } else {
+                    pokeSources(from);
+                }
             }
             // If minting (staking) or transferring delegated votes to a staker
-            if (to != address(0) && voterPreferences[to].lastSourcePoke > addTime) {
-                _moveVotingPower(to, amount, _add);
+            if (to != address(0)) {
+                if (voterPreferences[to].lastSourcePoke > addTime) {
+                    _moveVotingPower(to, amount, _add);
+                } else {
+                    pokeSources(to);
+                }
             }
 
             emit VotesCast(from, to, amount);
