@@ -39,7 +39,8 @@ struct Preference {
 }
 
 struct VoterPreferences {
-    // List of preferences (0 <= n <= 16 preferences)
+    // List of preferences (0 <= n <= 16 preferences).
+    // 16 * (8 + 8) = 256 bits = 1 slot
     Preference[16] dialWeights;
     // Total voting power cast by this voter across the staking contracts.
     uint128 votesCast;
@@ -580,9 +581,11 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         }
         require(newTotalWeight <= SCALE, "Imbalanced weights");
 
+        // Need to set before calling _moveVotingPower for the second time
+        voterPreferences[msg.sender].lastSourcePoke = SafeCast.toUint32(block.timestamp);
+
         // 3.0 - Cast votes on these new preferences
         _moveVotingPower(msg.sender, getVotes(msg.sender), _add);
-        voterPreferences[msg.sender].lastSourcePoke = SafeCast.toUint32(block.timestamp);
 
         emit PreferencesChanged(msg.sender, _preferences);
     }
@@ -606,19 +609,27 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
             // If burning (withdraw) or transferring delegated votes from a staker
             if (from != address(0)) {
-                if (voterPreferences[from].lastSourcePoke > addTime) {
+                uint32 lastSourcePoke = voterPreferences[from].lastSourcePoke;
+                if (lastSourcePoke > addTime) {
                     _moveVotingPower(from, amount, _subtract);
-                } else {
+                } else if (lastSourcePoke > 0) {
+                    // If preferences were set before the calling staking contract
+                    // was added to the EmissionsController
                     pokeSources(from);
                 }
+                // Don't need to do anything if staker has not set preferences before.
             }
             // If minting (staking) or transferring delegated votes to a staker
             if (to != address(0)) {
-                if (voterPreferences[to].lastSourcePoke > addTime) {
+                uint32 lastSourcePoke = voterPreferences[to].lastSourcePoke;
+                if (lastSourcePoke > addTime) {
                     _moveVotingPower(to, amount, _add);
-                } else {
+                } else if (lastSourcePoke > 0) {
+                    // If preferences were set before the calling staking contract
+                    // was added to the EmissionsController
                     pokeSources(to);
                 }
+                // Don't need to do anything if staker has not set preferences before.
             }
 
             emit VotesCast(from, to, amount);
@@ -642,13 +653,23 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     ) internal {
         // 0.0 - Get preferences and epoch data
         VoterPreferences memory preferences = voterPreferences[_voter];
+
+        // 0.1 - If no preferences have been set then there is nothing to do
+        // This prevent doing 16 iterations below as dialId 255 will not be set
+        if (preferences.lastSourcePoke == 0) return;
+
+        // 0.2 - If in the first launch week
         uint32 currentEpoch = _epoch(block.timestamp);
-        // 0.1 - Update the total amount of votes cast by the voter
+        if (currentEpoch < epochs.startEpoch) {
+            currentEpoch = epochs.startEpoch;
+        }
+
+        // 0.3 - Update the total amount of votes cast by the voter
         voterPreferences[_voter].votesCast = SafeCast.toUint128(
             _op(preferences.votesCast, _amount)
         );
 
-        // 1.0 - Loop through preferences until dialId == 255 or until end
+        // 1.0 - Loop through voter preferences until dialId == 255 or until end
         for (uint256 i = 0; i < 16; i++) {
             Preference memory pref = preferences.dialWeights[i];
             if (pref.dialId == 255) break;
