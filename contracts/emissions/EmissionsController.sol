@@ -119,7 +119,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     event DistributedReward(uint256 indexed dialId, uint256 amount);
 
     event PreferencesChanged(address indexed voter, Preference[] preferences);
-    event VotesCast(address indexed from, address indexed to, uint256 amount);
+    event VotesCast(address stakingContract, address indexed from, address indexed to, uint256 amount);
     event SourcesPoked(address indexed voter, uint256 newVotesCast);
 
     /***************************************
@@ -536,16 +536,19 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @notice Re-cast a voters votes by retrieving balance across all staking contracts
      *         and updating `lastSourcePoke`.
      * @dev    This would need to be called if a staking contract was added to the emissions controller
-     * when a voter already had voting power in the new staking contract.
+     * when a voter already had voting power in the new staking contract and they had already set voting preferences.
      * @param _voter    Address of the voter for which to re-cast.
      */
     function pokeSources(address _voter) public {
-        uint256 votesCast = voterPreferences[_voter].votesCast;
-        uint256 newVotesCast = getVotes(_voter) - votesCast;
-        _moveVotingPower(_voter, newVotesCast, _add);
-        voterPreferences[_voter].lastSourcePoke = SafeCast.toUint32(block.timestamp);
+        // Only poke if voter has previously set voting preferences
+        if (voterPreferences[_voter].lastSourcePoke > 0) {
+            uint256 votesCast = voterPreferences[_voter].votesCast;
+            uint256 newVotesCast = getVotes(_voter) - votesCast;
+            _moveVotingPower(_voter, newVotesCast, _add);
+            voterPreferences[_voter].lastSourcePoke = SafeCast.toUint32(block.timestamp);
 
-        emit SourcesPoked(_voter, newVotesCast);
+            emit SourcesPoked(_voter, newVotesCast);
+        }
     }
 
     /**
@@ -603,6 +606,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         uint256 amount
     ) external override {
         if (amount > 0) {
+            bool votesCast;
             // Require that the caller of this function is a whitelisted staking contract
             uint32 addTime = stakingContractAddTime[msg.sender];
             require(addTime > 0, "Caller must be staking contract");
@@ -612,6 +616,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
                 uint32 lastSourcePoke = voterPreferences[from].lastSourcePoke;
                 if (lastSourcePoke > addTime) {
                     _moveVotingPower(from, amount, _subtract);
+                    votesCast = true;
                 } else if (lastSourcePoke > 0) {
                     // If preferences were set before the calling staking contract
                     // was added to the EmissionsController
@@ -624,6 +629,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
                 uint32 lastSourcePoke = voterPreferences[to].lastSourcePoke;
                 if (lastSourcePoke > addTime) {
                     _moveVotingPower(to, amount, _add);
+                    votesCast = true;
                 } else if (lastSourcePoke > 0) {
                     // If preferences were set before the calling staking contract
                     // was added to the EmissionsController
@@ -632,7 +638,10 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
                 // Don't need to do anything if staker has not set preferences before.
             }
 
-            emit VotesCast(from, to, amount);
+            // Only emit if voting power was moved.
+            if (votesCast) {
+                emit VotesCast(msg.sender, from, to, amount);
+            }
         }
     }
 

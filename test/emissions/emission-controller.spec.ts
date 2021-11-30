@@ -1299,18 +1299,19 @@ describe("EmissionsController", async () => {
             await emissionsController.connect(sa.governor.signer).addDial(staking1.address, 10, true)
             await emissionsController.connect(sa.governor.signer).addDial(staking2.address, 10, true)
 
-            // increase 1 week as there is two weeks at the start
+            // increase 1 week so in the second launch week
             await increaseTime(ONE_WEEK)
 
             currentTime = await getTimestamp()
         })
         it("should poke voter 1 with no voting power", async () => {
             const tx = await emissionsController.pokeSources(voter1.address)
-            await expect(tx).to.emit(emissionsController, "SourcesPoked").withArgs(voter1.address, 0)
+            await expect(tx).to.not.emit(emissionsController, "SourcesPoked")
         })
-        it("should poke voter 1 with voting power but no weights set", async () => {
+        it("should poke voter 1 with voting power but no preferences set", async () => {
             const voterPreferencesBefore = await emissionsController.voterPreferences(voter1.address)
             expect(voterPreferencesBefore.lastSourcePoke, "last poke time before").to.eq(0)
+            expect(voterPreferencesBefore.votesCast, "votes cast before").to.eq(0)
 
             // Voter 1 has voting power in staking contracts 1 and 2
             await staking1.setVotes(voter1.address, simpleToExactAmount(50))
@@ -1318,9 +1319,11 @@ describe("EmissionsController", async () => {
 
             const tx = await emissionsController.pokeSources(voter1.address)
 
-            await expect(tx).to.emit(emissionsController, "SourcesPoked").withArgs(voter1.address, 0)
+            await expect(tx).to.not.emit(emissionsController, "SourcesPoked")
+
             const voterPreferencesAfter = await emissionsController.voterPreferences(voter1.address)
-            expect(voterPreferencesAfter.lastSourcePoke, "last poke time after").to.gt(currentTime)
+            expect(voterPreferencesAfter.lastSourcePoke, "last poke time after").to.eq(0)
+            expect(voterPreferencesAfter.votesCast, "votes cast after").to.eq(0)
         })
         it("should poke voter 1 with voting power and weights set", async () => {
             const voterPreferencesBefore = await emissionsController.voterPreferences(voter1.address)
@@ -1388,34 +1391,6 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[3], "dial 4 votes").to.eq(simpleToExactAmount(9000).mul(4).div(10))
                 expect(dialVotes[4], "dial 5 votes").to.eq(0)
             })
-            // it("should poke when the hook is called from increased voting power", async () => {
-            //     // Voter 1's voting power is tripled
-            //     const tx = staking3.setVotes(voter1.address, voter1Staking3VotingPower.mul(3))
-
-            //     await expect(tx).to.emit(emissionsController, "SourcesPoked").withArgs(voter1.address, voter1Staking3VotingPower.mul(3))
-
-            //     const dialVotes = await emissionsController.getEpochVotes(await currentWeekEpoch())
-            //     expect(dialVotes, "number of dials").to.lengthOf(5)
-            //     expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(21000).mul(6).div(10))
-            //     expect(dialVotes[1], "dial 2 votes").to.eq(0)
-            //     expect(dialVotes[2], "dial 3 votes").to.eq(0)
-            //     expect(dialVotes[3], "dial 4 votes").to.eq(simpleToExactAmount(21000).mul(4).div(10))
-            //     expect(dialVotes[4], "dial 5 votes").to.eq(0)
-            // })
-            // it("should poke when the hook is called from reduced voting power", async () => {
-            //     // Voter 1's voting power is tripled
-            //     const tx = staking3.setVotes(voter1.address, 0)
-
-            //     await expect(tx).to.emit(emissionsController, "SourcesPoked").withArgs(voter1.address, 0)
-
-            //     const dialVotes = await emissionsController.getEpochVotes(await currentWeekEpoch())
-            //     expect(dialVotes, "number of dials").to.lengthOf(5)
-            //     expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(3000).mul(6).div(10))
-            //     expect(dialVotes[1], "dial 2 votes").to.eq(0)
-            //     expect(dialVotes[2], "dial 3 votes").to.eq(0)
-            //     expect(dialVotes[3], "dial 4 votes").to.eq(simpleToExactAmount(3000).mul(4).div(10))
-            //     expect(dialVotes[4], "dial 5 votes").to.eq(0)
-            // })
         })
     })
     // TODO - setVoterDialWeights
@@ -1665,7 +1640,9 @@ describe("EmissionsController", async () => {
                 // Voter 1's voting power is tripled from 100 to 300 which is a 200 increase
                 const tx = await staking1.setVotes(voter1.address, simpleToExactAmount(300))
 
-                await expect(tx).to.emit(emissionsController, "VotesCast").withArgs(ZERO_ADDRESS, voter1.address, simpleToExactAmount(200))
+                await expect(tx)
+                    .to.emit(emissionsController, "VotesCast")
+                    .withArgs(staking1.address, ZERO_ADDRESS, voter1.address, simpleToExactAmount(200))
 
                 // Is the next epoch as we are still in the first week of the launch
                 const dialVotes = await emissionsController.getEpochVotes(nextEpoch)
@@ -1706,7 +1683,7 @@ describe("EmissionsController", async () => {
                 // Voter 3's voting power is increased from 0 to 1000 which is a 1000 increase
                 const tx = await staking1.setVotes(voter3.address, simpleToExactAmount(1000))
 
-                await expect(tx).to.emit(emissionsController, "VotesCast").withArgs(ZERO_ADDRESS, voter3.address, simpleToExactAmount(1000))
+                await expect(tx).to.not.emit(emissionsController, "VotesCast")
 
                 const dialVotes = await emissionsController.getEpochVotes(nextEpoch)
                 expect(dialVotes, "number of dials").to.lengthOf(3)
@@ -1728,7 +1705,9 @@ describe("EmissionsController", async () => {
                 // Voter 1's voting power is increased from 100 to 500 which is a 400 increase
                 const tx = await staking1.setVotes(voter1.address, simpleToExactAmount(500))
 
-                await expect(tx).to.emit(emissionsController, "VotesCast").withArgs(ZERO_ADDRESS, voter1.address, simpleToExactAmount(400))
+                await expect(tx)
+                    .to.emit(emissionsController, "VotesCast")
+                    .withArgs(staking1.address, ZERO_ADDRESS, voter1.address, simpleToExactAmount(400))
 
                 const dialVotes = await emissionsController.getEpochVotes(nextEpoch)
                 expect(dialVotes, "number of dials").to.lengthOf(3)
@@ -1744,7 +1723,9 @@ describe("EmissionsController", async () => {
                 // Voter 1's voting power is decreased from 100 to 10 which is a 90 decrease
                 const tx = await staking1.setVotes(voter1.address, simpleToExactAmount(10))
 
-                await expect(tx).to.emit(emissionsController, "VotesCast").withArgs(voter1.address, ZERO_ADDRESS, simpleToExactAmount(90))
+                await expect(tx)
+                    .to.emit(emissionsController, "VotesCast")
+                    .withArgs(staking1.address, voter1.address, ZERO_ADDRESS, simpleToExactAmount(90))
 
                 const dialVotes = await emissionsController.getEpochVotes(nextEpoch)
                 expect(dialVotes, "number of dials").to.lengthOf(3)
@@ -1788,7 +1769,9 @@ describe("EmissionsController", async () => {
                 // Voter 2's voting power is increased from 200 to 300 which is a 100 increase
                 const tx = await staking1.setVotes(voter2.address, simpleToExactAmount(300))
 
-                await expect(tx).to.emit(emissionsController, "VotesCast").withArgs(ZERO_ADDRESS, voter2.address, simpleToExactAmount(100))
+                await expect(tx)
+                    .to.emit(emissionsController, "VotesCast")
+                    .withArgs(staking1.address, ZERO_ADDRESS, voter2.address, simpleToExactAmount(100))
 
                 const dialVotes = await emissionsController.getEpochVotes(nextEpoch)
                 expect(dialVotes, "number of dials").to.lengthOf(3)
@@ -1806,7 +1789,7 @@ describe("EmissionsController", async () => {
                 // Voter 3's voting power is increased from 0 to 1000 which is a 1000 increase
                 const tx = await staking1.setVotes(voter3.address, simpleToExactAmount(1000))
 
-                await expect(tx).to.emit(emissionsController, "VotesCast").withArgs(ZERO_ADDRESS, voter3.address, simpleToExactAmount(1000))
+                await expect(tx).to.not.emit(emissionsController, "VotesCast")
 
                 const dialVotes = await emissionsController.getEpochVotes(nextEpoch)
                 expect(dialVotes, "number of dials").to.lengthOf(3)
@@ -1906,7 +1889,7 @@ describe("EmissionsController", async () => {
                 const tx = staking3.setVotes(voter3.address, simpleToExactAmount(4000))
 
                 await expect(tx).to.not.emit(emissionsController, "SourcesPoked")
-                await expect(tx).to.emit(emissionsController, "VotesCast").withArgs(ZERO_ADDRESS, voter3.address, simpleToExactAmount(4000))
+                await expect(tx).to.not.emit(emissionsController, "VotesCast")
 
                 const dialVotes = await emissionsController.getEpochVotes(nextEpoch)
                 expect(dialVotes, "number of dials").to.lengthOf(3)
