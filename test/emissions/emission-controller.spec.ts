@@ -106,11 +106,11 @@ const nextRewardAmount = async (emissionsController: EmissionsController, epoch 
  * Expectations for the EmissionsController.topLineEmission function.
  *
  * @param {EmissionsController} emissionsController
- * @param {number} startingEpoch - The starting epoch.
+ * @param {number} startEpoch - The starting epoch.
  * @param {number} deltaEpoch- The delta epoch.
  */
-const expectTopLineEmissionForEpoch = (emissionsController: EmissionsController, startingEpoch: number) => async (deltaEpoch: number) => {
-    const emissionForEpoch = await emissionsController.topLineEmission(startingEpoch + deltaEpoch)
+const expectTopLineEmissionForEpoch = (emissionsController: EmissionsController, startEpoch: number) => async (deltaEpoch: number) => {
+    const emissionForEpoch = await emissionsController.topLineEmission(startEpoch + deltaEpoch)
     const expectedEmissionAmount = await nextRewardAmount(emissionsController, deltaEpoch)
     expect(emissionForEpoch).eq(expectedEmissionAmount)
 }
@@ -302,34 +302,35 @@ describe("EmissionsController", async () => {
                     const tx = emissionsController.initialize(recipients, test.caps, test.notifies, test.stakingContracts)
                     await expect(tx).to.revertedWith("Initialize args mismatch")
                 })
-            }
+            })
             it("first staking contract is zero", async () => {
                 const recipients = dials.map((d) => d.address)
                 const tx = emissionsController.initialize(recipients, [0, 0, 0], [true, true, false], [ZERO_ADDRESS, staking2.address])
                 await expect(tx).to.revertedWith("Staking contract address is zero")
             })
             it("second staking contract is zero", async () => {
-                const recipients = dials.map((d) => d.address)
+                const recipients = dials.map(d => d.address)
                 const tx = emissionsController.initialize(recipients, [0, 0, 0], [true, true, false], [staking1.address, ZERO_ADDRESS])
                 await expect(tx).to.revertedWith("Staking contract address is zero")
             })
+
         })
     })
     describe("calling view functions", () => {
         describe("fetch weekly emissions", () => {
-            let startingEpoch
+            let startEpoch
             let expectTopLineEmissions
             before(async () => {
                 await deployEmissionsController()
-                    ;[startingEpoch] = await emissionsController.epochs()
-                expectTopLineEmissions = expectTopLineEmissionForEpoch(emissionsController, startingEpoch)
+                    ;[startEpoch] = await emissionsController.epochs()
+                expectTopLineEmissions = expectTopLineEmissionForEpoch(emissionsController, startEpoch)
             })
             it("fails fetching an smaller epoch than deployed time", async () => {
-                const tx = emissionsController.topLineEmission(startingEpoch - 1)
+                const tx = emissionsController.topLineEmission(startEpoch)
                 await expect(tx).to.revertedWith("Wrong epoch number")
             })
             it("fails fetching same epoch as deployed time", async () => {
-                const tx = emissionsController.topLineEmission(startingEpoch)
+                const tx = emissionsController.topLineEmission(startEpoch)
                 await expect(tx).to.revertedWith("Wrong epoch number")
             })
             it("fetches week 1", async () => {
@@ -348,19 +349,19 @@ describe("EmissionsController", async () => {
                 expectTopLineEmissions(312) // = 0
             })
             it("fails fetching week 313 - six years + one week", async () => {
-                const tx = emissionsController.topLineEmission(startingEpoch + 313)
+                const tx = emissionsController.topLineEmission(startEpoch + 313)
                 await expect(tx).to.revertedWith("Wrong epoch number")
             })
             it("fails fetching week 5200 - Ten years", async () => {
-                const tx = emissionsController.topLineEmission(startingEpoch + 5200)
+                const tx = emissionsController.topLineEmission(startEpoch + 5200)
                 await expect(tx).to.revertedWith("Wrong epoch number")
             })
         })
         describe("gets a dials weighted votes  ", () => {
-            let startingEpoch
+            let startEpoch
             before(async () => {
                 await deployEmissionsController()
-                    ;[startingEpoch] = await emissionsController.epochs()
+                    ;[startEpoch] = await emissionsController.epochs()
             })
             it("gets initial dials vote history ", async () => {
                 [...Array(INITIAL_DIALS_NO).keys()].forEach(async (dialId) => {
@@ -369,7 +370,7 @@ describe("EmissionsController", async () => {
                     expect(voteHistory, "voteHistory").length(1)
                     expect(votes, "votes").to.eq(0)
                     // Starting epoch is one week ahead of deployment, EmissionController.initialize
-                    expect(epoch + 1, "epoch").to.eq(startingEpoch)
+                    expect(epoch, "epoch").to.eq(startEpoch)
                 })
 
             })
@@ -690,11 +691,11 @@ describe("EmissionsController", async () => {
             expect(await emissionsController.callStatic.getVotes(sa.dummy3.address), "Voter 3 votes before").to.eq(simpleToExactAmount(300))
         })
         it("with no weights", async () => {
-            const [startingEpoch, lastEpochBefore] = await emissionsController.epochs()
+            const [startEpoch, lastEpochBefore] = await emissionsController.epochs()
             await increaseTime(ONE_WEEK)
 
             // Expect initial vote with no weight 
-            await expectDialVotesHistoryForDial(emissionsController,{dialId: 0, votesNo: 1, lastVote: 0, lastEpoch: startingEpoch - 1})
+            await expectDialVotesHistoryForDial(emissionsController, { dialId: 0, votesNo: 1, lastVote: 0, lastEpoch: startEpoch })
 
             const tx = await emissionsController.calculateRewards()
 
@@ -729,8 +730,8 @@ describe("EmissionsController", async () => {
                     
                     // Expects initial vote history with no weight
                     [...Array(INITIAL_DIALS_NO).keys()].forEach(
-                        async (dialId) => expectDialVotesHistoryForDial(emissionsController,{ dialId, votesNo: 1, lastVote: 0, lastEpoch: startEpoch - 1 }))
-                    
+                        async (dialId) => expectDialVotesHistoryForDial(emissionsController, { dialId, votesNo: 1, lastVote: 0, lastEpoch: startEpoch }))
+
                 })
                 afterEach(async () => {
                     const [, lastEpochAfter] = await emissionsController.epochs()
@@ -741,7 +742,7 @@ describe("EmissionsController", async () => {
                     await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
                     
                     // Expect dial 1 vote history updated with 300 votes (dialId = n-1) 
-                    const dialVoteHistory = { dialId: 0, votesNo: 2, lastVote: simpleToExactAmount(VOTERS["1"].votes), lastEpoch: startEpoch};
+                    const dialVoteHistory = { dialId: 0, votesNo: 1, lastVote: simpleToExactAmount(VOTERS["1"].votes), lastEpoch: startEpoch};
                     await expectDialVotesHistoryForDial(emissionsController,dialVoteHistory)
                     await increaseTime(ONE_WEEK)
 
@@ -766,9 +767,9 @@ describe("EmissionsController", async () => {
 
                     // Expects dial 1 - 300 , dial 2 - 600 , dial 3 - 0 (dialId = n-1) 
                     const dialsVoteHistory = [
-                        { dialId: 0, votesNo: 2, lastVote: VOTERS["1"].votes, lastEpoch: startEpoch },
-                        { dialId: 1, votesNo: 2, lastVote: VOTERS["2"].votes, lastEpoch: startEpoch },
-                        { dialId: 2, votesNo: 1, lastVote: 0, lastEpoch: startEpoch - 1 }];
+                        { dialId: 0, votesNo: 1, lastVote: VOTERS["1"].votes, lastEpoch: startEpoch },
+                        { dialId: 1, votesNo: 1, lastVote: VOTERS["2"].votes, lastEpoch: startEpoch },
+                        { dialId: 2, votesNo: 1, lastVote: 0, lastEpoch: startEpoch }];
 
                     await expectDialVotesHistoryForDials(emissionsController,dialsVoteHistory)
 
@@ -805,9 +806,9 @@ describe("EmissionsController", async () => {
                     const dial1Votes = VOTERS["1"].votes * 0.5 + VOTERS["2"].votes * 0.5
                     const dial2Votes = VOTERS["1"].votes * 0.5 + VOTERS["2"].votes * 0.5
                     const dialsVoteHistory = [  
-                    { dialId: 0, votesNo: 2, lastVote: dial1Votes, lastEpoch: startEpoch},
-                    { dialId: 1, votesNo: 2, lastVote: dial2Votes, lastEpoch: startEpoch},
-                    { dialId: 2, votesNo: 1, lastVote: 0, lastEpoch: startEpoch - 1 }];
+                    { dialId: 0, votesNo: 1, lastVote: dial1Votes, lastEpoch: startEpoch},
+                    { dialId: 1, votesNo: 1, lastVote: dial2Votes, lastEpoch: startEpoch},
+                    { dialId: 2, votesNo: 1, lastVote: 0, lastEpoch: startEpoch }];
 
                     await expectDialVotesHistoryForDials(emissionsController,dialsVoteHistory)                    
 
@@ -841,9 +842,9 @@ describe("EmissionsController", async () => {
                     const dial3Votes = VOTERS["2"].votes
                     // Expects dial 1 - 60 , dial 240 - 600 , dial 3 - 600 
                     const dialsVoteHistory = [
-                        { dialId: 0, votesNo: 2, lastVote: dial1Votes, lastEpoch: startEpoch },
-                        { dialId: 1, votesNo: 2, lastVote: dial2Votes, lastEpoch: startEpoch },
-                        { dialId: 2, votesNo: 2, lastVote: dial3Votes, lastEpoch: startEpoch }];
+                        { dialId: 0, votesNo: 1, lastVote: dial1Votes, lastEpoch: startEpoch },
+                        { dialId: 1, votesNo: 1, lastVote: dial2Votes, lastEpoch: startEpoch },
+                        { dialId: 2, votesNo: 1, lastVote: dial3Votes, lastEpoch: startEpoch }];
                     await expectDialVotesHistoryForDials(emissionsController,dialsVoteHistory)     
 
                     const nextEpochEmission = await nextRewardAmount(emissionsController)
@@ -904,9 +905,9 @@ describe("EmissionsController", async () => {
                     ])
                     await increaseTime(ONE_WEEK)
                     const dialsVoteHistory = [  
-                        { dialId: 0, votesNo: 3, lastVote: VOTERS["1"].votes * .8, lastEpoch: startEpoch + 1},
-                        { dialId: 1, votesNo: 3, lastVote: VOTERS["1"].votes * .2, lastEpoch: startEpoch + 1},
-                        { dialId: 2, votesNo: 3, lastVote: VOTERS["2"].votes, lastEpoch: startEpoch + 1}];
+                        { dialId: 0, votesNo: 2, lastVote: VOTERS["1"].votes * .8, lastEpoch: startEpoch + 1 },
+                        { dialId: 1, votesNo: 2, lastVote: VOTERS["1"].votes * .2, lastEpoch: startEpoch + 1 },
+                        { dialId: 2, votesNo: 2, lastVote: VOTERS["2"].votes, lastEpoch: startEpoch + 1 }];
                     await expectDialVotesHistoryForDials(emissionsController,dialsVoteHistory)    
 
 
@@ -935,9 +936,9 @@ describe("EmissionsController", async () => {
 
                     // Expects dial 1 - 0 , dial 2 - 600 , dial 3 - 0 (dialId = n-1) 
                     const dialsVoteHistory = [  
-                        { dialId: 0, votesNo: 3, lastVote: 0, lastEpoch: startEpoch + 1},
-                        { dialId: 1, votesNo: 3, lastVote: VOTERS["1"].votes * .8, lastEpoch: startEpoch + 1},
-                        { dialId: 2, votesNo: 3, lastVote: VOTERS["2"].votes, lastEpoch: startEpoch + 1}];
+                        { dialId: 0, votesNo: 2, lastVote: 0, lastEpoch: startEpoch + 1},
+                        { dialId: 1, votesNo: 2, lastVote: VOTERS["1"].votes * .8, lastEpoch: startEpoch + 1},
+                        { dialId: 2, votesNo: 2, lastVote: VOTERS["2"].votes, lastEpoch: startEpoch + 1}];
                     await expectDialVotesHistoryForDials(emissionsController,dialsVoteHistory)    
 
                     const nextEpochEmission = await nextRewardAmount(emissionsController)
@@ -964,9 +965,9 @@ describe("EmissionsController", async () => {
 
                     // Expects dial 1 - 0 , dial 2 - 0 , dial 3 - 900 (dialId = n-1) 
                     const dialsVoteHistory = [  
-                        { dialId: 0, votesNo: 3, lastVote: 0, lastEpoch: startEpoch + 1},
-                        { dialId: 1, votesNo: 3, lastVote: 0, lastEpoch: startEpoch + 1},
-                        { dialId: 2, votesNo: 3, lastVote: VOTERS["1"].votes + VOTERS["2"].votes, lastEpoch: startEpoch + 1}];
+                        { dialId: 0, votesNo: 2, lastVote: 0, lastEpoch: startEpoch + 1},
+                        { dialId: 1, votesNo: 2, lastVote: 0, lastEpoch: startEpoch + 1},
+                        { dialId: 2, votesNo: 2, lastVote: VOTERS["1"].votes + VOTERS["2"].votes, lastEpoch: startEpoch + 1}];
                     await expectDialVotesHistoryForDials(emissionsController,dialsVoteHistory)                      
 
                     const nextEpochEmission = await nextRewardAmount(emissionsController)
@@ -991,9 +992,9 @@ describe("EmissionsController", async () => {
 
                     // Expects dial 1 - 360 , dial 2 - 240 , dial 3 - 600 (dialId = n-1) 
                     const dialsVoteHistory = [  
-                        { dialId: 0, votesNo: 3, lastVote: VOTERS["1"].votes * .2 + VOTERS["3"].votes, lastEpoch: startEpoch + 1},
-                        { dialId: 1, votesNo: 3, lastVote: VOTERS["1"].votes * .8, lastEpoch: startEpoch + 1},
-                        { dialId: 2, votesNo: 3, lastVote: VOTERS["2"].votes, lastEpoch: startEpoch + 1}];
+                        { dialId: 0, votesNo: 2, lastVote: VOTERS["1"].votes * .2 + VOTERS["3"].votes, lastEpoch: startEpoch + 1},
+                        { dialId: 1, votesNo: 2, lastVote: VOTERS["1"].votes * .8, lastEpoch: startEpoch + 1},
+                        { dialId: 2, votesNo: 2, lastVote: VOTERS["2"].votes, lastEpoch: startEpoch + 1}];
                     await expectDialVotesHistoryForDials(emissionsController,dialsVoteHistory)                       
 
                     const nextEpochEmission = await nextRewardAmount(emissionsController)
@@ -1021,9 +1022,9 @@ describe("EmissionsController", async () => {
 
                     // Expects dial 1 - 300 , dial 2 - 600 , dial 3 - 0 (dialId = n-1) 
                     const dialsVoteHistory = [  
-                        { dialId: 0, votesNo: 3, lastVote: VOTERS["1"].votes * .2, lastEpoch: startEpoch + 1},
-                        { dialId: 1, votesNo: 3, lastVote: VOTERS["1"].votes * .8 + VOTERS["3"].votes, lastEpoch: startEpoch + 1},
-                        { dialId: 2, votesNo: 3, lastVote: VOTERS["2"].votes, lastEpoch: startEpoch + 1}];
+                        { dialId: 0, votesNo: 2, lastVote: VOTERS["1"].votes * .2, lastEpoch: startEpoch + 1},
+                        { dialId: 1, votesNo: 2, lastVote: VOTERS["1"].votes * .8 + VOTERS["3"].votes, lastEpoch: startEpoch + 1},
+                        { dialId: 2, votesNo: 2, lastVote: VOTERS["2"].votes, lastEpoch: startEpoch + 1}];
                     await expectDialVotesHistoryForDials(emissionsController,dialsVoteHistory)                       
 
                     const nextEpochEmission = await nextRewardAmount(emissionsController)
@@ -1051,9 +1052,9 @@ describe("EmissionsController", async () => {
 
                     // Expects dial 1 - 300 , dial 2 - 600 , dial 3 - 0 (dialId = n-1) 
                     const dialsVoteHistory = [  
-                        { dialId: 0, votesNo: 3, lastVote: VOTERS["1"].votes * .2, lastEpoch: startEpoch + 1},
-                        { dialId: 1, votesNo: 3, lastVote: VOTERS["1"].votes * .8, lastEpoch: startEpoch + 1},
-                        { dialId: 2, votesNo: 3, lastVote: 0, lastEpoch: startEpoch + 1}];
+                        { dialId: 0, votesNo: 2, lastVote: VOTERS["1"].votes * .2, lastEpoch: startEpoch + 1},
+                        { dialId: 1, votesNo: 2, lastVote: VOTERS["1"].votes * .8, lastEpoch: startEpoch + 1},
+                        { dialId: 2, votesNo: 2, lastVote: 0, lastEpoch: startEpoch + 1}];
                     await expectDialVotesHistoryForDials(emissionsController,dialsVoteHistory)                       
 
                     const nextEpochEmission = await nextRewardAmount(emissionsController)
