@@ -119,7 +119,12 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     event DistributedReward(uint256 indexed dialId, uint256 amount);
 
     event PreferencesChanged(address indexed voter, Preference[] preferences);
-    event VotesCast(address stakingContract, address indexed from, address indexed to, uint256 amount);
+    event VotesCast(
+        address stakingContract,
+        address indexed from,
+        address indexed to,
+        uint256 amount
+    );
     event SourcesPoked(address indexed voter, uint256 newVotesCast);
 
     /***************************************
@@ -247,6 +252,8 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
     /**
      * @notice Gets the number of weighted votes for each dial for a given week's distribution.
+     *         The weekly rewards does not have to be calculated. When running for the current week it'll return
+     *         the weighted votes for the dials as they currently stand.
      * @param epoch      The week of the distribution measured as the number of weeks since 1 Jan 1970.
      * @return dialVotes A list of dials votes for that week. The index of the array is the dialId.
      */
@@ -669,9 +676,6 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
         // 0.2 - If in the first launch week
         uint32 currentEpoch = _epoch(block.timestamp);
-        if (currentEpoch < epochs.startEpoch) {
-            currentEpoch = epochs.startEpoch;
-        }
 
         // 0.3 - Update the total amount of votes cast by the voter
         voterPreferences[_voter].votesCast = SafeCast.toUint128(

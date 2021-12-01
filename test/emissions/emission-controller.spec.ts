@@ -40,9 +40,12 @@ interface VoteHistoryExpectation {
  * Expectations for the last vote casted by the Dial
  *
  * @param {VoteHistoryExpectation} {dialId, votesNo, lastVote, lastEpoch}
- * @return {votesHistory} 
+ * @return {votesHistory}
  */
-const expectDialVotesHistoryForDial = async (emissionsController: EmissionsController, { dialId, votesNo, lastVote, lastEpoch }: VoteHistoryExpectation) => {
+const expectDialVotesHistoryForDial = async (
+    emissionsController: EmissionsController,
+    { dialId, votesNo, lastVote, lastEpoch }: VoteHistoryExpectation,
+) => {
     const votesHistory = await emissionsController.getDialVoteHistory(dialId)
     // Expectations for the last vote
     expect(votesHistory, "voteHistory").length(votesNo)
@@ -50,21 +53,32 @@ const expectDialVotesHistoryForDial = async (emissionsController: EmissionsContr
     expect(votesHistory[votesHistory.length - 1][1], "epoch").to.eq(lastEpoch)
     return votesHistory[votesHistory.length - 1]
 }
-const expectDialVotesHistoryForDials = async (emissionsController: EmissionsController, votesHistoryExpectations: Array<VoteHistoryExpectation> = []) => {
-    const expectations = Promise.all(votesHistoryExpectations.map(
-        (voteHistory) =>
+const expectDialVotesHistoryForDials = async (
+    emissionsController: EmissionsController,
+    votesHistoryExpectations: Array<VoteHistoryExpectation> = [],
+) => {
+    const expectations = Promise.all(
+        votesHistoryExpectations.map((voteHistory) =>
             expectDialVotesHistoryForDial(emissionsController, {
                 ...voteHistory,
-                lastVote: voteHistory.lastVote > 0 ? simpleToExactAmount(voteHistory.lastVote) : voteHistory.lastVote
-            })
-    ))
-    return await expectations;
-}
-const expectDialVotesHistoryWithoutChangeOnWeights = async (emissionsController: EmissionsController, votesHistoryExpectations: Array<VoteHistoryExpectation> = []) =>
-    expectDialVotesHistoryForDials(emissionsController, votesHistoryExpectations.map(
-        (voteHistory) => ({ ...voteHistory, votesNo: voteHistory.votesNo + 1, lastEpoch: voteHistory.lastEpoch + 1 }))
+                lastVote: voteHistory.lastVote > 0 ? simpleToExactAmount(voteHistory.lastVote) : voteHistory.lastVote,
+            }),
+        ),
     )
-
+    return await expectations
+}
+const expectDialVotesHistoryWithoutChangeOnWeights = async (
+    emissionsController: EmissionsController,
+    votesHistoryExpectations: Array<VoteHistoryExpectation> = [],
+) =>
+    expectDialVotesHistoryForDials(
+        emissionsController,
+        votesHistoryExpectations.map((voteHistory) => ({
+            ...voteHistory,
+            votesNo: voteHistory.votesNo + 1,
+            lastEpoch: voteHistory.lastEpoch + 1,
+        })),
+    )
 
 /**
  * Mocks EmissionsController.topLineEmission function.
@@ -143,15 +157,17 @@ describe("EmissionsController", async () => {
     let emissionsController: EmissionsController
     let currentEpoch: BN
     let nextEpoch: BN
+    let voter1: Account
+    let voter2: Account
+    let voter3: Account
     const totalRewardsSupply = simpleToExactAmount(100000000)
     const totalRewards = simpleToExactAmount(29400963)
     /**
      * Deploys the emission controller, staking contracts, dials and transfers MTA to the Emission Controller contract.
-     * 
+     *
      * @return {Promise}  {Promise<void>}
      */
     const deployEmissionsController = async (): Promise<void> => {
-
         // staking contracts
         staking1 = await new MockStakingContract__factory(sa.default.signer).deploy()
         staking2 = await new MockStakingContract__factory(sa.default.signer).deploy()
@@ -196,9 +212,13 @@ describe("EmissionsController", async () => {
     before(async () => {
         const accounts = await ethers.getSigners()
         sa = await new StandardAccounts().initAccounts(accounts)
-        console.log(`Voter 1 ${sa.dummy1.address}`)
-        console.log(`Voter 2 ${sa.dummy2.address}`)
-        console.log(`Voter 3 ${sa.dummy3.address}`)
+
+        voter1 = sa.dummy1
+        voter2 = sa.dummy2
+        voter3 = sa.dummy3
+        console.log(`Voter 1 ${voter1.address}`)
+        console.log(`Voter 2 ${voter2.address}`)
+        console.log(`Voter 3 ${voter3.address}`)
 
         // Set the time to Thursday, 01:00am UTC time which is just after the start of the distribution period
         const currentTime = await getTimestamp()
@@ -309,20 +329,24 @@ describe("EmissionsController", async () => {
                 await expect(tx).to.revertedWith("Staking contract address is zero")
             })
             it("second staking contract is zero", async () => {
-                const recipients = dials.map(d => d.address)
+                const recipients = dials.map((d) => d.address)
                 const tx = emissionsController.initialize(recipients, [0, 0, 0], [true, true, false], [staking1.address, ZERO_ADDRESS])
                 await expect(tx).to.revertedWith("Staking contract address is zero")
             })
-
         })
     })
     describe("calling view functions", () => {
+        // TODO - `getVotes`
+        // TODO - `getDialVoteHistory`
+        // TODO - `getEpochVotes`
+        // TODO - `getVoterPreferences`
+
         describe("fetch weekly emissions", () => {
             let startEpoch
             let expectTopLineEmissions
             before(async () => {
                 await deployEmissionsController()
-                    ;[startEpoch] = await emissionsController.epochs()
+                ;[startEpoch] = await emissionsController.epochs()
                 expectTopLineEmissions = expectTopLineEmissionForEpoch(emissionsController, startEpoch)
             })
             it("fails fetching an smaller epoch than deployed time", async () => {
@@ -337,7 +361,7 @@ describe("EmissionsController", async () => {
                 expectTopLineEmissions(1) // ~= 165,461,725,488,656,000
             })
             it("fetches week 8 - Two months", async () => {
-                expectTopLineEmissions(8)// ~= 161,787,972,249,455,000
+                expectTopLineEmissions(8) // ~= 161,787,972,249,455,000
             })
             it("fetches week 100 - one year eleven months", async () => {
                 expectTopLineEmissions(100) // ~= 123,842,023,609,600,000
@@ -361,18 +385,17 @@ describe("EmissionsController", async () => {
             let startEpoch
             before(async () => {
                 await deployEmissionsController()
-                    ;[startEpoch] = await emissionsController.epochs()
+                ;[startEpoch] = await emissionsController.epochs()
             })
             it("gets initial dials vote history ", async () => {
-                [...Array(INITIAL_DIALS_NO).keys()].forEach(async (dialId) => {
+                ;[...Array(INITIAL_DIALS_NO).keys()].forEach(async (dialId) => {
                     const voteHistory = await emissionsController.getDialVoteHistory(dialId)
-                    const [[votes, epoch]] = voteHistory;
+                    const [[votes, epoch]] = voteHistory
                     expect(voteHistory, "voteHistory").length(1)
                     expect(votes, "votes").to.eq(0)
                     // Starting epoch is one week ahead of deployment, EmissionController.initialize
                     expect(epoch, "epoch").to.eq(startEpoch)
                 })
-
             })
         })
     })
@@ -451,18 +474,18 @@ describe("EmissionsController", async () => {
                 await deployEmissionsController()
                 await increaseTime(ONE_WEEK)
 
-                await staking1.setVotes(sa.dummy1.address, voter1Staking1Votes)
-                await staking1.setVotes(sa.dummy2.address, voter2Staking1Votes)
-                await staking1.setVotes(sa.dummy3.address, voter3Staking1Votes)
+                await staking1.setVotes(voter1.address, voter1Staking1Votes)
+                await staking1.setVotes(voter2.address, voter2Staking1Votes)
+                await staking1.setVotes(voter3.address, voter3Staking1Votes)
 
                 // Voter 1 puts 100 votes to dial 1
-                await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
+                await emissionsController.connect(voter1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
 
                 // Voter 2 puts 200 votes to dial 2
-                await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 1, weight: 200 }])
+                await emissionsController.connect(voter2.signer).setVoterDialWeights([{ dialId: 1, weight: 200 }])
 
                 // Voter 3 puts 300 votes to dial 3
-                await emissionsController.connect(sa.dummy3.signer).setVoterDialWeights([{ dialId: 2, weight: 200 }])
+                await emissionsController.connect(voter3.signer).setVoterDialWeights([{ dialId: 2, weight: 200 }])
             })
             it("Governor disables dial 1 with votes", async () => {
                 const dialBefore = await snapDial(emissionsController, 0)
@@ -484,7 +507,7 @@ describe("EmissionsController", async () => {
                 await expect(tx2).to.emit(emissionsController, "PeriodRewards").withArgs([0, adjustedDial2, adjustedDial3])
             })
             it("Governor reenables dial", async () => {
-                const dialId = 0;
+                const dialId = 0
                 await emissionsController.connect(sa.governor.signer).updateDial(dialId, true)
 
                 await increaseTime(ONE_WEEK)
@@ -557,10 +580,10 @@ describe("EmissionsController", async () => {
             await deployEmissionsController()
 
             await rewardToken.approve(emissionsController.address, totalRewardsSupply)
-            await staking1.setVotes(sa.dummy1.address, voter1Staking1Votes)
-            await staking2.setVotes(sa.dummy1.address, voter1Staking2Votes)
-            await staking1.setVotes(sa.dummy2.address, voter2Staking1Votes)
-            await staking1.setVotes(sa.dummy3.address, voter3Staking1Votes)
+            await staking1.setVotes(voter1.address, voter1Staking1Votes)
+            await staking2.setVotes(voter1.address, voter1Staking2Votes)
+            await staking1.setVotes(voter2.address, voter2Staking1Votes)
+            await staking1.setVotes(voter3.address, voter3Staking1Votes)
             await increaseTime(ONE_WEEK)
         })
         context("fail to donate when", () => {
@@ -598,12 +621,12 @@ describe("EmissionsController", async () => {
             let dial3
             beforeEach(async () => {
                 // Voter 1 splits their 300 votes with 80% to dial 1 and 20% to dial 2
-                await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
+                await emissionsController.connect(voter1.signer).setVoterDialWeights([
                     { dialId: 0, weight: 160 },
                     { dialId: 1, weight: 40 },
                 ])
                 // Voter 2 splits their 600 votes with 50% to dial 1 and 50% to dial 2
-                await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([
+                await emissionsController.connect(voter2.signer).setVoterDialWeights([
                     { dialId: 1, weight: 100 },
                     { dialId: 2, weight: 100 },
                 ])
@@ -666,7 +689,7 @@ describe("EmissionsController", async () => {
     //          - cap not met (< maxVotes)
     //          - total distribution equal
     describe("calculating rewards", () => {
-        const VOTERS = { "1": { votes: 300 }, "2": { votes: 600 }, "3": { votes: 300 } };
+        const VOTERS = { "1": { votes: 300 }, "2": { votes: 600 }, "3": { votes: 300 } }
         const voter1Staking1Votes = simpleToExactAmount(VOTERS["1"].votes / 3)
         const voter1Staking2Votes = simpleToExactAmount((VOTERS["1"].votes / 3) * 2)
         const voter2Staking1Votes = simpleToExactAmount(VOTERS["2"].votes)
@@ -674,10 +697,10 @@ describe("EmissionsController", async () => {
 
         beforeEach(async () => {
             await deployEmissionsController()
-            await staking1.setVotes(sa.dummy1.address, voter1Staking1Votes)
-            await staking2.setVotes(sa.dummy1.address, voter1Staking2Votes)
-            await staking1.setVotes(sa.dummy2.address, voter2Staking1Votes)
-            await staking1.setVotes(sa.dummy3.address, voter3Staking1Votes)
+            await staking1.setVotes(voter1.address, voter1Staking1Votes)
+            await staking2.setVotes(voter1.address, voter1Staking2Votes)
+            await staking1.setVotes(voter2.address, voter2Staking1Votes)
+            await staking1.setVotes(voter3.address, voter3Staking1Votes)
             await increaseTime(ONE_WEEK)
 
             // Dial's rewards balances
@@ -686,15 +709,15 @@ describe("EmissionsController", async () => {
             expect((await emissionsController.dials(2)).balance, "dial 3 balance before").to.eq(0)
 
             // Voter voting power
-            expect(await emissionsController.callStatic.getVotes(sa.dummy1.address), "Voter 1 votes before").to.eq(simpleToExactAmount(300))
-            expect(await emissionsController.callStatic.getVotes(sa.dummy2.address), "Voter 2 votes before").to.eq(simpleToExactAmount(600))
-            expect(await emissionsController.callStatic.getVotes(sa.dummy3.address), "Voter 3 votes before").to.eq(simpleToExactAmount(300))
+            expect(await emissionsController.callStatic.getVotes(voter1.address), "Voter 1 votes before").to.eq(simpleToExactAmount(300))
+            expect(await emissionsController.callStatic.getVotes(voter2.address), "Voter 2 votes before").to.eq(simpleToExactAmount(600))
+            expect(await emissionsController.callStatic.getVotes(voter3.address), "Voter 3 votes before").to.eq(simpleToExactAmount(300))
         })
         it("with no weights", async () => {
             const [startEpoch, lastEpochBefore] = await emissionsController.epochs()
             await increaseTime(ONE_WEEK)
 
-            // Expect initial vote with no weight 
+            // Expect initial vote with no weight
             await expectDialVotesHistoryForDial(emissionsController, { dialId: 0, votesNo: 1, lastVote: 0, lastEpoch: startEpoch })
 
             const tx = await emissionsController.calculateRewards()
@@ -703,15 +726,13 @@ describe("EmissionsController", async () => {
 
             const [, lastEpochMid] = await emissionsController.epochs()
             expect(lastEpochMid, "last epoch after").to.eq(lastEpochBefore + 1)
-            
+
             // Should increase the vote history after calculateRewards, no weight
-            await expectDialVotesHistoryForDial(emissionsController,{dialId: 0, votesNo: 2, lastVote: 0, lastEpoch: lastEpochBefore + 1})
+            await expectDialVotesHistoryForDial(emissionsController, { dialId: 0, votesNo: 2, lastVote: 0, lastEpoch: lastEpochBefore + 1 })
 
             expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(0)
             expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(0)
             expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(0)
-
-
         })
         it("fails after not waiting a week", async () => {
             await increaseTime(ONE_WEEK)
@@ -726,12 +747,12 @@ describe("EmissionsController", async () => {
                 let lastEpochBefore: number
                 let startEpoch: number
                 beforeEach(async () => {
-                    ;[startEpoch, lastEpochBefore] = await emissionsController.epochs();
-                    
-                    // Expects initial vote history with no weight
-                    [...Array(INITIAL_DIALS_NO).keys()].forEach(
-                        async (dialId) => expectDialVotesHistoryForDial(emissionsController, { dialId, votesNo: 1, lastVote: 0, lastEpoch: startEpoch }))
+                    ;[startEpoch, lastEpochBefore] = await emissionsController.epochs()
 
+                    // Expects initial vote history with no weight
+                    ;[...Array(INITIAL_DIALS_NO).keys()].forEach(async (dialId) =>
+                        expectDialVotesHistoryForDial(emissionsController, { dialId, votesNo: 1, lastVote: 0, lastEpoch: startEpoch }),
+                    )
                 })
                 afterEach(async () => {
                     const [, lastEpochAfter] = await emissionsController.epochs()
@@ -739,18 +760,27 @@ describe("EmissionsController", async () => {
                 })
                 it("Voter 1 all votes to dial 1", async () => {
                     // Voter 1 gives all 300 votes to dial 1
-                    await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
-                    
-                    // Expect dial 1 vote history updated with 300 votes (dialId = n-1) 
-                    const dialVoteHistory = { dialId: 0, votesNo: 1, lastVote: simpleToExactAmount(VOTERS["1"].votes), lastEpoch: startEpoch};
-                    await expectDialVotesHistoryForDial(emissionsController,dialVoteHistory)
+                    await emissionsController.connect(voter1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
+
+                    // Expect dial 1 vote history updated with 300 votes (dialId = n-1)
+                    const dialVoteHistory = {
+                        dialId: 0,
+                        votesNo: 1,
+                        lastVote: simpleToExactAmount(VOTERS["1"].votes),
+                        lastEpoch: startEpoch,
+                    }
+                    await expectDialVotesHistoryForDial(emissionsController, dialVoteHistory)
                     await increaseTime(ONE_WEEK)
 
                     const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
 
                     // Should increase the vote history after calculateRewards, no change on weights
-                    await expectDialVotesHistoryForDial(emissionsController,{...dialVoteHistory, votesNo: dialVoteHistory.votesNo + 1,  lastEpoch: dialVoteHistory.lastEpoch + 1 })                    
+                    await expectDialVotesHistoryForDial(emissionsController, {
+                        ...dialVoteHistory,
+                        votesNo: dialVoteHistory.votesNo + 1,
+                        lastEpoch: dialVoteHistory.lastEpoch + 1,
+                    })
 
                     await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([nextEpochEmission, 0, 0])
 
@@ -760,16 +790,17 @@ describe("EmissionsController", async () => {
                 })
                 it("Voter 1 all votes to dial 1, Voter 2 all votes to dial 2", async () => {
                     // Voter 1 gives all 300 votes to dial 1
-                    await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
+                    await emissionsController.connect(voter1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
                     // Voter 2 gives all 600 votes to dial 2
-                    await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 1, weight: 200 }])
+                    await emissionsController.connect(voter2.signer).setVoterDialWeights([{ dialId: 1, weight: 200 }])
                     await increaseTime(ONE_WEEK)
 
-                    // Expects dial 1 - 300 , dial 2 - 600 , dial 3 - 0 (dialId = n-1) 
+                    // Expects dial 1 - 300 , dial 2 - 600 , dial 3 - 0 (dialId = n-1)
                     const dialsVoteHistory = [
                         { dialId: 0, votesNo: 1, lastVote: VOTERS["1"].votes, lastEpoch: startEpoch },
                         { dialId: 1, votesNo: 1, lastVote: VOTERS["2"].votes, lastEpoch: startEpoch },
-                        { dialId: 2, votesNo: 1, lastVote: 0, lastEpoch: startEpoch }];
+                        { dialId: 2, votesNo: 1, lastVote: 0, lastEpoch: startEpoch },
+                    ]
 
                     await expectDialVotesHistoryForDials(emissionsController, dialsVoteHistory)
 
@@ -791,26 +822,27 @@ describe("EmissionsController", async () => {
                 })
                 it("Voter 1 50/50 votes to dial 1 & 2, Voter 2 50/50 votes to dial 1 & 2", async () => {
                     // Voter 1 splits their 300 votes with 50% to dial 1 and 50% to dial 2
-                    await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
+                    await emissionsController.connect(voter1.signer).setVoterDialWeights([
                         { dialId: 0, weight: 100 },
                         { dialId: 1, weight: 100 },
                     ])
                     // Voter 2 splits their 600 votes with 50% to dial 1 and 50% to dial 2
-                    await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([
+                    await emissionsController.connect(voter2.signer).setVoterDialWeights([
                         { dialId: 0, weight: 100 },
                         { dialId: 1, weight: 100 },
                     ])
                     await increaseTime(ONE_WEEK)
 
-                    // Expects dial 1 - 450 , dial 2 - 450 , dial 3 - 0 (dialId = n-1) 
+                    // Expects dial 1 - 450 , dial 2 - 450 , dial 3 - 0 (dialId = n-1)
                     const dial1Votes = VOTERS["1"].votes * 0.5 + VOTERS["2"].votes * 0.5
                     const dial2Votes = VOTERS["1"].votes * 0.5 + VOTERS["2"].votes * 0.5
-                    const dialsVoteHistory = [  
-                    { dialId: 0, votesNo: 1, lastVote: dial1Votes, lastEpoch: startEpoch},
-                    { dialId: 1, votesNo: 1, lastVote: dial2Votes, lastEpoch: startEpoch},
-                    { dialId: 2, votesNo: 1, lastVote: 0, lastEpoch: startEpoch }];
+                    const dialsVoteHistory = [
+                        { dialId: 0, votesNo: 1, lastVote: dial1Votes, lastEpoch: startEpoch },
+                        { dialId: 1, votesNo: 1, lastVote: dial2Votes, lastEpoch: startEpoch },
+                        { dialId: 2, votesNo: 1, lastVote: 0, lastEpoch: startEpoch },
+                    ]
 
-                    await expectDialVotesHistoryForDials(emissionsController, dialsVoteHistory)                    
+                    await expectDialVotesHistoryForDials(emissionsController, dialsVoteHistory)
 
                     const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
@@ -829,28 +861,29 @@ describe("EmissionsController", async () => {
                 })
                 it("Voter 1 20/80 votes to dial 1 & 2, Voter 2 all votes to dial 3", async () => {
                     // Voter 1 splits their 300 votes with 20% to dial 1 and 80% to dial 2
-                    await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
+                    await emissionsController.connect(voter1.signer).setVoterDialWeights([
                         { dialId: 0, weight: 40 },
                         { dialId: 1, weight: 160 },
                     ])
                     // Voter 2 gives all 600 votes to dial 3
-                    await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 2, weight: 200 }])
+                    await emissionsController.connect(voter2.signer).setVoterDialWeights([{ dialId: 2, weight: 200 }])
                     await increaseTime(ONE_WEEK)
 
                     const dial1Votes = VOTERS["1"].votes * 0.2
                     const dial2Votes = VOTERS["1"].votes * 0.8
                     const dial3Votes = VOTERS["2"].votes
-                    // Expects dial 1 - 60 , dial 240 - 600 , dial 3 - 600 
+                    // Expects dial 1 - 60 , dial 240 - 600 , dial 3 - 600
                     const dialsVoteHistory = [
                         { dialId: 0, votesNo: 1, lastVote: dial1Votes, lastEpoch: startEpoch },
                         { dialId: 1, votesNo: 1, lastVote: dial2Votes, lastEpoch: startEpoch },
-                        { dialId: 2, votesNo: 1, lastVote: dial3Votes, lastEpoch: startEpoch }];
-                    await expectDialVotesHistoryForDials(emissionsController, dialsVoteHistory)     
+                        { dialId: 2, votesNo: 1, lastVote: dial3Votes, lastEpoch: startEpoch },
+                    ]
+                    await expectDialVotesHistoryForDials(emissionsController, dialsVoteHistory)
 
                     const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
 
-                    // Expects dial 1 - 300 , dial 2 - 600 , dial 3 - 0 (dialId = n-1) 
+                    // Expects dial 1 - 300 , dial 2 - 600 , dial 3 - 0 (dialId = n-1)
                     await expectDialVotesHistoryWithoutChangeOnWeights(emissionsController, dialsVoteHistory)
 
                     // Voter 1 20% of 300 votes
@@ -875,15 +908,15 @@ describe("EmissionsController", async () => {
                 let balDial3Before
                 let startEpoch
                 beforeEach(async () => {
-                    [startEpoch,] = await emissionsController.epochs()
+                    ;[startEpoch] = await emissionsController.epochs()
 
                     // Voter 1 splits their 300 votes with 20% to dial 1 and 80% to dial 2
-                    await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
+                    await emissionsController.connect(voter1.signer).setVoterDialWeights([
                         { dialId: 0, weight: 40 },
                         { dialId: 1, weight: 160 },
                     ])
                     // Voter 2 gives all 600 votes to dial 2
-                    await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 2, weight: 200 }])
+                    await emissionsController.connect(voter2.signer).setVoterDialWeights([{ dialId: 2, weight: 200 }])
                     await increaseTime(ONE_WEEK)
 
                     const nextEpochEmission = await nextRewardAmount(emissionsController)
@@ -899,27 +932,27 @@ describe("EmissionsController", async () => {
                     // User 1 splits their 300 votes with 80% to dial 1 and 20% to dial 2
                     // User 2 keeps its 600 votes on dial 3
                     // Voter 1 splits their 300 votes with 80% to dial 1 and 20% to dial 2
-                    await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
+                    await emissionsController.connect(voter1.signer).setVoterDialWeights([
                         { dialId: 0, weight: 160 },
                         { dialId: 1, weight: 40 },
                     ])
                     await increaseTime(ONE_WEEK)
-                    const dialsVoteHistory = [  
-                        { dialId: 0, votesNo: 2, lastVote: VOTERS["1"].votes * .8, lastEpoch: startEpoch + 1 },
-                        { dialId: 1, votesNo: 2, lastVote: VOTERS["1"].votes * .2, lastEpoch: startEpoch + 1 },
-                        { dialId: 2, votesNo: 2, lastVote: VOTERS["2"].votes, lastEpoch: startEpoch + 1 }];
-                    await expectDialVotesHistoryForDials(emissionsController, dialsVoteHistory)    
-
+                    const dialsVoteHistory = [
+                        { dialId: 0, votesNo: 2, lastVote: VOTERS["1"].votes * 0.8, lastEpoch: startEpoch + 1 },
+                        { dialId: 1, votesNo: 2, lastVote: VOTERS["1"].votes * 0.2, lastEpoch: startEpoch + 1 },
+                        { dialId: 2, votesNo: 2, lastVote: VOTERS["2"].votes, lastEpoch: startEpoch + 1 },
+                    ]
+                    await expectDialVotesHistoryForDials(emissionsController, dialsVoteHistory)
 
                     const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
-                    // Expects dial 1 - 240 , dial 2 - 60 , dial 3 - 600 (dialId = n-1) 
+                    // Expects dial 1 - 240 , dial 2 - 60 , dial 3 - 600 (dialId = n-1)
                     await expectDialVotesHistoryWithoutChangeOnWeights(emissionsController, dialsVoteHistory)
 
                     // Voter 1 80% of 300 votes
-                    const dial1 = nextEpochEmission.mul(VOTERS["1"].votes * .8).div(900)
+                    const dial1 = nextEpochEmission.mul(VOTERS["1"].votes * 0.8).div(900)
                     // Voter 1 20% of 300 votes
-                    const dial2 = nextEpochEmission.mul(VOTERS["1"].votes * .2).div(900)
+                    const dial2 = nextEpochEmission.mul(VOTERS["1"].votes * 0.2).div(900)
                     // Voter 2 600 votes
                     const dial3 = nextEpochEmission.mul(VOTERS["2"].votes).div(900)
                     await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([dial1, dial2, dial3])
@@ -929,22 +962,22 @@ describe("EmissionsController", async () => {
                     expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(balDial3Before.add(dial3))
                 })
                 it("Voter 1 removes 20% to dial 1", async () => {
-                    // Voter 1 gives 80% of their 300 votes to dial 2. The remaining 20% (40) is not set
-                    // Voter 2 keeps its 600 votes on dial 3
-                    await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 1, weight: 160 }])
+                    // Voter gives 80% of their 300 votes to dial 2. The remaining 20% (40) is not set
+                    await emissionsController.connect(voter1.signer).setVoterDialWeights([{ dialId: 1, weight: 160 }])
                     await increaseTime(ONE_WEEK)
 
-                    // Expects dial 1 - 0 , dial 2 - 600 , dial 3 - 0 (dialId = n-1) 
-                    const dialsVoteHistory = [  
-                        { dialId: 0, votesNo: 2, lastVote: 0, lastEpoch: startEpoch + 1},
-                        { dialId: 1, votesNo: 2, lastVote: VOTERS["1"].votes * .8, lastEpoch: startEpoch + 1},
-                        { dialId: 2, votesNo: 2, lastVote: VOTERS["2"].votes, lastEpoch: startEpoch + 1}];
-                    await expectDialVotesHistoryForDials(emissionsController, dialsVoteHistory)    
+                    // Expects dial 1 - 0 , dial 2 - 600 , dial 3 - 0 (dialId = n-1)
+                    const dialsVoteHistory = [
+                        { dialId: 0, votesNo: 2, lastVote: 0, lastEpoch: startEpoch + 1 },
+                        { dialId: 1, votesNo: 2, lastVote: VOTERS["1"].votes * 0.8, lastEpoch: startEpoch + 1 },
+                        { dialId: 2, votesNo: 2, lastVote: VOTERS["2"].votes, lastEpoch: startEpoch + 1 },
+                    ]
+                    await expectDialVotesHistoryForDials(emissionsController, dialsVoteHistory)
 
                     const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
 
-                    // Expects dial 1 - 300 , dial 2 - 600 , dial 3 - 0 (dialId = n-1) 
+                    // Expects dial 1 - 300 , dial 2 - 600 , dial 3 - 0 (dialId = n-1)
                     await expectDialVotesHistoryWithoutChangeOnWeights(emissionsController, dialsVoteHistory)
 
                     // Total votes is 900 - 20% * 300 = 900 - 60 = 840
@@ -960,22 +993,22 @@ describe("EmissionsController", async () => {
                 })
                 it("Voter 1 changes all to dial 3", async () => {
                     // Voter 1 gives all 300 votes to dial 3
-                    await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 2, weight: 200 }])
+                    await emissionsController.connect(voter1.signer).setVoterDialWeights([{ dialId: 2, weight: 200 }])
                     await increaseTime(ONE_WEEK)
 
-                    // Expects dial 1 - 0 , dial 2 - 0 , dial 3 - 900 (dialId = n-1) 
-                    const dialsVoteHistory = [  
-                        { dialId: 0, votesNo: 2, lastVote: 0, lastEpoch: startEpoch + 1},
-                        { dialId: 1, votesNo: 2, lastVote: 0, lastEpoch: startEpoch + 1},
-                        { dialId: 2, votesNo: 2, lastVote: VOTERS["1"].votes + VOTERS["2"].votes, lastEpoch: startEpoch + 1}];
-                    await expectDialVotesHistoryForDials(emissionsController, dialsVoteHistory)                      
+                    // Expects dial 1 - 0 , dial 2 - 0 , dial 3 - 900 (dialId = n-1)
+                    const dialsVoteHistory = [
+                        { dialId: 0, votesNo: 2, lastVote: 0, lastEpoch: startEpoch + 1 },
+                        { dialId: 1, votesNo: 2, lastVote: 0, lastEpoch: startEpoch + 1 },
+                        { dialId: 2, votesNo: 2, lastVote: VOTERS["1"].votes + VOTERS["2"].votes, lastEpoch: startEpoch + 1 },
+                    ]
+                    await expectDialVotesHistoryForDials(emissionsController, dialsVoteHistory)
 
                     const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
 
-                    // Expects dial 1 - 0 , dial 2 - 0 , dial 3 - 900 (dialId = n-1) 
+                    // Expects dial 1 - 0 , dial 2 - 0 , dial 3 - 900 (dialId = n-1)
                     await expectDialVotesHistoryWithoutChangeOnWeights(emissionsController, dialsVoteHistory)
-
 
                     await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([0, 0, nextEpochEmission])
 
@@ -987,20 +1020,21 @@ describe("EmissionsController", async () => {
                 })
                 it("Voter 3 all weight on dial 1", async () => {
                     // Voter 3 gives all 300 votes to dial 1
-                    await emissionsController.connect(sa.dummy3.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
+                    await emissionsController.connect(voter3.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
                     await increaseTime(ONE_WEEK)
 
-                    // Expects dial 1 - 360 , dial 2 - 240 , dial 3 - 600 (dialId = n-1) 
-                    const dialsVoteHistory = [  
-                        { dialId: 0, votesNo: 2, lastVote: VOTERS["1"].votes * .2 + VOTERS["3"].votes, lastEpoch: startEpoch + 1},
-                        { dialId: 1, votesNo: 2, lastVote: VOTERS["1"].votes * .8, lastEpoch: startEpoch + 1},
-                        { dialId: 2, votesNo: 2, lastVote: VOTERS["2"].votes, lastEpoch: startEpoch + 1}];
-                    await expectDialVotesHistoryForDials(emissionsController, dialsVoteHistory)                       
+                    // Expects dial 1 - 360 , dial 2 - 240 , dial 3 - 600 (dialId = n-1)
+                    const dialsVoteHistory = [
+                        { dialId: 0, votesNo: 2, lastVote: VOTERS["1"].votes * 0.2 + VOTERS["3"].votes, lastEpoch: startEpoch + 1 },
+                        { dialId: 1, votesNo: 2, lastVote: VOTERS["1"].votes * 0.8, lastEpoch: startEpoch + 1 },
+                        { dialId: 2, votesNo: 2, lastVote: VOTERS["2"].votes, lastEpoch: startEpoch + 1 },
+                    ]
+                    await expectDialVotesHistoryForDials(emissionsController, dialsVoteHistory)
 
                     const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
 
-                    // Expects dial 1 - 360 , dial 2 - 240 , dial 3 - 600 (dialId = n-1) 
+                    // Expects dial 1 - 360 , dial 2 - 240 , dial 3 - 600 (dialId = n-1)
                     await expectDialVotesHistoryWithoutChangeOnWeights(emissionsController, dialsVoteHistory)
 
                     // Voter 1 20% of 300 votes + User 3 300 votes
@@ -1017,20 +1051,21 @@ describe("EmissionsController", async () => {
                 })
                 it("Voter 3 all weight on dial 2", async () => {
                     // Voter 3 gives all 300 votes to dial 2
-                    await emissionsController.connect(sa.dummy3.signer).setVoterDialWeights([{ dialId: 1, weight: 200 }])
+                    await emissionsController.connect(voter3.signer).setVoterDialWeights([{ dialId: 1, weight: 200 }])
                     await increaseTime(ONE_WEEK)
 
-                    // Expects dial 1 - 300 , dial 2 - 600 , dial 3 - 0 (dialId = n-1) 
-                    const dialsVoteHistory = [  
-                        { dialId: 0, votesNo: 2, lastVote: VOTERS["1"].votes * .2, lastEpoch: startEpoch + 1},
-                        { dialId: 1, votesNo: 2, lastVote: VOTERS["1"].votes * .8 + VOTERS["3"].votes, lastEpoch: startEpoch + 1},
-                        { dialId: 2, votesNo: 2, lastVote: VOTERS["2"].votes, lastEpoch: startEpoch + 1}];
-                    await expectDialVotesHistoryForDials(emissionsController, dialsVoteHistory)                       
+                    // Expects dial 1 - 300 , dial 2 - 600 , dial 3 - 0 (dialId = n-1)
+                    const dialsVoteHistory = [
+                        { dialId: 0, votesNo: 2, lastVote: VOTERS["1"].votes * 0.2, lastEpoch: startEpoch + 1 },
+                        { dialId: 1, votesNo: 2, lastVote: VOTERS["1"].votes * 0.8 + VOTERS["3"].votes, lastEpoch: startEpoch + 1 },
+                        { dialId: 2, votesNo: 2, lastVote: VOTERS["2"].votes, lastEpoch: startEpoch + 1 },
+                    ]
+                    await expectDialVotesHistoryForDials(emissionsController, dialsVoteHistory)
 
                     const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
 
-                    // Expects dial 1 - 300 , dial 2 - 600 , dial 3 - 0 (dialId = n-1) 
+                    // Expects dial 1 - 300 , dial 2 - 600 , dial 3 - 0 (dialId = n-1)
                     await expectDialVotesHistoryWithoutChangeOnWeights(emissionsController, dialsVoteHistory)
 
                     // Voter 1 20% of 300 votes + User 3 300 votes
@@ -1047,20 +1082,21 @@ describe("EmissionsController", async () => {
                 })
                 it("Voter 2 removes all votes to dial 3", async () => {
                     // Voter 2 removes all 600 votes from dial 3
-                    await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([])
+                    await emissionsController.connect(voter2.signer).setVoterDialWeights([])
                     await increaseTime(ONE_WEEK)
 
-                    // Expects dial 1 - 300 , dial 2 - 600 , dial 3 - 0 (dialId = n-1) 
-                    const dialsVoteHistory = [  
-                        { dialId: 0, votesNo: 2, lastVote: VOTERS["1"].votes * .2, lastEpoch: startEpoch + 1},
-                        { dialId: 1, votesNo: 2, lastVote: VOTERS["1"].votes * .8, lastEpoch: startEpoch + 1},
-                        { dialId: 2, votesNo: 2, lastVote: 0, lastEpoch: startEpoch + 1}];
-                    await expectDialVotesHistoryForDials(emissionsController, dialsVoteHistory)                       
+                    // Expects dial 1 - 300 , dial 2 - 600 , dial 3 - 0 (dialId = n-1)
+                    const dialsVoteHistory = [
+                        { dialId: 0, votesNo: 2, lastVote: VOTERS["1"].votes * 0.2, lastEpoch: startEpoch + 1 },
+                        { dialId: 1, votesNo: 2, lastVote: VOTERS["1"].votes * 0.8, lastEpoch: startEpoch + 1 },
+                        { dialId: 2, votesNo: 2, lastVote: 0, lastEpoch: startEpoch + 1 },
+                    ]
+                    await expectDialVotesHistoryForDials(emissionsController, dialsVoteHistory)
 
                     const nextEpochEmission = await nextRewardAmount(emissionsController)
                     const tx = await emissionsController.calculateRewards()
 
-                    // Expects dial 1 - 300 , dial 2 - 600 , dial 3 - 0 (dialId = n-1) 
+                    // Expects dial 1 - 300 , dial 2 - 600 , dial 3 - 0 (dialId = n-1)
                     await expectDialVotesHistoryWithoutChangeOnWeights(emissionsController, dialsVoteHistory)
 
                     // Voter 1 20% of 300 votes
@@ -1080,7 +1116,7 @@ describe("EmissionsController", async () => {
                 })
                 it("Voter 1 changes weights to 80/20 dial 1 & 2", async () => {
                     // Voter 1 splits their 300 votes with 80% to dial 1 and 20% to dial 2
-                    await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
+                    await emissionsController.connect(voter1.signer).setVoterDialWeights([
                         { dialId: 0, weight: 160 },
                         { dialId: 1, weight: 40 },
                     ])
@@ -1098,35 +1134,33 @@ describe("EmissionsController", async () => {
         context("change voting power", () => {
             context("first voting period", () => {
                 it("Voter 1 does not change their voting power", async () => {
-                    expect(await emissionsController.callStatic.getVotes(sa.dummy1.address), "Voter 1 votes before").to.eq(
+                    expect(await emissionsController.callStatic.getVotes(voter1.address), "Voter 1 votes before").to.eq(
                         simpleToExactAmount(300),
                     )
 
-                    await staking1.setVotes(sa.dummy1.address, voter1Staking1Votes)
+                    await staking1.setVotes(voter1.address, voter1Staking1Votes)
 
-                    expect(await emissionsController.callStatic.getVotes(sa.dummy1.address), "Voter 1 votes after").to.eq(
+                    expect(await emissionsController.callStatic.getVotes(voter1.address), "Voter 1 votes after").to.eq(
                         simpleToExactAmount(300),
                     )
                 })
                 it("Voter 3 increases voting power before setting weights", async () => {
-                    expect(await emissionsController.callStatic.getVotes(sa.dummy3.address), "Voter 3 votes before").to.eq(
-                        voter3Staking1Votes,
-                    )
+                    expect(await emissionsController.callStatic.getVotes(voter3.address), "Voter 3 votes before").to.eq(voter3Staking1Votes)
 
-                    await staking1.setVotes(sa.dummy3.address, simpleToExactAmount(400))
+                    await staking1.setVotes(voter3.address, simpleToExactAmount(400))
 
-                    expect(await emissionsController.callStatic.getVotes(sa.dummy3.address), "Voter 3 votes after").to.eq(
+                    expect(await emissionsController.callStatic.getVotes(voter3.address), "Voter 3 votes after").to.eq(
                         simpleToExactAmount(400),
                     )
                 })
                 it("Voter 1 increases voting power to dial 1", async () => {
                     // Voter 1 gives all 300 votes to dial 1
-                    await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
+                    await emissionsController.connect(voter1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
                     await increaseTime(ONE_WEEK)
 
                     // Voter 1 increases votes from 300 to 400 by increasing staking 2 from 200 to 300
-                    await staking2.setVotes(sa.dummy1.address, simpleToExactAmount(300))
-                    expect(await emissionsController.callStatic.getVotes(sa.dummy1.address), "Voter 1 votes after").to.eq(
+                    await staking2.setVotes(voter1.address, simpleToExactAmount(300))
+                    expect(await emissionsController.callStatic.getVotes(voter1.address), "Voter 1 votes after").to.eq(
                         simpleToExactAmount(400),
                     )
 
@@ -1142,17 +1176,17 @@ describe("EmissionsController", async () => {
                 context("Voter 1 votes to dial 1, Voter 2 votes to dial 2", () => {
                     beforeEach(async () => {
                         // Voter 1 gives all 300 votes to dial 1
-                        await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
+                        await emissionsController.connect(voter1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
                         // Voter 2 gives all 600 votes to dial 2
-                        await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 1, weight: 200 }])
+                        await emissionsController.connect(voter2.signer).setVoterDialWeights([{ dialId: 1, weight: 200 }])
                     })
                     it("Voter 2 doubled voting power", async () => {
                         // Voter 2 doubles votes from 600 to 1200
-                        await staking1.setVotes(sa.dummy2.address, simpleToExactAmount(1200))
-                        expect(await emissionsController.callStatic.getVotes(sa.dummy1.address), "Voter 1 votes after").to.eq(
+                        await staking1.setVotes(voter2.address, simpleToExactAmount(1200))
+                        expect(await emissionsController.callStatic.getVotes(voter1.address), "Voter 1 votes after").to.eq(
                             simpleToExactAmount(300),
                         )
-                        expect(await emissionsController.callStatic.getVotes(sa.dummy2.address), "Voter 2 votes after").to.eq(
+                        expect(await emissionsController.callStatic.getVotes(voter2.address), "Voter 2 votes after").to.eq(
                             simpleToExactAmount(1200),
                         )
                         await increaseTime(ONE_WEEK)
@@ -1172,11 +1206,11 @@ describe("EmissionsController", async () => {
                     })
                     it("Voter 2 halves voting power", async () => {
                         // Voter 2 halves votes from 600 to 300
-                        await staking1.setVotes(sa.dummy2.address, simpleToExactAmount(300))
-                        expect(await emissionsController.callStatic.getVotes(sa.dummy1.address), "Voter 1 votes after").to.eq(
+                        await staking1.setVotes(voter2.address, simpleToExactAmount(300))
+                        expect(await emissionsController.callStatic.getVotes(voter1.address), "Voter 1 votes after").to.eq(
                             simpleToExactAmount(300),
                         )
-                        expect(await emissionsController.callStatic.getVotes(sa.dummy2.address), "Voter 2 votes after").to.eq(
+                        expect(await emissionsController.callStatic.getVotes(voter2.address), "Voter 2 votes after").to.eq(
                             simpleToExactAmount(300),
                         )
                         await increaseTime(ONE_WEEK)
@@ -1196,11 +1230,11 @@ describe("EmissionsController", async () => {
                     })
                     it("Voter 2 removes all voting power", async () => {
                         // Voter 2 cooldowns all stake which removes their voting power
-                        await staking1.setVotes(sa.dummy2.address, simpleToExactAmount(0))
-                        expect(await emissionsController.callStatic.getVotes(sa.dummy1.address), "Voter 1 votes after").to.eq(
+                        await staking1.setVotes(voter2.address, simpleToExactAmount(0))
+                        expect(await emissionsController.callStatic.getVotes(voter1.address), "Voter 1 votes after").to.eq(
                             simpleToExactAmount(300),
                         )
-                        expect(await emissionsController.callStatic.getVotes(sa.dummy2.address), "Voter 2 votes after").to.eq(
+                        expect(await emissionsController.callStatic.getVotes(voter2.address), "Voter 2 votes after").to.eq(
                             simpleToExactAmount(0),
                         )
                         await increaseTime(ONE_WEEK)
@@ -1218,11 +1252,11 @@ describe("EmissionsController", async () => {
                     })
                     it("Voter 2 delegates to Voter 1 who has set weights", async () => {
                         // Voter 2 delegates votes to Voter 1
-                        await staking1.transferVotes(sa.dummy2.address, sa.dummy1.address, simpleToExactAmount(600))
-                        expect(await emissionsController.callStatic.getVotes(sa.dummy1.address), "Voter 1 votes after").to.eq(
+                        await staking1.transferVotes(voter2.address, voter1.address, simpleToExactAmount(600))
+                        expect(await emissionsController.callStatic.getVotes(voter1.address), "Voter 1 votes after").to.eq(
                             simpleToExactAmount(900),
                         )
-                        expect(await emissionsController.callStatic.getVotes(sa.dummy2.address), "Voter 2 votes after").to.eq(
+                        expect(await emissionsController.callStatic.getVotes(voter2.address), "Voter 2 votes after").to.eq(
                             simpleToExactAmount(0),
                         )
                         await increaseTime(ONE_WEEK)
@@ -1240,11 +1274,11 @@ describe("EmissionsController", async () => {
                     })
                     it("Voter 2 delegates to Voter 3 who has not set weights", async () => {
                         // Voter 2 delegates votes to Voter 3
-                        await staking1.transferVotes(sa.dummy2.address, sa.dummy1.address, simpleToExactAmount(600))
-                        expect(await emissionsController.callStatic.getVotes(sa.dummy1.address), "Voter 1 votes after").to.eq(
+                        await staking1.transferVotes(voter2.address, voter1.address, simpleToExactAmount(600))
+                        expect(await emissionsController.callStatic.getVotes(voter1.address), "Voter 1 votes after").to.eq(
                             simpleToExactAmount(900),
                         )
-                        expect(await emissionsController.callStatic.getVotes(sa.dummy2.address), "Voter 2 votes after").to.eq(
+                        expect(await emissionsController.callStatic.getVotes(voter2.address), "Voter 2 votes after").to.eq(
                             simpleToExactAmount(0),
                         )
                         await increaseTime(ONE_WEEK)
@@ -1277,7 +1311,7 @@ describe("EmissionsController", async () => {
             })
             it("Only Voter 1 allocates 1% to dial 1", async () => {
                 // Voter 1 gives 1% of their 300 votes to dial 1
-                await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
+                await emissionsController.connect(voter1.signer).setVoterDialWeights([
                     { dialId: 0, weight: 2 },
                     { dialId: 3, weight: 10 },
                 ])
@@ -1296,12 +1330,12 @@ describe("EmissionsController", async () => {
             })
             it("Voter 1 20/80 votes to dial 1 & 2, Voter 2 all votes to dial 4", async () => {
                 // Voter 1 splits their 300 votes with 20% to dial 1 and 80% to dial 2
-                await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
+                await emissionsController.connect(voter1.signer).setVoterDialWeights([
                     { dialId: 0, weight: 40 },
                     { dialId: 1, weight: 160 },
                 ])
                 // Voter 2 gives all 600 votes to dial 3
-                await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 3, weight: 200 }])
+                await emissionsController.connect(voter2.signer).setVoterDialWeights([{ dialId: 3, weight: 200 }])
                 await increaseTime(ONE_WEEK)
 
                 const tx = await emissionsController.calculateRewards()
@@ -1320,9 +1354,9 @@ describe("EmissionsController", async () => {
             })
             it("Voter 1 and 2 all to dial 4 which is fixed", async () => {
                 // Voter 1 splits their 300 votes with 20% to dial 1 and 80% to dial 2
-                await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 3, weight: 200 }])
+                await emissionsController.connect(voter1.signer).setVoterDialWeights([{ dialId: 3, weight: 200 }])
                 // Voter 2 gives all 600 votes to dial 3
-                await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 3, weight: 200 }])
+                await emissionsController.connect(voter2.signer).setVoterDialWeights([{ dialId: 3, weight: 200 }])
                 await increaseTime(ONE_WEEK)
 
                 const tx = await emissionsController.calculateRewards()
@@ -1342,9 +1376,9 @@ describe("EmissionsController", async () => {
                 await emissionsController.connect(sa.governor.signer).addDial(newDial.address, 0, true)
 
                 // Voter 1 all 300 votes to dial 1
-                await emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
+                await emissionsController.connect(voter1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
                 // Voter 2 all 600 votes to dial 2
-                await emissionsController.connect(sa.dummy2.signer).setVoterDialWeights([{ dialId: 1, weight: 200 }])
+                await emissionsController.connect(voter2.signer).setVoterDialWeights([{ dialId: 1, weight: 200 }])
                 await increaseTime(ONE_WEEK)
 
                 const tx = emissionsController.calculateRewards()
@@ -1352,6 +1386,9 @@ describe("EmissionsController", async () => {
                 await expect(tx).to.revertedWith("staking amounts > weekly emission")
             })
         })
+        // TODO after a dial has been disabled
+        // TODO after a new dial was added that was not in previous distributions
+        // TODO after a new staking contract was added that was not in previous distributions
     })
     describe("distributing rewards", () => {
         const voter1Staking1Votes = simpleToExactAmount(100)
@@ -1360,10 +1397,10 @@ describe("EmissionsController", async () => {
         const voter3Staking1Votes = simpleToExactAmount(300)
         beforeEach(async () => {
             await deployEmissionsController()
-            await staking1.setVotes(sa.dummy1.address, voter1Staking1Votes)
-            await staking2.setVotes(sa.dummy1.address, voter1Staking2Votes)
-            await staking1.setVotes(sa.dummy2.address, voter2Staking1Votes)
-            await staking1.setVotes(sa.dummy3.address, voter3Staking1Votes)
+            await staking1.setVotes(voter1.address, voter1Staking1Votes)
+            await staking2.setVotes(voter1.address, voter1Staking2Votes)
+            await staking1.setVotes(voter2.address, voter2Staking1Votes)
+            await staking1.setVotes(voter3.address, voter3Staking1Votes)
             await increaseTime(ONE_WEEK.mul(2))
         })
         context("Fail to distribute rewards when", () => {
@@ -1468,12 +1505,9 @@ describe("EmissionsController", async () => {
         })
     })
     describe("Poke sources", () => {
-        let voter1: Account
         let currentTime: BN
         beforeEach(async () => {
             await deployEmissionsController()
-
-            voter1 = sa.dummy1
 
             // Add 2 staking contracts to the existing 3 dials
             await emissionsController.connect(sa.governor.signer).addDial(staking1.address, 10, true)
@@ -1535,15 +1569,18 @@ describe("EmissionsController", async () => {
             expect(dialVotes[3], "dial 4 votes").to.eq(simpleToExactAmount(40))
             expect(dialVotes[4], "dial 5 votes").to.eq(0)
         })
-        context("after a new staking contract added with voter 1's voting power", () => {
+        context("after a new staking contract added with voter 1 voting power", () => {
             const voter1Staking1VotingPower = simpleToExactAmount(1000)
             const voter1Staking2VotingPower = simpleToExactAmount(2000)
             const voter1Staking3VotingPower = simpleToExactAmount(6000)
+            const voter2Staking1VotingPower = simpleToExactAmount(2222)
             let staking3: MockStakingContract
             beforeEach(async () => {
                 // Voter 1 has voting power in staking contracts 1 and 2
                 await staking1.setVotes(voter1.address, voter1Staking1VotingPower)
                 await staking2.setVotes(voter1.address, voter1Staking2VotingPower)
+                // Voter 2 only has voting power in the first staking contract
+                await staking1.setVotes(voter2.address, voter2Staking1VotingPower)
                 // Voter 1 splits their 300 votes with 60% to dial 1 and 40% to dial 2
                 await emissionsController.connect(voter1.signer).setVoterDialWeights([
                     { dialId: 0, weight: 120 },
@@ -1558,7 +1595,7 @@ describe("EmissionsController", async () => {
                 // New staking contract is hooked back to the emissions controller
                 await staking3.setGovernanceHook(emissionsController.address)
             })
-            it("should poke voter 1's", async () => {
+            it("should poke voter 1", async () => {
                 const tx = await emissionsController.pokeSources(voter1.address)
 
                 await expect(tx).to.emit(emissionsController, "SourcesPoked").withArgs(voter1.address, voter1Staking3VotingPower)
@@ -1570,6 +1607,27 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[2], "dial 3 votes").to.eq(0)
                 expect(dialVotes[3], "dial 4 votes").to.eq(simpleToExactAmount(9000).mul(4).div(10))
                 expect(dialVotes[4], "dial 5 votes").to.eq(0)
+
+                const preferencesAfter = await emissionsController.voterPreferences(voter1.address)
+                expect(await preferencesAfter.lastSourcePoke, "lastSourcePoke after").to.gte(currentTime)
+                expect(preferencesAfter.votesCast, "votes cast after").to.eq(simpleToExactAmount(9000))
+            })
+            it("should poke voter 2 with no preferences set", async () => {
+                const tx = await emissionsController.pokeSources(voter2.address)
+
+                await expect(tx).to.not.emit(emissionsController, "SourcesPoked")
+
+                const dialVotes = await emissionsController.getEpochVotes(await currentWeekEpoch())
+                expect(dialVotes, "number of dials").to.lengthOf(5)
+                expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(3000).mul(6).div(10))
+                expect(dialVotes[1], "dial 2 votes").to.eq(0)
+                expect(dialVotes[2], "dial 3 votes").to.eq(0)
+                expect(dialVotes[3], "dial 4 votes").to.eq(simpleToExactAmount(3000).mul(4).div(10))
+                expect(dialVotes[4], "dial 5 votes").to.eq(0)
+
+                const preferencesAfter = await emissionsController.voterPreferences(voter2.address)
+                expect(await preferencesAfter.lastSourcePoke, "lastSourcePoke after").to.eq(0)
+                expect(preferencesAfter.votesCast, "votes cast after").to.eq(0)
             })
         })
     })
@@ -1588,7 +1646,6 @@ describe("EmissionsController", async () => {
             }
         })
         it("should set 15 preferences", async () => {
-            const voter = sa.dummy1
             // using 15 dials
             const preferences = [
                 { dialId: 0, weight: 1 },
@@ -1607,17 +1664,19 @@ describe("EmissionsController", async () => {
                 { dialId: 13, weight: 14 },
                 { dialId: 14, weight: 15 },
             ]
-            const tx = await emissionsController.connect(voter.signer).setVoterDialWeights(preferences)
+            const tx = await emissionsController.connect(voter1.signer).setVoterDialWeights(preferences)
+
             await expect(tx).to.emit(emissionsController, "PreferencesChanged")
+
             const receipt = await tx.wait()
-            expect(receipt.events[0].args[0], "sender").to.eq(voter.address)
+            expect(receipt.events[0].args[0], "sender").to.eq(voter1.address)
             expect(receipt.events[0].args[1], "preferences length").to.lengthOf(15)
             expect(receipt.events[0].args[1][0].dialId, "first preference dial id").to.eq(preferences[0].dialId)
             expect(receipt.events[0].args[1][0].weight, "first preference weight").to.eq(preferences[0].weight)
             expect(receipt.events[0].args[1][14].dialId, "last preference dial id").to.eq(preferences[14].dialId)
             expect(receipt.events[0].args[1][14].weight, "last preference weight").to.eq(preferences[14].weight)
 
-            const voterPreferencesAfter = await emissionsController.getVoterPreferences(voter.address)
+            const voterPreferencesAfter = await emissionsController.getVoterPreferences(voter1.address)
             expect(voterPreferencesAfter[0].dialId, "pos 1 dial id after").to.eq(preferences[0].dialId)
             expect(voterPreferencesAfter[0].weight, "pos 1 weight after").to.eq(preferences[0].weight)
             expect(voterPreferencesAfter[1].dialId, "pos 2 dial id after").to.eq(preferences[1].dialId)
@@ -1628,7 +1687,6 @@ describe("EmissionsController", async () => {
             expect(voterPreferencesAfter[15].weight, "pos 16 weight after").to.eq(0)
         })
         it("should set 16 preferences", async () => {
-            const voter = sa.dummy1
             // using 16 dials
             const preferences = [
                 { dialId: 0, weight: 1 },
@@ -1648,17 +1706,17 @@ describe("EmissionsController", async () => {
                 { dialId: 14, weight: 15 },
                 { dialId: 15, weight: 16 },
             ]
-            const tx = await emissionsController.connect(voter.signer).setVoterDialWeights(preferences)
+            const tx = await emissionsController.connect(voter1.signer).setVoterDialWeights(preferences)
             await expect(tx).to.emit(emissionsController, "PreferencesChanged")
             const receipt = await tx.wait()
-            expect(receipt.events[0].args[0], "sender").to.eq(voter.address)
+            expect(receipt.events[0].args[0], "sender").to.eq(voter1.address)
             expect(receipt.events[0].args[1], "preferences length").to.lengthOf(16)
             expect(receipt.events[0].args[1][0].dialId, "first preference dial id").to.eq(preferences[0].dialId)
             expect(receipt.events[0].args[1][0].weight, "first preference weight").to.eq(preferences[0].weight)
             expect(receipt.events[0].args[1][15].dialId, "last preference dial id").to.eq(preferences[15].dialId)
             expect(receipt.events[0].args[1][15].weight, "last preference weight").to.eq(preferences[15].weight)
 
-            const voterPreferencesAfter = await emissionsController.getVoterPreferences(voter.address)
+            const voterPreferencesAfter = await emissionsController.getVoterPreferences(voter1.address)
             expect(voterPreferencesAfter[0].dialId, "pos 1 dial id after").to.eq(preferences[0].dialId)
             expect(voterPreferencesAfter[0].weight, "pos 1 weight after").to.eq(preferences[0].weight)
             expect(voterPreferencesAfter[1].dialId, "pos 2 dial id after").to.eq(preferences[1].dialId)
@@ -1669,38 +1727,42 @@ describe("EmissionsController", async () => {
             expect(voterPreferencesAfter[15].weight, "pos 16 weight after").to.eq(preferences[15].weight)
         })
         it("should set 100% on dial 20", async () => {
-            const voter = sa.dummy2
+            const voterPreferencesBefore = await emissionsController.voterPreferences(voter2.address)
+            expect(await voterPreferencesBefore.lastSourcePoke, "lastSourcePoke after").to.eq(0)
             // dial 20 has dial identifier 19
             const preferences = [{ dialId: 19, weight: 200 }]
 
-            const tx = await emissionsController.connect(voter.signer).setVoterDialWeights(preferences)
+            const tx = await emissionsController.connect(voter2.signer).setVoterDialWeights(preferences)
 
             await expect(tx).to.emit(emissionsController, "PreferencesChanged")
+
             const receipt = await tx.wait()
-            expect(receipt.events[0].args[0], "sender").to.eq(voter.address)
+            expect(receipt.events[0].args[0], "sender").to.eq(voter2.address)
             expect(receipt.events[0].args[1], "preferences length").to.lengthOf(1)
             expect(receipt.events[0].args[1][0].dialId, "first preference dial id").to.eq(preferences[0].dialId)
             expect(receipt.events[0].args[1][0].weight, "first preference weight").to.eq(preferences[0].weight)
 
-            const voterPreferencesAfter = await emissionsController.getVoterPreferences(voter.address)
-            expect(voterPreferencesAfter[0].dialId, "pos 1 dial id after").to.eq(preferences[0].dialId)
-            expect(voterPreferencesAfter[0].weight, "pos 1 weight after").to.eq(preferences[0].weight)
-            expect(voterPreferencesAfter[1].dialId, "pos 2 dial id after").to.eq(255)
-            expect(voterPreferencesAfter[1].weight, "pos 2 weight after").to.eq(0)
-            expect(voterPreferencesAfter[2].dialId, "pos 3 dial id after").to.eq(0)
-            expect(voterPreferencesAfter[2].weight, "pos 3 weight after").to.eq(0)
+            const voterWeightsAfter = await emissionsController.getVoterPreferences(voter2.address)
+            expect(voterWeightsAfter[0].dialId, "pos 1 dial id after").to.eq(preferences[0].dialId)
+            expect(voterWeightsAfter[0].weight, "pos 1 weight after").to.eq(preferences[0].weight)
+            expect(voterWeightsAfter[1].dialId, "pos 2 dial id after").to.eq(255)
+            expect(voterWeightsAfter[1].weight, "pos 2 weight after").to.eq(0)
+            expect(voterWeightsAfter[2].dialId, "pos 3 dial id after").to.eq(0)
+            expect(voterWeightsAfter[2].weight, "pos 3 weight after").to.eq(0)
+
+            const voterPreferencesAfter = await emissionsController.voterPreferences(voter2.address)
+            expect(await voterPreferencesAfter.lastSourcePoke, "lastSourcePoke after").to.gt(0)
         })
         it("should override previous dial weights", async () => {
-            const voter = sa.dummy1
             const previousPreferences = [
                 { dialId: 0, weight: 120 }, // 60%
                 { dialId: 1, weight: 60 }, // 30%
                 { dialId: 2, weight: 20 }, // 10%
             ]
 
-            await emissionsController.connect(voter.signer).setVoterDialWeights(previousPreferences)
+            await emissionsController.connect(voter1.signer).setVoterDialWeights(previousPreferences)
 
-            const voterPreferencesBefore = await emissionsController.getVoterPreferences(voter.address)
+            const voterPreferencesBefore = await emissionsController.getVoterPreferences(voter1.address)
             expect(voterPreferencesBefore[0].dialId, "pos 1 dial id before").to.eq(0)
             expect(voterPreferencesBefore[0].weight, "pos 1 weight before").to.eq(120)
             expect(voterPreferencesBefore[1].dialId, "pos 2 dial id before").to.eq(1)
@@ -1721,9 +1783,9 @@ describe("EmissionsController", async () => {
                 { dialId: 19, weight: 70 }, // 35%
             ]
 
-            await emissionsController.connect(voter.signer).setVoterDialWeights(newPreferences)
+            await emissionsController.connect(voter1.signer).setVoterDialWeights(newPreferences)
 
-            const voterPreferencesAfter = await emissionsController.getVoterPreferences(voter.address)
+            const voterPreferencesAfter = await emissionsController.getVoterPreferences(voter1.address)
             expect(voterPreferencesAfter[0].dialId, "pos 1 dial id after").to.eq(1)
             expect(voterPreferencesAfter[0].weight, "pos 1 weight after").to.eq(60)
             expect(voterPreferencesAfter[1].dialId, "pos 2 dial id after").to.eq(2)
@@ -1742,23 +1804,23 @@ describe("EmissionsController", async () => {
         describe("should fail when", () => {
             it("weights > 100% to a single dial", async () => {
                 // Voter 1 gives 100.01% to dial 1
-                const tx = emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 0, weight: 201 }])
+                const tx = emissionsController.connect(voter1.signer).setVoterDialWeights([{ dialId: 0, weight: 201 }])
                 await expect(tx).to.revertedWith("Imbalanced weights")
             })
             it("weights > 100% across multiple dials", async () => {
                 // Voter 1 gives 90% to dial 1 and 10.01% to dial 2
-                const tx = emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
+                const tx = emissionsController.connect(voter1.signer).setVoterDialWeights([
                     { dialId: 0, weight: 180 }, // 90%
                     { dialId: 1, weight: 21 }, // 10.5%
                 ])
                 await expect(tx).to.revertedWith("Imbalanced weights")
             })
             it("invalid dial id", async () => {
-                const tx = emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([{ dialId: 20, weight: 200 }])
+                const tx = emissionsController.connect(voter1.signer).setVoterDialWeights([{ dialId: 20, weight: 200 }])
                 await expect(tx).to.revertedWith("Invalid dial id")
             })
             it("0% weight", async () => {
-                const tx = emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
+                const tx = emissionsController.connect(voter1.signer).setVoterDialWeights([
                     { dialId: 1, weight: 100 }, // 50%
                     { dialId: 18, weight: 0 },
                 ])
@@ -1766,7 +1828,7 @@ describe("EmissionsController", async () => {
             })
             it("setting 17 preferences", async () => {
                 // using 17 dials with 5% (10/2) each
-                const tx = emissionsController.connect(sa.dummy1.signer).setVoterDialWeights([
+                const tx = emissionsController.connect(voter1.signer).setVoterDialWeights([
                     { dialId: 0, weight: 10 },
                     { dialId: 1, weight: 10 },
                     { dialId: 2, weight: 10 },
@@ -1790,16 +1852,12 @@ describe("EmissionsController", async () => {
         })
     })
     describe("staking contract hook", () => {
-        let voter1: Account
-        let voter2: Account
-        let voter3: Account
         const amount = simpleToExactAmount(100)
+        let currentTime: BN
+        let voter1PreferencesBefore: { votesCast: BN; lastSourcePoke: number }
         beforeEach(async () => {
             await deployEmissionsController()
 
-            voter1 = sa.dummy1
-            voter2 = sa.dummy2
-            voter3 = sa.dummy3
             await staking1.setVotes(voter1.address, simpleToExactAmount(100))
             await staking1.setVotes(voter2.address, simpleToExactAmount(200))
 
@@ -1811,8 +1869,12 @@ describe("EmissionsController", async () => {
                 { dialId: 1, weight: 60 }, // 30%
                 { dialId: 0, weight: 20 }, // 10%
             ])
+            voter1PreferencesBefore = await emissionsController.voterPreferences(voter1.address)
         })
         context("in first launch week", () => {
+            beforeEach(async () => {
+                currentTime = await getTimestamp()
+            })
             it("should increase voter 1's voting power", async () => {
                 const preferencesBefore = await emissionsController.voterPreferences(voter1.address)
                 expect(await preferencesBefore.lastSourcePoke, "lastSourcePoke before").to.gt(0)
@@ -1832,7 +1894,7 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(300).mul(6).div(10))
 
                 const preferencesAfter = await emissionsController.voterPreferences(voter1.address)
-                expect(await preferencesAfter.lastSourcePoke, "lastSourcePoke after").to.gt(0)
+                expect(await preferencesAfter.lastSourcePoke, "lastSourcePoke after").to.eq(voter1PreferencesBefore.lastSourcePoke)
                 expect(preferencesAfter.votesCast, "votes cast after").to.eq(simpleToExactAmount(300))
             })
             it("should set voter 2's preferences", async () => {
@@ -1856,7 +1918,7 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(100).mul(6).div(10))
 
                 const preferences = await emissionsController.voterPreferences(voter2.address)
-                expect(await preferences.lastSourcePoke, "lastSourcePoke after").to.gt(0)
+                expect(await preferences.lastSourcePoke, "lastSourcePoke after").to.gte(currentTime)
                 expect(preferences.votesCast, "votes cast after").to.eq(simpleToExactAmount(200))
             })
             it("should increase voter 3's voting power who doesn't have preferences", async () => {
@@ -1880,6 +1942,8 @@ describe("EmissionsController", async () => {
             beforeEach(async () => {
                 // Move to the second launch week
                 await increaseTime(ONE_WEEK)
+
+                currentTime = await getTimestamp()
             })
             it("should increase voter 1's voting power", async () => {
                 // Voter 1's voting power is increased from 100 to 500 which is a 400 increase
@@ -1895,9 +1959,9 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[1], "dial 2 votes").to.eq(simpleToExactAmount(500).mul(3).div(10))
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(500).mul(6).div(10))
 
-                const preferences = await emissionsController.voterPreferences(voter1.address)
-                expect(await preferences.lastSourcePoke, "lastSourcePoke after").to.gt(0)
-                expect(preferences.votesCast, "votes cast after").to.eq(simpleToExactAmount(500))
+                const preferencesAfter = await emissionsController.voterPreferences(voter1.address)
+                expect(await preferencesAfter.lastSourcePoke, "lastSourcePoke after").to.gte(voter1PreferencesBefore.lastSourcePoke)
+                expect(preferencesAfter.votesCast, "votes cast after").to.eq(simpleToExactAmount(500))
             })
             it("should decrease voter 1's voting power", async () => {
                 // Voter 1's voting power is decreased from 100 to 10 which is a 90 decrease
@@ -1913,9 +1977,9 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[1], "dial 2 votes").to.eq(simpleToExactAmount(10).mul(3).div(10))
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(10).mul(6).div(10))
 
-                const preferences = await emissionsController.voterPreferences(voter1.address)
-                expect(await preferences.lastSourcePoke, "lastSourcePoke after").to.gt(0)
-                expect(preferences.votesCast, "votes cast after").to.eq(simpleToExactAmount(10))
+                const preferencesAfter = await emissionsController.voterPreferences(voter1.address)
+                expect(await preferencesAfter.lastSourcePoke, "lastSourcePoke after").to.eq(voter1PreferencesBefore.lastSourcePoke)
+                expect(preferencesAfter.votesCast, "votes cast after").to.eq(simpleToExactAmount(10))
             })
             it("should set voter 2's preferences", async () => {
                 const tx = await emissionsController.connect(voter2.signer).setVoterDialWeights([
@@ -1937,9 +2001,9 @@ describe("EmissionsController", async () => {
                 )
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(100).mul(6).div(10))
 
-                const preferences = await emissionsController.voterPreferences(voter2.address)
-                expect(await preferences.lastSourcePoke, "lastSourcePoke after").to.gt(0)
-                expect(preferences.votesCast, "votes cast after").to.eq(simpleToExactAmount(200))
+                const preferencesAfter = await emissionsController.voterPreferences(voter2.address)
+                expect(await preferencesAfter.lastSourcePoke, "lastSourcePoke after").to.gte(currentTime)
+                expect(preferencesAfter.votesCast, "votes cast after").to.eq(simpleToExactAmount(200))
             })
             it("should increase voter 2's voting power after setting preferences", async () => {
                 await emissionsController.connect(voter2.signer).setVoterDialWeights([
@@ -1961,9 +2025,9 @@ describe("EmissionsController", async () => {
                 )
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(100).mul(6).div(10))
 
-                const preferences = await emissionsController.voterPreferences(voter2.address)
-                expect(await preferences.lastSourcePoke, "lastSourcePoke after").to.gt(0)
-                expect(preferences.votesCast, "votes cast after").to.eq(simpleToExactAmount(300))
+                const preferencesAfter = await emissionsController.voterPreferences(voter2.address)
+                expect(await preferencesAfter.lastSourcePoke, "lastSourcePoke after").to.gte(currentTime)
+                expect(preferencesAfter.votesCast, "votes cast after").to.eq(simpleToExactAmount(300))
             })
             it("should increase voter 3's voting power who doesn't have preferences", async () => {
                 // Voter 3's voting power is increased from 0 to 1000 which is a 1000 increase
@@ -1977,9 +2041,9 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[1], "dial 2 votes").to.eq(simpleToExactAmount(100).mul(3).div(10))
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(100).mul(6).div(10))
 
-                const preferences = await emissionsController.voterPreferences(voter3.address)
-                expect(await preferences.lastSourcePoke, "lastSourcePoke after").to.eq(0)
-                expect(preferences.votesCast, "votes cast after").to.eq(0)
+                const preferencesAfter = await emissionsController.voterPreferences(voter3.address)
+                expect(await preferencesAfter.lastSourcePoke, "lastSourcePoke after").to.eq(0)
+                expect(preferencesAfter.votesCast, "votes cast after").to.eq(0)
             })
         })
         context("should fail when", () => {
@@ -2016,6 +2080,8 @@ describe("EmissionsController", async () => {
                 await emissionsController.connect(sa.governor.signer).addStakingContract(staking3.address)
                 // New staking contract is hooked back to the emissions controller
                 await staking3.setGovernanceHook(emissionsController.address)
+
+                currentTime = await getTimestamp()
             })
             it("should poke when voter 1 increases voting power in new staking contract", async () => {
                 // Voter 1's voting power is tripled
@@ -2028,6 +2094,10 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(21000).mul(6).div(10))
                 expect(dialVotes[1], "dial 2 votes").to.eq(0)
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(21000).mul(4).div(10))
+
+                const preferences = await emissionsController.voterPreferences(voter1.address)
+                expect(await preferences.lastSourcePoke, "lastSourcePoke after").to.gte(currentTime)
+                expect(preferences.votesCast, "votes cast after").to.eq(simpleToExactAmount(21000))
             })
             it("should poke when voter 1 removes voting power from new staking contract", async () => {
                 // Voter 1's voting power is tripled
@@ -2040,6 +2110,10 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(3000).mul(6).div(10))
                 expect(dialVotes[1], "dial 2 votes").to.eq(0)
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(3000).mul(4).div(10))
+
+                const preferences = await emissionsController.voterPreferences(voter1.address)
+                expect(await preferences.lastSourcePoke, "lastSourcePoke after").to.gte(currentTime)
+                expect(preferences.votesCast, "votes cast after").to.eq(simpleToExactAmount(3000))
             })
             it("should add voter 2's preferences", async () => {
                 const tx = await emissionsController.connect(voter2.signer).setVoterDialWeights([
@@ -2061,7 +2135,7 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(3000).mul(4).div(10))
 
                 const preferences = await emissionsController.voterPreferences(voter2.address)
-                expect(await preferences.lastSourcePoke, "lastSourcePoke after").to.gt(0)
+                expect(await preferences.lastSourcePoke, "lastSourcePoke after").to.gte(currentTime)
                 expect(preferences.votesCast, "votes cast after").to.eq(simpleToExactAmount(2300 + 200))
             })
             it("should do nothing when voter 3 adds voting power to new staking contract", async () => {
