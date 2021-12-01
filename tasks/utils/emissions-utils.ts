@@ -44,7 +44,7 @@ export const deployEmissionsController = async (signer: Signer, hre: HardhatRunt
             resolveAddress("BUSD", chain, "vault"),
             resolveAddress("alUSD", chain, "vault"),
             resolveAddress("RAI", chain, "vault"),
-            // resolveAddress("FEI", chain, "vault"),
+            resolveAddress("FEI", chain, "vault"),
             resolveAddress("HBTC", chain, "vault"),
             resolveAddress("tBTCv2", chain, "vault"),
         ]
