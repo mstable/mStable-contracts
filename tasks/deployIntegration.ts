@@ -4,6 +4,7 @@ import "tsconfig-paths/register"
 
 import { subtask, task, types } from "hardhat/config"
 import {
+    AaveV2Integration,
     AaveV2Integration__factory,
     DelayedProxyAdmin__factory,
     Liquidator,
@@ -16,8 +17,8 @@ import { simpleToExactAmount } from "@utils/math"
 import { encodeUniswapPath } from "@utils/peripheral/uniswap"
 import { ZERO_ADDRESS } from "@utils/constants"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
-import { AAVE, ALCX, Chain, COMP, DAI, stkAAVE, tokens } from "./utils/tokens"
-import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
+import { AAVE, ALCX, Chain, COMP, stkAAVE, tokens } from "./utils/tokens"
+import { getChain, getChainAddress, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
 import { getSigner } from "./utils/signerFactory"
 import { verifyEtherscan } from "./utils/etherscan"
 
@@ -37,16 +38,28 @@ task("integration-aave-deploy", "Deploys an instance of AaveV2Integration contra
         const nexusAddress = getChainAddress("Nexus", chain)
         const platformAddress = getChainAddress("AaveLendingPoolAddressProvider", chain)
 
+        const bAsset = resolveToken(taskArgs.asset, chain)
+        if (!bAsset.liquidityProvider) throw Error(`No aToken address provided for token: ${taskArgs.asset}`)
+
         const liquidityProviderAddress = resolveAddress(taskArgs.asset, chain)
         const rewardsTokenAddress = resolveAddress(taskArgs.rewards, chain)
 
+        const constructorArguments = [nexusAddress, liquidityProviderAddress, platformAddress, rewardsTokenAddress]
+
         // Deploy
-        await deployContract(new AaveV2Integration__factory(signer), "AaveV2Integration", [
-            nexusAddress,
-            liquidityProviderAddress,
-            platformAddress,
-            rewardsTokenAddress,
-        ])
+        const integration = await deployContract<AaveV2Integration>(
+            new AaveV2Integration__factory(signer),
+            "AaveV2Integration",
+            constructorArguments,
+        )
+
+        const tx = await integration.initialize([bAsset.address], [bAsset.liquidityProvider])
+        await logTxDetails(tx, "AaveIntegrationV2.initialize")
+
+        await verifyEtherscan(hre, {
+            address: integration.address,
+            constructorArguments,
+        })
     })
 
 task("integration-paave-deploy", "Deploys mUSD and mBTC instances of PAaveIntegration")
@@ -56,6 +69,8 @@ task("integration-paave-deploy", "Deploys mUSD and mBTC instances of PAaveIntegr
         undefined,
         types.string,
     )
+    .addOptionalParam("assetType", "'address' for mAssets or 'feederPool' for Feeder Pools", "feederPool", types.string)
+    .addOptionalParam("rewards", "Platform token rewards", "stkAAVE", types.string)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const chain = getChain(hre)
@@ -65,29 +80,30 @@ task("integration-paave-deploy", "Deploys mUSD and mBTC instances of PAaveIntegr
         const platformAddress = getChainAddress("AaveLendingPoolAddressProvider", chain)
         const aaveIncentivesControllerAddress = getChainAddress("AaveIncentivesController", chain)
 
-        const liquidityProviderAddress = resolveAddress(taskArgs.asset, chain)
+        // Feeder Pool Asset like GUSD, alUSD or RAI
+        // or can be a mAsset Vault like mUSD and mBTC
+        const liquidityToken = resolveToken(taskArgs.asset, chain)
+        const liquidityProviderAddress = resolveAddress(taskArgs.asset, chain, taskArgs.assetType)
         const rewardsTokenAddress = resolveAddress(taskArgs.rewards, chain)
 
-        // TODO need to get the list of bAssets from
-        const bAssets = [DAI]
+        // TODO this only works for Feeder Pools. Need to get the list of bAssets from arg for mAssets
+        const bAssets = [liquidityToken]
         const bAssetAddresses = bAssets.map((b) => b.address)
         const aTokens = bAssets.map((b) => b.liquidityProvider)
 
         // Deploy
-        const integration = await deployContract<PAaveIntegration>(new PAaveIntegration__factory(deployer), "PAaveIntegration for mUSD", [
-            nexusAddress,
-            liquidityProviderAddress,
-            platformAddress,
-            rewardsTokenAddress,
-            aaveIncentivesControllerAddress,
-        ])
+        const integration = await deployContract<PAaveIntegration>(
+            new PAaveIntegration__factory(deployer),
+            `PAaveIntegration for ${taskArgs.asset}`,
+            [nexusAddress, liquidityProviderAddress, platformAddress, rewardsTokenAddress, aaveIncentivesControllerAddress],
+        )
         const tx = await integration.initialize(bAssetAddresses, aTokens)
-        await logTxDetails(tx, "mUsdPAaveIntegration.initialize")
+        await logTxDetails(tx, "PAaveIntegration.initialize")
 
         const approveRewardTokenData = integration.interface.encodeFunctionData("approveRewardToken")
         console.log(`\napproveRewardToken data: ${approveRewardTokenData}`)
 
-        const mAsset = await Masset__factory.connect(liquidityProviderAddress, deployer)
+        const mAsset = Masset__factory.connect(liquidityProviderAddress, deployer)
 
         for (const bAsset of bAssets) {
             const migrateData = mAsset.interface.encodeFunctionData("migrateBassets", [[bAsset.address], integration.address])

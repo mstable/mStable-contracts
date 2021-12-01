@@ -30,12 +30,12 @@ import {
     outputFees,
     getCollectedInterest,
 } from "./utils/snap-utils"
-import { Chain, PFRAX, PmUSD, Token, tokens } from "./utils/tokens"
+import { Chain, PFRAX, PmUSD, RAI, Token, tokens } from "./utils/tokens"
 import { btcFormatter, QuantityFormatter, usdFormatter } from "./utils/quantity-formatters"
 import { getSwapRates } from "./utils/rates-utils"
 import { getSigner } from "./utils/signerFactory"
 import { logTxDetails } from "./utils"
-import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
+import { getChain, getChainAddress, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
 import { params } from "./taskUtils"
 
 const getBalances = async (
@@ -399,6 +399,21 @@ task("feeder-collect-interest", "Collects and interest from feeder pools")
 
         const tx = await validator.collectAndValidateInterest([fpAddress])
         await logTxDetails(tx, "collectAndValidateInterest")
+    })
+
+task("feeder-migrate-bassets", "Migrates bAssets in a Feeder Pool to its integration contract")
+    .addParam("fasset", "Token symbol of feeder pool. eg HBTC, alUSD, FRAX or RAI", undefined, types.string, false)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const chain = getChain(hre)
+        const signer = await getSigner(hre, taskArgs.speed)
+
+        const fpToken = resolveToken(taskArgs.fasset, chain, "feederPool")
+        const feederPool = FeederPool__factory.connect(fpToken.feederPool, signer)
+
+        const tx = await feederPool.migrateBassets([fpToken.address], fpToken.integrator)
+
+        await logTxDetails(tx, `migrate ${taskArgs.fasset} feeder pool bAssets`)
     })
 
 module.exports = {}

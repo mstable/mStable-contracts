@@ -54,6 +54,7 @@ task("Vault.deploy", "Deploys a vault contract")
     .addParam("vaultName", "Vault name", undefined, types.string, false)
     .addParam("vaultSymbol", "Vault symbol", undefined, types.string, false)
     .addOptionalParam("stakingToken", "Symbol of staking token. eg MTA, BAL or mUSD", "MTA", types.string)
+    .addOptionalParam("stakingType", "'address' or 'feederPool'", "feederPool", types.string)
     .addOptionalParam("rewardsToken", "Symbol of rewards token. eg MTA", "MTA", types.string)
     .addOptionalParam("dualRewardsToken", "Symbol of dual rewards token. eg WMATIC", undefined, types.string)
     .addOptionalParam("priceCoeff", "Price coefficient without 18 decimal places. eg 1 or 4800", 1, types.int)
@@ -66,7 +67,7 @@ task("Vault.deploy", "Deploys a vault contract")
             name: taskArgs.vaultName,
             symbol: taskArgs.vaultSymbol,
             priceCoeff: simpleToExactAmount(taskArgs.priceCoeff),
-            stakingToken: resolveAddress(taskArgs.stakingToken, chain),
+            stakingToken: resolveAddress(taskArgs.stakingToken, chain, taskArgs.stakingType),
             rewardToken: resolveAddress(taskArgs.rewardsToken, chain),
             dualRewardToken: taskArgs.dualRewardsToken ? resolveAddress(taskArgs.dualRewardsToken, chain) : undefined,
         }

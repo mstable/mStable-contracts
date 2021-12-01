@@ -28,6 +28,7 @@ export interface Token {
     platformTokenVendor?: string // hold WMATIC on Polygon's v-imUSD vault
     bridgeForwarder?: string // Mainnet contract that forwards MTA rewards from the Emissions Controller to the L2 Bridge
     bridgeRecipient?: string // L2 contract that receives bridge MTA rewards from the L2 Bridge
+    priceGetter?: string // Contract for price of asset, used for NonPeggedFeederPool
 }
 
 export function isToken(asset: unknown): asset is Token {
@@ -216,6 +217,31 @@ export const BUSD: Token = {
     parent: "mUSD",
     feederPool: "0xfE842e95f8911dcc21c943a1dAA4bd641a1381c6",
     vault: "0xD124B55f70D374F58455c8AEdf308E52Cf2A6207",
+}
+
+// NonPeggedFeederPool contains priceGetter
+export const RAI: Token = {
+    symbol: "RAI",
+    address: "0x03ab458634910aad20ef5f1c8ee96f1d6ac54919",
+    chain: Chain.mainnet,
+    platform: Platform.Aave,
+    integrator: "0x8CC6A1aE38743d453F2522C5228B775D145f43B7",
+    liquidityProvider: "0xc9BC48c72154ef3e5425641a3c747242112a46AF", // aRAI,
+    decimals: 18,
+    quantityFormatter: "USD",
+    parent: "mUSD",
+    feederPool: "0x36F944B7312EAc89381BD78326Df9C84691D8A5B",
+    vault: "0xF93e0ddE0F7C48108abbD880DB7697A86169f13b",
+    priceGetter: "0x07210B8871073228626AB79c296d9b22238f63cE",
+}
+
+// FLX token for RAI
+export const FLX: Token = {
+    symbol: "FLX",
+    address: "0x6243d8cea23066d098a15582d81a598b4e8391f4",
+    chain: Chain.mainnet,
+    decimals: 18,
+    quantityFormatter: "USD",
 }
 
 // USD Feeder Pool Assets on Mainnet
@@ -463,6 +489,8 @@ export const tokens = [
     DAI,
     GUSD,
     BUSD,
+    RAI,
+    FLX,
     renBTC,
     sBTC,
     WBTC,

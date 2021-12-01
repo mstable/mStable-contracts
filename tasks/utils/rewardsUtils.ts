@@ -3,6 +3,7 @@ import { Contract } from "@ethersproject/contracts"
 import { formatBytes32String } from "@ethersproject/strings"
 import { Signer } from "ethers"
 import { Account } from "types/common"
+import { HardhatRuntimeEnvironment } from "hardhat/types/runtime"
 import {
     AssetProxy__factory,
     InstantProxyAdmin__factory,
@@ -41,7 +42,7 @@ export interface StakedTokenDeployAddresses {
 export const deployStakingToken = async (
     stakedTokenData: StakedTokenData,
     deployer: Account,
-    hre: any,
+    hre: HardhatRuntimeEnvironment,
     deployProxy = false,
     overrides?: StakedTokenDeployAddresses,
     overrideSigner?: string,
@@ -117,7 +118,7 @@ export const deployStakingToken = async (
     const stakedTokenLibraryAddresses = {
         "contracts/rewards/staking/PlatformTokenVendorFactory.sol:PlatformTokenVendorFactory": platformTokenVendorFactoryAddress,
     }
-    let constructorArguments: any[]
+    let constructorArguments: [string,string,string,string,BigNumberish, BigNumberish, string[]?,string?]
     let stakedTokenImpl: Contract
     let data: string
     if (rewardsTokenAddress === stakedTokenAddress) {
