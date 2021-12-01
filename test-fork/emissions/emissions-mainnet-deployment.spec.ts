@@ -158,7 +158,7 @@ context("Fork test Emissions Controller on mainnet", () => {
             ])
             await expect(tx).to.emit(emissionsController, "PreferencesChanged")
 
-            const dialVotes = await emissionsController.getEpochVotes(firstEpoch)
+            const dialVotes = await emissionsController.getDialVotes()
             expect(dialVotes[0], "dial 1 votes").to.eq(voter1VotingPower.mul(6).div(10))
             expect(dialVotes[1], "dial 2 votes").to.eq(voter1VotingPower.mul(4).div(10))
             expect(dialVotes[2], "dial 3 votes").to.eq(0)
@@ -174,7 +174,7 @@ context("Fork test Emissions Controller on mainnet", () => {
             ])
             await expect(tx).to.emit(emissionsController, "PreferencesChanged")
 
-            const dialVotes = await emissionsController.getEpochVotes(firstEpoch)
+            const dialVotes = await emissionsController.getDialVotes()
             expect(dialVotes[0], "dial 1 votes").to.eq(voter1VotingPower.mul(6).div(10))
             expect(dialVotes[1], "dial 2 votes").to.eq(voter1VotingPower.mul(4).div(10))
             expect(dialVotes[2], "dial 3 votes").to.eq(voter2VotingPower)
@@ -190,7 +190,7 @@ context("Fork test Emissions Controller on mainnet", () => {
             ])
             await expect(tx).to.emit(emissionsController, "PreferencesChanged")
 
-            const dialVotes = await emissionsController.getEpochVotes(firstEpoch)
+            const dialVotes = await emissionsController.getDialVotes()
             expect(dialVotes[0], "dial 1 votes").to.eq(voter1VotingPower.mul(6).div(10))
             expect(dialVotes[1], "dial 2 votes").to.eq(voter1VotingPower.mul(4).div(10).add(voter3VotingPower))
             expect(dialVotes[2], "dial 3 votes").to.eq(voter2VotingPower)

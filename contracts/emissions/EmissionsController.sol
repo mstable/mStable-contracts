@@ -251,33 +251,25 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     }
 
     /**
-     * @notice Gets the number of weighted votes for each dial for a given week's distribution.
-     *         The weekly rewards does not have to be calculated. When running for the current week it'll return
-     *         the weighted votes for the dials as they currently stand.
-     * @param epoch      The week of the distribution measured as the number of weeks since 1 Jan 1970.
-     * @return dialVotes A list of dials votes for that week. The index of the array is the dialId.
+     * @notice Gets the latest weighted votes for each dial.
+     *         This will include disabled dials and their current weighted votes.
+     * @return dialVotes A list of dial weighted votes. The index of the array is the dialId.
      */
-    function getEpochVotes(uint32 epoch) public view returns (uint256[] memory dialVotes) {
+    function getDialVotes() public view returns (uint256[] memory dialVotes) {
         uint256 dialLen = dials.length;
         dialVotes = new uint256[](dialLen);
-        require(epoch <= epochs.lastEpoch, "invalid epoch");
 
         for (uint256 i = 0; i < dialLen; i++) {
             DialData memory dialData = dials[i];
 
+            uint256 voteHistoryLen = dialData.voteHistory.length;
+
             // If no distributions for this dial yet
-            if (dialData.voteHistory.length == 0) {
-                continue;
-            }
-            // If the epoch is before distributions for this dial
-            uint256 firstDialEpoch = dialData.voteHistory[0].epoch;
-            if (epoch < firstDialEpoch) {
+            if (voteHistoryLen == 0) {
                 continue;
             }
 
-            // The following assume rewards were calculated every week
-            uint256 voteHistoryIndex = epoch - firstDialEpoch;
-            dialVotes[i] = dialData.voteHistory[voteHistoryIndex].votes;
+            dialVotes[i] = dialData.voteHistory[voteHistoryLen - 1].votes;
         }
     }
 

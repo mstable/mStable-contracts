@@ -118,7 +118,7 @@
 <text text-anchor="start" x="802.7573" y="-388.9" font-family="Times,serif" font-size="14.00" fill="#000000"> &#160;&#160;&#160;topLineEmission(epoch: uint32): (emissionForEpoch: uint256)</text>
 <text text-anchor="start" x="802.7573" y="-372.1" font-family="Times,serif" font-size="14.00" fill="#000000"> &#160;&#160;&#160;getDialRecipient(dialId: uint256): (recipient: address)</text>
 <text text-anchor="start" x="802.7573" y="-355.3" font-family="Times,serif" font-size="14.00" fill="#000000"> &#160;&#160;&#160;getDialVoteHistory(dialId: uint256): (voteHistory: HistoricVotes[])</text>
-<text text-anchor="start" x="802.7573" y="-338.5" font-family="Times,serif" font-size="14.00" fill="#000000"> &#160;&#160;&#160;getEpochVotes(epoch: uint32): (dialVotes: uint256[])</text>
+<text text-anchor="start" x="802.7573" y="-338.5" font-family="Times,serif" font-size="14.00" fill="#000000"> &#160;&#160;&#160;getDialVotes(): (dialVotes: uint256[])</text>
 <text text-anchor="start" x="802.7573" y="-321.7" font-family="Times,serif" font-size="14.00" fill="#000000"> &#160;&#160;&#160;getVoterPreferences(voter: address): (preferences: Preference[16])</text>
 <text text-anchor="start" x="802.7573" y="-304.9" font-family="Times,serif" font-size="14.00" fill="#000000"> &#160;&#160;&#160;pokeSources(_voter: address)</text>
 </g>
