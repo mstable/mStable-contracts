@@ -1485,7 +1485,7 @@ describe("EmissionsController", async () => {
                 expect(dialBefore[1].voteHistory.slice(-1)[0].votes, "dial 2 vote weight should not change").to.eq(dialAfter[1].voteHistory.slice(-1)[0].votes)
 
             })
-            // TODO after a new dial was added that was not in previous distributions
+            // TODO after a new dial was added that was not in previous distributions [DONE]
             it("added that was not in previous distributions", async () => {
                 // --- Given ---
                 // that dial 1,2 and 3 are enabled
@@ -1523,7 +1523,6 @@ describe("EmissionsController", async () => {
                 adjustedDials[0][0] = nextEpochEmission.div(3)
                 // Voter 2 has 600 of the 900 votes (2/3)
                 adjustedDials[1][0] = nextEpochEmission.mul(2).div(3)
-                // Then disabled dials should not receive any distribution
                 await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([adjustedDials[0][0], adjustedDials[1][0], 0])
                 expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(adjustedDials[0][0])
                 expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(adjustedDials[1][0])
@@ -1564,9 +1563,6 @@ describe("EmissionsController", async () => {
                 
                 await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([adjustedDials[0][1], adjustedDials[1][1], 0, adjustedDials[3][1]])
                 const sum = (a:BN, b:BN) => a.add(b);
-                console.log("adjustedDials[0][1]", adjustedDials[0][1].toString(), adjustedDials[0].reduce(sum).toString())
-                console.log("adjustedDials[1][1]", adjustedDials[1][1].toString(), adjustedDials[1].reduce(sum).toString())
-                console.log("adjustedDials[2][1]", adjustedDials[3][1].toString(), adjustedDials[3].reduce(sum).toString())
 
                 expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(adjustedDials[0].reduce(sum))
                 expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(adjustedDials[1].reduce(sum))
