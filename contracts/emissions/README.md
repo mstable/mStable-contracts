@@ -31,15 +31,15 @@ Dials recipients can do anything with their received MTA rewards. Some possibili
 
 ### Emissions Schedule
 
-The 34m MTA rewards over 6 years will use a polynomial to calculate the weekly rewards. This will quickly reduce the amount of MTA being distributed each week, slow down the reduction in the middle and then accelerate the reduction of distributed rewards at the end.
+The 30m MTA rewards over 6 years will use a polynomial to calculate the weekly rewards. This will quickly reduce the amount of MTA being distributed each week, slow down the reduction in the middle and then accelerate the reduction of distributed rewards at the end.
 
 The polynomial formula
 
 ```
 f(x)=A*(x/div)^3+B*(x/div)^2+C*(x/div)+D
 A 1.66E+17
-B 2.02E+17
-C 2.02E+17
+B 1.68E+17
+C -1.68E+17
 D 1.66E+17
 div 312000000
 ```
