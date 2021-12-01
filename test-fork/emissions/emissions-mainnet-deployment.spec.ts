@@ -27,6 +27,8 @@ import { encodeUniswapPath } from "@utils/peripheral/uniswap"
 import { btcFormatter, usdFormatter } from "tasks/utils/quantity-formatters"
 
 const voter1VotingPower = BN.from("44461750008245826445414")
+const voter2VotingPower = simpleToExactAmount(27527.5)
+const voter3VotingPower = BN.from("78211723319712171214037")
 
 context("Fork test Emissions Controller on mainnet", () => {
     let ops: Signer
@@ -134,8 +136,10 @@ context("Fork test Emissions Controller on mainnet", () => {
         })
     })
     describe("Set vote weights", () => {
+        let firstEpoch: BN
         before(async () => {
             emissionsController = await deployEmissionsController(ops, hre)
+            firstEpoch = await (await currentWeekEpoch()).add(1)
         })
         it("voter 1", async () => {
             expect(await emissionsController.callStatic.getVotes(voter1.address), "voter 1 total voting power").to.eq(voter1VotingPower)
@@ -150,11 +154,15 @@ context("Fork test Emissions Controller on mainnet", () => {
                 },
             ])
             await expect(tx).to.emit(emissionsController, "PreferencesChanged")
+
+            const dialVotes = await emissionsController.getEpochVotes(firstEpoch)
+            expect(dialVotes[0], "dial 1 votes").to.eq(voter1VotingPower.mul(6).div(10))
+            expect(dialVotes[1], "dial 2 votes").to.eq(voter1VotingPower.mul(4).div(10))
+            expect(dialVotes[2], "dial 3 votes").to.eq(0)
+            expect(dialVotes[9], "dial 10 votes").to.eq(0)
         })
         it("voter 2", async () => {
-            expect(await emissionsController.callStatic.getVotes(voter2.address), "voter 2 total voting power").to.eq(
-                simpleToExactAmount(27527.5),
-            )
+            expect(await emissionsController.callStatic.getVotes(voter2.address), "voter 2 total voting power").to.eq(voter2VotingPower)
             const tx = await emissionsController.connect(voter2.signer).setVoterDialWeights([
                 {
                     dialId: 2,
@@ -162,18 +170,28 @@ context("Fork test Emissions Controller on mainnet", () => {
                 },
             ])
             await expect(tx).to.emit(emissionsController, "PreferencesChanged")
+
+            const dialVotes = await emissionsController.getEpochVotes(firstEpoch)
+            expect(dialVotes[0], "dial 1 votes").to.eq(voter1VotingPower.mul(6).div(10))
+            expect(dialVotes[1], "dial 2 votes").to.eq(voter1VotingPower.mul(4).div(10))
+            expect(dialVotes[2], "dial 3 votes").to.eq(voter2VotingPower)
+            expect(dialVotes[9], "dial 10 votes").to.eq(0)
         })
         it("voter 3", async () => {
-            expect(await emissionsController.callStatic.getVotes(voter3.address), "voter 3 total voting power").to.eq(
-                "78211723319712171214037",
-            )
+            expect(await emissionsController.callStatic.getVotes(voter3.address), "voter 3 total voting power").to.eq(voter3VotingPower)
             const tx = await emissionsController.connect(voter3.signer).setVoterDialWeights([
                 {
                     dialId: 1,
-                    weight: 100, // 100%
+                    weight: 200, // 100%
                 },
             ])
             await expect(tx).to.emit(emissionsController, "PreferencesChanged")
+
+            const dialVotes = await emissionsController.getEpochVotes(firstEpoch)
+            expect(dialVotes[0], "dial 1 votes").to.eq(voter1VotingPower.mul(6).div(10))
+            expect(dialVotes[1], "dial 2 votes").to.eq(voter1VotingPower.mul(4).div(10).add(voter3VotingPower))
+            expect(dialVotes[2], "dial 3 votes").to.eq(voter2VotingPower)
+            expect(dialVotes[9], "dial 10 votes").to.eq(0)
         })
     })
     describe("calculate rewards", () => {
@@ -225,7 +243,6 @@ context("Fork test Emissions Controller on mainnet", () => {
             await expect(tx).to.emit(emissionsController, "PeriodRewards")
 
             const totalREwardsActual = distributionAmounts.reduce((prev, curr) => prev.add(curr), BN.from(0))
-            // expect(totalREwardsActual, "total rewards").to.eq(totalRewardsExpected)
             assertBNClose(totalREwardsActual, totalRewardsExpected, 2, "total rewards")
 
             expect(distributionAmounts, "number of dials").to.lengthOf(12)
