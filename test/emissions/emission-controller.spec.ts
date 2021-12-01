@@ -1479,15 +1479,13 @@ describe("EmissionsController", async () => {
                 // Balance on dial 2, is the full first epoch emission + the adjusted dial 2 second emission
                 expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(nextEpochEmission[0].add(adjustedDial2))
                 expect((await emissionsController.dials(2)).balance, "dial 3 balance after").to.eq(0)
-                dialAfter[0] = await snapDial(emissionsController, 0)
-                dialAfter[1] = await snapDial(emissionsController, 1)
 
                 // New votes should be cast for enabled dials
-                expect(dialBefore[0].voteHistory.length + 1, "dial 1 vote history should change").to.eq(dialAfter[0].voteHistory.length)
-                expect(dialBefore[0].voteHistory.slice(-1)[0].vote, "dial 1 vote weight should not change").to.eq(dialBefore[0].voteHistory.slice(-1)[0].vote)
+                expect(dialBefore[0].voteHistory.length + 1, "dial 1 vote history should increase").to.eq(dialAfter[0].voteHistory.length)
+                expect(dialBefore[0].voteHistory.slice(-1)[0].vote, "dial 1 vote weight should not change").to.eq(dialAfter[0].voteHistory.slice(-1)[0].vote)
 
-                expect(dialBefore[1].voteHistory.length + 2, "dial 2 vote history should change").to.eq(dialAfter[1].voteHistory.length)
-                expect(dialBefore[1].voteHistory.slice(-1)[0].vote, "dial 2 vote weight should not change").to.eq(dialBefore[1].voteHistory.slice(-1)[0].vote)
+                expect(dialBefore[1].voteHistory.length + 2, "dial 2 vote history should increase").to.eq(dialAfter[1].voteHistory.length)
+                expect(dialBefore[1].voteHistory.slice(-1)[0].vote, "dial 2 vote weight should not change").to.eq(dialAfter[1].voteHistory.slice(-1)[0].vote)
 
             })
         })
