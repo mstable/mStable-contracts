@@ -338,7 +338,7 @@ describe("EmissionsController", async () => {
     describe("calling view functions", () => {
         // TODO - `getVotes`
         // TODO - `getDialVoteHistory`
-        // TODO - `getEpochVotes`
+        // TODO - `getDialVotes`
         // TODO - `getVoterPreferences`
 
         describe("fetch weekly emissions", () => {
@@ -1561,7 +1561,7 @@ describe("EmissionsController", async () => {
             const voterPreferencesAfter = await emissionsController.voterPreferences(voter1.address)
             expect(voterPreferencesAfter.lastSourcePoke, "last poke time after").to.gt(currentTime)
 
-            const dialVotes = await emissionsController.getEpochVotes(currentEpochWeek)
+            const dialVotes = await emissionsController.getDialVotes()
             expect(dialVotes, "number of dials").to.lengthOf(5)
             expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(60))
             expect(dialVotes[1], "dial 2 votes").to.eq(0)
@@ -1600,7 +1600,7 @@ describe("EmissionsController", async () => {
 
                 await expect(tx).to.emit(emissionsController, "SourcesPoked").withArgs(voter1.address, voter1Staking3VotingPower)
 
-                const dialVotes = await emissionsController.getEpochVotes(await currentWeekEpoch())
+                const dialVotes = await emissionsController.getDialVotes()
                 expect(dialVotes, "number of dials").to.lengthOf(5)
                 expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(9000).mul(6).div(10))
                 expect(dialVotes[1], "dial 2 votes").to.eq(0)
@@ -1617,7 +1617,7 @@ describe("EmissionsController", async () => {
 
                 await expect(tx).to.not.emit(emissionsController, "SourcesPoked")
 
-                const dialVotes = await emissionsController.getEpochVotes(await currentWeekEpoch())
+                const dialVotes = await emissionsController.getDialVotes()
                 expect(dialVotes, "number of dials").to.lengthOf(5)
                 expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(3000).mul(6).div(10))
                 expect(dialVotes[1], "dial 2 votes").to.eq(0)
@@ -1887,7 +1887,7 @@ describe("EmissionsController", async () => {
                     .withArgs(staking1.address, ZERO_ADDRESS, voter1.address, simpleToExactAmount(200))
 
                 // Is the next epoch as we are still in the first week of the launch
-                const dialVotes = await emissionsController.getEpochVotes(nextEpoch)
+                const dialVotes = await emissionsController.getDialVotes()
                 expect(dialVotes, "number of dials").to.lengthOf(3)
                 expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(300).mul(1).div(10))
                 expect(dialVotes[1], "dial 2 votes").to.eq(simpleToExactAmount(300).mul(3).div(10))
@@ -1909,7 +1909,7 @@ describe("EmissionsController", async () => {
                 expect(receipt.events[0].args[1][0].dialId, "first preference dial id").to.eq(1)
                 expect(receipt.events[0].args[1][0].weight, "first preference weight").to.eq(180)
 
-                const dialVotes = await emissionsController.getEpochVotes(nextEpoch)
+                const dialVotes = await emissionsController.getDialVotes()
                 expect(dialVotes, "number of dials").to.lengthOf(3)
                 expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(100).mul(1).div(10))
                 expect(dialVotes[1], "dial 2 votes").to.eq(
@@ -1927,7 +1927,7 @@ describe("EmissionsController", async () => {
 
                 await expect(tx).to.not.emit(emissionsController, "VotesCast")
 
-                const dialVotes = await emissionsController.getEpochVotes(nextEpoch)
+                const dialVotes = await emissionsController.getDialVotes()
                 expect(dialVotes, "number of dials").to.lengthOf(3)
                 expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(100).mul(1).div(10))
                 expect(dialVotes[1], "dial 2 votes").to.eq(simpleToExactAmount(100).mul(3).div(10))
@@ -1953,7 +1953,7 @@ describe("EmissionsController", async () => {
                     .to.emit(emissionsController, "VotesCast")
                     .withArgs(staking1.address, ZERO_ADDRESS, voter1.address, simpleToExactAmount(400))
 
-                const dialVotes = await emissionsController.getEpochVotes(nextEpoch)
+                const dialVotes = await emissionsController.getDialVotes()
                 expect(dialVotes, "number of dials").to.lengthOf(3)
                 expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(500).mul(1).div(10))
                 expect(dialVotes[1], "dial 2 votes").to.eq(simpleToExactAmount(500).mul(3).div(10))
@@ -1971,7 +1971,7 @@ describe("EmissionsController", async () => {
                     .to.emit(emissionsController, "VotesCast")
                     .withArgs(staking1.address, voter1.address, ZERO_ADDRESS, simpleToExactAmount(90))
 
-                const dialVotes = await emissionsController.getEpochVotes(nextEpoch)
+                const dialVotes = await emissionsController.getDialVotes()
                 expect(dialVotes, "number of dials").to.lengthOf(3)
                 expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(10).mul(1).div(10))
                 expect(dialVotes[1], "dial 2 votes").to.eq(simpleToExactAmount(10).mul(3).div(10))
@@ -1993,7 +1993,7 @@ describe("EmissionsController", async () => {
                 expect(receipt.events[0].args[1][0].dialId, "first preference dial id").to.eq(1)
                 expect(receipt.events[0].args[1][0].weight, "first preference weight").to.eq(180)
 
-                const dialVotes = await emissionsController.getEpochVotes(nextEpoch)
+                const dialVotes = await emissionsController.getDialVotes()
                 expect(dialVotes, "number of dials").to.lengthOf(3)
                 expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(100).mul(1).div(10))
                 expect(dialVotes[1], "dial 2 votes").to.eq(
@@ -2017,7 +2017,7 @@ describe("EmissionsController", async () => {
                     .to.emit(emissionsController, "VotesCast")
                     .withArgs(staking1.address, ZERO_ADDRESS, voter2.address, simpleToExactAmount(100))
 
-                const dialVotes = await emissionsController.getEpochVotes(nextEpoch)
+                const dialVotes = await emissionsController.getDialVotes()
                 expect(dialVotes, "number of dials").to.lengthOf(3)
                 expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(100).mul(1).div(10))
                 expect(dialVotes[1], "dial 2 votes").to.eq(
@@ -2035,7 +2035,7 @@ describe("EmissionsController", async () => {
 
                 await expect(tx).to.not.emit(emissionsController, "VotesCast")
 
-                const dialVotes = await emissionsController.getEpochVotes(nextEpoch)
+                const dialVotes = await emissionsController.getDialVotes()
                 expect(dialVotes, "number of dials").to.lengthOf(3)
                 expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(100).mul(1).div(10))
                 expect(dialVotes[1], "dial 2 votes").to.eq(simpleToExactAmount(100).mul(3).div(10))
@@ -2089,7 +2089,7 @@ describe("EmissionsController", async () => {
 
                 await expect(tx).to.emit(emissionsController, "SourcesPoked").withArgs(voter1.address, voter1Staking3VotingPower.mul(3))
 
-                const dialVotes = await emissionsController.getEpochVotes(nextEpoch)
+                const dialVotes = await emissionsController.getDialVotes()
                 expect(dialVotes, "number of dials").to.lengthOf(3)
                 expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(21000).mul(6).div(10))
                 expect(dialVotes[1], "dial 2 votes").to.eq(0)
@@ -2105,7 +2105,7 @@ describe("EmissionsController", async () => {
 
                 await expect(tx).to.emit(emissionsController, "SourcesPoked").withArgs(voter1.address, 0)
 
-                const dialVotes = await emissionsController.getEpochVotes(nextEpoch)
+                const dialVotes = await emissionsController.getDialVotes()
                 expect(dialVotes, "number of dials").to.lengthOf(3)
                 expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(3000).mul(6).div(10))
                 expect(dialVotes[1], "dial 2 votes").to.eq(0)
@@ -2127,7 +2127,7 @@ describe("EmissionsController", async () => {
                 expect(receipt.events[0].args[1][0].dialId, "first preference dial id").to.eq(1)
                 expect(receipt.events[0].args[1][0].weight, "first preference weight").to.eq(200)
 
-                const dialVotes = await emissionsController.getEpochVotes(nextEpoch)
+                const dialVotes = await emissionsController.getDialVotes()
                 expect(dialVotes, "number of dials").to.lengthOf(3)
                 expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(3000).mul(6).div(10))
                 // Adding 2300 in third staking contract to 200 already in first staking contract
@@ -2145,7 +2145,7 @@ describe("EmissionsController", async () => {
                 await expect(tx).to.not.emit(emissionsController, "SourcesPoked")
                 await expect(tx).to.not.emit(emissionsController, "VotesCast")
 
-                const dialVotes = await emissionsController.getEpochVotes(nextEpoch)
+                const dialVotes = await emissionsController.getDialVotes()
                 expect(dialVotes, "number of dials").to.lengthOf(3)
                 expect(dialVotes[0], "dial 1 votes").to.eq(simpleToExactAmount(3000).mul(6).div(10))
                 expect(dialVotes[1], "dial 2 votes").to.eq(0)

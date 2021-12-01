@@ -74,8 +74,11 @@ context("Fork test Emissions Controller on mainnet", () => {
             expect(await emissionsController.getDialRecipient(5), "dial 5 BUSD Vault").to.eq("0xD124B55f70D374F58455c8AEdf308E52Cf2A6207")
             expect(await emissionsController.getDialRecipient(6), "dial 6 alUSD Vault").to.eq("0x0997dDdc038c8A958a3A3d00425C16f8ECa87deb")
             expect(await emissionsController.getDialRecipient(7), "dial 7 RAI Vault").to.eq("0xF93e0ddE0F7C48108abbD880DB7697A86169f13b")
-            expect(await emissionsController.getDialRecipient(8), "dial 8 HBTC Vault").to.eq("0xF65D53AA6e2E4A5f4F026e73cb3e22C22D75E35C")
-            expect(await emissionsController.getDialRecipient(9), "dial 9 tBTCv2 Vault").to.eq("0x97E2a2F97A2E9a4cFB462a49Ab7c8D205aBB9ed9")
+            expect(await emissionsController.getDialRecipient(8), "dial 8 FEI Vault").to.eq("0xD24099Eb4CD604198071958655E4f2D263a5539B")
+            expect(await emissionsController.getDialRecipient(9), "dial 9 HBTC Vault").to.eq("0xF65D53AA6e2E4A5f4F026e73cb3e22C22D75E35C")
+            expect(await emissionsController.getDialRecipient(10), "dial 10 tBTCv2 Vault").to.eq(
+                "0x97E2a2F97A2E9a4cFB462a49Ab7c8D205aBB9ed9",
+            )
 
             const dial0Data = await emissionsController.dials(0)
             expect(dial0Data.recipient, "dial 0 recipient").to.eq("0x8f2326316eC696F6d023E37A9931c2b2C177a3D7")
@@ -87,10 +90,10 @@ context("Fork test Emissions Controller on mainnet", () => {
             expect(dial2Data.cap, "dial 2 cap").to.eq(0)
             expect(dial2Data.notify, "dial 2 notify").to.eq(true)
 
-            const dial9Data = await emissionsController.dials(8)
-            expect(dial9Data.recipient, "dial 8 recipient").to.eq("0xF65D53AA6e2E4A5f4F026e73cb3e22C22D75E35C")
-            expect(dial9Data.cap, "dial 8 cap").to.eq(0)
-            expect(dial9Data.notify, "dial 8 notify").to.eq(true)
+            const dial9Data = await emissionsController.dials(10)
+            expect(dial9Data.recipient, "dial 10 recipient").to.eq("0x97E2a2F97A2E9a4cFB462a49Ab7c8D205aBB9ed9")
+            expect(dial9Data.cap, "dial 10 cap").to.eq(0)
+            expect(dial9Data.notify, "dial 10 notify").to.eq(true)
 
             expect(await emissionsController.stakingContracts(0), "first staking contract").to.eq(
                 "0x8f2326316eC696F6d023E37A9931c2b2C177a3D7",
@@ -107,11 +110,11 @@ context("Fork test Emissions Controller on mainnet", () => {
             expect(await visorFinanceDial.endRecipient(), "Visor Finance Router").to.eq("0xF3f4F4e17cC65BDC36A36fDa5283F8D8020Ad0a4")
 
             const tx = await emissionsController.connect(governor).addDial(visorFinanceDial.address, 0, true)
-            await expect(tx).to.emit(emissionsController, "AddedDial").withArgs(10, visorFinanceDial.address)
+            await expect(tx).to.emit(emissionsController, "AddedDial").withArgs(11, visorFinanceDial.address)
 
-            expect(await emissionsController.getDialRecipient(10), "dial 10 VisorRouter Vault").to.eq(visorFinanceDial.address)
+            expect(await emissionsController.getDialRecipient(11), "dial 11 VisorRouter Vault").to.eq(visorFinanceDial.address)
 
-            const dial9Data = await emissionsController.dials(10)
+            const dial9Data = await emissionsController.dials(11)
             expect(dial9Data.recipient, "dial 10 recipient").to.eq(visorFinanceDial.address)
             expect(dial9Data.cap, "dial 10 cap").to.eq(0)
             expect(dial9Data.notify, "dial 10 notify").to.eq(true)
@@ -130,9 +133,9 @@ context("Fork test Emissions Controller on mainnet", () => {
 
             const tx = await emissionsController.connect(governor).addDial(bridgeForwarder.address, 0, true)
 
-            await expect(tx).to.emit(emissionsController, "AddedDial").withArgs(10, bridgeForwarder.address)
+            await expect(tx).to.emit(emissionsController, "AddedDial").withArgs(11, bridgeForwarder.address)
 
-            expect(await emissionsController.getDialRecipient(10), "dial 10 Bridge Forwarder").to.eq(bridgeForwarder.address)
+            expect(await emissionsController.getDialRecipient(11), "dial 10 Bridge Forwarder").to.eq(bridgeForwarder.address)
         })
     })
     describe("Set vote weights", () => {
@@ -155,7 +158,7 @@ context("Fork test Emissions Controller on mainnet", () => {
             ])
             await expect(tx).to.emit(emissionsController, "PreferencesChanged")
 
-            const dialVotes = await emissionsController.getEpochVotes(firstEpoch)
+            const dialVotes = await emissionsController.getDialVotes()
             expect(dialVotes[0], "dial 1 votes").to.eq(voter1VotingPower.mul(6).div(10))
             expect(dialVotes[1], "dial 2 votes").to.eq(voter1VotingPower.mul(4).div(10))
             expect(dialVotes[2], "dial 3 votes").to.eq(0)
@@ -171,7 +174,7 @@ context("Fork test Emissions Controller on mainnet", () => {
             ])
             await expect(tx).to.emit(emissionsController, "PreferencesChanged")
 
-            const dialVotes = await emissionsController.getEpochVotes(firstEpoch)
+            const dialVotes = await emissionsController.getDialVotes()
             expect(dialVotes[0], "dial 1 votes").to.eq(voter1VotingPower.mul(6).div(10))
             expect(dialVotes[1], "dial 2 votes").to.eq(voter1VotingPower.mul(4).div(10))
             expect(dialVotes[2], "dial 3 votes").to.eq(voter2VotingPower)
@@ -187,7 +190,7 @@ context("Fork test Emissions Controller on mainnet", () => {
             ])
             await expect(tx).to.emit(emissionsController, "PreferencesChanged")
 
-            const dialVotes = await emissionsController.getEpochVotes(firstEpoch)
+            const dialVotes = await emissionsController.getDialVotes()
             expect(dialVotes[0], "dial 1 votes").to.eq(voter1VotingPower.mul(6).div(10))
             expect(dialVotes[1], "dial 2 votes").to.eq(voter1VotingPower.mul(4).div(10).add(voter3VotingPower))
             expect(dialVotes[2], "dial 3 votes").to.eq(voter2VotingPower)
@@ -245,7 +248,7 @@ context("Fork test Emissions Controller on mainnet", () => {
             const totalREwardsActual = distributionAmounts.reduce((prev, curr) => prev.add(curr), BN.from(0))
             assertBNClose(totalREwardsActual, totalRewardsExpected, 2, "total rewards")
 
-            expect(distributionAmounts, "number of dials").to.lengthOf(12)
+            expect(distributionAmounts, "number of dials").to.lengthOf(13)
             // Dial over cap so get 10% of the distribution
             const dial1AmountExpected = totalRewardsExpected.mul(10).div(100)
             assertBNClose(distributionAmounts[1], dial1AmountExpected, 100, "dial 1 amount")
@@ -281,7 +284,7 @@ context("Fork test Emissions Controller on mainnet", () => {
             await emissionsController
                 .connect(treasury.signer)
                 .donate(
-                    [0, 1, 2, 3, 9, 10, 11],
+                    [0, 1, 2, 3, 10, 11, 12],
                     [
                         simpleToExactAmount(100),
                         simpleToExactAmount(1000),
@@ -308,10 +311,10 @@ context("Fork test Emissions Controller on mainnet", () => {
             await expect(tx).to.emit(emissionsController, "DistributedReward").withArgs(1, simpleToExactAmount(1000))
         })
         it("distribute rewards to vaults", async () => {
-            const tx = await emissionsController.distributeRewards([2, 3, 4, 9])
+            const tx = await emissionsController.distributeRewards([2, 3, 4, 10])
             await expect(tx).to.emit(emissionsController, "DistributedReward").withArgs(2, simpleToExactAmount(2000))
             await expect(tx).to.emit(emissionsController, "DistributedReward").withArgs(3, simpleToExactAmount(3000))
-            await expect(tx).to.emit(emissionsController, "DistributedReward").withArgs(9, simpleToExactAmount(8000))
+            await expect(tx).to.emit(emissionsController, "DistributedReward").withArgs(10, simpleToExactAmount(8000))
         })
         it("distribute rewards to bridge forwarder", async () => {
             const bridgeTokenLockerAddress = resolveAddress("PolygonPoSBridge")
@@ -323,10 +326,10 @@ context("Fork test Emissions Controller on mainnet", () => {
             expect(await mta.balanceOf(bridgeForwarder.address), "bridge forwarder MAT bal before").to.eq(0)
 
             // Distribute rewards
-            const tx = await emissionsController.distributeRewards([11])
+            const tx = await emissionsController.distributeRewards([12])
 
             // Check events
-            await expect(tx).to.emit(emissionsController, "DistributedReward").withArgs(11, bridgeAmount)
+            await expect(tx).to.emit(emissionsController, "DistributedReward").withArgs(12, bridgeAmount)
             await expect(tx).to.emit(bridgeForwarder, "Forwarded").withArgs(bridgeAmount)
 
             // Check MTA balances
