@@ -7,8 +7,7 @@ import { DEAD_ADDRESS, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { StandardAccounts } from "@utils/machines"
 import { expect } from "chai"
 import { ethers } from "hardhat"
-import { BN, deployContract, increaseTime, mUSD, simpleToExactAmount } from "index"
-import { deployL2BridgeRecipient, deployBridgeForwarder } from "tasks/utils/rewardsUtils"
+import { BN, increaseTime, simpleToExactAmount } from "index"
 import {
     AssetProxy__factory,
     L2EmissionsController,
@@ -73,11 +72,7 @@ describe("EmissionsController Polygon Integration", async () => {
             [],
             [staking1.address, staking2.address],
         ])
-        const proxy = await deployContract(new AssetProxy__factory(sa.default.signer), "AssetProxy", [
-            emissionsControllerImpl.address,
-            DEAD_ADDRESS,
-            initializeData,
-        ])
+        const proxy = await new AssetProxy__factory(sa.default.signer).deploy(emissionsControllerImpl.address, DEAD_ADDRESS, initializeData)
         emissionsController = new EmissionsController__factory(sa.default.signer).attach(proxy.address)
 
         await rewardToken.transfer(emissionsController.address, totalRewards)
@@ -100,14 +95,12 @@ describe("EmissionsController Polygon Integration", async () => {
             await deployEmissionsController()
         })
         it("successful deploy", async () => {
-            await deployBridgeForwarder(
-                sa.default.signer,
+            await new BridgeForwarder__factory(sa.default.signer).deploy(
                 nexus.address,
                 rewardToken.address,
                 bridgeTokenLocker.address,
                 rootChainManager.address,
                 Wallet.createRandom().address,
-                emissionsController.address,
             )
         })
         it("fail when zero nexus", async () => {
@@ -169,25 +162,27 @@ describe("EmissionsController Polygon Integration", async () => {
         beforeEach(async () => {
             await deployEmissionsController()
 
-            rootRecipient1 = await deployBridgeForwarder(
-                sa.default.signer,
+            const rootRecipient1Impl = await new BridgeForwarder__factory(sa.default.signer).deploy(
                 nexus.address,
                 rewardToken.address,
                 rootChainManager.address,
                 rootChainManager.address,
                 bridgeRecipient1.address,
-                emissionsController.address,
             )
+            const data1 = rootRecipient1Impl.interface.encodeFunctionData("initialize", [emissionsController.address])
+            const proxy1 = await new AssetProxy__factory(sa.default.signer).deploy(rootRecipient1Impl.address, DEAD_ADDRESS, data1)
+            rootRecipient1 = new BridgeForwarder__factory(sa.default.signer).attach(proxy1.address)
 
-            rootRecipient2 = await deployBridgeForwarder(
-                sa.default.signer,
+            const rootRecipient2Impl = await new BridgeForwarder__factory(sa.default.signer).deploy(
                 nexus.address,
                 rewardToken.address,
                 rootChainManager.address,
                 rootChainManager.address,
                 bridgeRecipient2.address,
-                emissionsController.address,
             )
+            const data2 = rootRecipient2Impl.interface.encodeFunctionData("initialize", [emissionsController.address])
+            const proxy2 = await new AssetProxy__factory(sa.default.signer).deploy(rootRecipient2Impl.address, DEAD_ADDRESS, data2)
+            rootRecipient2 = new BridgeForwarder__factory(sa.default.signer).attach(proxy2.address)
 
             await emissionsController.connect(sa.governor.signer).addDial(rootRecipient1.address, 0, true)
             await emissionsController.connect(sa.governor.signer).addDial(rootRecipient2.address, 0, true)
@@ -287,26 +282,27 @@ describe("EmissionsController Polygon Integration", async () => {
                 simpleToExactAmount(10000),
             )
 
-            const l2EmissionsControllerImpl = await deployContract<L2EmissionsController>(
-                new L2EmissionsController__factory(sa.default.signer),
-                "L2EmissionsController",
-                [nexus.address, bridgedRewardToken.address],
+            const l2EmissionsControllerImpl = await new L2EmissionsController__factory(sa.default.signer).deploy(
+                nexus.address,
+                bridgedRewardToken.address,
             )
             // Proxy
             const data = l2EmissionsControllerImpl.interface.encodeFunctionData("initialize")
-            const proxy = await deployContract(new AssetProxy__factory(sa.default.signer), "AssetProxy", [
-                l2EmissionsControllerImpl.address,
-                DEAD_ADDRESS,
-                data,
-            ])
+            const proxy = await new AssetProxy__factory(sa.default.signer).deploy(l2EmissionsControllerImpl.address, DEAD_ADDRESS, data)
             l2EmissionsController = new L2EmissionsController__factory(sa.default.signer).attach(proxy.address)
 
-            bridgeRecipient1 = await deployL2BridgeRecipient(sa.default.signer, bridgedRewardToken.address, l2EmissionsController.address)
+            bridgeRecipient1 = await new L2BridgeRecipient__factory(sa.default.signer).deploy(
+                bridgedRewardToken.address,
+                l2EmissionsController.address,
+            )
             finalRecipient1 = await new MockRewardsDistributionRecipient__factory(sa.default.signer).deploy(
                 bridgedRewardToken.address,
                 DEAD_ADDRESS,
             )
-            bridgeRecipient2 = await deployL2BridgeRecipient(sa.default.signer, bridgedRewardToken.address, l2EmissionsController.address)
+            bridgeRecipient2 = await new L2BridgeRecipient__factory(sa.default.signer).deploy(
+                bridgedRewardToken.address,
+                l2EmissionsController.address,
+            )
             finalRecipient2 = await new MockRewardsDistributionRecipient__factory(sa.default.signer).deploy(
                 bridgedRewardToken.address,
                 DEAD_ADDRESS,
