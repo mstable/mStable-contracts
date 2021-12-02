@@ -358,19 +358,19 @@ describe("EmissionsController", async () => {
                 await expect(tx).to.revertedWith("Wrong epoch number")
             })
             it("fetches week 1", async () => {
-                expectTopLineEmissions(1) // ~= 165,461,725,488,656,000
+                await expectTopLineEmissions(1) // ~= 165,461,725,488,656,000
             })
             it("fetches week 8 - Two months", async () => {
-                expectTopLineEmissions(8) // ~= 161,787,972,249,455,000
+                await expectTopLineEmissions(8) // ~= 161,787,972,249,455,000
             })
             it("fetches week 100 - one year eleven months", async () => {
-                expectTopLineEmissions(100) // ~= 123,842,023,609,600,000
+                await expectTopLineEmissions(100) // ~= 123,842,023,609,600,000
             })
             it("fetches week 311 - six years, pre-last epoch", async () => {
-                expectTopLineEmissions(311) // ~= 1,052,774,388,460,220
+                await expectTopLineEmissions(311) // ~= 1,052,774,388,460,220
             })
             it("fetches week 312 - six years, last epoch", async () => {
-                expectTopLineEmissions(312) // = 0
+                await expectTopLineEmissions(312) // = 0
             })
             it("fails fetching week 313 - six years + one week", async () => {
                 const tx = emissionsController.topLineEmission(startEpoch + 313)
