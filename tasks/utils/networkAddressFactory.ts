@@ -15,6 +15,7 @@ export const contractNames = [
     "Liquidator",
     // Will become the EmissionsController
     "RewardsDistributor",
+    "EmissionsController",
     "L2EmissionsController",
     "PolygonPoSBridge",
     "PolygonRootChainManager",
@@ -95,6 +96,7 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "Liquidator":
                 return "0xe595D67181D701A5356e010D9a58EB9A341f1DbD"
             case "RewardsDistributor":
+            case "EmissionsController":
                 // TODO change after Emissions Controller deployment
                 return "0x04dfDfa471b79cc9E6E8C355e6C71F8eC4916C50"
             case "PolygonRootChainManager":
@@ -264,8 +266,10 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "QuestSigner":
                 return "0x04617083205b2fdd18b15bcf60d06674c6e2c1dc"
             case "RewardsDistributor":
-                // EmissionsController proxy to 0x127fcF98F9d8Ab68B263081FFDc66BFd76eBFf55
+                // Will become redundant after the Emissions Controller is deployed
                 return "0x973E0B9E1b0bf43B1B8dDf9D6A2f817138cf3C10"
+            case "EmissionsController":
+                return "0x548776F8DA7620B8B7701BfA2157Ad855094f536"
             case "PolygonRootChainManager":
                 // Is MockRootChainManager
                 return "0x0C4964457610970a2884B8A74a397Eb9ba37D9d4"
