@@ -5,6 +5,7 @@ import { task, types } from "hardhat/config"
 import { MockRootChainManager__factory } from "types/generated"
 import { getSigner } from "./utils/signerFactory"
 import {
+    deployBasicForwarder,
     deployBridgeForwarder,
     deployEmissionsController,
     deployL2BridgeRecipients,
@@ -50,6 +51,18 @@ task("deploy-bridge-forwarders", "Deploys Polygon mUSD Vault and FRAX BridgeForw
             const fraxBridgeRecipientAddress = resolveAddress("FRAX", l2Chain, "bridgeRecipient")
             await deployBridgeForwarder(signer, hre, fraxBridgeRecipientAddress)
         }
+    })
+
+task("deploy-basic-forwarder", "Deploys a basic rewards forwarder from the emissions controller.")
+    .addParam("recipient", "Contract or EOA that will receive the MTA rewards.", undefined, types.string)
+    .addOptionalParam("owner", "Contract owner to transfer ownership to after deployment.", undefined, types.string)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const chain = getChain(hre)
+        const signer = await getSigner(hre, taskArgs.speed)
+
+        const emissionsControllerAddress = resolveAddress("EmissionsController", chain)
+        await deployBasicForwarder(signer, emissionsControllerAddress, taskArgs.recipient, hre, taskArgs.owner)
     })
 
 task("deploy-revenue-buy-back")
