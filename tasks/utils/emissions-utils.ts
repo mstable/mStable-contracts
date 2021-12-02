@@ -43,10 +43,10 @@ export const deployEmissionsController = async (signer: Signer, hre: HardhatRunt
             resolveAddress("GUSD", chain, "vault"),
             resolveAddress("BUSD", chain, "vault"),
             resolveAddress("alUSD", chain, "vault"),
-            resolveAddress("RAI", chain, "vault"),
-            resolveAddress("FEI", chain, "vault"),
-            resolveAddress("HBTC", chain, "vault"),
-            resolveAddress("tBTCv2", chain, "vault"),
+            resolveAddress("RAI", chain, "vault"), // 7
+            resolveAddress("FEI", chain, "vault"), // 8
+            resolveAddress("HBTC", chain, "vault"), // 9
+            resolveAddress("tBTCv2", chain, "vault"), // 10
         ]
         caps = dialRecipients.map((_, i) => {
             if (i < 2) return 10
@@ -104,23 +104,30 @@ export const deployEmissionsController = async (signer: Signer, hre: HardhatRunt
     return emissionsController
 }
 
-export const deployVisorFinanceDial = async (
+export const deployBasicForwarder = async (
     signer: Signer,
     emissionsControllerAddress: string,
+    recipient: string,
     hre: HardhatRuntimeEnvironment,
+    owner?: string,
 ): Promise<BasicRewardsForwarder> => {
     const chain = getChain(hre)
     const nexusAddress = resolveAddress("Nexus", chain)
-    const visorFinanceAddress = resolveAddress("VisorRouter", chain)
+    const rewardsAddress = resolveAddress("MTA", chain)
+    const recipientAddress = resolveAddress(recipient, chain)
+    const ownerAddress = owner ? resolveAddress(owner, chain) : undefined
 
-    const visorFinanceForwarder = await deployContract<BasicRewardsForwarder>(
-        new BasicRewardsForwarder__factory(signer),
-        "Visor Finance BasicRewardsForwarder",
-        [nexusAddress, MTA.address],
-    )
-    await visorFinanceForwarder.initialize(emissionsControllerAddress, visorFinanceAddress)
+    const forwarder = await deployContract<BasicRewardsForwarder>(new BasicRewardsForwarder__factory(signer), "BasicRewardsForwarder", [
+        nexusAddress,
+        rewardsAddress,
+    ])
+    await forwarder.initialize(emissionsControllerAddress, recipientAddress)
 
-    return visorFinanceForwarder
+    if (ownerAddress) {
+        await forwarder.transferOwnership(ownerAddress)
+    }
+
+    return forwarder
 }
 
 export const deployL2EmissionsController = async (signer: Signer, hre: HardhatRuntimeEnvironment): Promise<L2EmissionsController> => {
@@ -204,7 +211,7 @@ export const deployBridgeForwarder = async (
     const proxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)
     const tokenBridgeAddress = resolveAddress("PolygonPoSBridge", chain)
     const rootChainManagerAddress = resolveAddress("PolygonRootChainManager", chain)
-    const emissionsControllerAddress = _emissionsControllerAddress || resolveAddress("RewardsDistributor", chain)
+    const emissionsControllerAddress = _emissionsControllerAddress || resolveAddress("EmissionsController", chain)
 
     const constructorArguments = [nexusAddress, mtaAddress, tokenBridgeAddress, rootChainManagerAddress, bridgeRecipientAddress]
     const bridgeForrwarderImpl = await deployContract(
@@ -248,7 +255,7 @@ export const deployRevenueBuyBack = async (
     const nexusAddress = resolveAddress("Nexus", chain)
     const mtaAddress = MTA.address
     const uniswapRouterAddress = resolveAddress("UniswapRouterV3", chain)
-    const emissionsControllerAddress = _emissionsControllerAddress || resolveAddress("RewardsDistributor", chain)
+    const emissionsControllerAddress = _emissionsControllerAddress || resolveAddress("EmissionsController", chain)
     const devOpsAddress = resolveAddress("OperationsSigner", chain)
 
     // Deploy RevenueBuyBack

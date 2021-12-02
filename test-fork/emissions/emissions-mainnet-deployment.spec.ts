@@ -4,13 +4,13 @@ import * as hre from "hardhat"
 import { impersonate, impersonateAccount } from "@utils/fork"
 import { Signer, Wallet } from "ethers"
 import { resolveAddress } from "tasks/utils/networkAddressFactory"
-import { deployBridgeForwarder, deployEmissionsController, deployRevenueBuyBack, deployVisorFinanceDial } from "tasks/utils/emissions-utils"
+import { deployBasicForwarder, deployBridgeForwarder, deployEmissionsController, deployRevenueBuyBack } from "tasks/utils/emissions-utils"
 import { expect } from "chai"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { currentWeekEpoch, increaseTime, increaseTimeTo } from "@utils/time"
 import { MAX_UINT256, ONE_WEEK } from "@utils/constants"
 import { assertBNClose } from "@utils/assertions"
-import { DAI, GUSD, HBTC, mBTC, MTA, mUSD, RAI, TBTCv2, USDC, WBTC } from "tasks/utils/tokens"
+import { alUSD, BUSD, Chain, DAI, FEI, GUSD, HBTC, mBTC, MTA, mUSD, RAI, TBTCv2, USDC, WBTC } from "tasks/utils/tokens"
 import {
     BridgeForwarder,
     EmissionsController,
@@ -39,6 +39,12 @@ context("Fork test Emissions Controller on mainnet", () => {
     let treasury: Account
     let emissionsController: EmissionsController
     let mta: IERC20
+
+    const setRewardsDistribution = async (recipientAddress: string) => {
+        const recipient = InitializableRewardsDistributionRecipient__factory.connect(recipientAddress, governor)
+        await recipient.setRewardsDistribution(emissionsController.address)
+    }
+
     before("reset block number", async () => {
         await network.provider.request({
             method: "hardhat_reset",
@@ -104,7 +110,7 @@ context("Fork test Emissions Controller on mainnet", () => {
         })
         it("Deploy BasicRewardsForwarder for Visor Finance Dial", async () => {
             emissionsController = await deployEmissionsController(ops, hre)
-            const visorFinanceDial = await deployVisorFinanceDial(ops, emissionsController.address, hre)
+            const visorFinanceDial = await deployBasicForwarder(ops, emissionsController.address, "VisorRouter", hre)
             expect(await visorFinanceDial.REWARDS_TOKEN(), "MTA").to.eq(MTA.address)
             expect(await visorFinanceDial.rewardsDistributor(), "Emissions Controller").to.eq(emissionsController.address)
             expect(await visorFinanceDial.endRecipient(), "Visor Finance Router").to.eq("0xF3f4F4e17cC65BDC36A36fDa5283F8D8020Ad0a4")
@@ -202,11 +208,43 @@ context("Fork test Emissions Controller on mainnet", () => {
             // increase time to 2 December 2021, Thursday 08:00 UTC
             await increaseTimeTo(1638439200)
             emissionsController = await deployEmissionsController(ops, hre)
-            const visorFinanceDial = await deployVisorFinanceDial(ops, emissionsController.address, hre)
+            const visorFinanceDial = await deployBasicForwarder(ops, emissionsController.address, "VisorRouter", hre)
             await emissionsController.connect(governor).addDial(visorFinanceDial.address, 0, true)
-            const bridgeRecipient = Wallet.createRandom()
-            const bridgeForwarder = await deployBridgeForwarder(ops, hre, bridgeRecipient.address, emissionsController.address)
-            await emissionsController.connect(governor).addDial(bridgeForwarder.address, 0, true)
+
+            // Polygon mUSD Vault
+            const mUSDBridgeRecipientAddress = resolveAddress("mUSD", Chain.polygon, "bridgeRecipient")
+            const mUSDBridgeForwarder = await deployBridgeForwarder(ops, hre, mUSDBridgeRecipientAddress, emissionsController.address)
+            await emissionsController.connect(governor).addDial(mUSDBridgeForwarder.address, 0, true)
+            // Polygon FRAX Farm
+            const fraxBridgeRecipientAddress = resolveAddress("FRAX", Chain.polygon, "bridgeRecipient")
+            const fraxBridgeForwarder = await deployBridgeForwarder(ops, hre, fraxBridgeRecipientAddress, emissionsController.address)
+            await emissionsController.connect(governor).addDial(fraxBridgeForwarder.address, 0, true)
+            // Polygon Balancer Pool
+            const balancerBridgeForwarder = await deployBridgeForwarder(
+                ops,
+                hre,
+                "0x2f2Db75C5276481E2B018Ac03e968af7763Ed118",
+                emissionsController.address,
+            )
+            await emissionsController.connect(governor).addDial(balancerBridgeForwarder.address, 0, true)
+
+            // Treasury DAO dial
+            const treasuryDial = await deployBasicForwarder(ops, emissionsController.address, "mStableDAO", hre, "mStableDAO")
+            await emissionsController.connect(governor).addDial(treasuryDial.address, 0, true)
+
+            await mta.connect(treasury.signer).transfer(emissionsController.address, simpleToExactAmount(1000000))
+
+            await setRewardsDistribution(resolveAddress("StakedTokenMTA"))
+            await setRewardsDistribution(resolveAddress("StakedTokenBPT"))
+            await setRewardsDistribution(mUSD.vault)
+            await setRewardsDistribution(mBTC.vault)
+            await setRewardsDistribution(GUSD.vault)
+            await setRewardsDistribution(BUSD.vault)
+            await setRewardsDistribution(alUSD.vault)
+            await setRewardsDistribution(RAI.vault)
+            await setRewardsDistribution(FEI.vault)
+            await setRewardsDistribution(HBTC.vault)
+            await setRewardsDistribution(TBTCv2.vault)
 
             await emissionsController.connect(voter1.signer).setVoterDialWeights([
                 {
@@ -226,6 +264,54 @@ context("Fork test Emissions Controller on mainnet", () => {
                     weight: 40, // 20% so 10% is unallocated
                 },
             ])
+            await emissionsController.connect(voter2.signer).setVoterDialWeights([
+                {
+                    dialId: 5,
+                    weight: 40, // 20%
+                },
+                {
+                    dialId: 6,
+                    weight: 40, // 20%
+                },
+                {
+                    dialId: 7,
+                    weight: 40, // 20%
+                },
+                {
+                    dialId: 8,
+                    weight: 40, // 20%
+                },
+                {
+                    dialId: 9,
+                    weight: 40, // 20%
+                },
+            ])
+            await emissionsController.connect(voter2.signer).setVoterDialWeights([
+                {
+                    dialId: 10,
+                    weight: 40, // 20%
+                },
+                {
+                    dialId: 11,
+                    weight: 40, // 20%
+                },
+                {
+                    dialId: 12,
+                    weight: 40, // 20%
+                },
+                {
+                    dialId: 13,
+                    weight: 40, // 20%
+                },
+                {
+                    dialId: 14,
+                    weight: 30, // 15%
+                },
+                {
+                    dialId: 15,
+                    weight: 10, // 5%
+                },
+            ])
         })
         it("immediately", async () => {
             const tx = emissionsController.calculateRewards()
@@ -239,42 +325,36 @@ context("Fork test Emissions Controller on mainnet", () => {
 
             const tx = await emissionsController.calculateRewards()
 
+            const weightedVotes = await emissionsController.getDialVotes()
+            const totalWeightedVotes = weightedVotes.reduce((prev, curr) => prev.add(curr), BN.from(0))
+
             const receipt = await tx.wait()
             const distributionAmounts: BN[] = receipt.events[0].args.amounts
             console.log(distributionAmounts)
 
             await expect(tx).to.emit(emissionsController, "PeriodRewards")
 
-            const totalREwardsActual = distributionAmounts.reduce((prev, curr) => prev.add(curr), BN.from(0))
-            assertBNClose(totalREwardsActual, totalRewardsExpected, 2, "total rewards")
+            expect(distributionAmounts, "number of dials").to.lengthOf(16)
+            const totalRewardsActual = distributionAmounts.reduce((prev, curr) => prev.add(curr), BN.from(0))
+            assertBNClose(totalRewardsActual, totalRewardsExpected, 10, "total rewards")
 
-            expect(distributionAmounts, "number of dials").to.lengthOf(13)
-            // Dial over cap so get 10% of the distribution
-            const dial1AmountExpected = totalRewardsExpected.mul(10).div(100)
-            assertBNClose(distributionAmounts[1], dial1AmountExpected, 100, "dial 1 amount")
-
-            // remaining rewards to be distributed after dials over cap have got their distribution
-            const remainingRewards = totalRewardsExpected.sub(dial1AmountExpected)
-            // Total votes = 90 - 15 = 75
-            assertBNClose(distributionAmounts[0], remainingRewards.mul(5).div(75), 100, "dial 0 amount")
+            distributionAmounts.forEach((disAmount, i) => {
+                assertBNClose(disAmount, totalRewardsExpected.mul(weightedVotes[i]).div(totalWeightedVotes), 10, `dial i amount`)
+            })
             expect(distributionAmounts[2], "dial 2 amount").to.eq(0)
-            assertBNClose(distributionAmounts[3], remainingRewards.mul(50).div(75), 100, "dial 3 amount")
-            assertBNClose(distributionAmounts[4], remainingRewards.mul(20).div(75), 100, "dial 4 amount")
-            expect(distributionAmounts[5], "dial 5 amount").to.eq(0)
-            expect(distributionAmounts[9], "dial 9 amount").to.eq(0)
+        })
+        it("distribute rewards", async () => {
+            const tx = await emissionsController.distributeRewards([...Array(15).keys()])
+            await expect(tx).to.emit(emissionsController, "DistributedReward")
         })
     })
     describe("distribute rewards", () => {
         let bridgeForwarder: BridgeForwarder
-        const setRewardsDistribution = async (recipientAddress: string) => {
-            const recipient = InitializableRewardsDistributionRecipient__factory.connect(recipientAddress, governor)
-            await recipient.setRewardsDistribution(emissionsController.address)
-        }
         const bridgeAmount = simpleToExactAmount(10000)
 
         before(async () => {
             emissionsController = await deployEmissionsController(ops, hre)
-            const visorFinanceDial = await deployVisorFinanceDial(ops, emissionsController.address, hre)
+            const visorFinanceDial = await deployBasicForwarder(ops, emissionsController.address, "VisorRouter", hre)
             await emissionsController.connect(governor).addDial(visorFinanceDial.address, 0, true)
             const bridgeRecipient = Wallet.createRandom()
             bridgeForwarder = await deployBridgeForwarder(ops, hre, bridgeRecipient.address, emissionsController.address)
