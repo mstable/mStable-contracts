@@ -8,6 +8,8 @@ import {
     BridgeForwarder__factory,
     DisperseForwarder,
     DisperseForwarder__factory,
+    VotiumBribeForwarder,
+    VotiumBribeForwarder__factory,    
     EmissionsController,
     EmissionsController__factory,
     L2BridgeRecipient,
@@ -188,12 +190,13 @@ export const deployL2BridgeRecipients = async (
 }
 
 export const deployDisperseForwarder = async (signer: Signer, hre: HardhatRuntimeEnvironment): Promise<DisperseForwarder> => {
+    const chain = getChain(hre)
+    const nexusAddress = resolveAddress("Nexus", chain)
+    const disperseAddress = resolveAddress("Disperse", chain)
     const mtaAddress = MTA.address
-    const constructorArguments = [mtaAddress]
+    const constructorArguments = [nexusAddress, disperseAddress, mtaAddress]
 
-    const disperseForwarder = await deployContract<DisperseForwarder>(new DisperseForwarder__factory(signer), "DisperseForwarder", [
-        mtaAddress,
-    ])
+    const disperseForwarder = await deployContract<DisperseForwarder>(new DisperseForwarder__factory(signer), "DisperseForwarder", constructorArguments)
 
     await verifyEtherscan(hre, {
         address: disperseForwarder.address,
@@ -202,6 +205,26 @@ export const deployDisperseForwarder = async (signer: Signer, hre: HardhatRuntim
     })
 
     return disperseForwarder
+}
+
+export const deployVotiumBribeForwarder = async (signer: Signer, hre: HardhatRuntimeEnvironment): Promise<VotiumBribeForwarder> => {
+
+    const chain = getChain(hre)
+    const nexusAddress = resolveAddress("Nexus", chain)
+    const votiumBribeAddress = resolveAddress("VotiumBribe", chain)
+    const mtaAddress = MTA.address
+    const votiumBribeProposal = "TODO-SHOULD-BE-CONFIGURABLE"
+    const constructorArguments = [nexusAddress, mtaAddress, votiumBribeAddress, votiumBribeProposal]
+
+    const votiumBribeForwarder = await deployContract<VotiumBribeForwarder>(new VotiumBribeForwarder__factory(signer), "VotiumBribeForwarder", constructorArguments)
+
+    await verifyEtherscan(hre, {
+        address: votiumBribeForwarder.address,
+        constructorArguments,
+        contract: "contracts/emissions/VotiumBribeForwarder.sol:VotiumBribeForwarder",
+    })
+
+    return votiumBribeForwarder
 }
 
 export const deployBridgeForwarder = async (
