@@ -22,27 +22,18 @@ contract RevenueForwarder is IRevenueRecipient, ImmutableModule {
 
     IERC20 public immutable mAsset;
 
-    address public immutable keeper;
     address public forwarder;
 
     constructor(
         address _nexus,
         address _mAsset,
-        address _keeper,
         address _forwarder
     ) ImmutableModule(_nexus) {
         require(_mAsset != address(0), "mAsset is zero");
-        require(_keeper != address(0), "Keeper is zero");
         require(_forwarder != address(0), "Forwarder is zero");
 
         mAsset = IERC20(_mAsset);
-        keeper = _keeper;
         forwarder = _forwarder;
-    }
-
-    modifier keeperOrGovernor() {
-        require(msg.sender == keeper || msg.sender == _governor(), "Only keeper or governor");
-        _;
     }
 
     /**
@@ -61,7 +52,7 @@ contract RevenueForwarder is IRevenueRecipient, ImmutableModule {
     /**
      * @dev Withdraws to forwarder
      */
-    function forward() external keeperOrGovernor {
+    function forward() external onlyKeeperOrGovernor {
         uint256 amt = mAsset.balanceOf(address(this));
         if (amt == 0) {
             return;

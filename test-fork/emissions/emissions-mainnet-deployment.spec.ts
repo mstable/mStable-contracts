@@ -7,8 +7,8 @@ import { resolveAddress } from "tasks/utils/networkAddressFactory"
 import { deployBasicForwarder, deployBridgeForwarder, deployEmissionsController, deployRevenueBuyBack } from "tasks/utils/emissions-utils"
 import { expect } from "chai"
 import { BN, simpleToExactAmount } from "@utils/math"
-import { currentWeekEpoch, increaseTime, increaseTimeTo } from "@utils/time"
-import { MAX_UINT256, ONE_WEEK } from "@utils/constants"
+import { currentWeekEpoch, increaseTime } from "@utils/time"
+import { MAX_UINT256, ONE_HOUR, ONE_WEEK } from "@utils/constants"
 import { assertBNClose } from "@utils/assertions"
 import { alUSD, BUSD, Chain, DAI, FEI, GUSD, HBTC, mBTC, MTA, mUSD, RAI, TBTCv2, USDC, WBTC } from "tasks/utils/tokens"
 import {
@@ -18,6 +18,8 @@ import {
     IERC20__factory,
     InitializableRewardsDistributionRecipient__factory,
     IUniswapV3Quoter__factory,
+    Nexus,
+    Nexus__factory,
     RevenueBuyBack,
     SavingsManager,
     SavingsManager__factory,
@@ -25,10 +27,14 @@ import {
 import { Account } from "types/common"
 import { encodeUniswapPath } from "@utils/peripheral/uniswap"
 import { btcFormatter, usdFormatter } from "tasks/utils/quantity-formatters"
+import { keccak256 } from "@ethersproject/keccak256"
+import { toUtf8Bytes } from "ethers/lib/utils"
 
 const voter1VotingPower = BN.from("44461750008245826445414")
 const voter2VotingPower = simpleToExactAmount(27527.5)
 const voter3VotingPower = BN.from("78211723319712171214037")
+
+const keeperKey = keccak256(toUtf8Bytes("Keeper"))
 
 context("Fork test Emissions Controller on mainnet", () => {
     let ops: Signer
@@ -38,6 +44,7 @@ context("Fork test Emissions Controller on mainnet", () => {
     let voter3: Account
     let treasury: Account
     let emissionsController: EmissionsController
+    let nexus: Nexus
     let mta: IERC20
 
     const setRewardsDistribution = async (recipientAddress: string) => {
@@ -45,7 +52,7 @@ context("Fork test Emissions Controller on mainnet", () => {
         await recipient.setRewardsDistribution(emissionsController.address)
     }
 
-    before("reset block number", async () => {
+    const setup = async () => {
         await network.provider.request({
             method: "hardhat_reset",
             params: [
@@ -66,10 +73,13 @@ context("Fork test Emissions Controller on mainnet", () => {
         voter3 = await impersonateAccount("0x530deFD6c816809F54F6CfA6FE873646F6EcF930") // 82,538.415914215331337512 stkBPT
         treasury = await impersonateAccount("0x3dd46846eed8d147841ae162c8425c08bd8e1b41")
 
+        nexus = Nexus__factory.connect(resolveAddress("Nexus"), governor)
         mta = IERC20__factory.connect(MTA.address, treasury.signer)
-    })
+    }
+
     describe("Deploy contracts", () => {
         it("Emissions Controller", async () => {
+            await setup()
             emissionsController = await deployEmissionsController(ops, hre)
 
             expect(await emissionsController.getDialRecipient(0), "dial 0 Staked MTA").to.eq("0x8f2326316eC696F6d023E37A9931c2b2C177a3D7")
@@ -145,10 +155,9 @@ context("Fork test Emissions Controller on mainnet", () => {
         })
     })
     describe("Set vote weights", () => {
-        let firstEpoch: BN
         before(async () => {
+            await setup()
             emissionsController = await deployEmissionsController(ops, hre)
-            firstEpoch = await (await currentWeekEpoch()).add(1)
         })
         it("voter 1", async () => {
             expect(await emissionsController.callStatic.getVotes(voter1.address), "voter 1 total voting power").to.eq(voter1VotingPower)
@@ -205,9 +214,13 @@ context("Fork test Emissions Controller on mainnet", () => {
     })
     describe("calculate rewards", () => {
         before(async () => {
+            await setup()
+            await nexus.proposeModule(keeperKey, resolveAddress("OperationsSigner"))
+
             // increase time to 2 December 2021, Thursday 08:00 UTC
-            await increaseTimeTo(1638439200)
+            // await increaseTimeTo(1638439200)
             emissionsController = await deployEmissionsController(ops, hre)
+
             const visorFinanceDial = await deployBasicForwarder(ops, emissionsController.address, "VisorRouter", hre)
             await emissionsController.connect(governor).addDial(visorFinanceDial.address, 0, true)
 
@@ -220,12 +233,8 @@ context("Fork test Emissions Controller on mainnet", () => {
             const fraxBridgeForwarder = await deployBridgeForwarder(ops, hre, fraxBridgeRecipientAddress, emissionsController.address)
             await emissionsController.connect(governor).addDial(fraxBridgeForwarder.address, 0, true)
             // Polygon Balancer Pool
-            const balancerBridgeForwarder = await deployBridgeForwarder(
-                ops,
-                hre,
-                "0x2f2Db75C5276481E2B018Ac03e968af7763Ed118",
-                emissionsController.address,
-            )
+            const balBridgeRecipientAddress = resolveAddress("BAL", Chain.polygon, "bridgeRecipient")
+            const balancerBridgeForwarder = await deployBridgeForwarder(ops, hre, balBridgeRecipientAddress, emissionsController.address)
             await emissionsController.connect(governor).addDial(balancerBridgeForwarder.address, 0, true)
 
             // Treasury DAO dial
@@ -312,13 +321,17 @@ context("Fork test Emissions Controller on mainnet", () => {
                     weight: 10, // 5%
                 },
             ])
+
+            await increaseTime(ONE_WEEK.add(ONE_HOUR))
+            await nexus.acceptProposedModule(keeperKey)
         })
         it("immediately", async () => {
             const tx = emissionsController.calculateRewards()
             await expect(tx).to.revertedWith("Must wait for new period")
         })
         it("after 2 weeks", async () => {
-            await increaseTime(ONE_WEEK.mul(2))
+            await increaseTime(ONE_WEEK)
+
             const currentEpochIndex = await currentWeekEpoch()
             const totalRewardsExpected = await emissionsController.topLineEmission(currentEpochIndex)
             expect(totalRewardsExpected, "First distribution rewards").to.gt(simpleToExactAmount(165000)).lt(simpleToExactAmount(166000))
@@ -353,7 +366,11 @@ context("Fork test Emissions Controller on mainnet", () => {
         const bridgeAmount = simpleToExactAmount(10000)
 
         before(async () => {
+            await setup()
             emissionsController = await deployEmissionsController(ops, hre)
+
+            await nexus.proposeModule(keeperKey, resolveAddress("OperationsSigner"))
+
             const visorFinanceDial = await deployBasicForwarder(ops, emissionsController.address, "VisorRouter", hre)
             await emissionsController.connect(governor).addDial(visorFinanceDial.address, 0, true)
             const bridgeRecipient = Wallet.createRandom()
@@ -384,6 +401,9 @@ context("Fork test Emissions Controller on mainnet", () => {
             await setRewardsDistribution(RAI.vault)
             await setRewardsDistribution(HBTC.vault)
             await setRewardsDistribution(TBTCv2.vault)
+
+            await increaseTime(ONE_WEEK.add(ONE_HOUR))
+            await nexus.acceptProposedModule(keeperKey)
         })
         it("distribute rewards to staking contracts", async () => {
             const tx = await emissionsController.distributeRewards([0, 1])
@@ -446,9 +466,15 @@ context("Fork test Emissions Controller on mainnet", () => {
         // 0.04147372e8 WBTC / 1,853e18 MTA = 44685e10 * 1e18 = 4.46e14 * 1e18 = 4.46e32 = 446e30
 
         before(async () => {
+            await setup()
+            await nexus.proposeModule(keeperKey, resolveAddress("OperationsSigner"))
+
             emissionsController = await deployEmissionsController(ops, hre)
             mtaToken = IERC20__factory.connect(MTA.address, ops)
             revenueBuyBack = await deployRevenueBuyBack(ops, hre, emissionsController.address)
+
+            await increaseTime(ONE_WEEK.add(ONE_HOUR))
+            await nexus.acceptProposedModule(keeperKey)
         })
         it("check Uniswap USDC to MTA price", async () => {
             const uniswapQuoterAddress = resolveAddress("UniswapQuoterV3")

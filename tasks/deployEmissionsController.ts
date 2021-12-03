@@ -7,6 +7,7 @@ import { getSigner } from "./utils/signerFactory"
 import {
     deployBasicForwarder,
     deployBridgeForwarder,
+    deployDisperseForwarder,
     deployEmissionsController,
     deployL2BridgeRecipients,
     deployL2EmissionsController,
@@ -22,10 +23,13 @@ task("deploy-emissions-polly", "Deploys L2EmissionsController and L2 Bridge Reci
         const signer = await getSigner(hre, taskArgs.speed)
 
         const l2EmissionsController = await deployL2EmissionsController(signer, hre)
-
-        await deployL2BridgeRecipients(signer, hre, l2EmissionsController.address)
-
         console.log(`Set L2EmissionsController contract name in networkAddressFactory to ${l2EmissionsController.address}`)
+
+        const bridgeRecipient = await deployL2BridgeRecipients(signer, hre, l2EmissionsController.address)
+        console.log(`Set PmUSD bridgeRecipient to ${bridgeRecipient.address}`)
+
+        const disperseForwarder = await deployDisperseForwarder(signer, hre)
+        console.log(`Set PBAL bridgeRecipient to ${disperseForwarder.address}`)
     })
 
 task("deploy-emissions")
@@ -37,20 +41,21 @@ task("deploy-emissions")
         console.log(`Set RewardsDistributor in the networkAddressFactory to ${emissionsController.address}`)
     })
 
-task("deploy-bridge-forwarders", "Deploys Polygon mUSD Vault and FRAX BridgeForwarders on mainnet")
+task("deploy-bridge-forwarder", "Deploys a BridgeForwarder contract on mainnet for Polygon dials.")
+    .addParam(
+        "token",
+        "Token on the Polygon network that is configured with `bridgeRecipient`. eg mUSD, FRAX, BAL.",
+        undefined,
+        types.string,
+    )
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const chain = getChain(hre)
         const signer = await getSigner(hre, taskArgs.speed)
 
         const l2Chain = chain === Chain.mainnet ? Chain.polygon : Chain.mumbai
-        const mUSDBridgeRecipientAddress = resolveAddress("mUSD", l2Chain, "bridgeRecipient")
-        await deployBridgeForwarder(signer, hre, mUSDBridgeRecipientAddress)
-
-        if (chain === Chain.mainnet) {
-            const fraxBridgeRecipientAddress = resolveAddress("FRAX", l2Chain, "bridgeRecipient")
-            await deployBridgeForwarder(signer, hre, fraxBridgeRecipientAddress)
-        }
+        const bridgeRecipientAddress = resolveAddress(taskArgs.token, l2Chain, "bridgeRecipient")
+        await deployBridgeForwarder(signer, hre, bridgeRecipientAddress)
     })
 
 task("deploy-basic-forwarder", "Deploys a basic rewards forwarder from the emissions controller.")

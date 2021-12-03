@@ -472,6 +472,17 @@ export const BAL: Token = {
     quantityFormatter: "USD",
 }
 
+export const PBAL: Token = {
+    symbol: "BAL",
+    address: "0x9a71012B13CA4d3D0Cdc72A177DF3ef03b0E76A3",
+    chain: Chain.polygon,
+    decimals: 18,
+    quantityFormatter: "USD",
+    bridgeForwarder: DEAD_ADDRESS,
+    // The DisperseForwarder contract on Polygon
+    bridgeRecipient: DEAD_ADDRESS,
+}
+
 export const RBAL: Token = {
     symbol: "BAL",
     address: "0x0Aa94D9Db9dA74Bb86A437E28EE4ecf22365843E",
@@ -538,5 +549,6 @@ export const tokens = [
     mBPT,
     RmBPT,
     BAL,
+    PBAL,
     RBAL,
 ]

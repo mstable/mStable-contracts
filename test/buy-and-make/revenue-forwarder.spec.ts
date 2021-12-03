@@ -14,7 +14,6 @@ import {
 } from "types/generated"
 import { ZERO_ADDRESS } from "@utils/constants"
 import { Wallet } from "@ethersproject/wallet"
-import { Account } from "types/common"
 
 describe("RevenueForwarder", () => {
     let sa: StandardAccounts
@@ -22,7 +21,6 @@ describe("RevenueForwarder", () => {
     let nexus: MockNexus
     let revenueForwarder: RevenueForwarder
     let mAsset: MockMasset
-    let keeper: Account
     let forwarderAddress: string
 
     /*
@@ -44,16 +42,11 @@ describe("RevenueForwarder", () => {
             sa.mockSavingsManager.address,
             sa.mockInterestValidator.address,
         )
-        keeper = sa.fundManager
+        await nexus.setKeeper(sa.keeper.address)
         forwarderAddress = Wallet.createRandom().address
 
         // Deploy aRevenueForwarder
-        revenueForwarder = await new RevenueForwarder__factory(sa.default.signer).deploy(
-            nexus.address,
-            mAsset.address,
-            keeper.address,
-            forwarderAddress,
-        )
+        revenueForwarder = await new RevenueForwarder__factory(sa.default.signer).deploy(nexus.address, mAsset.address, forwarderAddress)
     }
 
     before(async () => {
@@ -68,44 +61,19 @@ describe("RevenueForwarder", () => {
         it("should have immutable variables set", async () => {
             expect(await revenueForwarder.nexus(), "Nexus").eq(nexus.address)
             expect(await revenueForwarder.mAsset(), "mAsset").eq(mAsset.address)
-            expect(await revenueForwarder.keeper(), "Keeper").eq(keeper.address)
             expect(await revenueForwarder.forwarder(), "Forwarder").eq(forwarderAddress)
         })
         describe("it should fail if zero", () => {
             it("nexus", async () => {
-                const tx = new RevenueForwarder__factory(sa.default.signer).deploy(
-                    ZERO_ADDRESS,
-                    mAsset.address,
-                    keeper.address,
-                    forwarderAddress,
-                )
+                const tx = new RevenueForwarder__factory(sa.default.signer).deploy(ZERO_ADDRESS, mAsset.address, forwarderAddress)
                 await expect(tx).to.revertedWith("Nexus address is zero")
             })
             it("mAsset", async () => {
-                const tx = new RevenueForwarder__factory(sa.default.signer).deploy(
-                    nexus.address,
-                    ZERO_ADDRESS,
-                    keeper.address,
-                    forwarderAddress,
-                )
+                const tx = new RevenueForwarder__factory(sa.default.signer).deploy(nexus.address, ZERO_ADDRESS, forwarderAddress)
                 await expect(tx).to.revertedWith("mAsset is zero")
             })
-            it("Keeper", async () => {
-                const tx = new RevenueForwarder__factory(sa.default.signer).deploy(
-                    nexus.address,
-                    mAsset.address,
-                    ZERO_ADDRESS,
-                    forwarderAddress,
-                )
-                await expect(tx).to.revertedWith("Keeper is zero")
-            })
             it("Forwarder", async () => {
-                const tx = new RevenueForwarder__factory(sa.default.signer).deploy(
-                    nexus.address,
-                    mAsset.address,
-                    keeper.address,
-                    ZERO_ADDRESS,
-                )
+                const tx = new RevenueForwarder__factory(sa.default.signer).deploy(nexus.address, mAsset.address, ZERO_ADDRESS)
                 await expect(tx).to.revertedWith("Forwarder is zero")
             })
         })
@@ -162,7 +130,7 @@ describe("RevenueForwarder", () => {
             expect(await mAsset.balanceOf(revenueForwarder.address), "revenue forwarder's mAsset bal before").to.eq(notificationAmount)
             expect(await mAsset.balanceOf(forwarderAddress), "forwarder's mAsset bal before").to.eq(0)
 
-            const tx = await revenueForwarder.connect(keeper.signer).forward()
+            const tx = await revenueForwarder.connect(sa.keeper.signer).forward()
 
             await expect(tx).to.emit(revenueForwarder, "Withdrawn").withArgs(notificationAmount)
             expect(await mAsset.balanceOf(revenueForwarder.address), "revenue forwarder's mAsset bal after").to.eq(0)
@@ -180,11 +148,11 @@ describe("RevenueForwarder", () => {
         })
         it("should forward with no rewards balance", async () => {
             // Forward whatever balance it currently has
-            await revenueForwarder.connect(keeper.signer).forward()
+            await revenueForwarder.connect(sa.keeper.signer).forward()
 
             expect(await mAsset.balanceOf(revenueForwarder.address), "revenue forwarder's mAsset bal before").to.eq(0)
 
-            const tx = await revenueForwarder.connect(keeper.signer).forward()
+            const tx = await revenueForwarder.connect(sa.keeper.signer).forward()
 
             await expect(tx).to.not.emit(revenueForwarder, "Withdrawn")
             expect(await mAsset.balanceOf(revenueForwarder.address), "revenue forwarder's mAsset bal after").to.eq(0)
@@ -206,7 +174,7 @@ describe("RevenueForwarder", () => {
             expect(await revenueForwarder.forwarder(), "forwarder after").to.eq(newForwarderAddress)
         })
         it("keeper should fail to set new forwarder", async () => {
-            const tx = revenueForwarder.connect(keeper.signer).setConfig(newForwarderAddress)
+            const tx = revenueForwarder.connect(sa.keeper.signer).setConfig(newForwarderAddress)
 
             await expect(tx).to.revertedWith("Only governor can execute")
         })
