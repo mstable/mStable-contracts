@@ -8,6 +8,7 @@ import {
     deployBasicForwarder,
     deployBridgeForwarder,
     deployDisperseForwarder,
+    deployVotiumBribeForwarder,
     deployEmissionsController,
     deployL2BridgeRecipients,
     deployL2EmissionsController,
@@ -30,6 +31,10 @@ task("deploy-emissions-polly", "Deploys L2EmissionsController and L2 Bridge Reci
 
         const disperseForwarder = await deployDisperseForwarder(signer, hre)
         console.log(`Set PBAL bridgeRecipient to ${disperseForwarder.address}`)
+
+        const votiumBribeForwarder = await deployVotiumBribeForwarder(signer, hre)
+        console.log(`Set ? bridgeRecipient to ${votiumBribeForwarder.address}`)
+
     })
 
 task("deploy-emissions")
