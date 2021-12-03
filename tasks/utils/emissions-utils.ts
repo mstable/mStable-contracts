@@ -213,8 +213,7 @@ export const deployVotiumBribeForwarder = async (signer: Signer, hre: HardhatRun
     const nexusAddress = resolveAddress("Nexus", chain)
     const votiumBribeAddress = resolveAddress("VotiumBribe", chain)
     const mtaAddress = MTA.address
-    const votiumBribeProposal = "TODO-SHOULD-BE-CONFIGURABLE"
-    const constructorArguments = [nexusAddress, mtaAddress, votiumBribeAddress, votiumBribeProposal]
+    const constructorArguments = [nexusAddress, mtaAddress, votiumBribeAddress]
 
     const votiumBribeForwarder = await deployContract<VotiumBribeForwarder>(new VotiumBribeForwarder__factory(signer), "VotiumBribeForwarder", constructorArguments)
 
