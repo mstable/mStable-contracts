@@ -6,6 +6,8 @@ import {
     BasicRewardsForwarder__factory,
     BridgeForwarder,
     BridgeForwarder__factory,
+    DisperseForwarder,
+    DisperseForwarder__factory,
     EmissionsController,
     EmissionsController__factory,
     L2BridgeRecipient,
@@ -167,35 +169,39 @@ export const deployL2BridgeRecipients = async (
     signer: Signer,
     hre: HardhatRuntimeEnvironment,
     l2EmissionsControllerAddress: string,
-): Promise<L2BridgeRecipient[]> => {
+): Promise<L2BridgeRecipient> => {
     const mtaAddress = MTA.address
     const constructorArguments = [mtaAddress, l2EmissionsControllerAddress]
 
-    const mUSDBridgeRecipient = await deployContract<L2BridgeRecipient>(
-        new L2BridgeRecipient__factory(signer),
-        "mUSD Vault Bridge Recipient",
-        [mtaAddress, l2EmissionsControllerAddress],
-    )
-    console.log(`Set PmUSD bridgeRecipient to ${mUSDBridgeRecipient.address}`)
+    const bridgeRecipient = await deployContract<L2BridgeRecipient>(new L2BridgeRecipient__factory(signer), "L2BridgeRecipient", [
+        mtaAddress,
+        l2EmissionsControllerAddress,
+    ])
+
     await verifyEtherscan(hre, {
-        address: mUSDBridgeRecipient.address,
+        address: bridgeRecipient.address,
         constructorArguments,
         contract: "contracts/emissions/L2BridgeRecipient.sol:L2BridgeRecipient",
     })
 
-    const fraxBridgeRecipient = await deployContract<L2BridgeRecipient>(
-        new L2BridgeRecipient__factory(signer),
-        "FRAX Farm Bridge Recipient",
-        [mtaAddress, l2EmissionsControllerAddress],
-    )
-    console.log(`Set PFRAX bridgeRecipient to ${fraxBridgeRecipient.address}`)
+    return bridgeRecipient
+}
+
+export const deployDisperseForwarder = async (signer: Signer, hre: HardhatRuntimeEnvironment): Promise<DisperseForwarder> => {
+    const mtaAddress = MTA.address
+    const constructorArguments = [mtaAddress]
+
+    const disperseForwarder = await deployContract<DisperseForwarder>(new DisperseForwarder__factory(signer), "DisperseForwarder", [
+        mtaAddress,
+    ])
+
     await verifyEtherscan(hre, {
-        address: fraxBridgeRecipient.address,
+        address: disperseForwarder.address,
         constructorArguments,
-        contract: "contracts/emissions/L2BridgeRecipient.sol:L2BridgeRecipient",
+        contract: "contracts/emissions/DisperseForwarder.sol:DisperseForwarder",
     })
 
-    return [mUSDBridgeRecipient, fraxBridgeRecipient]
+    return disperseForwarder
 }
 
 export const deployBridgeForwarder = async (
@@ -256,7 +262,6 @@ export const deployRevenueBuyBack = async (
     const mtaAddress = MTA.address
     const uniswapRouterAddress = resolveAddress("UniswapRouterV3", chain)
     const emissionsControllerAddress = _emissionsControllerAddress || resolveAddress("EmissionsController", chain)
-    const devOpsAddress = resolveAddress("OperationsSigner", chain)
 
     // Deploy RevenueBuyBack
     const constructorArguments: [string, string, string, string] = [
@@ -266,7 +271,7 @@ export const deployRevenueBuyBack = async (
         emissionsControllerAddress,
     ]
     const revenueBuyBack = await new RevenueBuyBack__factory(signer).deploy(...constructorArguments)
-    await revenueBuyBack.initialize(devOpsAddress, [0, 1])
+    await revenueBuyBack.initialize([0, 1])
 
     await verifyEtherscan(hre, {
         address: revenueBuyBack.address,

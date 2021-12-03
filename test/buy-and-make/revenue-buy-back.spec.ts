@@ -70,6 +70,7 @@ describe("RevenueBuyBack", () => {
             sa.mockSavingsManager.address,
             sa.mockInterestValidator.address,
         )
+        await nexus.setKeeper(sa.keeper.address)
 
         // Mocked Uniswap V3
         uniswap = await new MockUniswapV3__factory(sa.default.signer).deploy()
@@ -111,7 +112,7 @@ describe("RevenueBuyBack", () => {
             emissionController.address,
         )
         // reverse the order to make sure dial id != staking contract id for testing purposes
-        await revenueBuyBack.initialize(sa.fundManager.address, [1, 0])
+        await revenueBuyBack.initialize([1, 0])
 
         // Add config to buy rewards from mAssets
         await revenueBuyBack
@@ -152,7 +153,6 @@ describe("RevenueBuyBack", () => {
             expect(await revenueBuyBack.EMISSIONS_CONTROLLER(), "Emissions Controller").eq(emissionController.address)
         })
         it("should have storage variables set", async () => {
-            expect(await revenueBuyBack.keeper(), "Keeper").eq(sa.fundManager.address)
             expect(await revenueBuyBack.stakingDialIds(0), "Staking Contract 1 dial id").eq(1)
             expect(await revenueBuyBack.stakingDialIds(1), "Staking Contract 2 dial id").eq(0)
             expect((await emissionController.dials(0)).recipient, "first dial is first staking contract").to.eq(staking1.address)
@@ -194,16 +194,6 @@ describe("RevenueBuyBack", () => {
                     ZERO_ADDRESS,
                 )
                 await expect(tx).to.revertedWith("Emissions controller is zero")
-            })
-            it("Keeper", async () => {
-                const revBuyBack = await new RevenueBuyBack__factory(sa.default.signer).deploy(
-                    nexus.address,
-                    rewardsToken.address,
-                    uniswap.address,
-                    emissionController.address,
-                )
-                const tx = revBuyBack.initialize(ZERO_ADDRESS, [])
-                await expect(tx).to.revertedWith("Keeper is zero")
             })
         })
     })
@@ -269,7 +259,7 @@ describe("RevenueBuyBack", () => {
             expect(await mUSD.balanceOf(revenueBuyBack.address), "revenueBuyBack's mUSD Bal before").to.eq(musdRevenue)
             expect(await bAsset1.balanceOf(mUSD.address), "mAsset's bAsset Bal before").to.eq(musdRevenue)
 
-            const tx = revenueBuyBack.connect(sa.fundManager.signer).buyBackRewards([mUSD.address])
+            const tx = revenueBuyBack.connect(sa.keeper.signer).buyBackRewards([mUSD.address])
 
             const bAsset1Amount = musdRevenue.mul(98).div(100)
             // Exchange rate = 0.80 MTA/USD = 8 / 18
@@ -283,7 +273,7 @@ describe("RevenueBuyBack", () => {
             expect(await mBTC.balanceOf(revenueBuyBack.address), "revenueBuyBack's mBTC Bal before").to.eq(mbtcRevenue)
             expect(await bAsset2.balanceOf(mBTC.address), "mAsset's bAsset Bal before").to.eq(mbtcRevenue.div(1e12))
 
-            const tx = revenueBuyBack.connect(sa.fundManager.signer).buyBackRewards([mBTC.address])
+            const tx = revenueBuyBack.connect(sa.keeper.signer).buyBackRewards([mBTC.address])
 
             const bAsset2Amount = mbtcRevenue.mul(98).div(100).div(1e12)
             // Exchange rate = 50,000 MTA/BTC
@@ -294,7 +284,7 @@ describe("RevenueBuyBack", () => {
             expect(await mBTC.balanceOf(revenueBuyBack.address), "revenueBuyBack's mBTC Bal after").to.eq(0)
         })
         it("should sell mUSD and mBTC for MTA", async () => {
-            const tx = revenueBuyBack.connect(sa.fundManager.signer).buyBackRewards([mUSD.address, mBTC.address])
+            const tx = revenueBuyBack.connect(sa.keeper.signer).buyBackRewards([mUSD.address, mBTC.address])
 
             //
             const bAsset1Amount = musdRevenue.mul(98).div(100)
@@ -314,11 +304,11 @@ describe("RevenueBuyBack", () => {
         })
         describe("should fail when", () => {
             it("No mAssets", async () => {
-                const tx = revenueBuyBack.connect(sa.fundManager.signer).buyBackRewards([])
+                const tx = revenueBuyBack.connect(sa.keeper.signer).buyBackRewards([])
                 await expect(tx).to.revertedWith("Invalid args")
             })
             it("Not a mAsset", async () => {
-                const tx = revenueBuyBack.connect(sa.fundManager.signer).buyBackRewards([rewardsToken.address])
+                const tx = revenueBuyBack.connect(sa.keeper.signer).buyBackRewards([rewardsToken.address])
                 await expect(tx).to.revertedWith("Invalid mAsset")
             })
             it("Not keeper or governor", async () => {
@@ -338,7 +328,7 @@ describe("RevenueBuyBack", () => {
             expect(await rewardsToken.balanceOf(revenueBuyBack.address), "revenue buy back rewards before").to.eq(totalRewards)
             const rewardsECbefore = await rewardsToken.balanceOf(emissionController.address)
 
-            const tx = revenueBuyBack.connect(sa.fundManager.signer).donateRewards()
+            const tx = revenueBuyBack.connect(sa.keeper.signer).donateRewards()
 
             await expect(tx).to.emit(revenueBuyBack, "DonatedRewards").withArgs(totalRewards)
             await expect(tx).to.emit(emissionController, "DonatedRewards").withArgs(1, totalRewards.div(4))
@@ -354,13 +344,13 @@ describe("RevenueBuyBack", () => {
                 await staking1.setTotalSupply(0)
                 await staking2.setTotalSupply(0)
 
-                const tx = revenueBuyBack.connect(sa.fundManager.signer).donateRewards()
+                const tx = revenueBuyBack.connect(sa.keeper.signer).donateRewards()
                 await expect(tx).to.revertedWith("No voting power")
             })
             it("no rewards to donate", async () => {
                 expect(await rewardsToken.balanceOf(revenueBuyBack.address), "revenue buy back rewards before").to.eq(0)
 
-                const tx = revenueBuyBack.connect(sa.fundManager.signer).donateRewards()
+                const tx = revenueBuyBack.connect(sa.keeper.signer).donateRewards()
                 await expect(tx).to.revertedWith("No rewards to donate")
             })
         })

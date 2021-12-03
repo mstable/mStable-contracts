@@ -45,4 +45,7 @@ contract ModuleKeys {
     // keccak256("InterestValidator");
     bytes32 internal constant KEY_INTEREST_VALIDATOR =
         0xc10a28f028c7f7282a03c90608e38a4a646e136e614e4b07d119280c5f7f839f;
+    // keccak256("Keeper");
+    bytes32 internal constant KEY_KEEPER =
+        0x4f78afe9dfc9a0cb0441c27b9405070cd2a48b490636a7bdd09f355e33a5d7de;
 }

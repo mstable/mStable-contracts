@@ -59,17 +59,10 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
     /// @notice Uniswap V3 Router address
     IUniswapV3SwapRouter public immutable UNISWAP_ROUTER;
 
-    /// @notice Account that can execute `buyBackRewards`. eg Operations account.
-    address public keeper;
     /// @notice Mapping of mAssets to RevenueBuyBack config
     mapping(address => RevenueBuyBackConfig) public massetConfig;
     /// @notice Emissions Controller dial ids for all staking contracts that will receive reward tokens.
     uint256[] public stakingDialIds;
-
-    modifier keeperOrGovernor() {
-        require(msg.sender == keeper || msg.sender == _governor(), "Only keeper or governor");
-        _;
-    }
 
     /**
      * @param _nexus mStable system Nexus address
@@ -94,13 +87,9 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
     }
 
     /**
-     * @param _keeper Account that can execute `buyBackRewards`. eg Operations account.
      * @param _stakingDialIds Emissions Controller dial ids for all staking contracts that will receive reward tokens.
      */
-    function initialize(address _keeper, uint16[] memory _stakingDialIds) external initializer {
-        require(_keeper != address(0), "Keeper is zero");
-        keeper = _keeper;
-
+    function initialize(uint16[] memory _stakingDialIds) external initializer {
         for (uint256 i = 0; i < _stakingDialIds.length; i++) {
             _addStakingContract(_stakingDialIds[i]);
         }
@@ -128,7 +117,7 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
      * @notice Buys reward tokens, eg MTA, using mAssets like mUSD or mBTC from protocol revenue.
      * @param _mAssets Addresses of mAssets that are to be sold for rewards. eg mUSD and mBTC.
      */
-    function buyBackRewards(address[] calldata _mAssets) external keeperOrGovernor {
+    function buyBackRewards(address[] calldata _mAssets) external onlyKeeperOrGovernor {
         uint256 len = _mAssets.length;
         require(len > 0, "Invalid args");
 
@@ -170,7 +159,7 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
     /**
      * @notice donates purchased rewards, eg MTA, to staking contracts via the Emissions Controller.
      */
-    function donateRewards() external keeperOrGovernor {
+    function donateRewards() external onlyKeeperOrGovernor {
         // STEP 1 - Get the voting power of the staking contracts
         uint256 numberStakingContracts = stakingDialIds.length;
         uint256[] memory votingPower = new uint256[](numberStakingContracts);

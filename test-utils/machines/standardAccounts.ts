@@ -48,6 +48,8 @@ export class StandardAccounts {
 
     public mockRewardsDistributor: Account
 
+    public keeper: Account
+
     public async initAccounts(signers: Signer[]): Promise<StandardAccounts> {
         this.all = await Promise.all(
             signers.map(async (s) => ({
@@ -75,6 +77,7 @@ export class StandardAccounts {
             this.mockRecollateraliser,
             this.mockMasset,
             this.mockRewardsDistributor,
+            this.keeper,
         ] = this.all
         return this
     }
