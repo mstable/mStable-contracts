@@ -243,16 +243,16 @@ export const deployBridgeForwarder = async (
     const emissionsControllerAddress = _emissionsControllerAddress || resolveAddress("EmissionsController", chain)
 
     const constructorArguments = [nexusAddress, mtaAddress, tokenBridgeAddress, rootChainManagerAddress, bridgeRecipientAddress]
-    const bridgeForrwarderImpl = await deployContract(
+    const bridgeForwarderImpl = await deployContract(
         new BridgeForwarder__factory(signer),
         "mUSD Vault Bridge Forwarder",
         constructorArguments,
     )
 
     // Deploy proxy and initialize
-    const initializeData = bridgeForrwarderImpl.interface.encodeFunctionData("initialize", [emissionsControllerAddress])
+    const initializeData = bridgeForwarderImpl.interface.encodeFunctionData("initialize", [emissionsControllerAddress])
     const proxy = await deployContract(new AssetProxy__factory(signer), "AssetProxy", [
-        bridgeForrwarderImpl.address,
+        bridgeForwarderImpl.address,
         proxyAdminAddress,
         initializeData,
     ])
@@ -266,7 +266,7 @@ export const deployBridgeForwarder = async (
     await sleep(10000)
 
     await verifyEtherscan(hre, {
-        address: bridgeForrwarderImpl.address,
+        address: bridgeForwarderImpl.address,
         constructorArguments,
         contract: "contracts/emissions/BridgeForwarder.sol:BridgeForwarder",
     })

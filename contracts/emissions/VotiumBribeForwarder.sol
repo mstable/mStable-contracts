@@ -16,14 +16,17 @@ import { ImmutableModule } from "../shared/ImmutableModule.sol";
 contract VotiumBribeForwarder is ImmutableModule {
     using SafeERC20 for IERC20;
 
-    /// @notice Rewards token that is to be deposit.
+    /// @notice Rewards token that is to be deposit. 
+    // solhint-disable-next-line var-name-mixedcase
     IERC20 public immutable REWARDS_TOKEN;
-    /// @notice Token Disperser contract. eg 0x19bbc3463dd8d07f55438014b021fb457ebd4595
+    /// @notice Token VotiumBribe contract. eg 0x19bbc3463dd8d07f55438014b021fb457ebd4595
+    // solhint-disable-next-line var-name-mixedcase
     IVotiumBribe public immutable VOTIUM_BRIBE;
     /// @notice Votium brive proposal.
+    // solhint-disable-next-line var-name-mixedcase
     bytes32 public immutable PROPOSAL;
     /// @notice Votium brive deposit choice index.
-    uint256 public choiceIndex
+    uint256 public choiceIndex;
 
     /**
      * @param _rewardsToken Bridged rewards token on the Polygon chain.
@@ -51,8 +54,8 @@ contract VotiumBribeForwarder is ImmutableModule {
         require(rewardBal >= amount, "Insufficient rewards");
         // Approve only the amount to be bribe. Any more and the funds in this contract can be stolen
         // using the depositBribe function on the VotiumBribe contract.
-        REWARDS_TOKEN.safeApprove(address(VOTIUM_BRIBE), total);
-        VOTIUM_BRIBE.depositBribe(address(REWARDS_TOKEN), total, PROPOSAL, choiceIndex);
+        REWARDS_TOKEN.safeApprove(address(VOTIUM_BRIBE), amount);
+        VOTIUM_BRIBE.depositBribe(address(REWARDS_TOKEN), amount, PROPOSAL, choiceIndex);
     }
 
     /**
@@ -60,6 +63,6 @@ contract VotiumBribeForwarder is ImmutableModule {
      * @param _choiceIndex the bribe choice index
      */
     function updateChoiceIndex(uint256 _choiceIndex) public onlyKeeperOrGovernor {
-      choiceIndex = _feeAddress;
+      choiceIndex = _choiceIndex;
     }
 }
