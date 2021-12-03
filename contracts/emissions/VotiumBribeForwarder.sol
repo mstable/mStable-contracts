@@ -22,32 +22,28 @@ contract VotiumBribeForwarder is ImmutableModule {
     /// @notice Token VotiumBribe contract. eg 0x19bbc3463dd8d07f55438014b021fb457ebd4595
     // solhint-disable-next-line var-name-mixedcase
     IVotiumBribe public immutable VOTIUM_BRIBE;
-    /// @notice Votium brive proposal.
-    // solhint-disable-next-line var-name-mixedcase
-    bytes32 public immutable PROPOSAL;
     /// @notice Votium brive deposit choice index.
     uint256 public choiceIndex;
 
     /**
      * @param _rewardsToken Bridged rewards token on the Polygon chain.
      * @param _votiumBribe Token votium bribe contract.
-     * @param _proposal The proposal to bribe.
      */
-    constructor(address _nexus, address _rewardsToken, address _votiumBribe, bytes32 _proposal)
+    constructor(address _nexus, address _rewardsToken, address _votiumBribe)
         ImmutableModule(_nexus) {
         require(_rewardsToken != address(0), "Invalid Rewards token");
         require(_votiumBribe != address(0), "Invalid VotiumBribe contract");
         REWARDS_TOKEN = IERC20(_rewardsToken);
         VOTIUM_BRIBE = IVotiumBribe(_votiumBribe);
-        PROPOSAL = _proposal;
     }
 
 
     /**
      * @notice Deposits a bribe into Votium, choiceIndex must be set previously.
      * @param amount amount of  reward token to deposit including decimal places.
+     * @param proposal votium brive proposal
      */
-    function disperseToken(uint256 amount) external onlyKeeperOrGovernor {
+    function depositBribe(uint256 amount, bytes32 proposal) external onlyKeeperOrGovernor {
         require(amount != 0, "Invalid amount");
 
         uint256 rewardBal = REWARDS_TOKEN.balanceOf(address(this));
@@ -55,7 +51,7 @@ contract VotiumBribeForwarder is ImmutableModule {
         // Approve only the amount to be bribe. Any more and the funds in this contract can be stolen
         // using the depositBribe function on the VotiumBribe contract.
         REWARDS_TOKEN.safeApprove(address(VOTIUM_BRIBE), amount);
-        VOTIUM_BRIBE.depositBribe(address(REWARDS_TOKEN), amount, PROPOSAL, choiceIndex);
+        VOTIUM_BRIBE.depositBribe(address(REWARDS_TOKEN), amount, proposal, choiceIndex);
     }
 
     /**
