@@ -8,7 +8,7 @@ import { ImmutableModule } from "../shared/ImmutableModule.sol";
 /**
  * @title  VotiumBribeForwarder
  * @author mStable
- * @notice Transfers reward tokens to a list of off-chain calculated recipients and amounts.
+ * @notice Uses reward tokens to bribe vlCVX holders to vote for a Curve gauge using Votium.
  * @dev    VotiumBribe contract on Mainnet, Polygon, Fantom: 0x19bbc3463dd8d07f55438014b021fb457ebd4595
  * @dev    VERSION: 1.0
  *         DATE:    2021-11-03
