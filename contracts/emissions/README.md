@@ -130,6 +130,10 @@ It’s possible the MTA rewards can be calculated but not transferred. Each new 
 
 ![Polygon Bridge FRAX](../../docs/emissions/polygonBridge_frax.png)
 
+### Distribution to Balancer Pool liquidity providers on Polygon
+
+![Polygon Bridge Balancer](../../docs/emissions/polygonBridge_balancer.png)
+
 ### MTA Buy Back for Stakers
 
 ![Buy Back For Stakers](../../docs/emissions/buyBackForStakers.png)

@@ -19,6 +19,7 @@ import {
 } from "types/generated"
 import { currentWeekEpoch, increaseTime, getTimestamp, increaseTimeTo, startWeek, weekEpoch } from "@utils/time"
 import { Account } from "types/common"
+import { keccak256, toUtf8Bytes } from "ethers/lib/utils"
 
 const defaultConfig = {
     A: -166000000000000,
@@ -36,12 +37,12 @@ interface VoteHistoryExpectation {
     lastEpoch: number
 }
 interface DialData {
-        disabled: boolean
-        notify: boolean
-        cap: number
-        balance: BN
-        recipient: string
-        voteHistory: { votes: BN; epoch: number }[]
+    disabled: boolean
+    notify: boolean
+    cap: number
+    balance: BN
+    recipient: string
+    voteHistory: { votes: BN; epoch: number }[]
 }
 
 const sum = (a:BN, b:BN) => a.add(b)
@@ -138,10 +139,7 @@ const expectTopLineEmissionForEpoch = (emissionsController: EmissionsController,
     const expectedEmissionAmount = await nextRewardAmount(emissionsController, deltaEpoch)
     expect(emissionForEpoch).eq(expectedEmissionAmount)
 }
-const snapDial = async (
-    emissionsController: EmissionsController,
-    dialId: number,
-): Promise<DialData> => {
+const snapDial = async (emissionsController: EmissionsController, dialId: number): Promise<DialData> => {
     const dialData = await emissionsController.dials(dialId)
     const voteHistory = await emissionsController.getDialVoteHistory(dialId)
     return {
@@ -215,6 +213,8 @@ describe("EmissionsController", async () => {
     before(async () => {
         const accounts = await ethers.getSigners()
         sa = await new StandardAccounts().initAccounts(accounts)
+
+        console.log(`Keeper ${keccak256(toUtf8Bytes("Keeper"))}`)
 
         voter1 = sa.dummy1
         voter2 = sa.dummy2
@@ -721,9 +721,9 @@ describe("EmissionsController", async () => {
             await increaseTime(ONE_WEEK)
 
             // Expect initial vote with no weight
-            const dialsVoteHistory = [ { dialId: 0, votesNo: 1, lastVote: 0, lastEpoch: startEpoch} ]
+            const dialsVoteHistory = [{ dialId: 0, votesNo: 1, lastVote: 0, lastEpoch: startEpoch }]
             await expectDialVotesHistoryForDials(emissionsController, dialsVoteHistory)
-                        
+
             const tx = await emissionsController.calculateRewards()
 
             await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([0, 0, 0])
@@ -1503,11 +1503,11 @@ describe("EmissionsController", async () => {
             it("added that was not in previous distributions", async () => {
                 // --- Given ---
                 // that dial 1,2 and 3 are enabled
-                // and voter 1 gives all its votes to dial 1, and voter 2 gives all its votes to dial 2, and dial 3 does not have any vote weight 
+                // and voter 1 gives all its votes to dial 1, and voter 2 gives all its votes to dial 2, and dial 3 does not have any vote weight
 
-                const dialBefore:Array<DialData> = [];
-                const dialAfter:Array<DialData> = [];
-                const adjustedDials:BN[][] = [[]]
+                const dialBefore: Array<DialData> = []
+                const dialAfter: Array<DialData> = []
+                const adjustedDials: BN[][] = [[]]
 
                 dialBefore[0] = await snapDial(emissionsController, 0)
                 dialBefore[1] = await snapDial(emissionsController, 1)
@@ -1525,7 +1525,6 @@ describe("EmissionsController", async () => {
                 let nextEpochEmission = await nextRewardAmount(emissionsController)
                 let tx = await emissionsController.calculateRewards()
 
-                
                 dialAfter[0] = await snapDial(emissionsController, 0)
                 dialAfter[1] = await snapDial(emissionsController, 1)
 
@@ -1546,23 +1545,26 @@ describe("EmissionsController", async () => {
                 // -- When --
                 // it adds a new dial and calculates the distribution
 
-                const newDial = await new MockRewardsDistributionRecipient__factory(sa.default.signer).deploy(rewardToken.address, DEAD_ADDRESS)
+                const newDial = await new MockRewardsDistributionRecipient__factory(sa.default.signer).deploy(
+                    rewardToken.address,
+                    DEAD_ADDRESS,
+                )
                 tx = await emissionsController.connect(sa.governor.signer).addDial(newDial.address, 0, true)
-                await expect(tx).to.emit(emissionsController, "AddedDial").withArgs(3, newDial.address) 
+                await expect(tx).to.emit(emissionsController, "AddedDial").withArgs(3, newDial.address)
 
-                // Assign voters 3 weight  to new dial 
-                await emissionsController.connect(voter3.signer).setVoterDialWeights([{ dialId: 3, weight: 200 }])                
+                // Assign voters 3 weight  to new dial
+                await emissionsController.connect(voter3.signer).setVoterDialWeights([{ dialId: 3, weight: 200 }])
                 dialBefore[3] = await snapDial(emissionsController, 3)
 
                 // calculates distribution
 
                 await increaseTime(ONE_WEEK)
-                 nextEpochEmission = await nextRewardAmount(emissionsController)
-                 tx = await emissionsController.calculateRewards()
+                nextEpochEmission = await nextRewardAmount(emissionsController)
+                tx = await emissionsController.calculateRewards()
 
-                 dialAfter[0] = await snapDial(emissionsController, 0)
-                 dialAfter[1] = await snapDial(emissionsController, 1)
-                 dialAfter[3] = await snapDial(emissionsController, 3)
+                dialAfter[0] = await snapDial(emissionsController, 0)
+                dialAfter[1] = await snapDial(emissionsController, 1)
+                dialAfter[3] = await snapDial(emissionsController, 3)
 
                 // -- Then --
                 // the new dial should receive emissions after calculating rewards
@@ -1572,10 +1574,12 @@ describe("EmissionsController", async () => {
                 adjustedDials[1][1] = nextEpochEmission.div(2)
                 // Voter 3 has 300 of the 1200 votes (2/5)
                 adjustedDials[3][0] = BN.from(0)
-                adjustedDials[3][1] = nextEpochEmission.div(4)                
+                adjustedDials[3][1] = nextEpochEmission.div(4)
                 // Then disabled dials should not receive any distribution
-                
-                await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([adjustedDials[0][1], adjustedDials[1][1], 0, adjustedDials[3][1]])
+
+                await expect(tx)
+                    .to.emit(emissionsController, "PeriodRewards")
+                    .withArgs([adjustedDials[0][1], adjustedDials[1][1], 0, adjustedDials[3][1]])
 
                 expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(adjustedDials[0].reduce(sum))
                 expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(adjustedDials[1].reduce(sum))
@@ -1583,7 +1587,9 @@ describe("EmissionsController", async () => {
                 expect((await emissionsController.dials(3)).balance, "dial new balance after").to.eq(adjustedDials[3].reduce(sum))
                 // New votes should be cast for new dial
                 expect(dialBefore[3].voteHistory.length + 1, "dial new vote history should increase").to.eq(dialAfter[3].voteHistory.length)
-                expect(dialBefore[3].voteHistory.slice(-1)[0].votes, "dial 1 vote weight should not change").to.eq(dialAfter[3].voteHistory.slice(-1)[0].votes)
+                expect(dialBefore[3].voteHistory.slice(-1)[0].votes, "dial 1 vote weight should not change").to.eq(
+                    dialAfter[3].voteHistory.slice(-1)[0].votes,
+                )
             })
         })
         // after a new staking contract was added that was not in previous distributions [DONE]
