@@ -47,6 +47,7 @@ export const contractNames = [
     "AlchemixStakingPool",
     "CompController",
     "CurveRegistryExchange",
+    "Disperse",
     "QuickSwapRouter",
     "UniswapRouterV3",
     "UniswapQuoterV3",
@@ -58,6 +59,8 @@ export const contractNames = [
     "ENSResolver",
     "FraxVault",
     "VisorRouter",
+    "VotiumBribe",
+    "VotiumForwarder",
 ] as const
 export type ContractNames = typeof contractNames[number]
 
@@ -157,6 +160,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B"
             case "CurveRegistryExchange":
                 return "0xD1602F68CC7C4c7B59D686243EA35a9C73B0c6a2"
+            case "Disperse":
+                return "0xD152f549545093347A162Dce210e7293f1452150"
             case "UniswapRouterV3":
                 return "0xE592427A0AEce92De3Edee1F18E0157C05861564"
             case "UniswapQuoterV3":
@@ -175,6 +180,10 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x4976fb03c32e5b8cfe2b6ccb31c09ba78ebaba41"
             case "VisorRouter":
                 return "0xF3f4F4e17cC65BDC36A36fDa5283F8D8020Ad0a4"
+            case "VotiumBribe":
+                return "0x19bbc3463dd8d07f55438014b021fb457ebd4595"
+            case "VotiumForwarder":
+                return DEAD_ADDRESS
             default:
         }
     } else if (chain === Chain.polygon) {
@@ -202,10 +211,14 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xc929E040b6C8F2fEFE6B45c6bFEB55508554F3E2"
             case "FeederInterestValidator":
                 return "0x4A268958BC2f0173CDd8E0981C4c0a259b5cA291"
+            case "L2EmissionsController":
+                return "0x82182Ac492fef111FB458FCe8f4228553Ed59a19"
             case "AaveIncentivesController":
                 return "0x357D51124f59836DeD84c8a1730D72B749d8BC23"
             case "AaveLendingPoolAddressProvider":
                 return "0xd05e3E715d945B59290df0ae8eF85c1BdB684744"
+            case "Disperse":
+                return "0xD152f549545093347A162Dce210e7293f1452150"
             case "QuickSwapRouter":
                 return "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff"
             case "MStableYieldSource":
@@ -339,8 +352,7 @@ export const resolveAddress = (
         if (!address) {
             // If a token Symbol
             const token = tokens.find((t) => t.symbol === addressContractNameSymbol && t.chain === chain)
-            if (!token)
-                throw Error(`Invalid approve address, token symbol or contract name "${addressContractNameSymbol}" for chain ${chain}`)
+            if (!token) throw Error(`Invalid address, token symbol or contract name "${addressContractNameSymbol}" for chain ${chain}`)
             if (!token[tokenType])
                 throw Error(`Can not find token type "${tokenType}" for "${addressContractNameSymbol}" on chain ${chain}`)
 
