@@ -36,9 +36,7 @@ describe("VotiumBribeForwarder", () => {
         rewardsToken = await mAssetMachine.loadBassetProxy("Rewards Token", "RWD", 18)
         owner = sa.default
         emissionsController = sa.dummy2
-        // const accounts = await ethers.getSigners()
-        // sa = await new StandardAccounts().initAccounts(accounts)
-
+        
         // Deploy VotiumBribeForwarder
         forwarder = await new VotiumBribeForwarder__factory(owner.signer).deploy(nexus.address, rewardsToken.address, votiumBribe.address)
 
