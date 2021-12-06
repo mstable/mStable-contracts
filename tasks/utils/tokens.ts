@@ -81,7 +81,7 @@ export const PmUSD: Token = {
     vault: "0x32aBa856Dc5fFd5A56Bcd182b13380e5C855aa29",
     platformTokenVendor: "0x7b19a4f4ee26037ffef77bc7d99f56209acc8db1",
     bridgeForwarder: DEAD_ADDRESS, // TODO after deployment,
-    bridgeRecipient: DEAD_ADDRESS, // TODO after deployment
+    bridgeRecipient: "0xd3778a18Ee00a6368A0e5D545cB3412886e5a04c",
 }
 export const MmUSD: Token = {
     symbol: "mUSD",
@@ -480,7 +480,7 @@ export const PBAL: Token = {
     quantityFormatter: "USD",
     bridgeForwarder: DEAD_ADDRESS,
     // The DisperseForwarder contract on Polygon
-    bridgeRecipient: DEAD_ADDRESS,
+    bridgeRecipient: "0x5783458E67B380d19a84514F11054ABDc326EB07",
 }
 
 export const RBAL: Token = {

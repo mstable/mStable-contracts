@@ -31,10 +31,6 @@ task("deploy-emissions-polly", "Deploys L2EmissionsController and L2 Bridge Reci
 
         const disperseForwarder = await deployDisperseForwarder(signer, hre)
         console.log(`Set PBAL bridgeRecipient to ${disperseForwarder.address}`)
-
-        const votiumBribeForwarder = await deployVotiumBribeForwarder(signer, hre)
-        console.log(`Set ? bridgeRecipient to ${votiumBribeForwarder.address}`)
-
     })
 
 task("deploy-emissions")
@@ -44,6 +40,9 @@ task("deploy-emissions")
         const emissionsController = await deployEmissionsController(signer, hre)
 
         console.log(`Set RewardsDistributor in the networkAddressFactory to ${emissionsController.address}`)
+
+        const votiumBribeForwarder = await deployVotiumBribeForwarder(signer, hre)
+        console.log(`Set VotiumForwarder to ${votiumBribeForwarder.address}`)
     })
 
 task("deploy-bridge-forwarder", "Deploys a BridgeForwarder contract on mainnet for Polygon dials.")

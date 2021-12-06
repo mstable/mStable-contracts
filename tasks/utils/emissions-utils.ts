@@ -9,7 +9,7 @@ import {
     DisperseForwarder,
     DisperseForwarder__factory,
     VotiumBribeForwarder,
-    VotiumBribeForwarder__factory,    
+    VotiumBribeForwarder__factory,
     EmissionsController,
     EmissionsController__factory,
     L2BridgeRecipient,
@@ -139,7 +139,7 @@ export const deployL2EmissionsController = async (signer: Signer, hre: HardhatRu
 
     const nexusAddress = resolveAddress("Nexus", chain)
     const proxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)
-    const mtaAddress = MTA.address
+    const mtaAddress = resolveAddress("MTA", chain)
 
     // Deploy logic contract
     const constructorArguments = [nexusAddress, mtaAddress]
@@ -172,7 +172,8 @@ export const deployL2BridgeRecipients = async (
     hre: HardhatRuntimeEnvironment,
     l2EmissionsControllerAddress: string,
 ): Promise<L2BridgeRecipient> => {
-    const mtaAddress = MTA.address
+    const chain = getChain(hre)
+    const mtaAddress = resolveAddress("MTA", chain)
     const constructorArguments = [mtaAddress, l2EmissionsControllerAddress]
 
     const bridgeRecipient = await deployContract<L2BridgeRecipient>(new L2BridgeRecipient__factory(signer), "L2BridgeRecipient", [
@@ -193,10 +194,14 @@ export const deployDisperseForwarder = async (signer: Signer, hre: HardhatRuntim
     const chain = getChain(hre)
     const nexusAddress = resolveAddress("Nexus", chain)
     const disperseAddress = resolveAddress("Disperse", chain)
-    const mtaAddress = MTA.address
-    const constructorArguments = [nexusAddress, disperseAddress, mtaAddress]
+    const mtaAddress = resolveAddress("MTA", chain)
+    const constructorArguments = [nexusAddress, mtaAddress, disperseAddress]
 
-    const disperseForwarder = await deployContract<DisperseForwarder>(new DisperseForwarder__factory(signer), "DisperseForwarder", constructorArguments)
+    const disperseForwarder = await deployContract<DisperseForwarder>(
+        new DisperseForwarder__factory(signer),
+        "DisperseForwarder",
+        constructorArguments,
+    )
 
     await verifyEtherscan(hre, {
         address: disperseForwarder.address,
@@ -208,14 +213,17 @@ export const deployDisperseForwarder = async (signer: Signer, hre: HardhatRuntim
 }
 
 export const deployVotiumBribeForwarder = async (signer: Signer, hre: HardhatRuntimeEnvironment): Promise<VotiumBribeForwarder> => {
-
     const chain = getChain(hre)
     const nexusAddress = resolveAddress("Nexus", chain)
     const votiumBribeAddress = resolveAddress("VotiumBribe", chain)
     const mtaAddress = MTA.address
     const constructorArguments = [nexusAddress, mtaAddress, votiumBribeAddress]
 
-    const votiumBribeForwarder = await deployContract<VotiumBribeForwarder>(new VotiumBribeForwarder__factory(signer), "VotiumBribeForwarder", constructorArguments)
+    const votiumBribeForwarder = await deployContract<VotiumBribeForwarder>(
+        new VotiumBribeForwarder__factory(signer),
+        "VotiumBribeForwarder",
+        constructorArguments,
+    )
 
     await verifyEtherscan(hre, {
         address: votiumBribeForwarder.address,
