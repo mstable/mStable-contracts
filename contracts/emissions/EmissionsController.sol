@@ -32,16 +32,11 @@ struct DialData {
 }
 
 struct Preference {
-    // ID of the dial (array position)
     uint8 dialId;
-    // % weight applied to this dial, where 200 = 100% and 1 = 0.5%
     uint8 weight;
 }
 
-struct VoterPreferences {
-    // List of preferences (0 <= n <= 16 preferences).
-    // 16 * (8 + 8) = 256 bits = 1 slot
-    Preference[16] dialWeights;
+struct VoterData {
     // Total voting power cast by this voter across the staking contracts.
     uint128 votesCast;
     // Last time balance was looked up across all staking contracts
@@ -108,7 +103,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     /// @dev    The sum of the weights for each staker must not be greater than SCALE = 200.
     ///         A user can issue a subset of their voting power. eg only 20% of their voting power.
     ///         A user can not issue more than 100% of their voting power across dials.
-    mapping(address => VoterPreferences) public voterPreferences;
+    mapping(address => uint8[16]) public voterDialIds;
+    mapping(address => uint8[16]) public voterWeights;
+    mapping(address => VoterData) public voterData;
 
     event AddedDial(uint256 indexed dialId, address indexed recipient);
     event UpdatedDial(uint256 indexed dialId, bool disabled);
@@ -284,7 +281,9 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         view
         returns (Preference[16] memory preferences)
     {
-        preferences = voterPreferences[voter].dialWeights;
+        for (uint256 i = 0; i < 16; i++) {
+            preferences[i] = Preference(voterDialIds[voter][i], voterWeights[voter][i]);
+        }
     }
 
     /***************************************
@@ -540,11 +539,11 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      */
     function pokeSources(address _voter) public {
         // Only poke if voter has previously set voting preferences
-        if (voterPreferences[_voter].lastSourcePoke > 0) {
-            uint256 votesCast = voterPreferences[_voter].votesCast;
+        if (voterData[_voter].lastSourcePoke > 0) {
+            uint256 votesCast = voterData[_voter].votesCast;
             uint256 newVotesCast = getVotes(_voter) - votesCast;
             _moveVotingPower(_voter, newVotesCast, _add);
-            voterPreferences[_voter].lastSourcePoke = SafeCast.toUint32(block.timestamp);
+            voterData[_voter].lastSourcePoke = SafeCast.toUint32(block.timestamp);
 
             emit SourcesPoked(_voter, newVotesCast);
         }
@@ -561,11 +560,12 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         require(_preferences.length <= 16, "Max of 16 preferences");
 
         // 1.0 - Get staker's previous total votes cast
-        uint256 votesCast = voterPreferences[msg.sender].votesCast;
+        uint256 votesCast = voterData[msg.sender].votesCast;
         // 1.1 - Adjust dial votes from removed staker votes
         _moveVotingPower(msg.sender, votesCast, _subtract);
         //       Clear the old weights as they will be added back below
-        delete voterPreferences[msg.sender];
+        delete voterDialIds[msg.sender];
+        delete voterWeights[msg.sender];
 
         // 2.0 - Log new preferences
         uint256 newTotalWeight;
@@ -574,17 +574,18 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             require(_preferences[i].weight > 0, "Must give a dial some weight");
             newTotalWeight += _preferences[i].weight;
             //  Add staker's dial weight
-            voterPreferences[msg.sender].dialWeights[i] = _preferences[i];
+            voterDialIds[msg.sender][i] = _preferences[i].dialId;
+            voterWeights[msg.sender][i] = _preferences[i].weight;
         }
         // 2.1 - In the likely scenario less than 16 preferences are given, add a breaker with max uint
         //       to signal that this is the end of array.
         if (_preferences.length < 16) {
-            voterPreferences[msg.sender].dialWeights[_preferences.length] = Preference(255, 0);
+            voterDialIds[msg.sender][_preferences.length] = 255;
         }
         require(newTotalWeight <= SCALE, "Imbalanced weights");
 
         // Need to set before calling _moveVotingPower for the second time
-        voterPreferences[msg.sender].lastSourcePoke = SafeCast.toUint32(block.timestamp);
+        voterData[msg.sender].lastSourcePoke = SafeCast.toUint32(block.timestamp);
 
         // 3.0 - Cast votes on these new preferences
         _moveVotingPower(msg.sender, getVotes(msg.sender), _add);
@@ -612,7 +613,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
             // If burning (withdraw) or transferring delegated votes from a staker
             if (from != address(0)) {
-                uint32 lastSourcePoke = voterPreferences[from].lastSourcePoke;
+                uint32 lastSourcePoke = voterData[from].lastSourcePoke;
                 if (lastSourcePoke > addTime) {
                     _moveVotingPower(from, amount, _subtract);
                     votesCast = true;
@@ -625,7 +626,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             }
             // If minting (staking) or transferring delegated votes to a staker
             if (to != address(0)) {
-                uint32 lastSourcePoke = voterPreferences[to].lastSourcePoke;
+                uint32 lastSourcePoke = voterData[to].lastSourcePoke;
                 if (lastSourcePoke > addTime) {
                     _moveVotingPower(to, amount, _add);
                     votesCast = true;
@@ -660,23 +661,22 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         function(uint256, uint256) pure returns (uint256) _op
     ) internal {
         // 0.0 - Get preferences and epoch data
-        VoterPreferences memory preferences = voterPreferences[_voter];
+        Preference[16] memory preferences = getVoterPreferences(_voter);
+        VoterData memory data = voterData[_voter];
 
         // 0.1 - If no preferences have been set then there is nothing to do
         // This prevent doing 16 iterations below as dialId 255 will not be set
-        if (preferences.lastSourcePoke == 0) return;
+        if (data.lastSourcePoke == 0) return;
 
         // 0.2 - If in the first launch week
         uint32 currentEpoch = _epoch(block.timestamp);
 
         // 0.3 - Update the total amount of votes cast by the voter
-        voterPreferences[_voter].votesCast = SafeCast.toUint128(
-            _op(preferences.votesCast, _amount)
-        );
+        voterData[_voter].votesCast = SafeCast.toUint128(_op(data.votesCast, _amount));
 
         // 1.0 - Loop through voter preferences until dialId == 255 or until end
         for (uint256 i = 0; i < 16; i++) {
-            Preference memory pref = preferences.dialWeights[i];
+            Preference memory pref = preferences[i];
             if (pref.dialId == 255) break;
 
             // 1.1 - Scale the vote by dial weight

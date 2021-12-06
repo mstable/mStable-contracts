@@ -36,12 +36,12 @@ interface VoteHistoryExpectation {
     lastEpoch: number
 }
 interface DialData {
-        disabled: boolean
-        notify: boolean
-        cap: number
-        balance: BN
-        recipient: string
-        voteHistory: { votes: BN; epoch: number }[]
+    disabled: boolean
+    notify: boolean
+    cap: number
+    balance: BN
+    recipient: string
+    voteHistory: { votes: BN; epoch: number }[]
 }
 
 /**
@@ -136,10 +136,7 @@ const expectTopLineEmissionForEpoch = (emissionsController: EmissionsController,
     const expectedEmissionAmount = await nextRewardAmount(emissionsController, deltaEpoch)
     expect(emissionForEpoch).eq(expectedEmissionAmount)
 }
-const snapDial = async (
-    emissionsController: EmissionsController,
-    dialId: number,
-): Promise<DialData> => {
+const snapDial = async (emissionsController: EmissionsController, dialId: number): Promise<DialData> => {
     const dialData = await emissionsController.dials(dialId)
     const voteHistory = await emissionsController.getDialVoteHistory(dialId)
     return {
@@ -719,9 +716,9 @@ describe("EmissionsController", async () => {
             await increaseTime(ONE_WEEK)
 
             // Expect initial vote with no weight
-            const dialsVoteHistory = [ { dialId: 0, votesNo: 1, lastVote: 0, lastEpoch: startEpoch} ]
+            const dialsVoteHistory = [{ dialId: 0, votesNo: 1, lastVote: 0, lastEpoch: startEpoch }]
             await expectDialVotesHistoryForDials(emissionsController, dialsVoteHistory)
-                        
+
             const tx = await emissionsController.calculateRewards()
 
             await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([0, 0, 0])
@@ -765,12 +762,14 @@ describe("EmissionsController", async () => {
                     await emissionsController.connect(voter1.signer).setVoterDialWeights([{ dialId: 0, weight: 200 }])
 
                     // Expect dial 1 vote history updated with 300 votes (dialId = n-1)
-                    const dialVoteHistory = [{
-                        dialId: 0,
-                        votesNo: 1,
-                        lastVote: VOTERS["1"].votes,
-                        lastEpoch: startEpoch,
-                    }]
+                    const dialVoteHistory = [
+                        {
+                            dialId: 0,
+                            votesNo: 1,
+                            lastVote: VOTERS["1"].votes,
+                            lastEpoch: startEpoch,
+                        },
+                    ]
                     await expectDialVotesHistoryForDials(emissionsController, dialVoteHistory)
                     await increaseTime(ONE_WEEK)
 
@@ -1394,8 +1393,8 @@ describe("EmissionsController", async () => {
             it("disabled should not receive any distribution", async () => {
                 // Given that dial 1 is disabled, and dial 2 is enabled
                 // and voter 1 gives all its votes to dial 1, and voter 2 gives all its votes to dial 2,
-                // and dial 3 does not have any vote weight 
-                const dialBefore = [];
+                // and dial 3 does not have any vote weight
+                const dialBefore = []
                 let tx = await emissionsController.connect(sa.governor.signer).updateDial(0, true)
                 dialBefore[0] = await snapDial(emissionsController, 0)
                 dialBefore[1] = await snapDial(emissionsController, 1)
@@ -1407,15 +1406,14 @@ describe("EmissionsController", async () => {
                 ]
                 await expectDialVotesHistoryForDials(emissionsController, dialVoteHistory)
 
-                // When it calculates rewards 
+                // When it calculates rewards
                 await increaseTime(ONE_WEEK)
                 const nextEpochEmission = await nextRewardAmount(emissionsController)
                 tx = await emissionsController.calculateRewards()
 
-                const dialAfter = [];
+                const dialAfter = []
                 dialAfter[0] = await snapDial(emissionsController, 0)
                 dialAfter[1] = await snapDial(emissionsController, 1)
-
 
                 // Then disabled dials should not receive any distribution
                 await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([0, nextEpochEmission, 0])
@@ -1430,9 +1428,9 @@ describe("EmissionsController", async () => {
             it("disabled then re-enabled it should receive distribution", async () => {
                 // Given a dial 1 is enabled, and dial 2 is enabled
                 // and voter 1 gives all its votes to dial 1, and voter 2 gives all its votes to dial 2,
-                // and dial 3 does not have any vote weight 
-                const dialBefore:Array<DialData> = [];
-                const dialAfter:Array<DialData> = [];
+                // and dial 3 does not have any vote weight
+                const dialBefore: Array<DialData> = []
+                const dialAfter: Array<DialData> = []
                 let tx = await emissionsController.connect(sa.governor.signer).updateDial(0, true)
 
                 dialBefore[0] = await snapDial(emissionsController, 0)
@@ -1456,7 +1454,7 @@ describe("EmissionsController", async () => {
                 // Then no new votes should be cast for disabled dials
                 expect(dialBefore[0].voteHistory.length, "dial 1 vote history should not change").to.eq(dialAfter[0].voteHistory.length)
 
-                // When the dial is re-enabled and it calculates rewards 
+                // When the dial is re-enabled and it calculates rewards
                 tx = await emissionsController.connect(sa.governor.signer).updateDial(0, false)
                 await expect(tx).to.emit(emissionsController, "UpdatedDial").withArgs(0, false)
 
@@ -1479,21 +1477,24 @@ describe("EmissionsController", async () => {
 
                 // New votes should be cast for enabled dials
                 expect(dialBefore[0].voteHistory.length + 1, "dial 1 vote history should increase").to.eq(dialAfter[0].voteHistory.length)
-                expect(dialBefore[0].voteHistory.slice(-1)[0].votes, "dial 1 vote weight should not change").to.eq(dialAfter[0].voteHistory.slice(-1)[0].votes)
+                expect(dialBefore[0].voteHistory.slice(-1)[0].votes, "dial 1 vote weight should not change").to.eq(
+                    dialAfter[0].voteHistory.slice(-1)[0].votes,
+                )
 
                 expect(dialBefore[1].voteHistory.length + 2, "dial 2 vote history should increase").to.eq(dialAfter[1].voteHistory.length)
-                expect(dialBefore[1].voteHistory.slice(-1)[0].votes, "dial 2 vote weight should not change").to.eq(dialAfter[1].voteHistory.slice(-1)[0].votes)
-
+                expect(dialBefore[1].voteHistory.slice(-1)[0].votes, "dial 2 vote weight should not change").to.eq(
+                    dialAfter[1].voteHistory.slice(-1)[0].votes,
+                )
             })
             // TODO after a new dial was added that was not in previous distributions [DONE]
             it("added that was not in previous distributions", async () => {
                 // --- Given ---
                 // that dial 1,2 and 3 are enabled
-                // and voter 1 gives all its votes to dial 1, and voter 2 gives all its votes to dial 2, and dial 3 does not have any vote weight 
+                // and voter 1 gives all its votes to dial 1, and voter 2 gives all its votes to dial 2, and dial 3 does not have any vote weight
 
-                const dialBefore:Array<DialData> = [];
-                const dialAfter:Array<DialData> = [];
-                const adjustedDials:BN[][] = [[]]
+                const dialBefore: Array<DialData> = []
+                const dialAfter: Array<DialData> = []
+                const adjustedDials: BN[][] = [[]]
 
                 dialBefore[0] = await snapDial(emissionsController, 0)
                 dialBefore[1] = await snapDial(emissionsController, 1)
@@ -1511,7 +1512,6 @@ describe("EmissionsController", async () => {
                 let nextEpochEmission = await nextRewardAmount(emissionsController)
                 let tx = await emissionsController.calculateRewards()
 
-                
                 dialAfter[0] = await snapDial(emissionsController, 0)
                 dialAfter[1] = await snapDial(emissionsController, 1)
 
@@ -1532,23 +1532,26 @@ describe("EmissionsController", async () => {
                 // -- When --
                 // it adds a new dial and calculates the distribution
 
-                const newDial = await new MockRewardsDistributionRecipient__factory(sa.default.signer).deploy(rewardToken.address, DEAD_ADDRESS)
+                const newDial = await new MockRewardsDistributionRecipient__factory(sa.default.signer).deploy(
+                    rewardToken.address,
+                    DEAD_ADDRESS,
+                )
                 tx = await emissionsController.connect(sa.governor.signer).addDial(newDial.address, 0, true)
-                await expect(tx).to.emit(emissionsController, "AddedDial").withArgs(3, newDial.address) 
+                await expect(tx).to.emit(emissionsController, "AddedDial").withArgs(3, newDial.address)
 
-                // Assign voters 3 weight  to new dial 
-                await emissionsController.connect(voter3.signer).setVoterDialWeights([{ dialId: 3, weight: 200 }])                
+                // Assign voters 3 weight  to new dial
+                await emissionsController.connect(voter3.signer).setVoterDialWeights([{ dialId: 3, weight: 200 }])
                 dialBefore[3] = await snapDial(emissionsController, 3)
 
                 // calculates distribution
 
                 await increaseTime(ONE_WEEK)
-                 nextEpochEmission = await nextRewardAmount(emissionsController)
-                 tx = await emissionsController.calculateRewards()
+                nextEpochEmission = await nextRewardAmount(emissionsController)
+                tx = await emissionsController.calculateRewards()
 
-                 dialAfter[0] = await snapDial(emissionsController, 0)
-                 dialAfter[1] = await snapDial(emissionsController, 1)
-                 dialAfter[3] = await snapDial(emissionsController, 3)
+                dialAfter[0] = await snapDial(emissionsController, 0)
+                dialAfter[1] = await snapDial(emissionsController, 1)
+                dialAfter[3] = await snapDial(emissionsController, 3)
 
                 // -- Then --
                 // the new dial should receive emissions after calculating rewards
@@ -1558,11 +1561,13 @@ describe("EmissionsController", async () => {
                 adjustedDials[1][1] = nextEpochEmission.div(2)
                 // Voter 3 has 300 of the 1200 votes (2/5)
                 adjustedDials[3][0] = BN.from(0)
-                adjustedDials[3][1] = nextEpochEmission.div(4)                
+                adjustedDials[3][1] = nextEpochEmission.div(4)
                 // Then disabled dials should not receive any distribution
-                
-                await expect(tx).to.emit(emissionsController, "PeriodRewards").withArgs([adjustedDials[0][1], adjustedDials[1][1], 0, adjustedDials[3][1]])
-                const sum = (a:BN, b:BN) => a.add(b);
+
+                await expect(tx)
+                    .to.emit(emissionsController, "PeriodRewards")
+                    .withArgs([adjustedDials[0][1], adjustedDials[1][1], 0, adjustedDials[3][1]])
+                const sum = (a: BN, b: BN) => a.add(b)
 
                 expect((await emissionsController.dials(0)).balance, "dial 1 balance after").to.eq(adjustedDials[0].reduce(sum))
                 expect((await emissionsController.dials(1)).balance, "dial 2 balance after").to.eq(adjustedDials[1].reduce(sum))
@@ -1570,7 +1575,9 @@ describe("EmissionsController", async () => {
                 expect((await emissionsController.dials(3)).balance, "dial new balance after").to.eq(adjustedDials[3].reduce(sum))
                 // New votes should be cast for new dial
                 expect(dialBefore[3].voteHistory.length + 1, "dial new vote history should increase").to.eq(dialAfter[3].voteHistory.length)
-                expect(dialBefore[3].voteHistory.slice(-1)[0].votes, "dial 1 vote weight should not change").to.eq(dialAfter[3].voteHistory.slice(-1)[0].votes)
+                expect(dialBefore[3].voteHistory.slice(-1)[0].votes, "dial 1 vote weight should not change").to.eq(
+                    dialAfter[3].voteHistory.slice(-1)[0].votes,
+                )
             })
         })
         // TODO after a new staking contract was added that was not in previous distributions
@@ -1708,7 +1715,7 @@ describe("EmissionsController", async () => {
             await expect(tx).to.not.emit(emissionsController, "SourcesPoked")
         })
         it("should poke voter 1 with voting power but no preferences set", async () => {
-            const voterPreferencesBefore = await emissionsController.voterPreferences(voter1.address)
+            const voterPreferencesBefore = await emissionsController.voterData(voter1.address)
             expect(voterPreferencesBefore.lastSourcePoke, "last poke time before").to.eq(0)
             expect(voterPreferencesBefore.votesCast, "votes cast before").to.eq(0)
 
@@ -1720,12 +1727,12 @@ describe("EmissionsController", async () => {
 
             await expect(tx).to.not.emit(emissionsController, "SourcesPoked")
 
-            const voterPreferencesAfter = await emissionsController.voterPreferences(voter1.address)
+            const voterPreferencesAfter = await emissionsController.voterData(voter1.address)
             expect(voterPreferencesAfter.lastSourcePoke, "last poke time after").to.eq(0)
             expect(voterPreferencesAfter.votesCast, "votes cast after").to.eq(0)
         })
         it("should poke voter 1 with voting power and weights set", async () => {
-            const voterPreferencesBefore = await emissionsController.voterPreferences(voter1.address)
+            const voterPreferencesBefore = await emissionsController.voterData(voter1.address)
             expect(voterPreferencesBefore.lastSourcePoke, "last poke time before").to.eq(0)
 
             // Voter 1 has voting power in staking contracts 1 and 2
@@ -1743,7 +1750,7 @@ describe("EmissionsController", async () => {
             const tx = await emissionsController.pokeSources(voter1.address)
 
             await expect(tx).to.emit(emissionsController, "SourcesPoked").withArgs(voter1.address, 0)
-            const voterPreferencesAfter = await emissionsController.voterPreferences(voter1.address)
+            const voterPreferencesAfter = await emissionsController.voterData(voter1.address)
             expect(voterPreferencesAfter.lastSourcePoke, "last poke time after").to.gt(currentTime)
 
             const dialVotes = await emissionsController.getDialVotes()
@@ -1793,7 +1800,7 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[3], "dial 4 votes").to.eq(simpleToExactAmount(9000).mul(4).div(10))
                 expect(dialVotes[4], "dial 5 votes").to.eq(0)
 
-                const preferencesAfter = await emissionsController.voterPreferences(voter1.address)
+                const preferencesAfter = await emissionsController.voterData(voter1.address)
                 expect(await preferencesAfter.lastSourcePoke, "lastSourcePoke after").to.gte(currentTime)
                 expect(preferencesAfter.votesCast, "votes cast after").to.eq(simpleToExactAmount(9000))
             })
@@ -1810,7 +1817,7 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[3], "dial 4 votes").to.eq(simpleToExactAmount(3000).mul(4).div(10))
                 expect(dialVotes[4], "dial 5 votes").to.eq(0)
 
-                const preferencesAfter = await emissionsController.voterPreferences(voter2.address)
+                const preferencesAfter = await emissionsController.voterData(voter2.address)
                 expect(await preferencesAfter.lastSourcePoke, "lastSourcePoke after").to.eq(0)
                 expect(preferencesAfter.votesCast, "votes cast after").to.eq(0)
             })
@@ -1912,7 +1919,7 @@ describe("EmissionsController", async () => {
             expect(voterPreferencesAfter[15].weight, "pos 16 weight after").to.eq(preferences[15].weight)
         })
         it("should set 100% on dial 20", async () => {
-            const voterPreferencesBefore = await emissionsController.voterPreferences(voter2.address)
+            const voterPreferencesBefore = await emissionsController.voterData(voter2.address)
             expect(await voterPreferencesBefore.lastSourcePoke, "lastSourcePoke after").to.eq(0)
             // dial 20 has dial identifier 19
             const preferences = [{ dialId: 19, weight: 200 }]
@@ -1935,7 +1942,7 @@ describe("EmissionsController", async () => {
             expect(voterWeightsAfter[2].dialId, "pos 3 dial id after").to.eq(0)
             expect(voterWeightsAfter[2].weight, "pos 3 weight after").to.eq(0)
 
-            const voterPreferencesAfter = await emissionsController.voterPreferences(voter2.address)
+            const voterPreferencesAfter = await emissionsController.voterData(voter2.address)
             expect(await voterPreferencesAfter.lastSourcePoke, "lastSourcePoke after").to.gt(0)
         })
         it("should override previous dial weights", async () => {
@@ -2046,7 +2053,7 @@ describe("EmissionsController", async () => {
             await staking1.setVotes(voter1.address, simpleToExactAmount(100))
             await staking1.setVotes(voter2.address, simpleToExactAmount(200))
 
-            const preferencesBefore = await emissionsController.voterPreferences(voter1.address)
+            const preferencesBefore = await emissionsController.voterData(voter1.address)
             expect(await preferencesBefore.lastSourcePoke, "lastSourcePoke before").to.eq(0)
 
             await emissionsController.connect(voter1.signer).setVoterDialWeights([
@@ -2054,14 +2061,14 @@ describe("EmissionsController", async () => {
                 { dialId: 1, weight: 60 }, // 30%
                 { dialId: 0, weight: 20 }, // 10%
             ])
-            voter1PreferencesBefore = await emissionsController.voterPreferences(voter1.address)
+            voter1PreferencesBefore = await emissionsController.voterData(voter1.address)
         })
         context("in first launch week", () => {
             beforeEach(async () => {
                 currentTime = await getTimestamp()
             })
             it("should increase voter 1's voting power", async () => {
-                const preferencesBefore = await emissionsController.voterPreferences(voter1.address)
+                const preferencesBefore = await emissionsController.voterData(voter1.address)
                 expect(await preferencesBefore.lastSourcePoke, "lastSourcePoke before").to.gt(0)
 
                 // Voter 1's voting power is tripled from 100 to 300 which is a 200 increase
@@ -2078,7 +2085,7 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[1], "dial 2 votes").to.eq(simpleToExactAmount(300).mul(3).div(10))
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(300).mul(6).div(10))
 
-                const preferencesAfter = await emissionsController.voterPreferences(voter1.address)
+                const preferencesAfter = await emissionsController.voterData(voter1.address)
                 expect(await preferencesAfter.lastSourcePoke, "lastSourcePoke after").to.eq(voter1PreferencesBefore.lastSourcePoke)
                 expect(preferencesAfter.votesCast, "votes cast after").to.eq(simpleToExactAmount(300))
             })
@@ -2102,7 +2109,7 @@ describe("EmissionsController", async () => {
                 )
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(100).mul(6).div(10))
 
-                const preferences = await emissionsController.voterPreferences(voter2.address)
+                const preferences = await emissionsController.voterData(voter2.address)
                 expect(await preferences.lastSourcePoke, "lastSourcePoke after").to.gte(currentTime)
                 expect(preferences.votesCast, "votes cast after").to.eq(simpleToExactAmount(200))
             })
@@ -2118,7 +2125,7 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[1], "dial 2 votes").to.eq(simpleToExactAmount(100).mul(3).div(10))
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(100).mul(6).div(10))
 
-                const preferences = await emissionsController.voterPreferences(voter3.address)
+                const preferences = await emissionsController.voterData(voter3.address)
                 expect(await preferences.lastSourcePoke, "lastSourcePoke after").to.eq(0)
                 expect(preferences.votesCast, "votes cast after").to.eq(0)
             })
@@ -2144,7 +2151,7 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[1], "dial 2 votes").to.eq(simpleToExactAmount(500).mul(3).div(10))
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(500).mul(6).div(10))
 
-                const preferencesAfter = await emissionsController.voterPreferences(voter1.address)
+                const preferencesAfter = await emissionsController.voterData(voter1.address)
                 expect(await preferencesAfter.lastSourcePoke, "lastSourcePoke after").to.gte(voter1PreferencesBefore.lastSourcePoke)
                 expect(preferencesAfter.votesCast, "votes cast after").to.eq(simpleToExactAmount(500))
             })
@@ -2162,7 +2169,7 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[1], "dial 2 votes").to.eq(simpleToExactAmount(10).mul(3).div(10))
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(10).mul(6).div(10))
 
-                const preferencesAfter = await emissionsController.voterPreferences(voter1.address)
+                const preferencesAfter = await emissionsController.voterData(voter1.address)
                 expect(await preferencesAfter.lastSourcePoke, "lastSourcePoke after").to.eq(voter1PreferencesBefore.lastSourcePoke)
                 expect(preferencesAfter.votesCast, "votes cast after").to.eq(simpleToExactAmount(10))
             })
@@ -2186,7 +2193,7 @@ describe("EmissionsController", async () => {
                 )
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(100).mul(6).div(10))
 
-                const preferencesAfter = await emissionsController.voterPreferences(voter2.address)
+                const preferencesAfter = await emissionsController.voterData(voter2.address)
                 expect(await preferencesAfter.lastSourcePoke, "lastSourcePoke after").to.gte(currentTime)
                 expect(preferencesAfter.votesCast, "votes cast after").to.eq(simpleToExactAmount(200))
             })
@@ -2210,7 +2217,7 @@ describe("EmissionsController", async () => {
                 )
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(100).mul(6).div(10))
 
-                const preferencesAfter = await emissionsController.voterPreferences(voter2.address)
+                const preferencesAfter = await emissionsController.voterData(voter2.address)
                 expect(await preferencesAfter.lastSourcePoke, "lastSourcePoke after").to.gte(currentTime)
                 expect(preferencesAfter.votesCast, "votes cast after").to.eq(simpleToExactAmount(300))
             })
@@ -2226,7 +2233,7 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[1], "dial 2 votes").to.eq(simpleToExactAmount(100).mul(3).div(10))
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(100).mul(6).div(10))
 
-                const preferencesAfter = await emissionsController.voterPreferences(voter3.address)
+                const preferencesAfter = await emissionsController.voterData(voter3.address)
                 expect(await preferencesAfter.lastSourcePoke, "lastSourcePoke after").to.eq(0)
                 expect(preferencesAfter.votesCast, "votes cast after").to.eq(0)
             })
@@ -2280,7 +2287,7 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[1], "dial 2 votes").to.eq(0)
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(21000).mul(4).div(10))
 
-                const preferences = await emissionsController.voterPreferences(voter1.address)
+                const preferences = await emissionsController.voterData(voter1.address)
                 expect(await preferences.lastSourcePoke, "lastSourcePoke after").to.gte(currentTime)
                 expect(preferences.votesCast, "votes cast after").to.eq(simpleToExactAmount(21000))
             })
@@ -2296,7 +2303,7 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[1], "dial 2 votes").to.eq(0)
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(3000).mul(4).div(10))
 
-                const preferences = await emissionsController.voterPreferences(voter1.address)
+                const preferences = await emissionsController.voterData(voter1.address)
                 expect(await preferences.lastSourcePoke, "lastSourcePoke after").to.gte(currentTime)
                 expect(preferences.votesCast, "votes cast after").to.eq(simpleToExactAmount(3000))
             })
@@ -2319,7 +2326,7 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[1], "dial 2 votes").to.eq(simpleToExactAmount(2300 + 200))
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(3000).mul(4).div(10))
 
-                const preferences = await emissionsController.voterPreferences(voter2.address)
+                const preferences = await emissionsController.voterData(voter2.address)
                 expect(await preferences.lastSourcePoke, "lastSourcePoke after").to.gte(currentTime)
                 expect(preferences.votesCast, "votes cast after").to.eq(simpleToExactAmount(2300 + 200))
             })
@@ -2336,7 +2343,7 @@ describe("EmissionsController", async () => {
                 expect(dialVotes[1], "dial 2 votes").to.eq(0)
                 expect(dialVotes[2], "dial 3 votes").to.eq(simpleToExactAmount(3000).mul(4).div(10))
 
-                const preferences = await emissionsController.voterPreferences(voter3.address)
+                const preferences = await emissionsController.voterData(voter3.address)
                 expect(await preferences.lastSourcePoke, "lastSourcePoke after").to.eq(0)
                 expect(preferences.votesCast, "votes cast after").to.eq(0)
             })
