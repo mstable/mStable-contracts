@@ -83,7 +83,7 @@ describe("RevenueForwarder", () => {
             const senderBalBefore = await mAsset.balanceOf(sa.default.address)
             const revenueBuyBackBalBefore = await mAsset.balanceOf(revenueForwarder.address)
             const notificationAmount = simpleToExactAmount(100, 18)
-            expect(senderBalBefore.gte(notificationAmount), "sender rewards bal before").to.be.true
+            expect(senderBalBefore.gte(notificationAmount), "sender rewards bal before").to.eq(true)
 
             // approve
             await mAsset.approve(revenueForwarder.address, notificationAmount)

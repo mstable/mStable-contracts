@@ -205,7 +205,7 @@ describe("RevenueBuyBack", () => {
             const senderBalBefore = await mUSD.balanceOf(sa.default.address)
             const revenueBuyBackBalBefore = await mUSD.balanceOf(revenueBuyBack.address)
             const notificationAmount = simpleToExactAmount(100, 18)
-            expect(senderBalBefore.gte(notificationAmount), "sender rewards bal before").to.be.true
+            expect(senderBalBefore.gte(notificationAmount), "sender rewards bal before").to.eq(true)
 
             // approve
             await mUSD.approve(revenueBuyBack.address, notificationAmount)

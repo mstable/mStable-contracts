@@ -16,7 +16,7 @@ import { ImmutableModule } from "../shared/ImmutableModule.sol";
 contract VotiumBribeForwarder is ImmutableModule {
     using SafeERC20 for IERC20;
 
-    /// @notice Rewards token that is to be deposit. 
+    /// @notice Rewards token that is to be deposit.
     // solhint-disable-next-line var-name-mixedcase
     IERC20 public immutable REWARDS_TOKEN;
     /// @notice Token VotiumBribe contract. eg 0x19bbc3463dd8d07f55438014b021fb457ebd4595
@@ -29,18 +29,20 @@ contract VotiumBribeForwarder is ImmutableModule {
      * @param _rewardsToken Bridged rewards token on the Polygon chain.
      * @param _votiumBribe Token votium bribe contract.
      */
-    constructor(address _nexus, address _rewardsToken, address _votiumBribe)
-        ImmutableModule(_nexus) {
+    constructor(
+        address _nexus,
+        address _rewardsToken,
+        address _votiumBribe
+    ) ImmutableModule(_nexus) {
         require(_rewardsToken != address(0), "Invalid Rewards token");
         require(_votiumBribe != address(0), "Invalid VotiumBribe contract");
         REWARDS_TOKEN = IERC20(_rewardsToken);
         VOTIUM_BRIBE = IVotiumBribe(_votiumBribe);
     }
 
-
     /**
      * @notice Deposits a bribe into Votium, choiceIndex must be set previously.
-     * @param amount amount of  reward token to deposit including decimal places.
+     * @param amount  the amount of reward tokens to deposit including decimal places.
      * @param proposal votium brive proposal
      */
     function depositBribe(uint256 amount, bytes32 proposal) external onlyKeeperOrGovernor {
@@ -59,6 +61,6 @@ contract VotiumBribeForwarder is ImmutableModule {
      * @param _choiceIndex the bribe choice index
      */
     function updateChoiceIndex(uint256 _choiceIndex) public onlyKeeperOrGovernor {
-      choiceIndex = _choiceIndex;
+        choiceIndex = _choiceIndex;
     }
 }
