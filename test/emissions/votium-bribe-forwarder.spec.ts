@@ -2,10 +2,18 @@ import { MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { simpleToExactAmount } from "@utils/math"
 import { expect } from "chai"
-import { formatBytes32String} from "ethers/lib/utils"
+import { formatBytes32String } from "ethers/lib/utils"
 import { ethers } from "hardhat"
 import { Account } from "types/common"
-import { MockERC20, MockNexus, MockNexus__factory, MockVotiumBribe, MockVotiumBribe__factory, VotiumBribeForwarder, VotiumBribeForwarder__factory } from "types/generated"
+import {
+    MockERC20,
+    MockNexus,
+    MockNexus__factory,
+    MockVotiumBribe,
+    MockVotiumBribe__factory,
+    VotiumBribeForwarder,
+    VotiumBribeForwarder__factory,
+} from "types/generated"
 
 const PROPOSAL = formatBytes32String("PROPOSAL")
 
@@ -36,7 +44,7 @@ describe("VotiumBribeForwarder", () => {
         rewardsToken = await mAssetMachine.loadBassetProxy("Rewards Token", "RWD", 18)
         owner = sa.default
         emissionsController = sa.dummy2
-        
+
         // Deploy VotiumBribeForwarder
         forwarder = await new VotiumBribeForwarder__factory(owner.signer).deploy(nexus.address, rewardsToken.address, votiumBribe.address)
 
@@ -59,7 +67,11 @@ describe("VotiumBribeForwarder", () => {
         })
         describe("it should fail if zero", () => {
             it("nexus", async () => {
-                const tx = new VotiumBribeForwarder__factory(sa.default.signer).deploy(ZERO_ADDRESS, rewardsToken.address, votiumBribe.address)
+                const tx = new VotiumBribeForwarder__factory(sa.default.signer).deploy(
+                    ZERO_ADDRESS,
+                    rewardsToken.address,
+                    votiumBribe.address,
+                )
                 await expect(tx).to.revertedWith("Nexus address is zero")
             })
             it("rewards token", async () => {
@@ -67,7 +79,7 @@ describe("VotiumBribeForwarder", () => {
                 await expect(tx).to.revertedWith("Invalid Rewards token")
             })
             it("Votium bribe ", async () => {
-                const tx = new VotiumBribeForwarder__factory(sa.default.signer).deploy(nexus.address, rewardsToken.address , ZERO_ADDRESS)
+                const tx = new VotiumBribeForwarder__factory(sa.default.signer).deploy(nexus.address, rewardsToken.address, ZERO_ADDRESS)
                 await expect(tx).to.revertedWith("Invalid VotiumBribe contract")
             })
         })
@@ -79,15 +91,13 @@ describe("VotiumBribeForwarder", () => {
 
             // Simulate the emissions controller calling the forwarder
             await rewardsToken.transfer(forwarder.address, amount)
-            
-            const tx = await forwarder.connect(sa.governor.signer).depositBribe(amount,PROPOSAL)
+
+            const tx = await forwarder.connect(sa.governor.signer).depositBribe(amount, PROPOSAL)
             // Bribed(_token, bribeTotal, _proposal, _choiceIndex)
             await expect(tx).to.emit(votiumBribe, "Bribed")
 
             // check output balances: mAsset sender/recipient
-            expect(await rewardsToken.balanceOf(votiumBribe.address), "end recipient balance after").eq(
-                endRecipientBalBefore.add(amount),
-            )
+            expect(await rewardsToken.balanceOf(votiumBribe.address), "end recipient balance after").eq(endRecipientBalBefore.add(amount))
         })
         describe("should fail if", () => {
             it("amount is zero", async () => {
@@ -98,33 +108,32 @@ describe("VotiumBribeForwarder", () => {
                 const balance = await rewardsToken.balanceOf(forwarder.address)
                 const tx = forwarder.connect(sa.governor.signer).depositBribe(simpleToExactAmount(balance.add(1)), PROPOSAL)
                 await expect(tx).to.be.revertedWith("Insufficient rewards")
-            }) 
+            })
             it("non governor or keeper", async () => {
                 const tx = forwarder.depositBribe(simpleToExactAmount(0), PROPOSAL)
                 await expect(tx).to.be.revertedWith("Only keeper or governor")
-            })                       
+            })
         })
     })
     describe("updates choice index", () => {
         it("keeper should set new choice index", async () => {
-            // Given a default choice index 
-            const newChoiceIndex = 1;
-            const choiceIndexBefore =  await forwarder.choiceIndex();
+            // Given a default choice index
+            const newChoiceIndex = 1
+            const choiceIndexBefore = await forwarder.choiceIndex()
 
-            // When the value is updated 
-            await forwarder.connect(sa.governor.signer).updateChoiceIndex(newChoiceIndex);
+            // When the value is updated
+            await forwarder.connect(sa.governor.signer).updateChoiceIndex(newChoiceIndex)
 
-            // Then 
-            const choiceIndexAfter =  await forwarder.connect(sa.governor.signer).choiceIndex();
+            // Then
+            const choiceIndexAfter = await forwarder.connect(sa.governor.signer).choiceIndex()
             expect(choiceIndexBefore, "choice index changed").to.not.eq(choiceIndexAfter)
             expect(choiceIndexAfter, "choice index expected value").to.eq(newChoiceIndex)
-
         })
         describe("should fail if", () => {
             it("non governor or keeper", async () => {
                 const tx = forwarder.depositBribe(simpleToExactAmount(0), PROPOSAL)
                 await expect(tx).to.be.revertedWith("Only keeper or governor")
-            })                       
+            })
         })
     })
 })

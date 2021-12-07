@@ -78,7 +78,6 @@ describe("DisperseForwarder", () => {
         })
     })
     describe("disperse token", () => {
-
         it("should transfer rewards to forwarder", async () => {
             const recipients = [disperse.address]
             const values = [simpleToExactAmount(100, 18)]

@@ -30,7 +30,7 @@ import {
     outputFees,
     getCollectedInterest,
 } from "./utils/snap-utils"
-import { Chain, PFRAX, PmUSD, RAI, Token, tokens } from "./utils/tokens"
+import { Chain, PFRAX, PmUSD, Token, tokens } from "./utils/tokens"
 import { btcFormatter, QuantityFormatter, usdFormatter } from "./utils/quantity-formatters"
 import { getSwapRates } from "./utils/rates-utils"
 import { getSigner } from "./utils/signerFactory"
