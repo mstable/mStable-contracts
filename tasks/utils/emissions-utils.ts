@@ -24,14 +24,12 @@ import { verifyEtherscan } from "./etherscan"
 import { getChain, resolveAddress } from "./networkAddressFactory"
 import { Chain, MTA } from "./tokens"
 
-export const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
-
 export const deployEmissionsController = async (signer: Signer, hre: HardhatRuntimeEnvironment): Promise<EmissionsController> => {
     const chain = getChain(hre)
 
     const nexusAddress = resolveAddress("Nexus", chain)
     const proxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)
-    const mtaAddress = MTA.address
+    const mtaAddress = resolveAddress("MTA", chain)
     const mtaStakingAddress = resolveAddress("StakedTokenMTA", chain)
     const mbptStakingAddress = resolveAddress("StakedTokenBPT", chain)
 
@@ -268,9 +266,6 @@ export const deployBridgeForwarder = async (
     console.log(`\nSet bridgeForwarder to ${bridgeForwarder.address}`)
     console.log(`Governor calls EmissionsController.addDial ${emissionsControllerAddress} with params:`)
     console.log(`recipient ${bridgeForwarder.address}, cap 0, notify true`)
-
-    // wait 10 seconds
-    await sleep(10000)
 
     await verifyEtherscan(hre, {
         address: bridgeForwarderImpl.address,
