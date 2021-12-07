@@ -53,6 +53,7 @@ export const hardhatConfig = {
                 "*": {
                     Masset: ["storageLayout"],
                     FeederPool: ["storageLayout"],
+                    EmissionsController: ["storageLayout"],
                 },
             },
         },

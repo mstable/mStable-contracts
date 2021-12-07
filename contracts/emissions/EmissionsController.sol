@@ -39,9 +39,13 @@ struct Preference {
 }
 
 struct VoterPreferences {
-    // List of preferences (0 <= n <= 16 preferences).
-    // 16 * (8 + 8) = 256 bits = 1 slot
-    Preference[16] dialWeights;
+    // A array of 16 Preferences, which contain a dialId and weight of 8 bits each.
+    // That's 16 bits per item, which is 16 * 16 = 256 bits = 1 slot.
+    // The first item, index 0, is right ended.
+    // Each item is a dialId and weight.
+    // The array is stored as a uint256
+    uint256 dialWeights;
+
     // Total voting power cast by this voter across the staking contracts.
     uint128 votesCast;
     // Last time balance was looked up across all staking contracts
@@ -284,7 +288,10 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
         view
         returns (Preference[16] memory preferences)
     {
-        preferences = voterPreferences[voter].dialWeights;
+        for (uint256 i = 0; i < 16; i++) {
+            preferences[i].weight = uint8(voterPreferences[voter].dialWeights >> i * 16);
+            preferences[i].dialId = uint8(voterPreferences[voter].dialWeights >> i * 16 + 8);
+        }
     }
 
     /***************************************
@@ -569,19 +576,27 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
         // 2.0 - Log new preferences
         uint256 newTotalWeight;
+        uint256 newDialWeights;
         for (uint256 i = 0; i < _preferences.length; i++) {
             require(_preferences[i].dialId < dials.length, "Invalid dial id");
             require(_preferences[i].weight > 0, "Must give a dial some weight");
             newTotalWeight += _preferences[i].weight;
-            //  Add staker's dial weight
-            voterPreferences[msg.sender].dialWeights[i] = _preferences[i];
+
+            // Add staker's dial weight
+            newDialWeights |= uint256(_preferences[i].weight) << i * 16;
+            // Add staker's dial id
+            newDialWeights |= uint256(_preferences[i].dialId) << (i * 16) + 8;
         }
+
         // 2.1 - In the likely scenario less than 16 preferences are given, add a breaker with max uint
         //       to signal that this is the end of array.
         if (_preferences.length < 16) {
-            voterPreferences[msg.sender].dialWeights[_preferences.length] = Preference(255, 0);
+            // Set dialId to 255
+            newDialWeights |= uint256(255) << (_preferences.length * 16) + 8;
         }
         require(newTotalWeight <= SCALE, "Imbalanced weights");
+        // Update storage with the array of 16 Preferences stored as an uint256 
+        voterPreferences[msg.sender].dialWeights = newDialWeights;
 
         // Need to set before calling _moveVotingPower for the second time
         voterPreferences[msg.sender].lastSourcePoke = SafeCast.toUint32(block.timestamp);
@@ -676,15 +691,17 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
         // 1.0 - Loop through voter preferences until dialId == 255 or until end
         for (uint256 i = 0; i < 16; i++) {
-            Preference memory pref = preferences.dialWeights[i];
-            if (pref.dialId == 255) break;
+            uint8 dialId = uint8(preferences.dialWeights >> (i * 16) + 8);
+            if (dialId == 255) break;
+            
+            uint8 weight = uint8(preferences.dialWeights >> i * 16);
 
             // 1.1 - Scale the vote by dial weight
             //       e.g. 5e17 * 1e18 / 1e18 * 100e18 / 1e18 = 50e18
-            uint256 amountToChange = (pref.weight * _amount) / SCALE;
+            uint256 amountToChange = (weight * _amount) / SCALE;
 
             // 1.2 - Fetch voting history for this dial
-            HistoricVotes[] storage voteHistory = dials[pref.dialId].voteHistory;
+            HistoricVotes[] storage voteHistory = dials[dialId].voteHistory;
             uint256 len = voteHistory.length;
             HistoricVotes storage latestHistoricVotes = voteHistory[len - 1];
 
