@@ -282,7 +282,7 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 // Will become redundant after the Emissions Controller is deployed
                 return "0x973E0B9E1b0bf43B1B8dDf9D6A2f817138cf3C10"
             case "EmissionsController":
-                return "0x548776F8DA7620B8B7701BfA2157Ad855094f536"
+                return "0x2d1864922c7C9B9f9a3609ceA70101b638Aac63C"
             case "PolygonRootChainManager":
                 // Is MockRootChainManager
                 return "0x0C4964457610970a2884B8A74a397Eb9ba37D9d4"
