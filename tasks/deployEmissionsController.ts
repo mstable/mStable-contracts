@@ -40,9 +40,6 @@ task("deploy-emissions")
         const emissionsController = await deployEmissionsController(signer, hre)
 
         console.log(`Set RewardsDistributor in the networkAddressFactory to ${emissionsController.address}`)
-
-        const votiumBribeForwarder = await deployVotiumBribeForwarder(signer, hre)
-        console.log(`Set VotiumForwarder to ${votiumBribeForwarder.address}`)
     })
 
 task("deploy-bridge-forwarder", "Deploys a BridgeForwarder contract on mainnet for Polygon dials.")
@@ -72,6 +69,15 @@ task("deploy-basic-forwarder", "Deploys a basic rewards forwarder from the emiss
 
         const emissionsControllerAddress = resolveAddress("EmissionsController", chain)
         await deployBasicForwarder(signer, emissionsControllerAddress, taskArgs.recipient, hre, taskArgs.owner)
+    })
+
+task("deploy-votium-forwarder", "Deploys a Votium forwarder from the emissions controller.")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+
+        const votiumBribeForwarder = await deployVotiumBribeForwarder(signer, hre)
+        console.log(`Set VotiumForwarder contract name in networkAddressFactory to ${votiumBribeForwarder.address}`)
     })
 
 task("deploy-revenue-buy-back")
