@@ -33,9 +33,9 @@ struct DialData {
 
 struct Preference {
     // ID of the dial (array position)
-    uint8 dialId;
+    uint256 dialId;
     // % weight applied to this dial, where 200 = 100% and 1 = 0.5%
-    uint8 weight;
+    uint256 weight;
 }
 
 struct VoterPreferences {
@@ -691,10 +691,10 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
 
         // 1.0 - Loop through voter preferences until dialId == 255 or until end
         for (uint256 i = 0; i < 16; i++) {
-            uint8 dialId = uint8(preferences.dialWeights >> (i * 16) + 8);
+            uint256 dialId = uint8(preferences.dialWeights >> (i * 16) + 8);
             if (dialId == 255) break;
             
-            uint8 weight = uint8(preferences.dialWeights >> i * 16);
+            uint256 weight = uint8(preferences.dialWeights >> i * 16);
 
             // 1.1 - Scale the vote by dial weight
             //       e.g. 5e17 * 1e18 / 1e18 * 100e18 / 1e18 = 50e18
