@@ -4,6 +4,7 @@ import { DisperseForwarder__factory, EmissionsController__factory, IERC20__facto
 import { logTxDetails } from "./utils"
 import { getSigner } from "./utils/signerFactory"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
+import { getBalancerPolygonReport } from "./utils/emission-disperse-bal"
 
 subtask("emission-calc", "Calculate the weekly emissions")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
@@ -53,21 +54,17 @@ subtask("emission-disperse-bal", "Disperse Polygon Balancer Pool MTA rewards in 
         const disperseForwarder = DisperseForwarder__factory.connect(disperseForwarderAddress, signer)
 
         const mtaAddress = resolveAddress("MTA", chain)
+
         const mtaToken = IERC20__factory.connect(mtaAddress, signer)
 
         // Get the amount of MTA in the DisperseForwarder contract
         const mtaBalance = await mtaToken.balanceOf(disperseForwarderAddress)
 
-        // TODO need get the MTA report from the bal-mining-script repo under the reports folder.
-        // The Polygon MTA rewards for  will be in the __polygon_0xF501dd45a1198C2E1b5aEF5314A68B9006D842E0.json file under the report folder with a week number.
-        // eg https://github.com/balancer-labs/bal-mining-scripts/blob/master/reports/79/__polygon_0xF501dd45a1198C2E1b5aEF5314A68B9006D842E0.json
-        // The amounts in this file assumes 15k MTA is being distributed but this will not be the case with the emissions controller.
-        // Need to proportion the MTA balance in the DisperseForwarder contract to the recipients based off the bal-mining-script report.
+        // Get the proportion the MTA balance in the DisperseForwarder contract to the recipients based off the bal-mining-script report.
+        const { disperser } = await getBalancerPolygonReport(taskArgs.report, mtaBalance)
 
-        const recipients = []
-        const values = []
-        const tx = await disperseForwarder.disperseToken(recipients, values)
-        await logTxDetails(tx, `Disperse Balancer Pool MTA rewards to ${recipients.length} recipients`)
+        const tx = await disperseForwarder.disperseToken(disperser.recipients, disperser.values)
+        await logTxDetails(tx, `Disperse Balancer Pool MTA rewards ${disperser.total}  to ${disperser.recipients} recipients`)
     })
 task("emission-disperse-bal").setAction(async (_, __, runSuper) => {
     await runSuper()
