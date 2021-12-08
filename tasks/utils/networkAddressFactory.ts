@@ -16,7 +16,6 @@ export const contractNames = [
     // Will become the EmissionsController
     "RewardsDistributor",
     "EmissionsController",
-    "L2EmissionsController",
     "PolygonPoSBridge",
     "PolygonRootChainManager",
     "BoostDirector",
@@ -49,6 +48,7 @@ export const contractNames = [
     "CompController",
     "CurveRegistryExchange",
     "Disperse",
+    "DisperseForwarder",
     "QuickSwapRouter",
     "UniswapRouterV3",
     "UniswapQuoterV3",
@@ -213,7 +213,7 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xc929E040b6C8F2fEFE6B45c6bFEB55508554F3E2"
             case "FeederInterestValidator":
                 return "0x4A268958BC2f0173CDd8E0981C4c0a259b5cA291"
-            case "L2EmissionsController":
+            case "EmissionsController":
                 return "0x82182Ac492fef111FB458FCe8f4228553Ed59a19"
             case "AaveIncentivesController":
                 return "0x357D51124f59836DeD84c8a1730D72B749d8BC23"
@@ -221,6 +221,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xd05e3E715d945B59290df0ae8eF85c1BdB684744"
             case "Disperse":
                 return "0xD152f549545093347A162Dce210e7293f1452150"
+            case "DisperseForwarder":
+                return "0x5783458E67B380d19a84514F11054ABDc326EB07"
             case "QuickSwapRouter":
                 return "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff"
             case "MStableYieldSource":

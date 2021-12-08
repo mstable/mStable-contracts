@@ -24,7 +24,7 @@ task("deploy-emissions-polly", "Deploys L2EmissionsController and L2 Bridge Reci
         const signer = await getSigner(hre, taskArgs.speed)
 
         const l2EmissionsController = await deployL2EmissionsController(signer, hre)
-        console.log(`Set L2EmissionsController contract name in networkAddressFactory to ${l2EmissionsController.address}`)
+        console.log(`Set EmissionsController contract name in networkAddressFactory to ${l2EmissionsController.address}`)
 
         const bridgeRecipient = await deployL2BridgeRecipients(signer, hre, l2EmissionsController.address)
         console.log(`Set PmUSD bridgeRecipient to ${bridgeRecipient.address}`)
