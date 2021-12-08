@@ -10,6 +10,9 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { AbstractIntegration } from "./AbstractIntegration.sol";
 
+// Interfaces
+import { IDudPlatform } from "./IDudPlatform.sol";
+
 /**
  * @title   DudIntegration
  * @author  mStable
@@ -20,18 +23,54 @@ import { AbstractIntegration } from "./AbstractIntegration.sol";
 contract DudIntegration is AbstractIntegration {
     using SafeERC20 for IERC20;
 
-    // TODO - support virtual amount here
-    uint256 pseudoDeposited = 0;
+    /// @notice dudPlatform address
+    /// @dev This is the address of the dudPlatform contract
+    IDudPlatform public immutable platform;
 
-    // increase on deposit
-    // decrease on totalWithdraw
-    // return balance from checkbalance
+    /// @notice base asset that is using the DudIntegration
+    address public immutable bAsset;
 
     /**
      * @param _nexus            Address of the Nexus
      * @param _lp               Address of LP
+     * @param _bAsset           Address of of bAsset using the integration
+     * @param _platform         Address of the dudPlatform contract
      */
-    constructor(address _nexus, address _lp) AbstractIntegration(_nexus, _lp) {}
+    constructor(
+        address _nexus,
+        address _lp,
+        address _bAsset,
+        address _platform
+    ) AbstractIntegration(_nexus, _lp) {
+        require(_bAsset != address(0), "Invalid bAsset");
+        require(_platform != address(0), "Invalid platform");
+        bAsset = _bAsset;
+        platform = IDudPlatform(_platform);
+    }
+
+    /**
+     * @dev Approve the spending of the bAsset by the DudPlatform
+     */
+    function initialize() public initializer {
+        _approveContracts();
+    }
+
+    /***************************************
+                    ADMIN
+    ****************************************/
+
+    /**
+     * @dev Re-approve the spending of the bAsset by the DudPlatform
+     *      if for some reason is it necessary. Only callable through Governance.
+     */
+    function reapproveContracts() external onlyGovernor {
+        _approveContracts();
+    }
+
+    function _approveContracts() internal {
+        // Approve bProtocol LUSD Stability Pool contract to transfer bAssets for deposits.
+        MassetHelpers.safeInfiniteApprove(bAsset, address(platform));
+    }
 
     /***************************************
                     CORE
@@ -41,14 +80,24 @@ contract DudIntegration is AbstractIntegration {
      * @dev Deposit a quantity of bAsset
      * @param _bAsset              Address for the bAsset
      * @param _amount              Units of bAsset to deposit
-     * @param _hasTxFee            Is the bAsset known to have a tx fee?
+     * @param _isTokenFeeCharged   Is the token fee charged
      * @return quantityDeposited   Quantity of bAsset that entered the platform
      */
     function deposit(
         address _bAsset,
         uint256 _amount,
-        bool _hasTxFee
-    ) external override onlyLP nonReentrant returns (uint256 quantityDeposited) {}
+        bool _isTokenFeeCharged
+    ) external override onlyLP nonReentrant returns (uint256) {
+        require(_isTokenFeeCharged == false, "Token fee cannot be charged");
+        require(_amount > 0, "Must deposit something");
+        require(_bAsset == bAsset, "Invalid bAsset");
+
+        platform.deposit(bAsset, _amount);
+
+        emit Deposit(_bAsset, address(this), _amount);
+
+        return _amount;
+    }
 
     /**
      * @dev Withdraw a quantity of bAsset from the platform
@@ -93,6 +142,10 @@ contract DudIntegration is AbstractIntegration {
         bool /* _hasTxFee */
     ) internal {
         require(_totalAmount > 0, "Must withdraw something");
+        require(_amount > 0, "Must withdraw something");
+
+        // Withdraw from the lending pool
+        platform.withdraw(_bAsset, _totalAmount);
 
         IERC20(_bAsset).safeTransfer(_receiver, _amount);
 
@@ -113,6 +166,7 @@ contract DudIntegration is AbstractIntegration {
         require(_amount > 0, "Must withdraw something");
         require(_receiver != address(0), "Must specify recipient");
 
+        // Sending out the cached amount
         IERC20(_bAsset).safeTransfer(_receiver, _amount);
 
         emit Withdrawal(_bAsset, address(0), _amount);
@@ -122,11 +176,15 @@ contract DudIntegration is AbstractIntegration {
      * @dev Get the total bAsset value
      * @return balance    Total value of the bAsset in the platform
      */
-    function checkBalance(
-        address /* _bAsset */
-    ) external view override returns (uint256 balance) {
-        return 0;
+    function checkBalance(address _bAsset) external view override returns (uint256) {
+        require(_bAsset == bAsset, "Invalid bAsset");
+        return IERC20(_bAsset).balanceOf(address(platform));
     }
 
+    /**
+     * @dev function not used, but needs to be here because of the AbstractIntegration
+     * @param _bAsset   Address of the bAsset
+     * @param _pToken   Address of the pToken
+     */
     function _abstractSetPToken(address _bAsset, address _pToken) internal override {}
 }
