@@ -39,7 +39,7 @@ task("deploy-emissions")
         const signer = await getSigner(hre, taskArgs.speed)
         const emissionsController = await deployEmissionsController(signer, hre)
 
-        console.log(`Set RewardsDistributor in the networkAddressFactory to ${emissionsController.address}`)
+        console.log(`Set EmissionsController in the networkAddressFactory to ${emissionsController.address}`)
     })
 
 task("deploy-bridge-forwarder", "Deploys a BridgeForwarder contract on mainnet for Polygon dials.")

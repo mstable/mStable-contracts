@@ -289,7 +289,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     {
         for (uint256 i = 0; i < 16; i++) {
             preferences[i].weight = uint8(voterPreferences[voter].dialWeights >> (i * 16));
-            preferences[i].dialId = uint8(voterPreferences[voter].dialWeights >> (i * 16 + 8));
+            preferences[i].dialId = uint8(voterPreferences[voter].dialWeights >> ((i * 16) + 8));
         }
     }
 

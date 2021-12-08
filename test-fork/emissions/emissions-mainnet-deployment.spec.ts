@@ -32,7 +32,7 @@ import { toUtf8Bytes } from "ethers/lib/utils"
 
 const voter1VotingPower = BN.from("44461750008245826445414")
 const voter2VotingPower = simpleToExactAmount(27527.5)
-const voter3VotingPower = BN.from("78211723319712171214037")
+const voter3VotingPower = BN.from("83577672863326407331336")
 
 const keeperKey = keccak256(toUtf8Bytes("Keeper"))
 
@@ -59,7 +59,7 @@ context("Fork test Emissions Controller on mainnet", () => {
                 {
                     forking: {
                         jsonRpcUrl: process.env.NODE_URL,
-                        blockNumber: 13719000,
+                        blockNumber: 13761000,
                     },
                 },
             ],
@@ -215,7 +215,6 @@ context("Fork test Emissions Controller on mainnet", () => {
     describe("calculate rewards", () => {
         before(async () => {
             await setup()
-            await nexus.proposeModule(keeperKey, resolveAddress("OperationsSigner"))
 
             // increase time to 2 December 2021, Thursday 08:00 UTC
             // await increaseTimeTo(1638439200)
@@ -369,8 +368,6 @@ context("Fork test Emissions Controller on mainnet", () => {
             await setup()
             emissionsController = await deployEmissionsController(ops, hre)
 
-            await nexus.proposeModule(keeperKey, resolveAddress("OperationsSigner"))
-
             const visorFinanceDial = await deployBasicForwarder(ops, emissionsController.address, "VisorRouter", hre)
             await emissionsController.connect(governor).addDial(visorFinanceDial.address, 0, true)
             const bridgeRecipient = Wallet.createRandom()
@@ -467,7 +464,6 @@ context("Fork test Emissions Controller on mainnet", () => {
 
         before(async () => {
             await setup()
-            await nexus.proposeModule(keeperKey, resolveAddress("OperationsSigner"))
 
             emissionsController = await deployEmissionsController(ops, hre)
             mtaToken = IERC20__factory.connect(MTA.address, ops)
@@ -542,7 +538,7 @@ context("Fork test Emissions Controller on mainnet", () => {
                         mUSD.address,
                         USDC.address,
                         simpleToExactAmount(98, 4),
-                        simpleToExactAmount(66, 28), // min 0.66 USDC for 1 MTA to 30 decimal places
+                        simpleToExactAmount(94, 28), // min 0.93 USDC for 1 MTA to 30 decimal places
                         musdUniswapPath.encoded,
                     )
                     const tx = revenueBuyBack.buyBackRewards([mUSD.address])
@@ -572,7 +568,7 @@ context("Fork test Emissions Controller on mainnet", () => {
                         mBTC.address,
                         WBTC.address,
                         simpleToExactAmount(98, 6),
-                        simpleToExactAmount(46, 31), // 446e30
+                        simpleToExactAmount(5, 32), // 446e30
                         mbtcUniswapPath.encoded,
                     )
                     const tx = revenueBuyBack.buyBackRewards([mBTC.address])

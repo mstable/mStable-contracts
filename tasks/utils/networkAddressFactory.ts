@@ -26,6 +26,7 @@ export const contractNames = [
     "Poker",
     "SaveWrapper",
     "RevenueRecipient",
+    "RevenueBuyBack",
     "MassetManager",
     "FeederManager",
     "FeederLogic",
@@ -100,8 +101,7 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xe595D67181D701A5356e010D9a58EB9A341f1DbD"
             case "RewardsDistributor":
             case "EmissionsController":
-                // TODO change after Emissions Controller deployment
-                return "0x04dfDfa471b79cc9E6E8C355e6C71F8eC4916C50"
+                return "0xBa69e6FC7Df49a3b75b565068Fb91ff2d9d91780"
             case "PolygonRootChainManager":
                 return "0xA0c68C638235ee32657e8f720a23ceC1bFc77C77"
             case "PolygonPoSBridge":
@@ -120,6 +120,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x0CA7A25181FC991e3cC62BaC511E62973991f325"
             case "RevenueRecipient":
                 return "0xA7824292efDee1177a1C1BED0649cfdD6114fed5"
+            case "RevenueBuyBack":
+                return "0xaB561Eccd1c0c1Dd1c6797E35EC3e33838d17863"
             case "MassetManager":
                 return "0x1E91F826fa8aA4fa4D3F595898AF3A64dd188848"
             case "FeederManager":
@@ -183,7 +185,7 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "VotiumBribe":
                 return "0x19bbc3463dd8d07f55438014b021fb457ebd4595"
             case "VotiumForwarder":
-                return DEAD_ADDRESS
+                return "0xb6d519a0D616f6F5Fac2b1dBC5bcb92ea58EDa4a"
             default:
         }
     } else if (chain === Chain.polygon) {
