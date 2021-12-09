@@ -1,7 +1,9 @@
-import https from "https"
+import axios from "axios"
 import { BN, simpleToExactAmount } from "@utils/math"
+import { PMTA } from "./tokens"
+import { logger } from "./deploy-utils"
+const log = logger("emission", "disperse-bal")
 
-const MTA_ADDRESS = "0xF501dd45a1198C2E1b5aEF5314A68B9006D842E0"
 const REPORT_URL = "https://raw.githubusercontent.com/balancer-labs/bal-mining-scripts/master/reports"
 
 interface DisperseDetails {
@@ -23,53 +25,23 @@ interface BalancerPolygonReport {
     balancer: BalancerDetails
 }
 
-const log = (message: string, debugMode = false): void => {
-    if (debugMode) console.log(message)
-}
 /**
  * Download a report report from balancer labs repository, it contains the distribution of rewards that need to be dispersed.
  *  It downloads the report from the following URL
  * https://raw.githubusercontent.com/balancer-labs/bal-mining-scripts/master/reports/WEEK/__polygon_0xF501dd45a1198C2E1b5aEF5314A68B9006D842E0.json
  *
  * @param {number} report  - Report number from the bal-mining-script repo. eg 79
- * @param {Object} [options={ debugMode: false }] : If debug mode is set, it logs details about the downloading process.
  * @return {Promise}  -  {Promise<Array<{ address: string, amount: string }>>}
  */
-export const fetchBalancerReport = async (
-    report: number,
-    options = { debugMode: false },
-): Promise<Array<{ address: string; amount: string }>> => {
-    const url = `${REPORT_URL}/${report}/__polygon_${MTA_ADDRESS}.json`
-    log(`fetchBalancerReport: get balancer-labs for report ${report}`, options.debugMode)
-    log(`fetchBalancerReport: download report from url :${url}`, options.debugMode)
+export const fetchBalancerReport = async (report: number): Promise<Array<{ address: string; amount: string }>> => {
+    const url = `${REPORT_URL}/${report}/__polygon_${PMTA.address}.json`
 
-    return new Promise((resolve, reject) => {
-        https.get(url, (res) => {
-            let body = ""
-            res.on("data", (chunk) => {
-                body += chunk
-            })
-            res.on("end", () => {
-                try {
-                    log(`fetchBalancerReport: body ${body} `, true)
-                    if (body === "404: Not Found") {
-                        throw new Error(body)
-                    }
-                    const bodyArr = Object.entries(JSON.parse(body)).map(([address, amount]) => {
-                        const amountStr = typeof amount === "string" ? amount : (amount as string)
-                        return { address, amount: amountStr }
-                    })
-                    log(`fetchBalancerReport: report contains [${bodyArr.length}] records`, options.debugMode)
-                    resolve(bodyArr)
-                } catch (error) {
-                    log(`fetchBalancerReport: error ${error.message} `, true)
-                    reject(error)
-                }
-            })
-            res.on("error", (error) => {
-                console.log("onError->", error.message)
-            })
-        })
+    log(`fetches balancer-labs report ${report}`)
+    log(`downloads report from url :${url}`)
+    const response = await axios.get(url)
+    return Object.entries(response.data).map(([address, amount]) => {
+        const amountStr = typeof amount === "string" ? amount : (amount as string)
+        return { address, amount: amountStr }
     })
 }
 
@@ -83,14 +55,9 @@ export const fetchBalancerReport = async (
  * @param {number} report - Report number from the bal-mining-script repo. eg 79
  *  https://github.com/balancer-labs/bal-mining-scripts/blob/master/reports/WEEK
  * @param {BN} mtaBalance - The total amount of mta to disperse, values on the report are scaled to match the total amount of MTA available
- * @param {Object} [options={ debugMode: false }] : If debug mode is set, it logs details about the downloading process.
  * @return {Promise}  {Promise<BalancerPolygonReport>}
  */
-export const getBalancerPolygonReport = async (
-    report: number,
-    mtaBalance: BN,
-    options = { debugMode: false },
-): Promise<BalancerPolygonReport> => {
+export const getBalancerPolygonReport = async (report: number, mtaBalance: BN): Promise<BalancerPolygonReport> => {
     const disperseRecipients = []
     const disperseValues = []
     const balancerRewards = await fetchBalancerReport(report)
@@ -104,10 +71,7 @@ export const getBalancerPolygonReport = async (
         disperseValues.push(disperseRewardAmount)
         disperseTotal = disperseTotal.add(disperseRewardAmount)
     })
-    log(
-        `getBalancerPolygonReport: total amount[${disperseTotal.toString()}], total count [${disperseRecipients.length}]`,
-        options.debugMode,
-    )
+    log(`total mta token amount to disperser[${disperseTotal.toString()}], total recipients count [${disperseRecipients.length}]`)
     return {
         disperser: { total: disperseTotal, recipients: disperseRecipients, values: disperseValues },
         balancer: { total: balancerTotal, rewards: balancerRewards },
