@@ -1,10 +1,11 @@
 /* eslint-disable no-restricted-syntax */
 import { subtask, task, types } from "hardhat/config"
 import { DisperseForwarder__factory, EmissionsController__factory, IERC20__factory } from "types/generated"
-import { logTxDetails } from "./utils"
+import { logTxDetails, logger } from "./utils"
 import { getSigner } from "./utils/signerFactory"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
 import { getBalancerPolygonReport } from "./utils/emission-disperse-bal"
+const log = logger("emission")
 
 subtask("emission-calc", "Calculate the weekly emissions")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
@@ -59,12 +60,15 @@ subtask("emission-disperse-bal", "Disperse Polygon Balancer Pool MTA rewards in 
 
         // Get the amount of MTA in the DisperseForwarder contract
         const mtaBalance = await mtaToken.balanceOf(disperseForwarderAddress)
-
-        // Get the proportion the MTA balance in the DisperseForwarder contract to the recipients based off the bal-mining-script report.
-        const { disperser } = await getBalancerPolygonReport(taskArgs.report, mtaBalance)
-
-        const tx = await disperseForwarder.disperseToken(disperser.recipients, disperser.values)
-        await logTxDetails(tx, `Disperse Balancer Pool MTA rewards ${disperser.total}  to ${disperser.recipients} recipients`)
+        try {
+            // Get the proportion the MTA balance in the DisperseForwarder contract to the recipients based off the bal-mining-script report.
+            const { disperser } = await getBalancerPolygonReport(taskArgs.report, mtaBalance)
+            const tx = await disperseForwarder.disperseToken(disperser.recipients, disperser.values)
+            await logTxDetails(tx, `Disperse Balancer Pool MTA rewards ${disperser.total}  to ${disperser.recipients} recipients`)
+        } catch (error) {
+            log(`Error dispersing report ${taskArgs.report} : ${error.message}`)
+            process.exit(0)
+        }
     })
 task("emission-disperse-bal").setAction(async (_, __, runSuper) => {
     await runSuper()

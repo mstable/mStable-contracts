@@ -1,5 +1,6 @@
 import { Contract, ContractFactory, ContractReceipt, ContractTransaction, Overrides } from "ethers"
 import { formatUnits } from "@ethersproject/units"
+import debug from "debug"
 
 export const deployContract = async <T extends Contract>(
     contractFactory: ContractFactory,
@@ -24,6 +25,9 @@ export const deployContract = async <T extends Contract>(
     console.log(`ABI encoded args: ${abiEncodedConstructorArgs.slice(2)}`)
     return contract
 }
+
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+export const logger = (...args: string[]) => debug(`mstable:task:${args.join(":")}`)
 
 export const logTxDetails = async (tx: ContractTransaction, method: string): Promise<ContractReceipt> => {
     console.log(`Sent ${method} transaction with hash ${tx.hash} from ${tx.from} with gas price ${tx.gasPrice?.toNumber() / 1e9} Gwei`)
