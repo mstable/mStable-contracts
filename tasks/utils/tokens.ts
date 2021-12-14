@@ -250,7 +250,7 @@ export const FEI: Token = {
     address: "0x956F47F50A910163D8BF957Cf5846D573E7f87CA",
     chain: Chain.mainnet,
     platform: Platform.Aave,
-    integrator: "", // TODO: add integrator PAAVE
+    integrator: "0x4094aec22f40f11c29941d144c3dc887b33f5504",
     liquidityProvider: "0x683923dB55Fead99A79Fa01A27EeC3cB19679cC3", // aFEI
     decimals: 18,
     quantityFormatter: "USD",
