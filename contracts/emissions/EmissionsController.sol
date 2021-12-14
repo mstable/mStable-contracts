@@ -467,7 +467,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
             // 3.1 - If the dial has a cap and isn't disabled, check if it's over the threshold
             if (dialData.cap > 0 && !dialData.disabled) {
                 uint256 maxVotes = (dialData.cap * totalDialVotes) / 100;
-                // If dial has move votes than its cap
+                // If dial has more votes than its cap
                 if (dialVotes[k] > maxVotes) {
                     // Calculate amount of rewards for the dial
                     distributionAmounts[k] = (dialData.cap * emissionForEpoch) / 100;

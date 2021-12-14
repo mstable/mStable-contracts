@@ -105,3 +105,5 @@ export const sqrt = (value: BN | number): BN => {
     }
     return y
 }
+// Returns the sum of two big numbers
+export const sum = (a: BN, b: BN): BN => a.add(b)
