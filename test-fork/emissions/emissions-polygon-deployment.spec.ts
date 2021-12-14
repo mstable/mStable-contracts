@@ -15,8 +15,6 @@ import {
     IStateReceiver__factory,
     L2EmissionsController,
     L2EmissionsController__factory,
-    Nexus,
-    Nexus__factory,
 } from "types/generated"
 import { keccak256 } from "@ethersproject/keccak256"
 import { toUtf8Bytes } from "ethers/lib/utils"
@@ -34,7 +32,6 @@ context("Fork test Emissions Controller on polygon", () => {
     let governor: Signer
     let stateSyncer: Signer
     let emissionsController: L2EmissionsController
-    let nexus: Nexus
     let mta: IERC20
     let childChainManager: IStateReceiver
     let musdVault: InitializableRewardsDistributionRecipient
@@ -56,7 +53,6 @@ context("Fork test Emissions Controller on polygon", () => {
         governor = await impersonate(resolveAddress("Governor", chain))
         stateSyncer = await impersonate("0x0000000000000000000000000000000000001001")
 
-        nexus = Nexus__factory.connect(resolveAddress("Nexus", chain), governor)
         emissionsController = L2EmissionsController__factory.connect(resolveAddress("EmissionsController", chain), ops)
         mta = IERC20__factory.connect(PMTA.address, ops)
         musdVault = InitializableRewardsDistributionRecipient__factory.connect(PmUSD.vault, governor)
@@ -74,8 +70,6 @@ context("Fork test Emissions Controller on polygon", () => {
     before(async () => {
         // Fork from the latest block
         await setup()
-
-        await nexus.acceptProposedModule(keeperKey)
     })
 
     describe("mUSD Vault", () => {
