@@ -18,6 +18,7 @@ export const contractNames = [
     "EmissionsController",
     "PolygonPoSBridge",
     "PolygonRootChainManager",
+    "PolygonChildChainManager",
     "BoostDirector",
     "VoterProxy",
     "Collector",
@@ -196,7 +197,7 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xCb6E4B67f2cac15c284AB49B6a4A671cdfe66711"
             case "ProtocolDAO":
             case "Governor":
-                return "0x4aA2Dd5D5387E4b8dcf9b6Bfa4D9236038c3AD43"
+                return "0x429F29A3A36B1B977C3d4Ec77C695c3391e7B9ED"
             case "FundManager":
                 return "0x437e8c54db5c66bb3d80d2ff156e9bfe31a017db"
             case "SavingsManager":
@@ -233,6 +234,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xc425Fd9Ed3C892d849C9E1a971516da1C1B29696"
             case "RevenueRecipient":
                 return "0x4845A90664311F9f0c8cDb5D9B95Bb0937863380"
+            case "PolygonChildChainManager":
+                return "0xA6FA4fB5f76172d178d61B04b0ecd319C5d1C0aa"
             default:
         }
     } else if (chain === Chain.mumbai) {
