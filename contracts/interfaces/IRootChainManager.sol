@@ -8,3 +8,7 @@ interface IRootChainManager {
         bytes memory data
     ) external;
 }
+
+interface IStateReceiver {
+    function onStateReceive(uint256 id, bytes calldata data) external;
+}

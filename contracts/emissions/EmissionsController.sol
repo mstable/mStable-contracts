@@ -114,7 +114,7 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     mapping(address => VoterPreferences) public voterPreferences;
 
     event AddedDial(uint256 indexed dialId, address indexed recipient);
-    event UpdatedDial(uint256 indexed dialId, bool disabled);
+    event UpdatedDial(uint256 indexed dialId, bool disabled, bool _notify);
     event AddStakingContract(address indexed stakingContract);
 
     event PeriodRewards(uint256[] amounts);
@@ -346,13 +346,15 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @notice Updates a dials recipient contract and/or disabled flag.
      * @param _dialId    Dial identifier which is the index of the dials array.
      * @param _disabled  If true, no rewards will be distributed to this dial.
+     * @param _notify  If true, `notifyRewardAmount` is called on the dial recipient contract.
      */
-    function updateDial(uint256 _dialId, bool _disabled) external onlyGovernor {
+    function updateDial(uint256 _dialId, bool _disabled, bool _notify) external onlyGovernor {
         require(_dialId < dials.length, "Invalid dial id");
 
         dials[_dialId].disabled = _disabled;
+        dials[_dialId].notify = _notify;
 
-        emit UpdatedDial(_dialId, _disabled);
+        emit UpdatedDial(_dialId, _disabled, _notify);
     }
 
     /**

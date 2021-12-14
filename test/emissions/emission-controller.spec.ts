@@ -492,9 +492,9 @@ describe("EmissionsController", async () => {
                 const dialBefore = await snapDial(emissionsController, 0)
                 expect(dialBefore.disabled, "dial 1 disabled before").to.eq(false)
 
-                const tx = await emissionsController.connect(sa.governor.signer).updateDial(0, true)
+                const tx = await emissionsController.connect(sa.governor.signer).updateDial(0, true, true)
 
-                await expect(tx).to.emit(emissionsController, "UpdatedDial").withArgs(0, true)
+                await expect(tx).to.emit(emissionsController, "UpdatedDial").withArgs(0, true, true)
 
                 const dialAfter = await snapDial(emissionsController, 0)
                 expect(dialAfter.disabled, "dial 1 disabled after").to.eq(true)
@@ -509,15 +509,15 @@ describe("EmissionsController", async () => {
             })
             it("Governor reenables dial", async () => {
                 const dialId = 0
-                await emissionsController.connect(sa.governor.signer).updateDial(dialId, true)
+                await emissionsController.connect(sa.governor.signer).updateDial(dialId, true, true)
 
                 await increaseTime(ONE_WEEK)
                 await emissionsController.calculateRewards()
                 await increaseTime(ONE_WEEK.add(60))
 
                 // Reenable dial 1
-                const tx = await emissionsController.connect(sa.governor.signer).updateDial(0, false)
-                await expect(tx).to.emit(emissionsController, "UpdatedDial").withArgs(0, false)
+                const tx = await emissionsController.connect(sa.governor.signer).updateDial(0, false, true)
+                await expect(tx).to.emit(emissionsController, "UpdatedDial").withArgs(0, false, true)
                 expect((await emissionsController.dials(0)).disabled, "dial 1 reenabled after").to.eq(false)
 
                 const nextEpochEmission = await nextRewardAmount(emissionsController)
@@ -529,11 +529,11 @@ describe("EmissionsController", async () => {
                 await expect(tx2).to.emit(emissionsController, "PeriodRewards").withArgs([dial1, dial2, dial3])
             })
             it("Governor fails to disable invalid 4th dial", async () => {
-                const tx = emissionsController.connect(sa.governor.signer).updateDial(3, true)
+                const tx = emissionsController.connect(sa.governor.signer).updateDial(3, true, true)
                 await expect(tx).to.revertedWith("Invalid dial id")
             })
             it("Default user fails to update dial", async () => {
-                const tx = emissionsController.updateDial(1, true)
+                const tx = emissionsController.updateDial(1, true, true)
                 await expect(tx).to.revertedWith("Only governor can execute")
             })
         })
@@ -1405,7 +1405,7 @@ describe("EmissionsController", async () => {
                     // and voter 1 gives all its votes to dial 1, and voter 2 gives all its votes to dial 2,
                     // and dial 3 does not have any vote weight
                     const dialBefore = []
-                    let tx = await emissionsController.connect(sa.governor.signer).updateDial(0, true)
+                    let tx = await emissionsController.connect(sa.governor.signer).updateDial(0, true, true)
                     dialBefore[0] = await snapDial(emissionsController, 0)
                     dialBefore[1] = await snapDial(emissionsController, 1)
                     expect(dialBefore[0].disabled, "dial 1 disabled before").to.eq(true)
@@ -1445,7 +1445,7 @@ describe("EmissionsController", async () => {
                     // Given a dial 1 is disabled, and dial 2 is enabled
                     // and voter 1 gives all its votes to dial 1, and voter 2 gives all its votes to dial 2,
                     // and dial 3 does not have any vote weight
-                    await emissionsController.connect(sa.governor.signer).updateDial(0, true)
+                    await emissionsController.connect(sa.governor.signer).updateDial(0, true, true)
 
                     dialBefore[0] = await snapDial(emissionsController, 0)
                     dialBefore[1] = await snapDial(emissionsController, 1)
@@ -1474,8 +1474,8 @@ describe("EmissionsController", async () => {
                     // and dial 3 does not have any vote weight
 
                     // When the dial is re-enabled and it calculates rewards
-                    let tx = await emissionsController.connect(sa.governor.signer).updateDial(0, false)
-                    await expect(tx).to.emit(emissionsController, "UpdatedDial").withArgs(0, false)
+                    let tx = await emissionsController.connect(sa.governor.signer).updateDial(0, false, true)
+                    await expect(tx).to.emit(emissionsController, "UpdatedDial").withArgs(0, false, true)
 
                     await increaseTime(ONE_WEEK)
                     nextEpochEmission[1] = await nextRewardAmount(emissionsController)
