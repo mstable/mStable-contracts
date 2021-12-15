@@ -1,9 +1,9 @@
 import { BN, sum, percentToWeight } from "@utils/math"
-import { task, types } from "hardhat/config"
+import { task } from "hardhat/config"
 import "ts-node/register"
 import "tsconfig-paths/register"
-import { EmissionsController__factory, StakedTokenMTA__factory } from "types/generated"
-import { usdFormatter } from "./utils"
+import { EmissionsController__factory, IERC20__factory } from "types/generated"
+import { MTA, usdFormatter } from "./utils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
 import { getSigner } from "./utils/signerFactory"
 
@@ -87,24 +87,49 @@ const calculateRewards = (latestDialVotes: Array<BN>, dialsData: Array<DialData>
     return { distributionAmounts, totalDialVotes, dialsData: dials }
 }
 
+const dialNames = [
+    "MTA Staking Contract",
+    "BPT Staking Contract",
+    "mUSD Vault",
+    "mBTC Vault",
+    "GUSD FP Vault",
+    "BUSD FP Vault",
+    "alUSD FP Vault",
+    "RAI FP Vault",
+    "FEI FP Vault",
+    "HBTC FP Vault",
+    "tBTCv2 FP Vault",
+    "Polygon mUSD Vault",
+    "Polygon FRAX Farm",
+    "Polygon Balancer Pool",
+    "Treasury DAO",
+    "Votium",
+    "Visor Finance",
+]
+
 const dialsDetailsToString = (dialsDetails: Array<DialDetails>) =>
     dialsDetails
         .map(
-            (dd) =>
-                `  ${dd.dialId}\t${usdFormatter(dd.voteWeight, 18, 5, 2)}\t${usdFormatter(dd.distributed)}\t${usdFormatter(
-                    dd.donated,
-                )}\t ${usdFormatter(dd.rewards)}`,
+            (dd, i) =>
+                `  ${dd.dialId.toString().padStart(2)}\t${dialNames[i].padStart(21)}\t${usdFormatter(
+                    dd.voteWeight,
+                    18,
+                    5,
+                    2,
+                )}\t${usdFormatter(dd.distributed)}\t${usdFormatter(dd.donated)}\t ${usdFormatter(dd.rewards)}`,
         )
         .join("\n")
 
 const outputDialsSnap = (dialsSnap: DialsSnap) => {
     console.log(`\nEmissions Controller Dials Snap at epoch ${dialsSnap.nextEpoch}`)
-    console.log(`  ID\tPercent\t   Distributed\t\tDonated\t\t Total`)
+    console.log(`  ID\t\t\tName\tPercent\t   Distributed\t\tDonated\t\t Total`)
     console.log(dialsDetailsToString(dialsSnap.dialsDetails))
-    console.log("Total to be distributed across all dials\t", usdFormatter(dialsSnap.totalDistributed))
-    console.log("Total currently donated across all dials\t", usdFormatter(dialsSnap.totalDonated))
-    console.log("Total across all dials                  \t", usdFormatter(dialsSnap.totalRewards))
-    console.log("Total in the Emissions Controller       \t", usdFormatter(dialsSnap.emissionsControllerBalance))
+    console.log(
+        `Totals\t\t\t\t\t${usdFormatter(dialsSnap.totalDistributed)}\t${usdFormatter(dialsSnap.totalDonated)}\t ${usdFormatter(
+            dialsSnap.totalRewards,
+        )}`,
+    )
+    console.log("MTA in Emissions Controller", usdFormatter(dialsSnap.emissionsControllerBalance))
 }
 
 /**
@@ -123,9 +148,8 @@ task("dials-snap", "Snaps Emissions Controller's dials").setAction(async (_taskA
     const signer = await getSigner(hre)
     const chain = getChain(hre)
     const emissionsControllerAddress = getChainAddress("EmissionsController", chain)
-    const stakedTokenMTAAddress = getChainAddress("StakedTokenMTA", chain)
     const emissionsController = EmissionsController__factory.connect(emissionsControllerAddress, signer)
-    const stakedTokenMTA = StakedTokenMTA__factory.connect(stakedTokenMTAAddress, signer)
+    const mtaToken = IERC20__factory.connect(MTA.address, signer)
 
     // Get current epoch  and simulate next epoch by adding one week
     const [, lastEpoch] = await emissionsController.epochs()
@@ -140,7 +164,7 @@ task("dials-snap", "Snaps Emissions Controller's dials").setAction(async (_taskA
     // 4.- Total MTA rewards across all dials = distributed + donated
     let totalRewards = BN.from(0)
     // 5.- Get MTA balance in the Emissions Controller
-    const emissionsControllerBalance = await stakedTokenMTA.balanceOf(emissionsController.address)
+    const emissionsControllerBalance = await mtaToken.balanceOf(emissionsController.address)
 
     // Get the latest dial votes, it helps to know the len of dials.
     const latestDialVotes = await emissionsController.getDialVotes()
