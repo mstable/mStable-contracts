@@ -227,9 +227,7 @@ describe("Fork test Emissions Controller on mainnet", async () => {
         let savingsManager: SavingsManager
 
         before(async () => {
-            await setup(13808130)
-
-            await mta.connect(treasury.signer).transfer(emissionsController.address, simpleToExactAmount(1000000))
+            await setup(13809500)
 
             savingsManager = SavingsManager__factory.connect(resolveAddress("SavingsManager"), governor)
 
@@ -306,9 +304,7 @@ describe("Fork test Emissions Controller on mainnet", async () => {
         let purchasedMTA: BN
 
         before(async () => {
-            await setup(13808130)
-
-            await mta.connect(treasury.signer).transfer(emissionsController.address, simpleToExactAmount(1000000))
+            await setup(13809500)
 
             savingsManager = SavingsManager__factory.connect(resolveAddress("SavingsManager"), governor)
             await savingsManager.setRevenueRecipient(mUSD.address, revenueBuyBack.address)
@@ -324,15 +320,32 @@ describe("Fork test Emissions Controller on mainnet", async () => {
                 simpleToExactAmount(5, 29), // 2 MTA/USDC = 0.5 USDC/MTA
                 musdUniswapPath.encoded,
             )
+            console.log(
+                `\nRevenueBuyBack ${revenueBuyBack.address}\nmUSD ${mUSD.address}\nUSDC ${
+                    USDC.address
+                }\nminMassetToBassetPrice ${simpleToExactAmount(98, 4)}\nminMasset2RewardsPrice ${simpleToExactAmount(
+                    5,
+                    29,
+                )}\nUniswap path ${musdUniswapPath.encoded}`,
+            )
             await revenueBuyBack
                 .connect(governor)
                 .setMassetConfig(
                     mBTC.address,
                     WBTC.address,
                     simpleToExactAmount(98, 6),
-                    simpleToExactAmount(3, 32),
+                    simpleToExactAmount(4, 32),
                     mbtcUniswapPath.encoded,
                 )
+
+            console.log(
+                `\nRevenueBuyBack ${revenueBuyBack.address}\nmBTC ${mBTC.address}\nWBTC ${
+                    WBTC.address
+                }\nminMassetToBassetPrice ${simpleToExactAmount(98, 6)}\nminMasset2RewardsPrice ${simpleToExactAmount(
+                    4,
+                    32,
+                )}\nUniswap path ${mbtcUniswapPath.encoded}`,
+            )
         })
         // context("buy back MTA using mUSD", () => {
         it("Distribute unallocated mUSD in Savings Manager", async () => {
@@ -340,7 +353,9 @@ describe("Fork test Emissions Controller on mainnet", async () => {
 
             await savingsManager.distributeUnallocatedInterest(mUSD.address)
 
-            expect(await musdToken.balanceOf(revenueBuyBack.address), "mUSD bal after").to.gt(0)
+            const musdBalAfter = await musdToken.balanceOf(revenueBuyBack.address)
+            console.log(`mUSD to sell ${usdFormatter(musdBalAfter)}`)
+            expect(musdBalAfter, "mUSD bal after").to.gt(0)
         })
         it("Buy back MTA using mUSD", async () => {
             expect(await mta.balanceOf(revenueBuyBack.address), "RBB MTA bal before").to.eq(0)
@@ -367,7 +382,9 @@ describe("Fork test Emissions Controller on mainnet", async () => {
 
             await savingsManager.distributeUnallocatedInterest(mBTC.address)
 
-            expect(await mbtcToken.balanceOf(revenueBuyBack.address), "mBTC bal after").to.gt(0)
+            const mbtcBalAfter = await mbtcToken.balanceOf(revenueBuyBack.address)
+            console.log(`mBTC to sell ${usdFormatter(mbtcBalAfter)}`)
+            expect(mbtcBalAfter, "mBTC bal after").to.gt(0)
         })
         it("Buy back MTA using mBTC", async () => {
             expect(await mta.balanceOf(revenueBuyBack.address), "RBB MTA bal before").to.lte(1)
@@ -451,7 +468,7 @@ describe("Fork test Emissions Controller on mainnet", async () => {
             await expect(tx).to.emit(emissionsController, "DistributedReward")
 
             const balanceAfter = await mta.balanceOf(treasuryAddress)
-            expect(balanceAfter.sub(balanceBefore).gt(simpleToExactAmount(14000)), "has more MTA").to.be.true
+            expect(balanceAfter.sub(balanceBefore).gt(simpleToExactAmount(13000)), "has more MTA").to.be.true
         })
         it("to Visor Finance", async () => {
             const visorAddress = resolveAddress("VisorRouter")
@@ -462,7 +479,7 @@ describe("Fork test Emissions Controller on mainnet", async () => {
             await expect(tx).to.emit(emissionsController, "DistributedReward")
 
             const balanceAfter = await mta.balanceOf(visorAddress)
-            expect(balanceAfter.sub(balanceBefore).gt(simpleToExactAmount(10000)), "has more MTA").to.be.true
+            expect(balanceAfter.sub(balanceBefore).gt(simpleToExactAmount(9000)), "has more MTA").to.be.true
         })
         it("to Votium bribe", async () => {
             await increaseTime(ONE_DAY.mul(6))

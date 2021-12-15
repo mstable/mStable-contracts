@@ -1,10 +1,11 @@
 /* eslint-disable no-restricted-syntax */
 import { subtask, task, types } from "hardhat/config"
-import { DisperseForwarder__factory, EmissionsController__factory, IERC20__factory } from "types/generated"
-import { logTxDetails, logger } from "./utils"
+import { DisperseForwarder__factory, EmissionsController__factory, IERC20__factory, RevenueBuyBack__factory } from "types/generated"
+import { logTxDetails, logger, mUSD, mBTC } from "./utils"
 import { getSigner } from "./utils/signerFactory"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
 import { getBalancerPolygonReport } from "./utils/emission-disperse-bal"
+
 const log = logger("emission")
 
 subtask("emission-calc", "Calculate the weekly emissions")
@@ -71,5 +72,37 @@ subtask("emission-disperse-bal", "Disperse Polygon Balancer Pool MTA rewards in 
         }
     })
 task("emission-disperse-bal").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})
+
+subtask("revenue-buy-back", "Buy back MTA from mUSD and mBTC gov fees")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const revenueBuyBackAddress = resolveAddress("RevenueBuyBack", chain)
+        const revenueBuyBack = RevenueBuyBack__factory.connect(revenueBuyBackAddress, signer)
+
+        const tx = await revenueBuyBack.buyBackRewards([mUSD.address, mBTC.address])
+        await logTxDetails(tx, `Buy back MTA from got fees`)
+    })
+task("revenue-buy-back").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})
+
+subtask("revenue-donate-rewards", "Donate purchased MTA to the staking dials in the Emissions Controller")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const revenueBuyBackAddress = resolveAddress("RevenueBuyBack", chain)
+        const revenueBuyBack = RevenueBuyBack__factory.connect(revenueBuyBackAddress, signer)
+
+        const tx = await revenueBuyBack.donateRewards()
+        await logTxDetails(tx, `Donate purchased MTA to Emissions Controller`)
+    })
+task("revenue-donate-rewards").setAction(async (_, __, runSuper) => {
     await runSuper()
 })
