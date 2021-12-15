@@ -3,6 +3,7 @@ import { task, types } from "hardhat/config"
 import "ts-node/register"
 import "tsconfig-paths/register"
 import { EmissionsController__factory, StakedTokenMTA__factory } from "types/generated"
+import { usdFormatter } from "./utils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
 import { getSigner } from "./utils/signerFactory"
 
@@ -90,19 +91,20 @@ const dialsDetailsToString = (dialsDetails: Array<DialDetails>) =>
     dialsDetails
         .map(
             (dd) =>
-                `\t dialId: ${
-                    dd.dialId
-                } \t voteWeight: ${dd.voteWeight.toString()} \t distributed: ${dd.distributed.toString()} \t donated: ${dd.donated.toString()} \t rewards[${dd.rewards.toString()}`,
+                `  ${dd.dialId}\t${usdFormatter(dd.voteWeight, 18, 5, 2)}\t${usdFormatter(dd.distributed)}\t${usdFormatter(
+                    dd.donated,
+                )}\t ${usdFormatter(dd.rewards)}`,
         )
         .join("\n")
 
 const outputDialsSnap = (dialsSnap: DialsSnap) => {
-    console.log(`Emissions Controller Dials Snap at epoch ${dialsSnap.nextEpoch}`)
+    console.log(`\nEmissions Controller Dials Snap at epoch ${dialsSnap.nextEpoch}`)
+    console.log(`  ID\tPercent\t   Distributed\t\tDonated\t\t Total`)
     console.log(dialsDetailsToString(dialsSnap.dialsDetails))
-    console.log("Total MTA rewards to be distributed across all dials:", dialsSnap.totalDistributed.toString())
-    console.log("Total MTA rewards currently donated across all dials:", dialsSnap.totalDonated.toString())
-    console.log("Total MTA rewards across all dials", dialsSnap.totalRewards.toString())
-    console.log("Total MTA balance in the Emissions Controller", dialsSnap.emissionsControllerBalance.toString())
+    console.log("Total to be distributed across all dials\t", usdFormatter(dialsSnap.totalDistributed))
+    console.log("Total currently donated across all dials\t", usdFormatter(dialsSnap.totalDonated))
+    console.log("Total across all dials                  \t", usdFormatter(dialsSnap.totalRewards))
+    console.log("Total in the Emissions Controller       \t", usdFormatter(dialsSnap.emissionsControllerBalance))
 }
 
 /**
