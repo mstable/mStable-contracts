@@ -21,8 +21,6 @@ import {
     IERC20,
     IERC20__factory,
     IUniswapV3Quoter__factory,
-    Nexus,
-    Nexus__factory,
     RevenueBuyBack,
     RevenueBuyBack__factory,
     SavingsManager,
@@ -55,7 +53,6 @@ describe("Fork test Emissions Controller on mainnet", async () => {
     let treasury: Account
     let proxyAdmin: DelayedProxyAdmin
     let emissionsController: EmissionsController
-    let nexus: Nexus
     let mta: IERC20
     let revenueBuyBack: RevenueBuyBack
 
@@ -80,7 +77,6 @@ describe("Fork test Emissions Controller on mainnet", async () => {
         voter3 = await impersonateAccount("0x530deFD6c816809F54F6CfA6FE873646F6EcF930") // 82,538.415914215331337512 stkBPT
         treasury = await impersonateAccount("0x3dd46846eed8d147841ae162c8425c08bd8e1b41")
 
-        nexus = Nexus__factory.connect(resolveAddress("Nexus"), governor)
         mta = IERC20__factory.connect(MTA.address, treasury.signer)
 
         const emissionsControllerAddress = resolveAddress("EmissionsController")
@@ -315,8 +311,6 @@ describe("Fork test Emissions Controller on mainnet", async () => {
             await mta.connect(treasury.signer).transfer(emissionsController.address, simpleToExactAmount(1000000))
 
             savingsManager = SavingsManager__factory.connect(resolveAddress("SavingsManager"), governor)
-
-            revenueBuyBack = await RevenueBuyBack__factory.connect(resolveAddress("RevenueBuyBack"), ops)
             await savingsManager.setRevenueRecipient(mUSD.address, revenueBuyBack.address)
             await savingsManager.setRevenueRecipient(mBTC.address, revenueBuyBack.address)
 
@@ -603,10 +597,11 @@ describe("Fork test Emissions Controller on mainnet", async () => {
         // 0.04147372e8 WBTC / 1,853e18 MTA = 44685e10 * 1e18 = 4.46e14 * 1e18 = 4.46e32 = 446e30
 
         before(async () => {
-            await setup(13771000)
+            await setup(13808130)
 
-            await increaseTime(ONE_DAY.mul(5))
-            await nexus.acceptProposedModule(keeperKey)
+            savingsManager = SavingsManager__factory.connect(resolveAddress("SavingsManager"), governor)
+            await savingsManager.setRevenueRecipient(mUSD.address, revenueBuyBack.address)
+            await savingsManager.setRevenueRecipient(mBTC.address, revenueBuyBack.address)
         })
         it("check Uniswap USDC to MTA price", async () => {
             const uniswapQuoterAddress = resolveAddress("UniswapQuoterV3")
@@ -646,7 +641,6 @@ describe("Fork test Emissions Controller on mainnet", async () => {
                         simpleToExactAmount(3, 32),
                         mbtcUniswapPath.encoded,
                     )
-                savingsManager = SavingsManager__factory.connect(resolveAddress("SavingsManager"), governor)
             })
             context("mUSD", () => {
                 before(async () => {
@@ -669,7 +663,7 @@ describe("Fork test Emissions Controller on mainnet", async () => {
                         mUSD.address,
                         USDC.address,
                         simpleToExactAmount(98, 4),
-                        simpleToExactAmount(94, 28), // min 0.93 USDC for 1 MTA to 30 decimal places
+                        simpleToExactAmount(12, 29), // min 1.2 MTA for 1 USDC to 30 decimal places
                         musdUniswapPath.encoded,
                     )
                     const tx = revenueBuyBack.buyBackRewards([mUSD.address])
@@ -698,7 +692,7 @@ describe("Fork test Emissions Controller on mainnet", async () => {
                         mBTC.address,
                         WBTC.address,
                         simpleToExactAmount(98, 6),
-                        simpleToExactAmount(5, 32), // 446e30
+                        simpleToExactAmount(56, 31), // min 56,000 MTA for 1 BTC to 28 decimal places
                         mbtcUniswapPath.encoded,
                     )
                     const tx = revenueBuyBack.buyBackRewards([mBTC.address])
