@@ -91,12 +91,21 @@ task("integration-paave-deploy", "Deploys mUSD and mBTC instances of PAaveIntegr
         const bAssetAddresses = bAssets.map((b) => b.address)
         const aTokens = bAssets.map((b) => b.liquidityProvider)
 
+        const constructorArguments = [
+            nexusAddress,
+            liquidityProviderAddress,
+            platformAddress,
+            rewardsTokenAddress,
+            aaveIncentivesControllerAddress,
+        ]
+
         // Deploy
         const integration = await deployContract<PAaveIntegration>(
             new PAaveIntegration__factory(deployer),
             `PAaveIntegration for ${taskArgs.asset}`,
-            [nexusAddress, liquidityProviderAddress, platformAddress, rewardsTokenAddress, aaveIncentivesControllerAddress],
+            constructorArguments,
         )
+
         const tx = await integration.initialize(bAssetAddresses, aTokens)
         await logTxDetails(tx, "PAaveIntegration.initialize")
 
@@ -109,6 +118,12 @@ task("integration-paave-deploy", "Deploys mUSD and mBTC instances of PAaveIntegr
             const migrateData = mAsset.interface.encodeFunctionData("migrateBassets", [[bAsset.address], integration.address])
             console.log(`${bAsset.symbol} migrateBassets data: ${migrateData}`)
         }
+
+        await verifyEtherscan(hre, {
+            address: integration.address,
+            constructorArguments,
+            contract: "contracts/polygon/PAaveIntegration.sol:PAaveIntegration",
+        })
     })
 
 subtask("liquidator-deploy", "Deploys new Liquidator contract")
