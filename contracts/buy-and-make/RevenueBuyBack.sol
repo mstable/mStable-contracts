@@ -93,6 +93,9 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
         for (uint256 i = 0; i < _stakingDialIds.length; i++) {
             _addStakingContract(_stakingDialIds[i]);
         }
+
+        // RevenueBuyBack approves the Emissions Controller to transfer rewards. eg MTA
+        REWARDS_TOKEN.safeApprove(address(EMISSIONS_CONTROLLER), type(uint256).max);
     }
 
     /***************************************
@@ -186,10 +189,7 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
             rewardDonationAmounts[i] = (rewardsBal * votingPower[i]) / totalVotingPower;
         }
 
-        // STEP 4 - RevenueBuyBack approves the Emissions Controller to transfer rewards. eg MTA
-        REWARDS_TOKEN.safeApprove(address(EMISSIONS_CONTROLLER), rewardsBal);
-
-        // STEP 5 - donate rewards to staking contract dials in the Emissions Controller
+        // STEP 4 - donate rewards to staking contract dials in the Emissions Controller
         EMISSIONS_CONTROLLER.donate(stakingDialIds, rewardDonationAmounts);
 
         // To get a details split of rewards to staking contracts,

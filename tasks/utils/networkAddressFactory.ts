@@ -122,7 +122,7 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "RevenueRecipient":
                 return "0xA7824292efDee1177a1C1BED0649cfdD6114fed5"
             case "RevenueBuyBack":
-                return "0xaB561Eccd1c0c1Dd1c6797E35EC3e33838d17863"
+                return "0xE301087C087cB9b86068352F0F75073C4c6aA74F"
             case "MassetManager":
                 return "0x1E91F826fa8aA4fa4D3F595898AF3A64dd188848"
             case "FeederManager":
