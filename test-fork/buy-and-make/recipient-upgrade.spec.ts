@@ -22,8 +22,8 @@ import {
     RevenueRecipientV1__factory,
 } from "types/generated"
 import { simpleToExactAmount, BN } from "@utils/math"
-import { abi as SavingsManagerAbi, bytecode as SavingsManagerBytecode } from "./SavingsManager.json"
 import { impersonate } from "@utils/fork"
+import { abi as SavingsManagerAbi, bytecode as SavingsManagerBytecode } from "./SavingsManager.json"
 
 // Accounts that are impersonated
 const ethWhaleAddress = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"

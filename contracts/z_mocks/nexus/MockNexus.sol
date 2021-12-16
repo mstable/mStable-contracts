@@ -43,4 +43,8 @@ contract MockNexus is ModuleKeys {
     function setRecollateraliser(address _recollateraliser) external {
         modules[KEY_RECOLLATERALISER] = _recollateraliser;
     }
+
+    function setKeeper(address _keeper) external {
+        modules[KEY_KEEPER] = _keeper;
+    }
 }

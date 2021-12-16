@@ -11,7 +11,7 @@ import { BoostedVault__factory, Poker, Poker__factory } from "types/generated"
 import { getSigner } from "./utils/signerFactory"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
-import { mBTC, MTA, mUSD, GUSD, BUSD, HBTC, TBTC, alUSD } from "./utils/tokens"
+import { mBTC, mUSD, GUSD, BUSD, HBTC, TBTC, alUSD } from "./utils/tokens"
 
 const maxVMTA = simpleToExactAmount(600000, 18)
 const maxBoost = simpleToExactAmount(3, 18)

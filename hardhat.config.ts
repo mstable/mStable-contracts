@@ -56,6 +56,7 @@ export const hardhatConfig = {
                         "*": {
                             Masset: ["storageLayout"],
                             FeederPool: ["storageLayout"],
+                            EmissionsController: ["storageLayout"],
                         },
                     },
                 },
@@ -74,7 +75,7 @@ export const hardhatConfig = {
                         },
                     },
                 },
-            },
+            },            
             {
                 version: "0.5.16",
                 settings: {
@@ -89,22 +90,7 @@ export const hardhatConfig = {
                         },
                     },
                 },
-            },
-            {
-                version: "0.8.2",
-                settings: {
-                    optimizer: {
-                        enabled: true,
-                        runs: 200,
-                    },
-                    outputSelection: {
-                        "*": {
-                            Masset: ["storageLayout"],
-                            FeederPool: ["storageLayout"],
-                        },
-                    },
-                },
-            },
+            }
         ],
     },
     paths: { artifacts: "./build" },

@@ -1,5 +1,6 @@
 import config from "./hardhat.config"
 
+import "./tasks/deployEmissionsController"
 import "./tasks/deployIntegration"
 import "./tasks/deployRewards"
 import "./tasks/deployMbtc"

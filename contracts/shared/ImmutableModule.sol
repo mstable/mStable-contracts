@@ -35,6 +35,18 @@ abstract contract ImmutableModule is ModuleKeys {
     }
 
     /**
+     * @dev Modifier to allow function calls only from the Governor or the Keeper EOA.
+     */
+    modifier onlyKeeperOrGovernor() {
+        _keeperOrGovernor();
+        _;
+    }
+
+    function _keeperOrGovernor() internal view {
+        require(msg.sender == _keeper() || msg.sender == _governor(), "Only keeper or governor");
+    }
+
+    /**
      * @dev Modifier to allow function calls only from the Governance.
      *      Governance is either Governor address or Governance address.
      */
@@ -60,6 +72,16 @@ abstract contract ImmutableModule is ModuleKeys {
      */
     function _governance() internal view returns (address) {
         return nexus.getModule(KEY_GOVERNANCE);
+    }
+
+    /**
+     * @dev Return Keeper address from the Nexus.
+     *      This account is used for operational transactions that
+     *      don't need multiple signatures.
+     * @return  Address of the Keeper externally owned account.
+     */
+    function _keeper() internal view returns (address) {
+        return nexus.getModule(KEY_KEEPER);
     }
 
     /**

@@ -1,11 +1,17 @@
 import { BigNumberish } from "@ethersproject/bignumber"
 import { Contract } from "@ethersproject/contracts"
 import { formatBytes32String } from "@ethersproject/strings"
+import { Signer } from "ethers"
 import { Account } from "types/common"
+import { HardhatRuntimeEnvironment } from "hardhat/types/runtime"
 import {
     AssetProxy__factory,
     InstantProxyAdmin__factory,
     PlatformTokenVendorFactory__factory,
+    L2BridgeRecipient,
+    L2BridgeRecipient__factory,
+    BridgeForwarder,
+    BridgeForwarder__factory,
     QuestManager__factory,
     SignatureVerifier__factory,
     StakedTokenBPT__factory,
@@ -36,7 +42,7 @@ export interface StakedTokenDeployAddresses {
 export const deployStakingToken = async (
     stakedTokenData: StakedTokenData,
     deployer: Account,
-    hre: any,
+    hre: HardhatRuntimeEnvironment,
     deployProxy = false,
     overrides?: StakedTokenDeployAddresses,
     overrideSigner?: string,
@@ -112,7 +118,7 @@ export const deployStakingToken = async (
     const stakedTokenLibraryAddresses = {
         "contracts/rewards/staking/PlatformTokenVendorFactory.sol:PlatformTokenVendorFactory": platformTokenVendorFactoryAddress,
     }
-    let constructorArguments: any[]
+    let constructorArguments: [string,string,string,string,BigNumberish, BigNumberish, string[]?,string?]
     let stakedTokenImpl: Contract
     let data: string
     if (rewardsTokenAddress === stakedTokenAddress) {
@@ -195,4 +201,44 @@ export const deployStakingToken = async (
         platformTokenVendorFactory: platformTokenVendorFactoryAddress,
         proxyAdminAddress,
     }
+}
+
+export const deployBridgeForwarder = async (
+    signer: Signer,
+    nexusAddress: string,
+    rewardTokenAddress: string,
+    bridgeTokenLockerAddress: string,
+    rootChainManagerAddress: string,
+    childRecipient1Address: string,
+    emissionsController: string,
+): Promise<BridgeForwarder> => {
+    const impl = await deployContract(new BridgeForwarder__factory(signer), "BridgeForwarder", [
+        nexusAddress,
+        rewardTokenAddress,
+        bridgeTokenLockerAddress,
+        rootChainManagerAddress,
+        childRecipient1Address,
+    ])
+
+    // Proxy
+    const data = impl.interface.encodeFunctionData("initialize", [emissionsController])
+    const delayedProxyAdminAddress = resolveAddress("DelayedProxyAdmin")
+    const proxy = await deployContract(new AssetProxy__factory(signer), "AssetProxy", [impl.address, delayedProxyAdminAddress, data])
+
+    const rootRecipient = new BridgeForwarder__factory(signer).attach(proxy.address)
+
+    return rootRecipient
+}
+
+export const deployL2BridgeRecipient = async (
+    signer: Signer,
+    bridgedRewardTokenAddress: string,
+    childEmissionsController: string,
+): Promise<L2BridgeRecipient> => {
+    const childRecipient = await deployContract<L2BridgeRecipient>(new L2BridgeRecipient__factory(signer), "L2BridgeRecipient", [
+        bridgedRewardTokenAddress,
+        childEmissionsController,
+    ])
+
+    return childRecipient
 }
