@@ -935,7 +935,7 @@ describe("Feeder Admin", () => {
         })
     })
 
-    describe.only("when going from platform to no platform", () => {
+    describe("when going from platform to no platform", () => {
         let pool: FeederPool
 
         let transferringAsset: MockERC20
@@ -1010,7 +1010,7 @@ describe("Feeder Admin", () => {
                 expect(balBefore, "Bal before in Old Integration").gt(0)
 
                 // call migrate, cache to be in DudIntegration, deposited amount is in Feeder Pool
-                const tx = pool.connect(sa.governor.signer).migrateBassets([transferringAsset.address], newIntegration.address)
+                const tx = await pool.connect(sa.governor.signer).migrateBassets([transferringAsset.address], newIntegration.address)
                 // emits BassetsMigrated
                 await expect(tx).to.emit(pool, "BassetsMigrated").withArgs([transferringAsset.address], newIntegration.address)
                 await expect(tx).to.emit(dudPlatform, "PlatformDeposited").withArgs(newIntegration.address, balBefore)
