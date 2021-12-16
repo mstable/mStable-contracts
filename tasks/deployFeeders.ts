@@ -20,7 +20,7 @@ import { deployFeederPool, deployVault, FeederData, VaultData } from "./utils/fe
 import { getChain, getChainAddress, resolveToken } from "./utils/networkAddressFactory"
 
 task("deployFeederPool", "Deploy Feeder Pool")
-    .addParam("masset", "Token symbol of mAsset. eg mUSD or PmUSD for Polygon", "mUSD", types.string)
+    .addParam("masset", "Token symbol of mAsset. eg mUSD", "mUSD", types.string)
     .addParam("fasset", "Token symbol of Feeder Pool asset. eg GUSD, WBTC, PFRAX for Polygon", "alUSD", types.string)
     .addOptionalParam("a", "Amplitude coefficient (A)", 100, types.int)
     .addOptionalParam("min", "Minimum asset weight of the basket as a percentage. eg 10 for 10% of the basket.", 10, types.int)
@@ -127,11 +127,11 @@ task("deployVault", "Deploy Feeder Pool with boosted dual vault")
     .addParam("boosted", "Rewards are boosted by staked MTA (vMTA)", undefined, types.boolean)
     .addParam(
         "stakingToken",
-        "Symbol of token that is being staked. Feeder Pool is just the fAsset. eg mUSD, PmUSD, MTA, GUSD, alUSD",
+        "Symbol of token that is being staked. Feeder Pool is just the fAsset. eg mUSD, MTA, GUSD, alUSD",
         undefined,
         types.string,
     )
-    .addParam("rewardToken", "Token symbol of reward. eg MTA or PMTA for Polygon", undefined, types.string)
+    .addOptionalParam("rewardToken", "Token symbol of reward. eg MTA", "MTA", types.string)
     .addOptionalParam("dualRewardToken", "Token symbol of second reward. eg WMATIC, ALCX, QI", undefined, types.string)
     .addOptionalParam("price", "Price coefficient is the value of the mAsset in USD. eg mUSD/USD = 1, mBTC/USD", 1, types.int)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)

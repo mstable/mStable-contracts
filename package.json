@@ -1,6 +1,6 @@
 {
     "name": "@mstable/protocol",
-    "version": "2.3.2",
+    "version": "2.4.0",
     "description": "mStable Contracts",
     "author": "mStable <info@mstable.org>",
     "license": "AGPL-3.0-or-later",
@@ -24,7 +24,7 @@
         "lint-sol": "solhint 'contracts/**/*.sol'",
         "compile-abis": "typechain --target=ethers-v5 --out-dir types/generated \"?(contracts|build)/!(build-info)/**/+([a-zA-Z0-9]).json\"",
         "compile-ts": "npx tsc",
-        "compile": "yarn hardhat compile --force && yarn run compile-abis",
+        "compile": "yarn hardhat compile && yarn run compile-abis",
         "flatten": "npx sol-merger \"./contracts/**/*.sol\" ./_flat",
         "coverage": "yarn hardhat compile --force && node --max_old_space_size=6144 node_modules/.bin/hardhat coverage --temp 'build/contracts' --testfiles 'test/**/*.spec.ts' --show-stack-traces",
         "convertTestFiles": "cd test-utils/validator-data; ts-node ./convertCsvTestFiles.ts",
@@ -88,8 +88,8 @@
     "dependencies": {
         "@nomiclabs/hardhat-ethers": "^2.0.2",
         "@nomiclabs/hardhat-waffle": "^2.0.1",
-        "@openzeppelin/contracts": "4.2.0",
-        "@openzeppelin/contracts-upgradeable": "4.2.0",
+        "@openzeppelin/contracts": "4.3.3",
+        "@openzeppelin/contracts-upgradeable": "4.3.3",
         "@tenderly/hardhat-tenderly": "^1.0.12",
         "@typechain/ethers-v5": "^7.0.1",
         "@typechain/hardhat": "^2.3.0",

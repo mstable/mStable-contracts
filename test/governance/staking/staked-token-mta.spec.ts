@@ -36,7 +36,6 @@ export interface SnapData {
 
 describe("Staked Token MTA rewards", () => {
     let sa: StandardAccounts
-    // let deployTime: BN
     let nexus: MockNexus
     let rewardToken: MockERC20
     let stakedToken: StakedTokenMTA
@@ -46,7 +45,6 @@ describe("Staked Token MTA rewards", () => {
     console.log(`Staked Token MTA contract size ${StakedTokenMTA__factory.bytecode.length / 2} bytes`)
 
     const redeployStakedToken = async (): Promise<void> => {
-        // deployTime = await getTimestamp()
         nexus = await new MockNexus__factory(sa.default.signer).deploy(sa.governor.address, DEAD_ADDRESS, DEAD_ADDRESS)
         await nexus.setRecollateraliser(sa.mockRecollateraliser.address)
         rewardToken = await new MockERC20__factory(sa.default.signer).deploy(

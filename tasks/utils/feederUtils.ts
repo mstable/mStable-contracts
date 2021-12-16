@@ -109,6 +109,7 @@ export const deployFeederPool = async (signer: Signer, feederData: FeederData, h
             FeederManager: feederManagerAddress,
             FeederLogic: feederLogicAddress,
         },
+        contract: "contracts/feeders/FeederPool.sol:FeederPool",
     })
 
     // Initialization Data
@@ -154,8 +155,7 @@ export const deployFeederPool = async (signer: Signer, feederData: FeederData, h
 }
 
 export const deployVault = async (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-module-boundary-types
-    hre: any,
+    hre: HardhatRuntimeEnvironment,
     vaultParams: VaultData,
 ): Promise<BoostedDualVault | BoostedVault | StakingRewardsWithPlatformToken | StakingRewards> => {
     const signer = await getSigner(hre)
@@ -215,6 +215,7 @@ export const deployVault = async (
     await verifyEtherscan(hre, {
         address: vault.address,
         constructorArguments,
+        contract: "contracts/rewards/boosted-staking/BoostedDualVault.sol:BoostedDualVault",
     })
 
     const initializeData = vault.interface.encodeFunctionData("initialize", [rewardsDistributorAddress, vaultData.name, vaultData.symbol])
