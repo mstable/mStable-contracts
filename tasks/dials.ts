@@ -1,11 +1,12 @@
 import { BN, sum, percentToWeight } from "@utils/math"
-import { task } from "hardhat/config"
+import { task, types } from "hardhat/config"
 import "ts-node/register"
 import "tsconfig-paths/register"
 import { EmissionsController__factory, IERC20__factory } from "types/generated"
 import { MTA, usdFormatter } from "./utils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
 import { getSigner } from "./utils/signerFactory"
+import { getBlock } from "./utils/snap-utils"
 
 interface DialData {
     disabled: boolean
@@ -31,6 +32,7 @@ interface DialsSnap {
     totalDonated: BN
     totalRewards: BN
     emissionsControllerBalance: BN
+    csv: boolean
 }
 /**
  * @dev This is a fork of EmissionsController.calculateRewards, any change to the smart contract should be replicated here.
@@ -120,16 +122,34 @@ const dialsDetailsToString = (dialsDetails: Array<DialDetails>) =>
         )
         .join("\n")
 
+const dialsDetailsToCsv = (dialsDetails: Array<DialDetails>) =>
+    dialsDetails
+        .map(
+            (dd, i) =>
+                `${dd.dialId.toString().padStart(2)}, ${dialNames[i].padStart(21)}, ${usdFormatter(
+                    dd.voteWeight,
+                    18,
+                    5,
+                    2,
+                )}, ${usdFormatter(dd.distributed)}, ${usdFormatter(dd.donated)}, ${usdFormatter(dd.rewards)}`,
+        )
+        .join("\n")
+
 const outputDialsSnap = (dialsSnap: DialsSnap) => {
-    console.log(`\nEmissions Controller Dials Snap at epoch ${dialsSnap.nextEpoch}`)
-    console.log(`  ID\t\t\tName\tPercent\t   Distributed\t\tDonated\t\t Total`)
-    console.log(dialsDetailsToString(dialsSnap.dialsDetails))
-    console.log(
-        `Totals\t\t\t\t\t${usdFormatter(dialsSnap.totalDistributed)}\t${usdFormatter(dialsSnap.totalDonated)}\t ${usdFormatter(
-            dialsSnap.totalRewards,
-        )}`,
-    )
-    console.log("MTA in Emissions Controller", usdFormatter(dialsSnap.emissionsControllerBalance))
+    if (!dialsSnap.csv) {
+        console.log(`\nEmissions Controller Dials Snap at epoch ${dialsSnap.nextEpoch}`)
+        console.log(`  ID\t\t\tName\tPercent\t   Distributed\t\tDonated\t\t Total`)
+        console.log(dialsDetailsToString(dialsSnap.dialsDetails))
+        console.log(
+            `Totals\t\t\t\t\t${usdFormatter(dialsSnap.totalDistributed)}\t${usdFormatter(dialsSnap.totalDonated)}\t ${usdFormatter(
+                dialsSnap.totalRewards,
+            )}`,
+        )
+        console.log("MTA in Emissions Controller", usdFormatter(dialsSnap.emissionsControllerBalance))
+    } else {
+        console.log(`ID, Name, Percent, Distributed, Donated, Total`)
+        console.log(dialsDetailsToCsv(dialsSnap.dialsDetails))
+    }
 }
 
 /**
@@ -144,71 +164,90 @@ const outputDialsSnap = (dialsSnap: DialsSnap) => {
  *   4.- Total MTA rewards across all dials = distributed + donated
  *   5.- Get MTA balance in the Emissions Controller  - // (REWARD_TOKEN.balanceOf(emissionsController))
  */
-task("dials-snap", "Snaps Emissions Controller's dials").setAction(async (_taskArgs, hre) => {
-    const signer = await getSigner(hre)
-    const chain = getChain(hre)
-    const emissionsControllerAddress = getChainAddress("EmissionsController", chain)
-    const emissionsController = EmissionsController__factory.connect(emissionsControllerAddress, signer)
-    const mtaToken = IERC20__factory.connect(MTA.address, signer)
+task("dials-snap", "Snaps Emissions Controller's dials")
+    .addOptionalParam("csv", "Output in comma separated values", true, types.boolean)
+    .addOptionalParam("block", "Block number. (default: current block)", 0, types.int)
+    .setAction(async (_taskArgs, hre) => {
+        const signer = await getSigner(hre)
+        const chain = getChain(hre)
 
-    // Get current epoch  and simulate next epoch by adding one week
-    const [, lastEpoch] = await emissionsController.epochs()
-    const nextEpoch = lastEpoch + 1
+        const block = await getBlock(hre.ethers, _taskArgs.block)
 
-    // 1.- For each dial in the Emissions Controller store its details
-    const dialsDetails: Array<DialDetails> = []
-    // 2.- Total MTA rewards to be distributed across all dials - basically the sum
-    const totalDistributed = await emissionsController.topLineEmission(nextEpoch)
-    // 3.- Total MTA rewards currently donated across all dials - the sum of balance of each dial
-    let totalDonated = BN.from(0)
-    // 4.- Total MTA rewards across all dials = distributed + donated
-    let totalRewards = BN.from(0)
-    // 5.- Get MTA balance in the Emissions Controller
-    const emissionsControllerBalance = await mtaToken.balanceOf(emissionsController.address)
+        const emissionsControllerAddress = getChainAddress("EmissionsController", chain)
+        const emissionsController = EmissionsController__factory.connect(emissionsControllerAddress, signer)
+        const mtaToken = IERC20__factory.connect(MTA.address, signer)
 
-    // Get the latest dial votes, it helps to know the len of dials.
-    const latestDialVotes = await emissionsController.getDialVotes()
-    const dialsData: Array<DialData> = []
-    for (let i = 0; i < latestDialVotes.length; i += 1) {
-        // eslint-disable-next-line no-await-in-loop
-        dialsData.push(await emissionsController.dials(i))
-    }
-    // Gets the total vote of all enabled dial
-    const totalDialVotes = dialsData
-        .filter((dial) => !dial.disabled)
-        .map((_dial, i) => latestDialVotes[i])
-        .reduce(sum)
+        // Get current epoch  and simulate next epoch by adding one week
+        const [, lastEpoch] = await emissionsController.epochs({
+            blockTag: block.blockNumber,
+        })
+        const nextEpoch = lastEpoch + 1
 
-    // Calculate distributed MTA rewards for the next run factoring in disabled dials and reward caps for the staking contracts
-    const calculatedRewards = calculateRewards(latestDialVotes, dialsData, totalDistributed)
+        // 1.- For each dial in the Emissions Controller store its details
+        const dialsDetails: Array<DialDetails> = []
+        // 2.- Total MTA rewards to be distributed across all dials - basically the sum
+        const totalDistributed = await emissionsController.topLineEmission(nextEpoch, {
+            blockTag: block.blockNumber,
+        })
+        // 3.- Total MTA rewards currently donated across all dials - the sum of balance of each dial
+        let totalDonated = BN.from(0)
+        // 4.- Total MTA rewards across all dials = distributed + donated
+        let totalRewards = BN.from(0)
+        // 5.- Get MTA balance in the Emissions Controller
+        const emissionsControllerBalance = await mtaToken.balanceOf(emissionsController.address, {
+            blockTag: block.blockNumber,
+        })
 
-    latestDialVotes.forEach(async (vote, dialId) => {
-        const dialData = dialsData[dialId]
-        // if the dial is disabled assign 0 to the vote
-        const adjustedVote = BN.from(dialData.disabled ? 0 : vote)
-        // 1.1- Get the weighted votes as a percentage of the total weighted votes across all dials (adjust if they are disabled)
-        const voteWeight = percentToWeight(totalDialVotes.eq(0) ? BN.from(0) : adjustedVote.mul(10000).div(totalDialVotes))
-        // 1.2- Calculate distributed MTA rewards for the next run factoring in disabled dials and reward caps
-        const distributed = calculatedRewards.distributionAmounts[dialId]
-        // 1.3- Get the current donated MTA rewards:  from DialData.balance
-        const donated = dialData.balance
-        // 1.4- Total rewards = distributed + donated rewards
-        const rewards = donated.add(distributed)
+        // Get the latest dial votes, it helps to know the len of dials.
+        const latestDialVotes = await emissionsController.getDialVotes({
+            blockTag: block.blockNumber,
+        })
+        const dialsData: Array<DialData> = []
+        for (let i = 0; i < latestDialVotes.length; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            dialsData.push(
+                await emissionsController.dials(i, {
+                    blockTag: block.blockNumber,
+                }),
+            )
+        }
+        // Gets the total vote of all enabled dial
+        const totalDialVotes = dialsData
+            .filter((dial) => !dial.disabled)
+            .map((_dial, i) => latestDialVotes[i])
+            .reduce(sum)
 
-        totalDonated = totalDonated.add(donated)
-        totalRewards = totalRewards.add(rewards)
-        dialsDetails.push({ dialId, voteWeight, distributed, donated, rewards })
+        // Calculate distributed MTA rewards for the next run factoring in disabled dials and reward caps for the staking contracts
+        const calculatedRewards = calculateRewards(latestDialVotes, dialsData, totalDistributed)
+
+        latestDialVotes.forEach(async (vote, dialId) => {
+            const dialData = dialsData[dialId]
+            // if the dial is disabled assign 0 to the vote
+            const adjustedVote = BN.from(dialData.disabled ? 0 : vote)
+            // 1.1- Get the weighted votes as a percentage of the total weighted votes across all dials (adjust if they are disabled)
+            const voteWeight = percentToWeight(totalDialVotes.eq(0) ? BN.from(0) : adjustedVote.mul(10000).div(totalDialVotes))
+            // 1.2- Calculate distributed MTA rewards for the next run factoring in disabled dials and reward caps
+            const distributed = calculatedRewards.distributionAmounts[dialId]
+            // 1.3- Get the current donated MTA rewards:  from DialData.balance
+            const donated = dialData.balance
+            // 1.4- Total rewards = distributed + donated rewards
+            const rewards = donated.add(distributed)
+
+            totalDonated = totalDonated.add(donated)
+            totalRewards = totalRewards.add(rewards)
+            dialsDetails.push({ dialId, voteWeight, distributed, donated, rewards })
+        })
+
+        outputDialsSnap({
+            nextEpoch,
+            dialsDetails,
+            totalDistributed,
+            totalDonated,
+            totalRewards,
+            emissionsControllerBalance,
+            ...calculatedRewards,
+            csv: _taskArgs.csv,
+        })
     })
-
-    outputDialsSnap({
-        nextEpoch,
-        dialsDetails,
-        totalDistributed,
-        totalDonated,
-        totalRewards,
-        emissionsControllerBalance,
-        ...calculatedRewards,
-    })
-})
 
 module.exports = {}
