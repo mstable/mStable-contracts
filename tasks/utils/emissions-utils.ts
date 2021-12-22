@@ -9,7 +9,7 @@ import {
     DisperseForwarder,
     DisperseForwarder__factory,
     VotiumBribeForwarder,
-    VotiumBribeForwarder__factory,    
+    VotiumBribeForwarder__factory,
     EmissionsController,
     EmissionsController__factory,
     L2BridgeRecipient,
@@ -19,19 +19,17 @@ import {
     RevenueBuyBack,
     RevenueBuyBack__factory,
 } from "types/generated"
-import { deployContract } from "./deploy-utils"
+import { deployContract, logTxDetails } from "./deploy-utils"
 import { verifyEtherscan } from "./etherscan"
 import { getChain, resolveAddress } from "./networkAddressFactory"
-import { Chain, MTA } from "./tokens"
-
-export const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+import { Chain } from "./tokens"
 
 export const deployEmissionsController = async (signer: Signer, hre: HardhatRuntimeEnvironment): Promise<EmissionsController> => {
     const chain = getChain(hre)
 
     const nexusAddress = resolveAddress("Nexus", chain)
     const proxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)
-    const mtaAddress = MTA.address
+    const mtaAddress = resolveAddress("MTA", chain)
     const mtaStakingAddress = resolveAddress("StakedTokenMTA", chain)
     const mbptStakingAddress = resolveAddress("StakedTokenBPT", chain)
 
@@ -121,15 +119,24 @@ export const deployBasicForwarder = async (
     const recipientAddress = resolveAddress(recipient, chain)
     const ownerAddress = owner ? resolveAddress(owner, chain) : undefined
 
+    const constructorArguments = [nexusAddress, rewardsAddress]
     const forwarder = await deployContract<BasicRewardsForwarder>(new BasicRewardsForwarder__factory(signer), "BasicRewardsForwarder", [
         nexusAddress,
         rewardsAddress,
     ])
-    await forwarder.initialize(emissionsControllerAddress, recipientAddress)
+    const tx1 = await forwarder.initialize(emissionsControllerAddress, recipientAddress)
+    await logTxDetails(tx1, "initialize")
 
     if (ownerAddress) {
-        await forwarder.transferOwnership(ownerAddress)
+        const tx2 = await forwarder.transferOwnership(ownerAddress)
+        await logTxDetails(tx2, "transferOwnership")
     }
+
+    await verifyEtherscan(hre, {
+        address: forwarder.address,
+        constructorArguments,
+        contract: "contracts/emissions/BasicRewardsForwarder.sol:BasicRewardsForwarder",
+    })
 
     return forwarder
 }
@@ -139,7 +146,7 @@ export const deployL2EmissionsController = async (signer: Signer, hre: HardhatRu
 
     const nexusAddress = resolveAddress("Nexus", chain)
     const proxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)
-    const mtaAddress = MTA.address
+    const mtaAddress = resolveAddress("MTA", chain)
 
     // Deploy logic contract
     const constructorArguments = [nexusAddress, mtaAddress]
@@ -172,7 +179,8 @@ export const deployL2BridgeRecipients = async (
     hre: HardhatRuntimeEnvironment,
     l2EmissionsControllerAddress: string,
 ): Promise<L2BridgeRecipient> => {
-    const mtaAddress = MTA.address
+    const chain = getChain(hre)
+    const mtaAddress = resolveAddress("MTA", chain)
     const constructorArguments = [mtaAddress, l2EmissionsControllerAddress]
 
     const bridgeRecipient = await deployContract<L2BridgeRecipient>(new L2BridgeRecipient__factory(signer), "L2BridgeRecipient", [
@@ -193,10 +201,14 @@ export const deployDisperseForwarder = async (signer: Signer, hre: HardhatRuntim
     const chain = getChain(hre)
     const nexusAddress = resolveAddress("Nexus", chain)
     const disperseAddress = resolveAddress("Disperse", chain)
-    const mtaAddress = MTA.address
-    const constructorArguments = [nexusAddress, disperseAddress, mtaAddress]
+    const mtaAddress = resolveAddress("MTA", chain)
+    const constructorArguments = [nexusAddress, mtaAddress, disperseAddress]
 
-    const disperseForwarder = await deployContract<DisperseForwarder>(new DisperseForwarder__factory(signer), "DisperseForwarder", constructorArguments)
+    const disperseForwarder = await deployContract<DisperseForwarder>(
+        new DisperseForwarder__factory(signer),
+        "DisperseForwarder",
+        constructorArguments,
+    )
 
     await verifyEtherscan(hre, {
         address: disperseForwarder.address,
@@ -208,14 +220,17 @@ export const deployDisperseForwarder = async (signer: Signer, hre: HardhatRuntim
 }
 
 export const deployVotiumBribeForwarder = async (signer: Signer, hre: HardhatRuntimeEnvironment): Promise<VotiumBribeForwarder> => {
-
     const chain = getChain(hre)
     const nexusAddress = resolveAddress("Nexus", chain)
     const votiumBribeAddress = resolveAddress("VotiumBribe", chain)
-    const mtaAddress = MTA.address
+    const mtaAddress = resolveAddress("MTA", chain)
     const constructorArguments = [nexusAddress, mtaAddress, votiumBribeAddress]
 
-    const votiumBribeForwarder = await deployContract<VotiumBribeForwarder>(new VotiumBribeForwarder__factory(signer), "VotiumBribeForwarder", constructorArguments)
+    const votiumBribeForwarder = await deployContract<VotiumBribeForwarder>(
+        new VotiumBribeForwarder__factory(signer),
+        "VotiumBribeForwarder",
+        constructorArguments,
+    )
 
     await verifyEtherscan(hre, {
         address: votiumBribeForwarder.address,
@@ -235,18 +250,14 @@ export const deployBridgeForwarder = async (
     const chain = getChain(hre)
 
     const nexusAddress = resolveAddress("Nexus", chain)
-    const mtaAddress = MTA.address
+    const mtaAddress = resolveAddress("MTA", chain)
     const proxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)
     const tokenBridgeAddress = resolveAddress("PolygonPoSBridge", chain)
     const rootChainManagerAddress = resolveAddress("PolygonRootChainManager", chain)
     const emissionsControllerAddress = _emissionsControllerAddress || resolveAddress("EmissionsController", chain)
 
     const constructorArguments = [nexusAddress, mtaAddress, tokenBridgeAddress, rootChainManagerAddress, bridgeRecipientAddress]
-    const bridgeForwarderImpl = await deployContract(
-        new BridgeForwarder__factory(signer),
-        "mUSD Vault Bridge Forwarder",
-        constructorArguments,
-    )
+    const bridgeForwarderImpl = await deployContract(new BridgeForwarder__factory(signer), "Vault Bridge Forwarder", constructorArguments)
 
     // Deploy proxy and initialize
     const initializeData = bridgeForwarderImpl.interface.encodeFunctionData("initialize", [emissionsControllerAddress])
@@ -260,9 +271,6 @@ export const deployBridgeForwarder = async (
     console.log(`\nSet bridgeForwarder to ${bridgeForwarder.address}`)
     console.log(`Governor calls EmissionsController.addDial ${emissionsControllerAddress} with params:`)
     console.log(`recipient ${bridgeForwarder.address}, cap 0, notify true`)
-
-    // wait 10 seconds
-    await sleep(10000)
 
     await verifyEtherscan(hre, {
         address: bridgeForwarderImpl.address,
@@ -281,7 +289,7 @@ export const deployRevenueBuyBack = async (
     const chain = getChain(hre)
 
     const nexusAddress = resolveAddress("Nexus", chain)
-    const mtaAddress = MTA.address
+    const mtaAddress = resolveAddress("MTA", chain)
     const uniswapRouterAddress = resolveAddress("UniswapRouterV3", chain)
     const emissionsControllerAddress = _emissionsControllerAddress || resolveAddress("EmissionsController", chain)
 
@@ -292,8 +300,9 @@ export const deployRevenueBuyBack = async (
         uniswapRouterAddress,
         emissionsControllerAddress,
     ]
-    const revenueBuyBack = await new RevenueBuyBack__factory(signer).deploy(...constructorArguments)
-    await revenueBuyBack.initialize([0, 1])
+    const revenueBuyBack = await deployContract<RevenueBuyBack>(new RevenueBuyBack__factory(signer), "RevenueBuyBack", constructorArguments)
+    const tx = await revenueBuyBack.initialize([0, 1])
+    await logTxDetails(tx, "RevenueBuyBack.initialize")
 
     await verifyEtherscan(hre, {
         address: revenueBuyBack.address,
