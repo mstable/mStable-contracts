@@ -5,10 +5,10 @@ import { RewardsDistributorEth__factory } from "types/generated/factories/Reward
 import { RewardsDistributor__factory } from "types/generated/factories/RewardsDistributor__factory"
 import { formatUnits } from "ethers/lib/utils"
 import { TransactionResponse } from "@ethersproject/providers"
-import { Liquidator__factory } from "types/generated"
+import { Collector__factory, Liquidator__factory } from "types/generated"
 import { Comptroller__factory } from "types/generated/factories/Comptroller__factory"
 import rewardsFiles from "./balancer-mta-rewards/20210817.json"
-import { Chain, logTxDetails, USDC, usdFormatter } from "./utils"
+import { Chain, logTxDetails, mBTC, mUSD, USDC, usdFormatter } from "./utils"
 import { getAaveTokens, getAlcxTokens, getBlock, getCompTokens } from "./utils/snap-utils"
 import { getSigner } from "./utils/signerFactory"
 import { getChain, getChainAddress, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
@@ -131,6 +131,21 @@ subtask("rewards", "Get Compound and Aave platform reward tokens")
         await getAlcxTokens(signer, block)
     })
 task("rewards").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})
+
+subtask("collect-interest", "Collects and distributes mAsset interest")
+    .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const collector = Collector__factory.connect(resolveAddress("Collector", chain), signer)
+
+        const tx = await collector.distributeInterest([mUSD.address, mBTC.address], false)
+        await logTxDetails(tx, `collect fees from mUSD and mBTC`)
+    })
+task("collect-interest").setAction(async (_, __, runSuper) => {
     await runSuper()
 })
 

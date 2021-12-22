@@ -80,8 +80,8 @@ export const PmUSD: Token = {
     savings: "0x5290Ad3d83476CA6A2b178Cd9727eE1EF72432af",
     vault: "0x32aBa856Dc5fFd5A56Bcd182b13380e5C855aa29",
     platformTokenVendor: "0x7b19a4f4ee26037ffef77bc7d99f56209acc8db1",
-    bridgeForwarder: DEAD_ADDRESS, // TODO after deployment,
-    bridgeRecipient: DEAD_ADDRESS, // TODO after deployment
+    bridgeForwarder: "0x7206A7eB2fe1B8a66D4d35db98d68Cadc890FAca",
+    bridgeRecipient: "0xd3778a18Ee00a6368A0e5D545cB3412886e5a04c",
 }
 export const MmUSD: Token = {
     symbol: "mUSD",
@@ -90,7 +90,7 @@ export const MmUSD: Token = {
     decimals: 18,
     quantityFormatter: "USD",
     bridgeForwarder: "0x1dAdDae168636fE28b5eA34F1b3D4ea9367e8b6F",
-    bridgeRecipient: DEAD_ADDRESS, // TODO after deployment
+    bridgeRecipient: DEAD_ADDRESS,
 }
 // Ropsten
 export const RmUSD: Token = {
@@ -286,8 +286,8 @@ export const PFRAX: Token = {
     quantityFormatter: "USD",
     parent: "mUSD",
     feederPool: "0xB30a907084AC8a0d25dDDAB4E364827406Fd09f0",
-    bridgeForwarder: DEAD_ADDRESS, // TODO after deployment
-    bridgeRecipient: DEAD_ADDRESS, // TODO after deployment
+    bridgeForwarder: "0x38dD64B51C1808b04493324f334350eBB3AE8d11",
+    bridgeRecipient: "0xc425Fd9Ed3C892d849C9E1a971516da1C1B29696",
 }
 export const MFRAX: Token = {
     symbol: "FRAX",
@@ -478,9 +478,9 @@ export const PBAL: Token = {
     chain: Chain.polygon,
     decimals: 18,
     quantityFormatter: "USD",
-    bridgeForwarder: DEAD_ADDRESS,
+    bridgeForwarder: "0x4e649Fa2f3C0Ff18b7695d1e1fa371a1999187Dc",
     // The DisperseForwarder contract on Polygon
-    bridgeRecipient: DEAD_ADDRESS,
+    bridgeRecipient: "0x5783458E67B380d19a84514F11054ABDc326EB07",
 }
 
 export const RBAL: Token = {

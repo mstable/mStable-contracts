@@ -25,7 +25,7 @@ import { AaveStakedTokenV2__factory } from "types/generated/factories/AaveStaked
 import { Comptroller__factory } from "types/generated/factories/Comptroller__factory"
 import { MusdLegacy } from "types/generated/MusdLegacy"
 import { QuantityFormatter, usdFormatter } from "./quantity-formatters"
-import { AAVE, ALCX, alUSD, Chain, COMP, DAI, GUSD, stkAAVE, sUSD, Token, USDC, USDT, WBTC } from "./tokens"
+import { AAVE, ALCX, alUSD, BUSD, Chain, COMP, DAI, GUSD, RAI, stkAAVE, sUSD, Token, USDC, USDT, WBTC } from "./tokens"
 import { getChainAddress, resolveAddress } from "./networkAddressFactory"
 
 const comptrollerAddress = "0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B"
@@ -791,7 +791,7 @@ export const getAaveTokens = async (
     // Get accrued stkAave for each integration contract that is still to be claimed from the  controller
     console.log(`\nstkAAVE accrued and unclaimed`)
     let totalUnclaimed = BN.from(0)
-    const integrationTokens = [[DAI, USDT], [GUSD], [WBTC]]
+    const integrationTokens = [[DAI, USDT, sUSD], [GUSD], [BUSD], [RAI], [WBTC]]
     for (const bAssets of integrationTokens) {
         const bAssetSymbols = bAssets.reduce((symbols, token) => `${symbols}${token.symbol} `, "")
         const aTokens = bAssets.map((t) => t.liquidityProvider)
@@ -799,9 +799,9 @@ export const getAaveTokens = async (
             blockTag: toBlock.blockNumber,
         })
         totalUnclaimed = totalUnclaimed.add(accruedBal)
-        console.log(`${bAssetSymbols.padEnd(10)} ${quantityFormatter(accruedBal)}`)
+        console.log(`${bAssetSymbols.padEnd(16)} ${quantityFormatter(accruedBal)}`)
     }
-    console.log(`Total      ${quantityFormatter(totalUnclaimed)}`)
+    console.log(`Total            ${quantityFormatter(totalUnclaimed)}`)
     totalStkAaveAndAave = totalStkAaveAndAave.add(totalUnclaimed)
 
     // Get stkAAVE balances in liquidators
@@ -811,11 +811,11 @@ export const getAaveTokens = async (
         const bAssetSymbols = bAssets.reduce((symbols, token) => `${symbols}${token.symbol} `, "")
         const integrationData = await liquidator.liquidations(bAssets[0].integrator, { blockTag: toBlock.blockNumber })
         totalClaimedstkAave = totalClaimedstkAave.add(integrationData.aaveBalance)
-        console.log(`${bAssetSymbols.padEnd(10)} ${quantityFormatter(integrationData.aaveBalance)}`)
+        console.log(`${bAssetSymbols.padEnd(16)} ${quantityFormatter(integrationData.aaveBalance)}`)
     }
-    console.log(`Total              ${quantityFormatter(totalClaimedstkAave, 18, 6)}`)
+    console.log(`Total                    ${quantityFormatter(totalClaimedstkAave, 18, 6)}`)
     const liquidatorTotalBalance = await liquidator.totalAaveBalance({ blockTag: toBlock.blockNumber })
-    console.log(`Total Aave Balance ${quantityFormatter(liquidatorTotalBalance, 18, 6)}`)
+    console.log(`Total Aave Balance       ${quantityFormatter(liquidatorTotalBalance, 18, 6)}`)
 
     // Get stkAave and AAVE in liquidity manager
     const liquidatorStkAaveBal = await stkAaveToken.balanceOf(liquidatorAddress, { blockTag: toBlock.blockNumber })

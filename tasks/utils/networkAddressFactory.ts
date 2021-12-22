@@ -16,9 +16,9 @@ export const contractNames = [
     // Will become the EmissionsController
     "RewardsDistributor",
     "EmissionsController",
-    "L2EmissionsController",
     "PolygonPoSBridge",
     "PolygonRootChainManager",
+    "PolygonChildChainManager",
     "BoostDirector",
     "VoterProxy",
     "Collector",
@@ -26,6 +26,7 @@ export const contractNames = [
     "Poker",
     "SaveWrapper",
     "RevenueRecipient",
+    "RevenueBuyBack",
     "MassetManager",
     "FeederManager",
     "FeederLogic",
@@ -47,6 +48,8 @@ export const contractNames = [
     "AlchemixStakingPool",
     "CompController",
     "CurveRegistryExchange",
+    "Disperse",
+    "DisperseForwarder",
     "QuickSwapRouter",
     "UniswapRouterV3",
     "UniswapQuoterV3",
@@ -58,6 +61,8 @@ export const contractNames = [
     "ENSResolver",
     "FraxVault",
     "VisorRouter",
+    "VotiumBribe",
+    "VotiumForwarder",
 ] as const
 export type ContractNames = typeof contractNames[number]
 
@@ -97,8 +102,7 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xe595D67181D701A5356e010D9a58EB9A341f1DbD"
             case "RewardsDistributor":
             case "EmissionsController":
-                // TODO change after Emissions Controller deployment
-                return "0x04dfDfa471b79cc9E6E8C355e6C71F8eC4916C50"
+                return "0xBa69e6FC7Df49a3b75b565068Fb91ff2d9d91780"
             case "PolygonRootChainManager":
                 return "0xA0c68C638235ee32657e8f720a23ceC1bFc77C77"
             case "PolygonPoSBridge":
@@ -117,6 +121,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x0CA7A25181FC991e3cC62BaC511E62973991f325"
             case "RevenueRecipient":
                 return "0xA7824292efDee1177a1C1BED0649cfdD6114fed5"
+            case "RevenueBuyBack":
+                return "0xE301087C087cB9b86068352F0F75073C4c6aA74F"
             case "MassetManager":
                 return "0x1E91F826fa8aA4fa4D3F595898AF3A64dd188848"
             case "FeederManager":
@@ -157,6 +163,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B"
             case "CurveRegistryExchange":
                 return "0xD1602F68CC7C4c7B59D686243EA35a9C73B0c6a2"
+            case "Disperse":
+                return "0xD152f549545093347A162Dce210e7293f1452150"
             case "UniswapRouterV3":
                 return "0xE592427A0AEce92De3Edee1F18E0157C05861564"
             case "UniswapQuoterV3":
@@ -175,6 +183,10 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x4976fb03c32e5b8cfe2b6ccb31c09ba78ebaba41"
             case "VisorRouter":
                 return "0xF3f4F4e17cC65BDC36A36fDa5283F8D8020Ad0a4"
+            case "VotiumBribe":
+                return "0x19bbc3463dd8d07f55438014b021fb457ebd4595"
+            case "VotiumForwarder":
+                return "0xb6d519a0D616f6F5Fac2b1dBC5bcb92ea58EDa4a"
             default:
         }
     } else if (chain === Chain.polygon) {
@@ -185,7 +197,7 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xCb6E4B67f2cac15c284AB49B6a4A671cdfe66711"
             case "ProtocolDAO":
             case "Governor":
-                return "0x4aA2Dd5D5387E4b8dcf9b6Bfa4D9236038c3AD43"
+                return "0x429F29A3A36B1B977C3d4Ec77C695c3391e7B9ED"
             case "FundManager":
                 return "0x437e8c54db5c66bb3d80d2ff156e9bfe31a017db"
             case "SavingsManager":
@@ -202,10 +214,16 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xc929E040b6C8F2fEFE6B45c6bFEB55508554F3E2"
             case "FeederInterestValidator":
                 return "0x4A268958BC2f0173CDd8E0981C4c0a259b5cA291"
+            case "EmissionsController":
+                return "0x82182Ac492fef111FB458FCe8f4228553Ed59a19"
             case "AaveIncentivesController":
                 return "0x357D51124f59836DeD84c8a1730D72B749d8BC23"
             case "AaveLendingPoolAddressProvider":
                 return "0xd05e3E715d945B59290df0ae8eF85c1BdB684744"
+            case "Disperse":
+                return "0xD152f549545093347A162Dce210e7293f1452150"
+            case "DisperseForwarder":
+                return "0x5783458E67B380d19a84514F11054ABDc326EB07"
             case "QuickSwapRouter":
                 return "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff"
             case "MStableYieldSource":
@@ -216,6 +234,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xc425Fd9Ed3C892d849C9E1a971516da1C1B29696"
             case "RevenueRecipient":
                 return "0x4845A90664311F9f0c8cDb5D9B95Bb0937863380"
+            case "PolygonChildChainManager":
+                return "0xA6FA4fB5f76172d178d61B04b0ecd319C5d1C0aa"
             default:
         }
     } else if (chain === Chain.mumbai) {
@@ -269,7 +289,7 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 // Will become redundant after the Emissions Controller is deployed
                 return "0x973E0B9E1b0bf43B1B8dDf9D6A2f817138cf3C10"
             case "EmissionsController":
-                return "0x548776F8DA7620B8B7701BfA2157Ad855094f536"
+                return "0x2d1864922c7C9B9f9a3609ceA70101b638Aac63C"
             case "PolygonRootChainManager":
                 // Is MockRootChainManager
                 return "0x0C4964457610970a2884B8A74a397Eb9ba37D9d4"
@@ -339,8 +359,7 @@ export const resolveAddress = (
         if (!address) {
             // If a token Symbol
             const token = tokens.find((t) => t.symbol === addressContractNameSymbol && t.chain === chain)
-            if (!token)
-                throw Error(`Invalid approve address, token symbol or contract name "${addressContractNameSymbol}" for chain ${chain}`)
+            if (!token) throw Error(`Invalid address, token symbol or contract name "${addressContractNameSymbol}" for chain ${chain}`)
             if (!token[tokenType])
                 throw Error(`Can not find token type "${tokenType}" for "${addressContractNameSymbol}" on chain ${chain}`)
 

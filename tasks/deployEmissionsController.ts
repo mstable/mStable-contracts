@@ -24,17 +24,13 @@ task("deploy-emissions-polly", "Deploys L2EmissionsController and L2 Bridge Reci
         const signer = await getSigner(hre, taskArgs.speed)
 
         const l2EmissionsController = await deployL2EmissionsController(signer, hre)
-        console.log(`Set L2EmissionsController contract name in networkAddressFactory to ${l2EmissionsController.address}`)
+        console.log(`Set EmissionsController contract name in networkAddressFactory to ${l2EmissionsController.address}`)
 
         const bridgeRecipient = await deployL2BridgeRecipients(signer, hre, l2EmissionsController.address)
         console.log(`Set PmUSD bridgeRecipient to ${bridgeRecipient.address}`)
 
         const disperseForwarder = await deployDisperseForwarder(signer, hre)
         console.log(`Set PBAL bridgeRecipient to ${disperseForwarder.address}`)
-
-        const votiumBribeForwarder = await deployVotiumBribeForwarder(signer, hre)
-        console.log(`Set ? bridgeRecipient to ${votiumBribeForwarder.address}`)
-
     })
 
 task("deploy-emissions")
@@ -43,7 +39,7 @@ task("deploy-emissions")
         const signer = await getSigner(hre, taskArgs.speed)
         const emissionsController = await deployEmissionsController(signer, hre)
 
-        console.log(`Set RewardsDistributor in the networkAddressFactory to ${emissionsController.address}`)
+        console.log(`Set EmissionsController in the networkAddressFactory to ${emissionsController.address}`)
     })
 
 task("deploy-bridge-forwarder", "Deploys a BridgeForwarder contract on mainnet for Polygon dials.")
@@ -73,6 +69,15 @@ task("deploy-basic-forwarder", "Deploys a basic rewards forwarder from the emiss
 
         const emissionsControllerAddress = resolveAddress("EmissionsController", chain)
         await deployBasicForwarder(signer, emissionsControllerAddress, taskArgs.recipient, hre, taskArgs.owner)
+    })
+
+task("deploy-votium-forwarder", "Deploys a Votium forwarder from the emissions controller.")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+
+        const votiumBribeForwarder = await deployVotiumBribeForwarder(signer, hre)
+        console.log(`Set VotiumForwarder contract name in networkAddressFactory to ${votiumBribeForwarder.address}`)
     })
 
 task("deploy-revenue-buy-back")

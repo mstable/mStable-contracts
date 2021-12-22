@@ -53,7 +53,7 @@ task("staked-snap").setAction(async (_, __, runSuper) => {
 
 subtask("staked-stake", "Stake MTA or mBPT in V2 Staking Token")
     .addOptionalParam("asset", "Symbol of staking token. MTA or mBPT", "MTA", types.string)
-    .addParam("amount", "Amount to of token to be staked without the token decimals.", undefined, types.float)
+    .addParam("amount", "Amount of tokens to be staked without the token decimals.", undefined, types.float)
     .addParam("delegate", "Address or contract name the voting power will be delegated to.", undefined, types.string)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
     .setAction(async (taskArgs, hre) => {
