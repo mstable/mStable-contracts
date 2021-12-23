@@ -70,8 +70,7 @@ contract InterestValidator is PausableModule {
 
     /**
      * @dev Collects gov fees from fPools in the form of fPtoken, then converts to
-     * mAsset and sends directly to the SavingsManager, where it will be picked up and
-     * converted to mBPT upon the next collection
+     * mAsset and sends directly to the SavingsManager as unallocated interest.
      */
     function collectGovFees(address[] calldata _fPools) external onlyGovernor {
         uint256 len = _fPools.length;

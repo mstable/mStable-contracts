@@ -10,7 +10,7 @@ import { BN, simpleToExactAmount } from "@utils/math"
 import { currentWeekEpoch, increaseTime } from "@utils/time"
 import { MAX_UINT256, ONE_DAY, ONE_WEEK } from "@utils/constants"
 import { assertBNClose } from "@utils/assertions"
-import { DAI, mBTC, MTA, mUSD, PmUSD, USDC, WBTC } from "tasks/utils/tokens"
+import { alUSD, BUSD, DAI, FEI, GUSD, mBTC, MTA, mUSD, PmUSD, RAI, USDC, WBTC } from "tasks/utils/tokens"
 import {
     BridgeForwarder,
     BridgeForwarder__factory,
@@ -20,6 +20,7 @@ import {
     EmissionsController__factory,
     IERC20,
     IERC20__factory,
+    InterestValidator__factory,
     IUniswapV3Quoter__factory,
     RevenueBuyBack,
     RevenueBuyBack__factory,
@@ -724,6 +725,163 @@ describe("Fork test Emissions Controller on mainnet", async () => {
                 const tx2 = await revenueBuyBack.buyBackRewards([mBTC.address])
                 await expect(tx2).to.emit(revenueBuyBack, "BuyBackRewards")
                 expect(await mta.balanceOf(revenueBuyBack.address), "RevenueBuyBack MTA bal after").to.gt(0)
+            })
+        })
+    })
+    describe("Second emissions", () => {
+        let savingsManager: SavingsManager
+
+        before(async () => {
+            await setup(13857480)
+
+            savingsManager = SavingsManager__factory.connect(resolveAddress("SavingsManager"), governor)
+            revenueBuyBack = await RevenueBuyBack__factory.connect(resolveAddress("RevenueBuyBack"), ops)
+        })
+        context("buy back MTA using mUSD and mBTC", () => {
+            let musdToken: IERC20
+            let mbtcToken: IERC20
+            let purchasedMTA: BN
+
+            before(async () => {
+                musdToken = IERC20__factory.connect(mUSD.address, ops)
+                mbtcToken = IERC20__factory.connect(mBTC.address, ops)
+            })
+            it.skip("collect Feeder Pool gov fees", async () => {
+                const fpValidator = InterestValidator__factory.connect(resolveAddress("Collector"), governor)
+                await fpValidator.collectGovFees([GUSD.feederPool, BUSD.feederPool, alUSD.feederPool, RAI.feederPool, FEI.feederPool])
+            })
+            it("Transfer gov fees to revenue buy back", async () => {
+                console.log("After feeder pool gov fees collected")
+                console.log(`mUSD bal in RevenueBuyBack before: ${usdFormatter(await musdToken.balanceOf(revenueBuyBack.address))}`)
+                console.log(`mBTC bal in RevenueBuyBack before: ${btcFormatter(await mbtcToken.balanceOf(revenueBuyBack.address))}`)
+
+                await savingsManager.distributeUnallocatedInterest(mUSD.address)
+                await savingsManager.distributeUnallocatedInterest(mBTC.address)
+
+                console.log(`mUSD bal in RevenueBuyBack after: ${usdFormatter(await musdToken.balanceOf(revenueBuyBack.address))}`)
+                console.log(`mBTC bal in RevenueBuyBack after: ${btcFormatter(await mbtcToken.balanceOf(revenueBuyBack.address))}`)
+            })
+            it("Transfer gov fees to revenue buy back", async () => {
+                console.log("After mAsset interest collected and streamed")
+                console.log(`mUSD bal in RevenueBuyBack before: ${usdFormatter(await musdToken.balanceOf(revenueBuyBack.address))}`)
+                console.log(`mBTC bal in RevenueBuyBack before: ${btcFormatter(await mbtcToken.balanceOf(revenueBuyBack.address))}`)
+
+                await savingsManager.collectAndStreamInterest(mUSD.address)
+                await savingsManager.collectAndStreamInterest(mBTC.address)
+
+                await savingsManager.distributeUnallocatedInterest(mUSD.address)
+                await savingsManager.distributeUnallocatedInterest(mBTC.address)
+
+                console.log(`mUSD bal in RevenueBuyBack after: ${usdFormatter(await musdToken.balanceOf(revenueBuyBack.address))}`)
+                console.log(`mBTC bal in RevenueBuyBack after: ${btcFormatter(await mbtcToken.balanceOf(revenueBuyBack.address))}`)
+            })
+            it("Buy back MTA using mUSD and mBTC", async () => {
+                expect(await mta.balanceOf(revenueBuyBack.address), "RBB MTA bal before").to.lte(1)
+
+                await revenueBuyBack.buyBackRewards([mUSD.address, mBTC.address])
+
+                expect(await musdToken.balanceOf(revenueBuyBack.address), "mUSD bal after").to.eq(0)
+                expect(await mbtcToken.balanceOf(revenueBuyBack.address), "mBTC bal after").to.eq(0)
+
+                purchasedMTA = await mta.balanceOf(revenueBuyBack.address)
+                expect(purchasedMTA, "RBB MTA bal after").to.gt(1)
+            })
+            it("Donate MTA to Emissions Controller staking dials", async () => {
+                const mtaBalBefore = await mta.balanceOf(emissionsController.address)
+                expect(await mta.balanceOf(revenueBuyBack.address), "RBB MTA bal before").to.eq(purchasedMTA)
+
+                await revenueBuyBack.donateRewards()
+
+                expect(await mta.balanceOf(revenueBuyBack.address), "RBB MTA bal after").to.lte(1)
+                expect(await mta.balanceOf(emissionsController.address), "EC MTA bal after").to.eq(mtaBalBefore.add(purchasedMTA).sub(1))
+            })
+            it("after current epoch", async () => {
+                await increaseTime(ONE_DAY)
+
+                const currentEpochIndex = await currentWeekEpoch()
+                const totalRewardsExpected = await emissionsController.topLineEmission(currentEpochIndex)
+                expect(totalRewardsExpected, "distributed rewards").to.gt(simpleToExactAmount(164900)).lt(simpleToExactAmount(166000))
+
+                const tx = await emissionsController.calculateRewards()
+
+                const weightedVotes = await emissionsController.getDialVotes()
+                const totalWeightedVotes = weightedVotes.reduce((prev, curr) => prev.add(curr), BN.from(0))
+
+                const receipt = await tx.wait()
+                const distributionAmounts: BN[] = receipt.events[0].args.amounts
+                console.log(`MTA staking amount: ${usdFormatter(distributionAmounts[0])}`)
+                console.log(`mBPT staking amount: ${usdFormatter(distributionAmounts[1])}`)
+                console.log(`mUSD Vault amount: ${usdFormatter(distributionAmounts[2])}`)
+                console.log(`mBTC Vault amount: ${usdFormatter(distributionAmounts[3])}`)
+                console.log(`GUSD FP Vault amount: ${usdFormatter(distributionAmounts[4])}`)
+                console.log(`Polygon mUSD Vault amount: ${usdFormatter(distributionAmounts[11])}`)
+                console.log(`Polygon FRAX amount: ${usdFormatter(distributionAmounts[12])}`)
+                console.log(`Polygon Balancer amount: ${usdFormatter(distributionAmounts[13])}`)
+                console.log(`Treasury amount: ${usdFormatter(distributionAmounts[14])}`)
+                console.log(`Votium amount: ${usdFormatter(distributionAmounts[15])}`)
+                console.log(`Visor amount: ${usdFormatter(distributionAmounts[16])}`)
+
+                await expect(tx).to.emit(emissionsController, "PeriodRewards")
+
+                expect(distributionAmounts, "number of dials").to.lengthOf(17)
+                const totalRewardsActual = distributionAmounts.reduce((prev, curr) => prev.add(curr), BN.from(0))
+                console.log(`Distribution amount: ${usdFormatter(totalRewardsActual)}`)
+                assertBNClose(totalRewardsActual, totalRewardsExpected, 10, "total rewards")
+
+                // TODO needs to handle staking contracts being overallocated
+                // distributionAmounts.forEach((disAmount, i) => {
+                //     assertBNClose(disAmount, totalRewardsExpected.mul(weightedVotes[i]).div(totalWeightedVotes), 10, `dial ${i} amount`)
+                // })
+            })
+            // context("distribute rewards to", () => {
+            it("to Vaults", async () => {
+                const tx = await emissionsController.distributeRewards([...Array(11).keys()])
+                await expect(tx).to.emit(emissionsController, "DistributedReward")
+            })
+            it("across Polygon bridge", async () => {
+                const polygonBridgeAddress = resolveAddress("PolygonPoSBridge")
+                const balanceBefore = await mta.balanceOf(polygonBridgeAddress)
+
+                const tx = await emissionsController.distributeRewards([11, 12, 13])
+
+                await expect(tx).to.emit(emissionsController, "DistributedReward")
+
+                const balanceAfter = await mta.balanceOf(polygonBridgeAddress)
+                expect(balanceAfter.sub(balanceBefore).gt(simpleToExactAmount(20000)), "has more MTA").to.be.true
+            })
+            it("to Treasury", async () => {
+                const treasuryAddress = resolveAddress("mStableDAO")
+                const balanceBefore = await mta.balanceOf(treasuryAddress)
+
+                const tx = await emissionsController.distributeRewards([14])
+
+                await expect(tx).to.emit(emissionsController, "DistributedReward")
+
+                const balanceAfter = await mta.balanceOf(treasuryAddress)
+                expect(balanceAfter.sub(balanceBefore).gt(simpleToExactAmount(9000)), "has more MTA").to.be.true
+            })
+            it("to Visor Finance", async () => {
+                const visorAddress = resolveAddress("VisorRouter")
+                const balanceBefore = await mta.balanceOf(visorAddress)
+
+                const tx = await emissionsController.distributeRewards([16])
+
+                await expect(tx).to.emit(emissionsController, "DistributedReward")
+
+                const balanceAfter = await mta.balanceOf(visorAddress)
+                expect(balanceAfter.sub(balanceBefore).gt(simpleToExactAmount(7000)), "has more MTA").to.be.true
+            })
+            it("to Votium bribe", async () => {
+                await emissionsController.connect(governor).updateDial(15, false, false)
+
+                const votiumForwarderAddress = resolveAddress("VotiumForwarder")
+                expect(await mta.balanceOf(votiumForwarderAddress), "votium fwd bal before").to.eq(0)
+
+                const tx = await emissionsController.distributeRewards([15])
+
+                await expect(tx).to.emit(emissionsController, "DistributedReward")
+
+                expect(await mta.balanceOf(votiumForwarderAddress), "votium fwd bal after").to.gt(simpleToExactAmount(34000))
             })
         })
     })
