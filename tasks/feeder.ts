@@ -375,7 +375,7 @@ task("feeder-swap", "Swap some Feeder Pool tokens")
         await logTxDetails(tx, `swap ${formatUnits(inputAmount)} ${inputSymbol} for ${outputSymbol} using ${fpSymbol} Feeder Pool`)
     })
 
-task("feeder-collect-interest", "Collects and interest from feeder pools")
+task("feeder-collect-interest", "Collects interest from feeder pools")
     .addParam("fasset", "Token symbol of feeder pool. eg HBTC, alUSD or PFRAX", undefined, types.string, false)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
     .setAction(async (taskArgs, hre) => {
@@ -398,7 +398,23 @@ task("feeder-collect-interest", "Collects and interest from feeder pools")
         }
 
         const tx = await validator.collectAndValidateInterest([fpAddress])
-        await logTxDetails(tx, "collectAndValidateInterest")
+        await logTxDetails(tx, `collect interest from ${taskArgs.fasset} FP`)
+    })
+
+task("feeder-collect-fees", "Collects governance fees from feeder pools")
+    .addParam("fasset", "Token symbol of feeder pool. eg HBTC, alUSD or PFRAX", undefined, types.string, false)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const chain = getChain(hre)
+        const signer = await getSigner(hre, taskArgs.speed)
+
+        const fpAddress = resolveAddress(taskArgs.fasset, chain, "feederPool")
+
+        const interestValidatorAddress = resolveAddress("FeederInterestValidator", chain)
+        const validator = InterestValidator__factory.connect(interestValidatorAddress, signer)
+
+        const tx = await validator.collectGovFees([fpAddress])
+        await logTxDetails(tx, `collect gov fees from ${taskArgs.fasset} FP`)
     })
 
 task("feeder-migrate-bassets", "Migrates bAssets in a Feeder Pool to its integration contract")
