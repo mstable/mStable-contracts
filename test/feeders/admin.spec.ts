@@ -936,7 +936,7 @@ describe("Feeder Admin", () => {
         })
     })
 
-    describe.only("when going from platform to no platform", () => {
+    describe("when going from platform to no platform", () => {
         let pool: FeederPool
 
         let transferringAsset: MockERC20
