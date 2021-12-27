@@ -23,6 +23,7 @@ import {
 
 import { BassetStatus } from "@utils/mstable-objects"
 import { getTimestamp, increaseTime } from "@utils/time"
+import { impersonate } from "@utils/fork"
 
 describe("Feeder Admin", () => {
     let sa: StandardAccounts
@@ -935,14 +936,12 @@ describe("Feeder Admin", () => {
         })
     })
 
-    describe("when going from platform to no platform", () => {
+    describe.only("when going from platform to no platform", () => {
         let pool: FeederPool
 
         let transferringAsset: MockERC20
         let stayingAsset: MockERC20
         const bAssetStartingBal = 1000
-
-        const toEther = (amount: BN) => ethers.utils.formatEther(amount)
 
         context("should succeed", () => {
             let newIntegration: DudIntegration
@@ -1101,13 +1100,13 @@ describe("Feeder Admin", () => {
                 const balDudPlatformBefore = await transferringAsset.balanceOf(dudPlatform.address)
                 const balIntegrationBefore = await transferringAsset.balanceOf(newIntegration.address)
 
-                expect(await dudPlatform.cleared()).eq(false)
+                expect(await newIntegration.cleared()).eq(false)
                 expect(balDudPlatformBefore, "Balance in Dud Platform").gt(0)
 
-                const tx = await dudPlatform.connect(sa.governor.signer)["clear()"]()
-                await expect(tx).to.emit(dudPlatform, "PlatformCleared").withArgs(newIntegration.address, balDudPlatformBefore)
+                const tx = await newIntegration.connect(sa.governor.signer)["clear()"]()
+                await expect(tx).to.emit(newIntegration, "PlatformCleared").withArgs(dudPlatform.address, balDudPlatformBefore)
 
-                expect(await dudPlatform.cleared()).eq(true)
+                expect(await newIntegration.cleared()).eq(true)
                 expect(await transferringAsset.balanceOf(dudPlatform.address), "Balance in Dud Platform").eq(0)
 
                 expect(await transferringAsset.balanceOf(newIntegration.address), "Balance in Integration").eq(
@@ -1247,7 +1246,6 @@ describe("Feeder Admin", () => {
             })
         })
         context("Should fail, pre deploy", async () => {
-            let newIntegration: DudIntegration
             let dudPlatform: DudPlatform
 
             beforeEach(async () => {
@@ -1309,24 +1307,27 @@ describe("Feeder Admin", () => {
                     dudPlatform.connect(sa.default.signer).withdraw(transferringAsset.address, simpleToExactAmount(100)),
                 ).to.be.revertedWith("Only integration")
             })
+            it("When withdrawing while integration address is not set", async () => {
+                const contractSigner = await impersonate(newIntegration.address, true)
+                await expect(
+                    dudPlatform.connect(contractSigner).withdraw(transferringAsset.address, simpleToExactAmount(100)),
+                ).to.be.revertedWith("Only integration")
+            })
             it("When clear from non-Governor address", async () => {
-                await expect(dudPlatform.connect(sa.default.signer).clear()).to.be.revertedWith("Only governor can execute")
+                await expect(newIntegration.connect(sa.default.signer).clear()).to.be.revertedWith("Only governor can execute")
             })
             it("When calling reapproveContracts from non-Governor address", async () => {
                 await expect(newIntegration.connect(sa.default.signer).reapproveContracts()).to.be.revertedWith("Only governor can execute")
             })
-            it("When integration is not set", async () => {
-                await expect(dudPlatform.connect(sa.governor.signer).clear()).to.be.revertedWith("Integration not set")
-            })
             it("When clearing dudPlatform twice", async () => {
                 await dudPlatform.initialize(newIntegration.address)
-                const tx = await dudPlatform.connect(sa.governor.signer).clear()
+                const tx = await newIntegration.connect(sa.governor.signer).clear()
                 const balBefore = await transferringAsset.balanceOf(dudPlatform.address)
-                expect(tx).to.emit(dudPlatform, "PlatformCleared").withArgs(newIntegration.address, balBefore)
+                expect(tx).to.emit(newIntegration, "PlatformCleared").withArgs(dudPlatform.address, balBefore)
                 const balAfter = await transferringAsset.balanceOf(dudPlatform.address)
                 expect(balAfter).to.eq(0)
                 // Cleared ok, try again
-                await expect(dudPlatform.connect(sa.governor.signer).clear()).to.be.revertedWith("Already cleared")
+                await expect(newIntegration.connect(sa.governor.signer).clear()).to.be.revertedWith("Already cleared")
             })
         })
     })

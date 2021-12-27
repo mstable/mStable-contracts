@@ -20,16 +20,12 @@ contract DudPlatform is Initializable, ImmutableModule {
 
     event PlatformDeposited(address indexed _integration, uint256 _value);
     event PlatformWithdrawn(address indexed _integration, uint256 _value);
-    event PlatformCleared(address indexed _integration, uint256 _value);
 
     /// @notice base asset that is using the DudIntegration
     address public immutable bAsset;
 
     /// @notice The integration contract
     address public integration;
-
-    /// @notice Is the platform cleared already?
-    bool public cleared;
 
     modifier onlyIntegration() {
         require(msg.sender == integration, "Only integration");
@@ -43,7 +39,6 @@ contract DudPlatform is Initializable, ImmutableModule {
     constructor(address _nexus, address _bAsset) ImmutableModule(_nexus) {
         require(_bAsset != address(0), "Invalid bAsset");
         bAsset = _bAsset;
-        cleared = false;
     }
 
     /**
@@ -64,7 +59,6 @@ contract DudPlatform is Initializable, ImmutableModule {
 
      **/
     function deposit(address _bAsset, uint256 _amount) external onlyIntegration {
-        if (cleared) return;
         require(integration != address(0), "Integration not set");
         require(_bAsset == bAsset, "Invalid bAsset");
         require(_amount > 0, "Invalid amount");
@@ -80,26 +74,11 @@ contract DudPlatform is Initializable, ImmutableModule {
      * @param _amount the underlying amount to be redeemed
      **/
     function withdraw(address _bAsset, uint256 _amount) external onlyIntegration {
-        if (cleared) return;
         require(_bAsset == bAsset, "Invalid bAsset");
         require(_amount > 0, "Invalid amount");
 
         IERC20(bAsset).safeTransfer(integration, _amount);
 
         emit PlatformWithdrawn(integration, _amount);
-    }
-
-    /**
-     * @dev clears the platform of all the assets and sends back to the integration
-     */
-
-    function clear() external onlyGovernor {
-        require(!cleared, "Already cleared");
-        require(integration != address(0), "Integration not set");
-        uint256 balance = IERC20(bAsset).balanceOf(address(this));
-        IERC20(bAsset).safeTransfer(integration, balance);
-        cleared = true;
-
-        emit PlatformCleared(integration, balance);
     }
 }
