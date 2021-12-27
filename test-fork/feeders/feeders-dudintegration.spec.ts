@@ -1,10 +1,10 @@
 import * as hre from "hardhat"
 
 import { expect } from "chai"
-import { Signer, constants } from "ethers"
+import { Signer } from "ethers"
 import { ethers, network } from "hardhat"
 
-import { MAX_UINT256, ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
+import { MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
 import { impersonate } from "@utils/fork"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { assertBNClose } from "@utils/assertions"
@@ -37,8 +37,6 @@ const mUSDWhaleAddress = "0x6A07Ba00B61a5a737042D156C3190FBa20015c97"
 const cyMUSDAddress = "0xBE86e8918DFc7d3Cb10d295fc220F941A1470C5c"
 
 context("Migrate from integration (Iron Bank) to integration (Dud)", async () => {
-    const toEther = (amount: BN) => ethers.utils.formatEther(amount)
-
     let deployer: Signer
     let governor: Signer
     let interestValidator: Signer
@@ -164,13 +162,13 @@ context("Migrate from integration (Iron Bank) to integration (Dud)", async () =>
             const balDudPlatformBefore = await musdToken.balanceOf(dudPlatform.address)
             const balIntegrationBefore = await musdToken.balanceOf(dudIntegration.address)
 
-            expect(await dudPlatform.cleared()).eq(false)
+            expect(await dudIntegration.cleared()).eq(false)
             expect(balDudPlatformBefore, "Balance in Dud Platform").gt(0)
 
-            const tx = await dudPlatform.connect(governor)["clear()"]()
-            await expect(tx).to.emit(dudPlatform, "PlatformCleared").withArgs(dudIntegration.address, balDudPlatformBefore)
+            const tx = await dudIntegration.connect(governor)["clear()"]()
+            await expect(tx).to.emit(dudIntegration, "PlatformCleared").withArgs(dudPlatform.address, balDudPlatformBefore)
 
-            expect(await dudPlatform.cleared()).eq(true)
+            expect(await dudIntegration.cleared()).eq(true)
             expect(await musdToken.balanceOf(dudPlatform.address), "Balance in Dud Platform").eq(0)
 
             expect(await musdToken.balanceOf(dudIntegration.address), "Balance in Integration").eq(
@@ -309,13 +307,13 @@ context("Migrate from integration (Iron Bank) to integration (Dud)", async () =>
             const balDudPlatformBefore = await musdToken.balanceOf(dudPlatform.address)
             const balIntegrationBefore = await musdToken.balanceOf(dudIntegration.address)
 
-            expect(await dudPlatform.cleared()).eq(false)
+            expect(await dudIntegration.cleared()).eq(false)
             expect(balDudPlatformBefore, "Balance in Dud Platform").gt(0)
 
-            const tx = await dudPlatform.connect(governor)["clear()"]()
-            await expect(tx).to.emit(dudPlatform, "PlatformCleared").withArgs(dudIntegration.address, balDudPlatformBefore)
+            const tx = await dudIntegration.connect(governor)["clear()"]()
+            await expect(tx).to.emit(dudIntegration, "PlatformCleared").withArgs(dudPlatform.address, balDudPlatformBefore)
 
-            expect(await dudPlatform.cleared()).eq(true)
+            expect(await dudIntegration.cleared()).eq(true)
             expect(await musdToken.balanceOf(dudPlatform.address), "Balance in Dud Platform").eq(0)
 
             expect(await musdToken.balanceOf(dudIntegration.address), "Balance in Integration").eq(

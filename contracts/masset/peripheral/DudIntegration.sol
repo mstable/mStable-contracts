@@ -23,12 +23,18 @@ import { IDudPlatform } from "./IDudPlatform.sol";
 contract DudIntegration is AbstractIntegration {
     using SafeERC20 for IERC20;
 
+    event PlatformCleared(address indexed _integration, uint256 _value);
+
     /// @notice dudPlatform address
     /// @dev This is the address of the dudPlatform contract
     IDudPlatform public immutable platform;
 
     /// @notice base asset that is using the DudIntegration
     address public immutable bAsset;
+
+    /// @notice Is the platform contract cleared already?
+    /// @dev This is used to check if the platform contract is cleared already and to avoid depositing into the platform contract
+    bool public cleared;
 
     /**
      * @param _nexus            Address of the Nexus
@@ -68,8 +74,23 @@ contract DudIntegration is AbstractIntegration {
     }
 
     function _approveContracts() internal {
-        // Approve bProtocol LUSD Stability Pool contract to transfer bAssets for deposits.
+        // Approve platform contract to transfer bAssets for deposits.
         MassetHelpers.safeInfiniteApprove(bAsset, address(platform));
+    }
+
+    /**
+     * @dev clears the platform of all the assets and sends back to the integration
+     */
+
+    function clear() external onlyGovernor {
+        require(!cleared, "Already cleared");
+        uint256 balance = IERC20(bAsset).balanceOf(address(platform));
+        if (balance > 0) {
+            platform.withdraw(bAsset, balance);
+        }
+        cleared = true;
+
+        emit PlatformCleared(address(platform), balance);
     }
 
     /***************************************
@@ -92,7 +113,9 @@ contract DudIntegration is AbstractIntegration {
         require(_amount > 0, "Must deposit something");
         require(_bAsset == bAsset, "Invalid bAsset");
 
-        platform.deposit(bAsset, _amount);
+        if (!cleared) {
+            platform.deposit(bAsset, _amount);
+        }
 
         emit Deposit(_bAsset, address(this), _amount);
 
@@ -144,8 +167,10 @@ contract DudIntegration is AbstractIntegration {
         require(_totalAmount > 0, "Must withdraw something");
         require(_amount > 0, "Must withdraw something");
 
-        // Withdraw from the lending pool
-        platform.withdraw(_bAsset, _totalAmount);
+        if (!cleared) {
+            // Withdraw from the lending pool
+            platform.withdraw(_bAsset, _totalAmount);
+        }
 
         IERC20(_bAsset).safeTransfer(_receiver, _amount);
 
