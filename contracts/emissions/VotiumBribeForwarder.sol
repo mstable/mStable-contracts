@@ -43,7 +43,7 @@ contract VotiumBribeForwarder is ImmutableModule {
     /**
      * @notice Deposits a bribe into Votium, choiceIndex must be set previously.
      * @param amount  the amount of reward tokens to deposit including decimal places.
-     * @param proposal votium brive proposal
+     * @param proposal votium bribe proposal
      */
     function depositBribe(uint256 amount, bytes32 proposal) external onlyKeeperOrGovernor {
         require(amount != 0, "Invalid amount");

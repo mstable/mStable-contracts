@@ -1,6 +1,6 @@
 import { subtask, task, types } from "hardhat/config"
 import { StakedTokenBPT__factory, StakedTokenMTA__factory, StakedToken__factory } from "types/generated"
-import { simpleToExactAmount } from "@utils/math"
+import { BN, simpleToExactAmount } from "@utils/math"
 import { formatUnits } from "@ethersproject/units"
 import { ONE_WEEK } from "@utils/constants"
 import { getSigner } from "./utils/signerFactory"
@@ -24,14 +24,14 @@ subtask("staked-snap", "Dumps a user's staking token details.")
         const [rawBalance, cooldownBalance] = await stakingToken.rawBalanceOf(userAddress)
         const boostedBalance = await stakingToken.balanceOf(userAddress)
         const votes = await stakingToken.getVotes(userAddress)
-        const effectiveMultiplier = boostedBalance.mul(10000).div(rawBalance)
+        const effectiveMultiplier = rawBalance.gt(0) ? boostedBalance.mul(10000).div(rawBalance) : BN.from(0)
         const balanceData = await stakingToken.balanceData(userAddress)
         const delegatee = await stakingToken.delegates(userAddress)
 
         console.log(`Raw balance          ${usdFormatter(rawBalance)}`)
         console.log(`Boosted balance      ${usdFormatter(boostedBalance)}`)
         console.log(`Voting power         ${usdFormatter(votes)}`)
-        console.log(`Cooldown balance     ${usdFormatter(cooldownBalance)}`)
+        console.log(`Cooldown balance     ${usdFormatter(cooldownBalance)} ${cooldownBalance.toString()}`)
         console.log(`Effective multiplier ${formatUnits(effectiveMultiplier, 2).padStart(14)}`)
 
         // Multipliers
