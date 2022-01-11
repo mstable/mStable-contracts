@@ -1,15 +1,13 @@
-import * as hre from "hardhat"
-
 import { expect } from "chai"
 import { Signer } from "ethers"
-import { ethers, network } from "hardhat"
+import { network } from "hardhat"
 
 import { MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
 import { impersonate } from "@utils/fork"
-import { BN, simpleToExactAmount } from "@utils/math"
+import { simpleToExactAmount } from "@utils/math"
 import { assertBNClose } from "@utils/assertions"
 
-import { Chain, mUSD, GUSD, BUSD } from "tasks/utils/tokens"
+import { Chain, mUSD, GUSD, BUSD, cyMUSD } from "tasks/utils/tokens"
 import { getChainAddress } from "tasks/utils/networkAddressFactory"
 
 import {
@@ -30,11 +28,9 @@ const chain = Chain.mainnet
 const nexusAddress = getChainAddress("Nexus", chain)
 
 const governorAddress = getChainAddress("Governor", chain)
-const deployerAddress = "0xb81473f20818225302b8fffb905b53d58a793d84"
+const deployerAddress = getChainAddress("OperationsSigner", chain)
 const validatorAddress = getChainAddress("FeederInterestValidator", chain)
-const mUSDWhaleAddress = "0x6A07Ba00B61a5a737042D156C3190FBa20015c97"
-
-const cyMUSDAddress = "0xBE86e8918DFc7d3Cb10d295fc220F941A1470C5c"
+const mUSDWhaleAddress = "0x503828976d22510aad0201ac7ec88293211d23da" // Coinbase 2
 
 context("Migrate from integration (Iron Bank) to integration (Dud)", async () => {
     let deployer: Signer
@@ -43,9 +39,7 @@ context("Migrate from integration (Iron Bank) to integration (Dud)", async () =>
     let mUSDWhale: Signer
 
     let musdToken: IERC20
-    let gusdToken: IERC20
-    let busdToken: IERC20
-    let cyMUSD: ICERC20
+    let cymusdToken: ICERC20
 
     let gusdFeederPool: FeederPool
     let busdFeederPool: FeederPool
@@ -69,16 +63,14 @@ context("Migrate from integration (Iron Bank) to integration (Dud)", async () =>
         mUSDWhale = await impersonate(mUSDWhaleAddress)
 
         musdToken = IERC20__factory.connect(mUSD.address, deployer)
-        gusdToken = IERC20__factory.connect(GUSD.address, deployer)
-        busdToken = IERC20__factory.connect(BUSD.address, deployer)
-        cyMUSD = ICERC20__factory.connect(cyMUSDAddress, deployer)
+        cymusdToken = ICERC20__factory.connect(cyMUSD.address, deployer)
 
         gusdFeederPool = FeederPool__factory.connect(GUSD.feederPool, governor)
         busdFeederPool = FeederPool__factory.connect(BUSD.feederPool, governor)
     }
 
     before("init setup", async () => {
-        await setup(13810724)
+        await setup(13981990)
     })
     describe("1. FeederPool: mUSD/GUSD", async () => {
         let dudIntegration: DudIntegration
@@ -123,7 +115,7 @@ context("Migrate from integration (Iron Bank) to integration (Dud)", async () =>
             await gusdFeederPool.connect(interestValidator).collectPendingFees()
 
             const rawBalBefore = (await gusdFeederPool.getBasset(mUSD.address))[1][1]
-            const ironBankBalanceBefore = await musdToken.balanceOf(cyMUSDAddress)
+            const ironBankBalanceBefore = await musdToken.balanceOf(cyMUSD.address)
 
             const ironBankIntegration = (await gusdFeederPool.getBasset(mUSD.address))[0][1]
             const ironBankIntegrationBalance = await musdToken.balanceOf(ironBankIntegration)
@@ -155,7 +147,7 @@ context("Migrate from integration (Iron Bank) to integration (Dud)", async () =>
             expect(rawBalAfter).eq(platformBalance.add(integrationBalance))
 
             // some dust will be left ~ 160146996313 = 0.000000160146996313
-            assertBNClose(await cyMUSD.balanceOf(ironBankIntegration), simpleToExactAmount(0), simpleToExactAmount(1, 12))
+            assertBNClose(await cymusdToken.balanceOf(ironBankIntegration), simpleToExactAmount(0), simpleToExactAmount(1, 12))
         })
         it("should clear the integration to shortcircuit deposits", async () => {
             const balPoolBefore = (await gusdFeederPool.getBasset(musdToken.address))[1][1]
@@ -259,8 +251,8 @@ context("Migrate from integration (Iron Bank) to integration (Dud)", async () =>
         it("Should deposit more into the Iron Bank, otherwise redeem migration will fail", async () => {
             const mintAmount = simpleToExactAmount(10000)
 
-            await musdToken.connect(mUSDWhale).approve(cyMUSD.address, mintAmount)
-            await cyMUSD.connect(mUSDWhale).mint(mintAmount)
+            await musdToken.connect(mUSDWhale).approve(cymusdToken.address, mintAmount)
+            await cymusdToken.connect(mUSDWhale).mint(mintAmount)
         })
         it("should migrate mUSD from the BUSD Feeder Pool", async () => {
             // Collect interest just before to reduce dust
@@ -268,7 +260,7 @@ context("Migrate from integration (Iron Bank) to integration (Dud)", async () =>
             await busdFeederPool.connect(interestValidator).collectPendingFees()
 
             const rawBalBefore = (await busdFeederPool.getBasset(mUSD.address))[1][1]
-            const ironBankBalanceBefore = await musdToken.balanceOf(cyMUSDAddress)
+            const ironBankBalanceBefore = await musdToken.balanceOf(cyMUSD.address)
 
             const ironBankIntegration = (await busdFeederPool.getBasset(mUSD.address))[0][1]
             const ironBankIntegrationBalance = await musdToken.balanceOf(ironBankIntegration)
@@ -300,7 +292,7 @@ context("Migrate from integration (Iron Bank) to integration (Dud)", async () =>
             expect(rawBalAfter).eq(platformBalance.add(integrationBalance))
 
             // some dust will be left ~ 160146996313 = 0.000000160146996313
-            assertBNClose(await cyMUSD.balanceOf(ironBankIntegration), simpleToExactAmount(0), simpleToExactAmount(1, 12))
+            assertBNClose(await cymusdToken.balanceOf(ironBankIntegration), simpleToExactAmount(0), simpleToExactAmount(1, 12))
         })
         it("should clear the integration to shortcircuit deposits", async () => {
             const balPoolBefore = (await busdFeederPool.getBasset(musdToken.address))[1][1]
