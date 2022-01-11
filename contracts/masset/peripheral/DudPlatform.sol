@@ -45,6 +45,7 @@ contract DudPlatform is Initializable, ImmutableModule {
      * @dev attach the integration contract
      */
     function initialize(address _integration) public initializer {
+        require(_integration != address(0), "Invalid integration");
         integration = _integration;
     }
 
