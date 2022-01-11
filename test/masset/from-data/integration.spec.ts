@@ -34,7 +34,7 @@ const getReserves = (data: any) =>
 
 const runLongTests = process.env.LONG_TESTS === "true"
 
-describe("Invariant Validator - One basket many tests", () => {
+describe("Invariant Validator - One basket many tests @skip-on-coverage", () => {
     let mAsset: ExposedMasset
     let sa: StandardAccounts
     let recipient: string
