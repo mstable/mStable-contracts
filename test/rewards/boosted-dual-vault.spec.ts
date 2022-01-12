@@ -382,7 +382,7 @@ describe("BoostedDualVault", async () => {
      * @dev Ensures a funding is successful, checking that it updates the rewardRate etc
      * @param rewardUnits Number of units to stake
      */
-    const expectSuccesfulFunding = async (rewardUnits: BN, platformUnitsExpected = BN.from(0)): Promise<void> => {
+    const expectSuccessfulFunding = async (rewardUnits: BN, platformUnitsExpected = BN.from(0)): Promise<void> => {
         const beforeData = await snapshotStakingData()
         const tx = boostedDualVault.connect(rewardsDistributor.signer).notifyRewardAmount(rewardUnits)
         await expect(tx).to.emit(boostedDualVault, "RewardAdded").withArgs(rewardUnits, platformUnitsExpected)
@@ -471,7 +471,7 @@ describe("BoostedDualVault", async () => {
                 const rewardUnits = simpleToExactAmount(1, 18)
                 const airdropAmount = simpleToExactAmount(100, 18)
                 await platformToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, airdropAmount)
-                await expectSuccesfulFunding(rewardUnits, airdropAmount)
+                await expectSuccessfulFunding(rewardUnits, airdropAmount)
             })
         })
         describe("staking in the new period", () => {
@@ -752,7 +752,7 @@ describe("BoostedDualVault", async () => {
                     // 1.
                     const hunnit = simpleToExactAmount(100, 18)
                     await rewardToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, hunnit)
-                    await expectSuccesfulFunding(hunnit)
+                    await expectSuccessfulFunding(hunnit)
 
                     // 2.
                     await expectSuccessfulStake(hunnit)
@@ -791,7 +791,7 @@ describe("BoostedDualVault", async () => {
         it("should retrospectively assign rewards to the first staker", async () => {
             const airdropAmount = simpleToExactAmount(100, 18)
             await platformToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, airdropAmount)
-            await expectSuccesfulFunding(simpleToExactAmount(100, 18), airdropAmount)
+            await expectSuccessfulFunding(simpleToExactAmount(100, 18), airdropAmount)
 
             // Do the stake
             const rewardRate = await boostedDualVault.rewardRate()
@@ -832,7 +832,7 @@ describe("BoostedDualVault", async () => {
                 const airdropAmount1 = simpleToExactAmount(100, 18)
                 const fundAmount1 = simpleToExactAmount(100, 18)
                 const fundAmount2 = simpleToExactAmount(200, 18)
-                await expectSuccesfulFunding(fundAmount1)
+                await expectSuccessfulFunding(fundAmount1)
 
                 const stakeAmount = simpleToExactAmount(1, 18)
                 await expectSuccessfulStake(stakeAmount)
@@ -840,7 +840,7 @@ describe("BoostedDualVault", async () => {
                 await increaseTime(ONE_WEEK.mul(2))
 
                 await platformToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, airdropAmount1)
-                await expectSuccesfulFunding(fundAmount2, airdropAmount1)
+                await expectSuccessfulFunding(fundAmount2, airdropAmount1)
 
                 await increaseTime(ONE_WEEK.mul(2))
 
@@ -889,7 +889,7 @@ describe("BoostedDualVault", async () => {
                 await expectSuccessfulStake(staker1Stake1)
                 await expectSuccessfulStake(staker3Stake, staker3, staker3)
 
-                await expectSuccesfulFunding(fundAmount1)
+                await expectSuccessfulFunding(fundAmount1)
 
                 await increaseTime(ONE_WEEK.div(2).add(1))
 
@@ -901,7 +901,7 @@ describe("BoostedDualVault", async () => {
                 await boostedDualVault.connect(staker3.signer).withdraw(staker3Stake)
                 await expectSuccessfulStake(staker1Stake2, sa.default, sa.default, true)
                 await platformToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, airdropAmount)
-                await expectSuccesfulFunding(fundAmount2, airdropAmount)
+                await expectSuccessfulFunding(fundAmount2, airdropAmount)
 
                 await increaseTime(ONE_WEEK)
 
@@ -928,7 +928,7 @@ describe("BoostedDualVault", async () => {
         })
         it("should stop accruing rewards after the period is over", async () => {
             await expectSuccessfulStake(simpleToExactAmount(1, 18))
-            await expectSuccesfulFunding(fundAmount1)
+            await expectSuccessfulFunding(fundAmount1)
 
             await increaseTime(ONE_WEEK.add(1))
 
@@ -953,7 +953,7 @@ describe("BoostedDualVault", async () => {
         before(async () => {
             boostedDualVault = await redeployRewards()
             beneficiary = sa.dummy1
-            await expectSuccesfulFunding(fundAmount)
+            await expectSuccessfulFunding(fundAmount)
             await expectSuccessfulStake(stakeAmount, sa.default, beneficiary)
             await increaseTime(10)
         })
@@ -1008,7 +1008,7 @@ describe("BoostedDualVault", async () => {
         })
         it("should not affect the pro rata payouts", async () => {
             // Add 100 reward tokens
-            await expectSuccesfulFunding(simpleToExactAmount(100, 12))
+            await expectSuccessfulFunding(simpleToExactAmount(100, 12))
             const rewardRate = await boostedDualVault.rewardRate()
 
             // Do the stake
@@ -1042,7 +1042,7 @@ describe("BoostedDualVault", async () => {
         before(async () => {
             boostedDualVault = await redeployRewards()
             await platformToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, airdropAmount)
-            await expectSuccesfulFunding(fundAmount, airdropAmount)
+            await expectSuccessfulFunding(fundAmount, airdropAmount)
             await rewardToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, fundAmount)
             await expectSuccessfulStake(stakeAmount, sa.default, sa.dummy2)
             await increaseTime(ONE_WEEK.add(1))
@@ -1103,21 +1103,21 @@ describe("BoostedDualVault", async () => {
             boostedDualVault = await redeployRewards()
             await rewardToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, hunnit.mul(5))
             // t0
-            await expectSuccesfulFunding(hunnit)
+            await expectSuccessfulFunding(hunnit)
             await expectSuccessfulStake(hunnit)
             await increaseTime(ONE_WEEK.add(1))
             // t1
-            await expectSuccesfulFunding(hunnit)
+            await expectSuccessfulFunding(hunnit)
             await boostedDualVault.pokeBoost(sa.default.address)
             await increaseTime(ONE_WEEK.add(1))
             // t2
-            await expectSuccesfulFunding(hunnit.mul(2))
+            await expectSuccessfulFunding(hunnit.mul(2))
             await increaseTime(ONE_WEEK.div(2))
             // t2x5
             await boostedDualVault.pokeBoost(sa.default.address)
             await increaseTime(ONE_WEEK.div(2))
             // t3
-            await expectSuccesfulFunding(hunnit)
+            await expectSuccessfulFunding(hunnit)
         })
         it("should fetch the unclaimed tranche data", async () => {
             await expectStakingWithdrawal(hunnit)
@@ -1310,42 +1310,42 @@ describe("BoostedDualVault", async () => {
                 await increaseTime(ONE_WEEK)
                 // t4
                 await boostedDualVault.pokeBoost(sa.default.address)
-                await expectSuccesfulFunding(hunnit)
+                await expectSuccessfulFunding(hunnit)
                 await increaseTime(ONE_WEEK.div(2))
                 // t4.5
                 await boostedDualVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK.div(2))
                 // t5
                 await boostedDualVault.pokeBoost(sa.default.address)
-                await expectSuccesfulFunding(hunnit)
+                await expectSuccessfulFunding(hunnit)
                 await increaseTime(ONE_WEEK.div(2))
                 // t5.5
                 await boostedDualVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK.div(2))
                 // t6
                 await boostedDualVault.pokeBoost(sa.default.address)
-                await expectSuccesfulFunding(hunnit)
+                await expectSuccessfulFunding(hunnit)
                 await increaseTime(ONE_WEEK.div(2))
                 // t6.5
                 await boostedDualVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK.div(2))
                 // t7
                 await boostedDualVault.pokeBoost(sa.default.address)
-                await expectSuccesfulFunding(hunnit)
+                await expectSuccessfulFunding(hunnit)
                 await increaseTime(ONE_WEEK.div(2))
                 // t7.5
                 await boostedDualVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK.div(2))
                 // t8
                 await boostedDualVault.pokeBoost(sa.default.address)
-                await expectSuccesfulFunding(hunnit)
+                await expectSuccessfulFunding(hunnit)
                 await increaseTime(ONE_WEEK.div(2))
                 // t8.5
                 await boostedDualVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK.div(2))
                 // t9
                 await boostedDualVault.pokeBoost(sa.default.address)
-                await expectSuccesfulFunding(hunnit)
+                await expectSuccessfulFunding(hunnit)
                 await increaseTime(ONE_WEEK.div(2))
                 // t9.5
                 await boostedDualVault.pokeBoost(sa.default.address)
@@ -1398,7 +1398,7 @@ describe("BoostedDualVault", async () => {
                 await boostedDualVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK)
                 // t4
-                await expectSuccesfulFunding(hunnit)
+                await expectSuccessfulFunding(hunnit)
                 await boostedDualVault.pokeBoost(sa.default.address)
                 await boostedDualVault.pokeBoost(sa.default.address)
                 await boostedDualVault.pokeBoost(sa.default.address)
@@ -1456,7 +1456,7 @@ describe("BoostedDualVault", async () => {
         beforeEach(async () => {
             boostedDualVault = await redeployRewards()
             await rewardToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, hunnit)
-            await expectSuccesfulFunding(hunnit)
+            await expectSuccessfulFunding(hunnit)
             await expectSuccessfulStake(hunnit)
             await increaseTime(ONE_WEEK.add(1))
         })
@@ -1504,7 +1504,7 @@ describe("BoostedDualVault", async () => {
 
             before(async () => {
                 boostedDualVault = await redeployRewards()
-                await expectSuccesfulFunding(fundAmount)
+                await expectSuccessfulFunding(fundAmount)
                 await expectSuccessfulStake(stakeAmount)
                 await increaseTime(10)
             })
@@ -1577,7 +1577,7 @@ describe("BoostedDualVault", async () => {
                 // Do the initial funding
                 await platformToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, airdrop1)
 
-                await expectSuccesfulFunding(funding1, airdrop1)
+                await expectSuccessfulFunding(funding1, airdrop1)
                 const actualRewardRate = await boostedDualVault.rewardRate()
                 const actualPlatformRewardRate = await boostedDualVault.platformRewardRate()
                 const expectedRewardRate = funding1.div(ONE_WEEK)
@@ -1590,7 +1590,7 @@ describe("BoostedDualVault", async () => {
                 // Do the second funding, and factor in the unspent units
                 const expectedLeftoverReward = funding1.div(2)
                 await platformToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, airdrop2)
-                await expectSuccesfulFunding(funding2, airdrop2)
+                await expectSuccessfulFunding(funding2, airdrop2)
                 const actualRewardRateAfter = await boostedDualVault.rewardRate()
                 const actualPlatformRewardRateAfter = await boostedDualVault.platformRewardRate()
                 const totalRewardsForWeek = funding2.add(expectedLeftoverReward)
@@ -1601,7 +1601,7 @@ describe("BoostedDualVault", async () => {
             it("should factor in unspent units to the new rewardRate if instant", async () => {
                 // Do the initial funding
                 await platformToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, airdrop1)
-                await expectSuccesfulFunding(funding1, airdrop1)
+                await expectSuccessfulFunding(funding1, airdrop1)
                 const actualRewardRate = await boostedDualVault.rewardRate()
                 const expectedRewardRate = funding1.div(ONE_WEEK)
                 expect(expectedRewardRate).to.be.eq(actualRewardRate)
@@ -1613,7 +1613,7 @@ describe("BoostedDualVault", async () => {
                 await increaseTime(1)
 
                 // Do the second funding, and factor in the unspent units
-                await expectSuccesfulFunding(funding2)
+                await expectSuccessfulFunding(funding2)
                 const actualRewardRateAfter = await boostedDualVault.rewardRate()
                 const expectedRewardRateAfter = funding1.add(funding2).div(ONE_WEEK)
                 assertBNClose(actualRewardRateAfter, expectedRewardRateAfter, actualRewardRate.div(ONE_WEEK).mul(20))
@@ -1632,7 +1632,7 @@ describe("BoostedDualVault", async () => {
                 // Do the initial funding
                 await platformToken.connect(rewardsDistributor.signer).transfer(boostedDualVault.address, airdrop1)
 
-                await expectSuccesfulFunding(funding1, airdrop1)
+                await expectSuccessfulFunding(funding1, airdrop1)
                 const actualRewardRate = await boostedDualVault.rewardRate()
                 const expectedRewardRate = funding1.div(ONE_WEEK)
                 expect(expectedRewardRate).to.be.eq(actualRewardRate)
@@ -1641,7 +1641,7 @@ describe("BoostedDualVault", async () => {
                 await increaseTime(ONE_WEEK.add(1))
 
                 // Do the second funding, and factor in the unspent units
-                await expectSuccesfulFunding(funding1.mul(2))
+                await expectSuccessfulFunding(funding1.mul(2))
                 const actualRewardRateAfter = await boostedDualVault.rewardRate()
                 const expectedRewardRateAfter = expectedRewardRate.mul(2)
                 expect(actualRewardRateAfter).to.be.eq(expectedRewardRateAfter)
