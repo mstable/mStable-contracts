@@ -364,7 +364,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
      * @param _output             Asset to unwrap from underlying
      * @param _beneficiary        Address to send `asset` to
      * @param _router             Router address = mAsset || feederPool
-     * @param _isBassetOut        redeem || swap
+     * @param _isBassetOut        Route action of redeem/swap
      * @return creditsBurned      Units of credits burned from sender
      */
     function redeemAndUnwrap(
