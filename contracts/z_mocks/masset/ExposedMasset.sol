@@ -7,6 +7,8 @@ import { MassetLogic } from "../../masset/MassetLogic.sol";
 contract ExposedMasset is Masset {
     constructor(address _nexus, uint256 _recolFee) Masset(_nexus, _recolFee) {}
 
+    uint256 private amountToMint = 0;
+
     function getK() external view returns (uint256 k) {
         (, k) = MassetLogic.computePrice(data.bAssetData, _getConfig());
     }
@@ -24,5 +26,10 @@ contract ExposedMasset is Masset {
         InvariantConfig memory config = _getConfig();
         config.recolFee = _recolFee;
         MassetLogic.redeemProportionately(data, config, _amt, _minOut, msg.sender);
+    }
+
+    // Inject amount of tokens to mint
+    function setAmountForCollectInterest(uint256 _amount) public {
+        amountToMint = _amount;
     }
 }

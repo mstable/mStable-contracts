@@ -6,7 +6,7 @@ import { utils } from "ethers"
 import { simpleToExactAmount, BN } from "@utils/math"
 import { assertBNClose, assertBNClosePercent, assertBNSlightlyGT } from "@utils/assertions"
 import { StandardAccounts, MassetMachine } from "@utils/machines"
-import { fullScale, ZERO_ADDRESS, ONE_DAY, FIVE_DAYS, ONE_WEEK, DEAD_ADDRESS } from "@utils/constants"
+import { fullScale, ZERO_ADDRESS, ZERO, ONE_DAY, FIVE_DAYS, ONE_WEEK, DEAD_ADDRESS } from "@utils/constants"
 import { getTimestamp, increaseTime } from "@utils/time"
 import {
     MockERC20,
@@ -24,6 +24,9 @@ import {
     BoostDirector,
     MockBoostedVault,
     MockBoostedVault__factory,
+    ExposedMasset,
+    FeederPool,
+    MockSavingsContract__factory,
 } from "types/generated"
 import { Account } from "types"
 import {
@@ -69,6 +72,14 @@ interface StakingData {
     userData: UserData
     userRewards: Reward[]
     contractData: ContractData
+}
+interface ConfigRedeemAndUnwrap {
+    amount: BN
+    minAmountOut: BN
+    isBassetOut: boolean
+    beneficiary: Account
+    output: MockERC20 // Asset to unwrap from underlying
+    router: ExposedMasset | FeederPool | MockERC20 // Router address = mAsset || feederPool
 }
 
 async function getUserReward(savingsVault: BoostedVault, beneficiary: Account, i: number) {
@@ -122,7 +133,16 @@ describe("BoostedVault", async () => {
     const redeployRewards = async (priceCoefficient = priceCoeff): Promise<BoostedVault> => {
         nexus = await new MockNexus__factory(sa.default.signer).deploy(sa.governor.address, DEAD_ADDRESS, DEAD_ADDRESS)
         rewardToken = await new MockERC20__factory(sa.default.signer).deploy("Reward", "RWD", 18, rewardsDistributor.address, 10000000)
-        imAsset = await new MockERC20__factory(sa.default.signer).deploy("Interest bearing mUSD", "imUSD", 18, sa.default.address, 1000000)
+        const mAsset = await new MockERC20__factory(sa.default.signer).deploy("mUSD", "mUSD", 18, sa.default.address, 1000000)
+        imAsset = await new MockSavingsContract__factory(sa.default.signer).deploy(
+            "Interest bearing mUSD",
+            "imUSD",
+            18,
+            sa.default.address,
+            1000000,
+            mAsset.address,
+        )
+
         stakingContract = await new MockStakingContract__factory(sa.default.signer).deploy()
 
         boostDirector = await new BoostDirector__factory(sa.default.signer).deploy(nexus.address, stakingContract.address)
@@ -334,7 +354,7 @@ describe("BoostedVault", async () => {
      * @dev Ensures a funding is successful, checking that it updates the rewardRate etc
      * @param rewardUnits Number of units to stake
      */
-    const expectSuccesfulFunding = async (rewardUnits: BN): Promise<void> => {
+    const expectSuccessfulFunding = async (rewardUnits: BN): Promise<void> => {
         const beforeData = await snapshotStakingData()
         const tx = savingsVault.connect(rewardsDistributor.signer).notifyRewardAmount(rewardUnits)
         await expect(tx).to.emit(savingsVault, "RewardAdded").withArgs(rewardUnits)
@@ -396,12 +416,54 @@ describe("BoostedVault", async () => {
             afterData.boostBalance.totalSupply,
         )
     }
+    /**
+     * @dev Makes a withdrawal adn unwrap from the contract, and ensures that resulting state is correct
+     * and the rewards have been unwrapped
+     * @param withdrawAmount Exact amount to withdraw
+     * @param sender User to execute the tx
+     */
+    const expectStakingWithdrawAndUnwrap = async (config: ConfigRedeemAndUnwrap): Promise<void> => {
+        // 1. Get data from the contract
+        const sender = config.beneficiary || sa.default
+        const beforeData = await snapshotStakingData(sender)
+        const isExistingStaker = beforeData.boostBalance.raw.gt(BN.from(0))
+        const withdrawAmount = config.amount
+        expect(isExistingStaker).eq(true)
+        expect(withdrawAmount).to.be.gte(beforeData.boostBalance.raw)
 
+        // 2. Send withdrawal tx
+        const tx = savingsVault
+            .connect(sender.signer)
+            .withdrawAndUnwrap(
+                config.amount,
+                config.minAmountOut,
+                config.output.address,
+                config.beneficiary.address,
+                config.router.address,
+                config.isBassetOut,
+            )
+        await expect(tx).to.emit(savingsVault, "Withdrawn").withArgs(sender.address, withdrawAmount)
+
+        // 3. Expect Rewards to accrue to the beneficiary
+        //    StakingToken balance of sender
+        const afterData = await snapshotStakingData(sender)
+        await assertRewardsAssigned(beforeData, afterData, isExistingStaker)
+
+        // 4. Expect token transfer
+        //    StakingToken balance of sender is reduced, as the staked token is unwrapped to a bAsset or fAsset
+        expect(beforeData.tokenBalance.sender).to.be.eq(afterData.tokenBalance.sender)
+        //    Withdraws from the actual rewards wrapper token
+        expect(beforeData.boostBalance.raw.sub(withdrawAmount)).to.be.eq(afterData.boostBalance.raw)
+        //    Updates total supply
+        expect(beforeData.boostBalance.totalSupply.sub(beforeData.boostBalance.balance).add(afterData.boostBalance.balance)).to.be.eq(
+            afterData.boostBalance.totalSupply,
+        )
+    }
     context("initialising and staking in a new pool", () => {
         describe("notifying the pool of reward", () => {
             it("should begin a new period through", async () => {
                 const rewardUnits = simpleToExactAmount(1, 18)
-                await expectSuccesfulFunding(rewardUnits)
+                await expectSuccessfulFunding(rewardUnits)
             })
         })
         describe("staking in the new period", () => {
@@ -673,7 +735,7 @@ describe("BoostedVault", async () => {
                     // 1.
                     const hunnit = simpleToExactAmount(100, 18)
                     await rewardToken.connect(rewardsDistributor.signer).transfer(savingsVault.address, hunnit)
-                    await expectSuccesfulFunding(hunnit)
+                    await expectSuccessfulFunding(hunnit)
 
                     // 2.
                     await expectSuccessfulStake(hunnit)
@@ -710,7 +772,7 @@ describe("BoostedVault", async () => {
             savingsVault = await redeployRewards()
         })
         it("should retrospectively assign rewards to the first staker", async () => {
-            await expectSuccesfulFunding(simpleToExactAmount(100, 18))
+            await expectSuccessfulFunding(simpleToExactAmount(100, 18))
             // Do the stake
             const rewardRate = await savingsVault.rewardRate()
 
@@ -743,14 +805,14 @@ describe("BoostedVault", async () => {
             it("should assign all the rewards from the periods", async () => {
                 const fundAmount1 = simpleToExactAmount(100, 18)
                 const fundAmount2 = simpleToExactAmount(200, 18)
-                await expectSuccesfulFunding(fundAmount1)
+                await expectSuccessfulFunding(fundAmount1)
 
                 const stakeAmount = simpleToExactAmount(1, 18)
                 await expectSuccessfulStake(stakeAmount)
 
                 await increaseTime(ONE_WEEK.mul(2))
 
-                await expectSuccesfulFunding(fundAmount2)
+                await expectSuccessfulFunding(fundAmount2)
 
                 await increaseTime(ONE_WEEK.mul(2))
 
@@ -796,7 +858,7 @@ describe("BoostedVault", async () => {
                 await expectSuccessfulStake(staker1Stake1)
                 await expectSuccessfulStake(staker3Stake, staker3, staker3)
 
-                await expectSuccesfulFunding(fundAmount1)
+                await expectSuccessfulFunding(fundAmount1)
 
                 await increaseTime(ONE_WEEK.div(2).add(1))
 
@@ -805,7 +867,7 @@ describe("BoostedVault", async () => {
                 await increaseTime(ONE_WEEK.div(2).add(1))
 
                 // WEEK 1-2 START
-                await expectSuccesfulFunding(fundAmount2)
+                await expectSuccessfulFunding(fundAmount2)
 
                 await savingsVault.connect(staker3.signer).withdraw(staker3Stake)
                 await expectSuccessfulStake(staker1Stake2, sa.default, sa.default, true)
@@ -832,7 +894,7 @@ describe("BoostedVault", async () => {
         })
         it("should stop accruing rewards after the period is over", async () => {
             await expectSuccessfulStake(simpleToExactAmount(1, 18))
-            await expectSuccesfulFunding(fundAmount1)
+            await expectSuccessfulFunding(fundAmount1)
 
             await increaseTime(ONE_WEEK.add(1))
 
@@ -857,7 +919,7 @@ describe("BoostedVault", async () => {
         before(async () => {
             savingsVault = await redeployRewards()
             beneficiary = sa.dummy1
-            await expectSuccesfulFunding(fundAmount)
+            await expectSuccessfulFunding(fundAmount)
             await expectSuccessfulStake(stakeAmount, sa.default, beneficiary)
             await increaseTime(10)
         })
@@ -910,7 +972,7 @@ describe("BoostedVault", async () => {
         })
         it("should not affect the pro rata payouts", async () => {
             // Add 100 reward tokens
-            await expectSuccesfulFunding(simpleToExactAmount(100, 12))
+            await expectSuccessfulFunding(simpleToExactAmount(100, 12))
             const rewardRate = await savingsVault.rewardRate()
 
             // Do the stake
@@ -942,7 +1004,7 @@ describe("BoostedVault", async () => {
 
         before(async () => {
             savingsVault = await redeployRewards()
-            await expectSuccesfulFunding(fundAmount)
+            await expectSuccessfulFunding(fundAmount)
             await rewardToken.connect(rewardsDistributor.signer).transfer(savingsVault.address, fundAmount)
             await expectSuccessfulStake(stakeAmount, sa.default, sa.dummy2)
             await increaseTime(ONE_WEEK.add(1))
@@ -995,21 +1057,21 @@ describe("BoostedVault", async () => {
             savingsVault = await redeployRewards()
             await rewardToken.connect(rewardsDistributor.signer).transfer(savingsVault.address, hunnit.mul(5))
             // t0
-            await expectSuccesfulFunding(hunnit)
+            await expectSuccessfulFunding(hunnit)
             await expectSuccessfulStake(hunnit)
             await increaseTime(ONE_WEEK.add(1))
             // t1
-            await expectSuccesfulFunding(hunnit)
+            await expectSuccessfulFunding(hunnit)
             await savingsVault.pokeBoost(sa.default.address)
             await increaseTime(ONE_WEEK.add(1))
             // t2
-            await expectSuccesfulFunding(hunnit.mul(2))
+            await expectSuccessfulFunding(hunnit.mul(2))
             await increaseTime(ONE_WEEK.div(2))
             // t2x5
             await savingsVault.pokeBoost(sa.default.address)
             await increaseTime(ONE_WEEK.div(2))
             // t3
-            await expectSuccesfulFunding(hunnit)
+            await expectSuccessfulFunding(hunnit)
         })
         it("should fetch the unclaimed tranche data", async () => {
             await expectStakingWithdrawal(hunnit)
@@ -1202,42 +1264,42 @@ describe("BoostedVault", async () => {
                 await increaseTime(ONE_WEEK)
                 // t4
                 await savingsVault.pokeBoost(sa.default.address)
-                await expectSuccesfulFunding(hunnit)
+                await expectSuccessfulFunding(hunnit)
                 await increaseTime(ONE_WEEK.div(2))
                 // t4.5
                 await savingsVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK.div(2))
                 // t5
                 await savingsVault.pokeBoost(sa.default.address)
-                await expectSuccesfulFunding(hunnit)
+                await expectSuccessfulFunding(hunnit)
                 await increaseTime(ONE_WEEK.div(2))
                 // t5.5
                 await savingsVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK.div(2))
                 // t6
                 await savingsVault.pokeBoost(sa.default.address)
-                await expectSuccesfulFunding(hunnit)
+                await expectSuccessfulFunding(hunnit)
                 await increaseTime(ONE_WEEK.div(2))
                 // t6.5
                 await savingsVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK.div(2))
                 // t7
                 await savingsVault.pokeBoost(sa.default.address)
-                await expectSuccesfulFunding(hunnit)
+                await expectSuccessfulFunding(hunnit)
                 await increaseTime(ONE_WEEK.div(2))
                 // t7.5
                 await savingsVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK.div(2))
                 // t8
                 await savingsVault.pokeBoost(sa.default.address)
-                await expectSuccesfulFunding(hunnit)
+                await expectSuccessfulFunding(hunnit)
                 await increaseTime(ONE_WEEK.div(2))
                 // t8.5
                 await savingsVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK.div(2))
                 // t9
                 await savingsVault.pokeBoost(sa.default.address)
-                await expectSuccesfulFunding(hunnit)
+                await expectSuccessfulFunding(hunnit)
                 await increaseTime(ONE_WEEK.div(2))
                 // t9.5
                 await savingsVault.pokeBoost(sa.default.address)
@@ -1290,7 +1352,7 @@ describe("BoostedVault", async () => {
                 await savingsVault.pokeBoost(sa.default.address)
                 await increaseTime(ONE_WEEK)
                 // t4
-                await expectSuccesfulFunding(hunnit)
+                await expectSuccessfulFunding(hunnit)
                 await savingsVault.pokeBoost(sa.default.address)
                 await savingsVault.pokeBoost(sa.default.address)
                 await savingsVault.pokeBoost(sa.default.address)
@@ -1343,7 +1405,7 @@ describe("BoostedVault", async () => {
         beforeEach(async () => {
             savingsVault = await redeployRewards()
             await rewardToken.connect(rewardsDistributor.signer).transfer(savingsVault.address, hunnit)
-            await expectSuccesfulFunding(hunnit)
+            await expectSuccessfulFunding(hunnit)
             await expectSuccessfulStake(hunnit)
             await increaseTime(ONE_WEEK.add(1))
         })
@@ -1391,7 +1453,7 @@ describe("BoostedVault", async () => {
 
             before(async () => {
                 savingsVault = await redeployRewards()
-                await expectSuccesfulFunding(fundAmount)
+                await expectSuccessfulFunding(fundAmount)
                 await expectSuccessfulStake(stakeAmount)
                 await increaseTime(10)
             })
@@ -1413,6 +1475,78 @@ describe("BoostedVault", async () => {
 
                 // Execute the withdrawal
                 await expectStakingWithdrawal(stakeAmount)
+
+                // Ensure that the new awards are added + assigned to user
+                const earnedAfter = await savingsVault.earned(sa.default.address)
+                expect(earnedAfter).to.be.gte(earnedBefore)
+                const dataAfter = await snapshotStakingData()
+                expect(dataAfter.userData.rewards).to.be.eq(earnedAfter)
+
+                // Zoom forward now
+                await increaseTime(10)
+
+                // Check that the user does not earn anything else
+                const earnedEnd = await savingsVault.earned(sa.default.address)
+                expect(earnedEnd).to.be.eq(earnedAfter)
+                const dataEnd = await snapshotStakingData()
+                expect(dataEnd.userData.rewards).to.be.eq(dataAfter.userData.rewards)
+
+                // Cannot withdraw anything else
+                await expect(savingsVault.connect(sa.default.signer).withdraw(stakeAmount.add(1))).to.be.revertedWith("VM Exception")
+            })
+        })
+    })
+
+    context("withdrawing and unwrapping", () => {
+        context("withdrawing a stake amount", () => {
+            let config: ConfigRedeemAndUnwrap
+            const fundAmount = simpleToExactAmount(100, 21)
+            const stakeAmount = simpleToExactAmount(100, 18)
+
+            before(async () => {
+                savingsVault = await redeployRewards()
+                await expectSuccessfulFunding(fundAmount)
+                await expectSuccessfulStake(stakeAmount)
+                await increaseTime(10)
+                config = {
+                    amount: stakeAmount,
+                    minAmountOut: stakeAmount.mul(98).div(100),
+                    isBassetOut: true,
+                    beneficiary: sa.default,
+                    output: imAsset, // bAsset,
+                    router: imAsset, // mAsset,
+                }
+            })
+            it("should revert for a non-staker", async () => {
+                await expect(
+                    savingsVault
+                        .connect(sa.dummy1.signer)
+                        .withdrawAndUnwrap(1, ZERO, ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS, config.isBassetOut),
+                ).to.be.revertedWith("VM Exception")
+            })
+            it("should revert if insufficient balance", async () => {
+                await expect(
+                    savingsVault
+                        .connect(sa.default.signer)
+                        .withdrawAndUnwrap(stakeAmount.add(1), ZERO, ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS, config.isBassetOut),
+                ).to.be.revertedWith("VM Exception")
+            })
+            it("should fail if trying to withdraw 0", async () => {
+                await expect(
+                    savingsVault
+                        .connect(sa.default.signer)
+                        .withdrawAndUnwrap(ZERO, ZERO, ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS, config.isBassetOut),
+                ).to.be.revertedWith("Cannot withdraw 0")
+            })
+            it("should withdraw the stake and update the existing reward accrual", async () => {
+                // Check that the user has earned something
+                const earnedBefore = await savingsVault.earned(sa.default.address)
+                expect(earnedBefore).to.be.gt(BN.from(0))
+                const dataBefore = await snapshotStakingData()
+                expect(dataBefore.userData.rewards).to.be.eq(BN.from(0))
+
+                // Execute the withdrawal
+                await expectStakingWithdrawAndUnwrap(config)
 
                 // Ensure that the new awards are added + assigned to user
                 const earnedAfter = await savingsVault.earned(sa.default.address)
@@ -1460,7 +1594,7 @@ describe("BoostedVault", async () => {
             })
             it("should factor in unspent units to the new rewardRate", async () => {
                 // Do the initial funding
-                await expectSuccesfulFunding(funding1)
+                await expectSuccessfulFunding(funding1)
                 const actualRewardRate = await savingsVault.rewardRate()
                 const expectedRewardRate = funding1.div(ONE_WEEK)
                 expect(expectedRewardRate).to.be.eq(actualRewardRate)
@@ -1470,7 +1604,7 @@ describe("BoostedVault", async () => {
 
                 // Do the second funding, and factor in the unspent units
                 const expectedLeftoverReward = funding1.div(2)
-                await expectSuccesfulFunding(funding2)
+                await expectSuccessfulFunding(funding2)
                 const actualRewardRateAfter = await savingsVault.rewardRate()
                 const totalRewardsForWeek = funding2.add(expectedLeftoverReward)
                 const expectedRewardRateAfter = totalRewardsForWeek.div(ONE_WEEK)
@@ -1478,7 +1612,7 @@ describe("BoostedVault", async () => {
             })
             it("should factor in unspent units to the new rewardRate if instant", async () => {
                 // Do the initial funding
-                await expectSuccesfulFunding(funding1)
+                await expectSuccessfulFunding(funding1)
                 const actualRewardRate = await savingsVault.rewardRate()
                 const expectedRewardRate = funding1.div(ONE_WEEK)
                 expect(expectedRewardRate).to.be.eq(actualRewardRate)
@@ -1487,7 +1621,7 @@ describe("BoostedVault", async () => {
                 await increaseTime(1)
 
                 // Do the second funding, and factor in the unspent units
-                await expectSuccesfulFunding(funding2)
+                await expectSuccessfulFunding(funding2)
                 const actualRewardRateAfter = await savingsVault.rewardRate()
                 const expectedRewardRateAfter = funding1.add(funding2).div(ONE_WEEK)
                 assertBNClose(actualRewardRateAfter, expectedRewardRateAfter, actualRewardRate.div(ONE_WEEK).mul(20))
@@ -1501,7 +1635,7 @@ describe("BoostedVault", async () => {
             })
             it("should start a new period with the correct rewardRate", async () => {
                 // Do the initial funding
-                await expectSuccesfulFunding(funding1)
+                await expectSuccessfulFunding(funding1)
                 const actualRewardRate = await savingsVault.rewardRate()
                 const expectedRewardRate = funding1.div(ONE_WEEK)
                 expect(expectedRewardRate).to.be.eq(actualRewardRate)
@@ -1510,7 +1644,7 @@ describe("BoostedVault", async () => {
                 await increaseTime(ONE_WEEK.add(1))
 
                 // Do the second funding, and factor in the unspent units
-                await expectSuccesfulFunding(funding1.mul(2))
+                await expectSuccessfulFunding(funding1.mul(2))
                 const actualRewardRateAfter = await savingsVault.rewardRate()
                 const expectedRewardRateAfter = expectedRewardRate.mul(2)
                 expect(actualRewardRateAfter).to.be.eq(expectedRewardRateAfter)
