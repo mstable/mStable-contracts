@@ -39,8 +39,8 @@ contract Unwrapper is IUnwrapper, ImmutableModule {
 
     /**
      * @dev Estimate output
-     * @param _isBassetOut    masset redemption or fpool swap
-     * @param _router         masset or feederpool
+     * @param _isBassetOut    Route action of redeem/swap
+     * @param _router         Router address = mAsset || feederPool
      * @param _input          either mAsset or imAsset address
      * @param _inputIsCredit  true if imAsset, false if mAsset
      * @param _output         output token address
@@ -70,8 +70,8 @@ contract Unwrapper is IUnwrapper, ImmutableModule {
 
     /**
      * @dev Unwrap and send
-     * @param _isBassetOut    masset redemption or fpool swap
-     * @param _router         masset or feederpool
+     * @param _isBassetOut    Route action of redeem/swap
+     * @param _router         Router address = mAsset || feederPool
      * @param _input          input token address
      * @param _output         output token address
      * @param _amount         amount

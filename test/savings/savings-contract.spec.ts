@@ -1237,7 +1237,7 @@ describe("SavingsContract", async () => {
         })
     })
 
-    context.skip("performing multiple operations from multiple addresses in sequence", async () => {
+    context("performing multiple operations from multiple addresses in sequence", async () => {
         beforeEach(async () => {
             await createNewSavingsContract()
         })
@@ -1413,7 +1413,6 @@ describe("SavingsContract", async () => {
             mockSavingsManager,
         } = await createNewSavingsContract(mAssetMachine, mDetails )
 
-        // await feederMachine.approveFeeder(masset, fDetails.pool.address, simpleToExactAmount(30, 18), unwrapperContract.signer, true)
         if(feederMachine){
             // approve tokens for router
             const routers = [fDetails.pool.address,fDetails.pool.address]
@@ -1431,7 +1430,6 @@ describe("SavingsContract", async () => {
 
         await savingsContract.connect(sa.governor.signer).automateInterestCollectionFlag(false)
         await savingsContract.preDeposit(simpleToExactAmount(20, 18), sa.default.address)
-
 
         return {
             masset,

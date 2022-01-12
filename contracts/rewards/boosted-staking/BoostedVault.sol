@@ -257,8 +257,8 @@ contract BoostedVault is
      * @param _minAmountOut  Minimum amount of `output` to unwrap for
      * @param _output        Asset to unwrap from underlying
      * @param _beneficiary   Address to send staked token to
-     * @param _router        Router to redeem/swap
-     * @param _isBassetOut     Route action of redeem/swap
+     * @param _router        Router address to redeem/swap
+     * @param _isBassetOut   Route action of redeem/swap
      */
     function withdrawAndUnwrap(
         uint256 _amount,
