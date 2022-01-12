@@ -17,27 +17,31 @@ subtask("staked-snap", "Dumps a user's staking token details.")
 
         const userAddress = resolveAddress(taskArgs.user, chain)
 
-        const tokenType = taskArgs.asset === "MTA" ? "vault" : "address"
-        const stakingTokenAddress = resolveAddress(taskArgs.asset, chain, tokenType)
-        const stakingToken = StakedToken__factory.connect(stakingTokenAddress, signer)
+        const stakingTokenAddress = resolveAddress(taskArgs.asset, chain, "vault")
+        const stakingToken = StakedTokenBPT__factory.connect(stakingTokenAddress, signer)
 
         const [rawBalance, cooldownBalance] = await stakingToken.rawBalanceOf(userAddress)
         const boostedBalance = await stakingToken.balanceOf(userAddress)
         const votes = await stakingToken.getVotes(userAddress)
+        const delegatedVotes = votes.sub(boostedBalance)
         const effectiveMultiplier = rawBalance.gt(0) ? boostedBalance.mul(10000).div(rawBalance) : BN.from(0)
-        const balanceData = await stakingToken.balanceData(userAddress)
         const delegatee = await stakingToken.delegates(userAddress)
+        const priceCoeff = taskArgs.asset === "MTA" ? BN.from(10000) : await stakingToken.priceCoefficient()
 
         console.log(`Raw balance          ${usdFormatter(rawBalance)}`)
         console.log(`Boosted balance      ${usdFormatter(boostedBalance)}`)
+        console.log(`Delegated votes      ${usdFormatter(delegatedVotes)}`)
+        console.log(`Cooldown balance     ${usdFormatter(cooldownBalance)}`)
         console.log(`Voting power         ${usdFormatter(votes)}`)
-        console.log(`Cooldown balance     ${usdFormatter(cooldownBalance)} ${cooldownBalance.toString()}`)
-        console.log(`Effective multiplier ${formatUnits(effectiveMultiplier, 2).padStart(14)}`)
+
+        const balanceData = await stakingToken.balanceData(userAddress)
 
         // Multipliers
         console.log("\nMultipliers")
-        console.log(`Time  ${balanceData.timeMultiplier.toString().padStart(2)}`)
-        console.log(`Quest ${balanceData.questMultiplier.toString().padStart(2)}`)
+        console.log(`Time                  ${formatUnits(balanceData.timeMultiplier + 100, 2)}`)
+        console.log(`Quest                 ${formatUnits(balanceData.questMultiplier + 100, 2)}`)
+        console.log(`MTA Price coefficient ${formatUnits(priceCoeff, 4)}`)
+        console.log(`Effective multiplier  ${formatUnits(effectiveMultiplier, 4)}`)
 
         if (balanceData.cooldownTimestamp > 0) {
             const cooldownEnds = balanceData.cooldownTimestamp + ONE_WEEK.mul(3).toNumber()
@@ -60,8 +64,7 @@ subtask("staked-stake", "Stake MTA or mBPT in V2 Staking Token")
         const signer = await getSigner(hre, taskArgs.speed, false)
         const chain = getChain(hre)
 
-        const tokenType = taskArgs.asset === "MTA" ? "vault" : "address"
-        const stakingTokenAddress = resolveAddress(taskArgs.asset, chain, tokenType)
+        const stakingTokenAddress = resolveAddress(taskArgs.asset, chain, "vault")
         const stakingToken = StakedToken__factory.connect(stakingTokenAddress, signer)
         const stakeAmount = simpleToExactAmount(taskArgs.amount)
         let tx
@@ -85,8 +88,7 @@ subtask("staked-cooldown-start", "Start cooldown of V2 staking token")
         const signer = await getSigner(hre, taskArgs.speed, false)
         const chain = getChain(hre)
 
-        const tokenType = taskArgs.asset === "MTA" ? "vault" : "address"
-        const stakingTokenAddress = resolveAddress(taskArgs.asset, chain, tokenType)
+        const stakingTokenAddress = resolveAddress(taskArgs.asset, chain, "vault")
         const stakingToken = StakedToken__factory.connect(stakingTokenAddress, signer)
         const cooldownAmount = simpleToExactAmount(taskArgs.amount)
         const tx = await stakingToken.startCooldown(cooldownAmount)
@@ -104,8 +106,7 @@ subtask("staked-cooldown-end", "End cooldown of V2 staking token")
         const signer = await getSigner(hre, taskArgs.speed, false)
         const chain = getChain(hre)
 
-        const tokenType = taskArgs.asset === "MTA" ? "vault" : "address"
-        const stakingTokenAddress = resolveAddress(taskArgs.asset, chain, tokenType)
+        const stakingTokenAddress = resolveAddress(taskArgs.asset, chain, "vault")
         const stakingToken = StakedToken__factory.connect(stakingTokenAddress, signer)
         const tx = await stakingToken.endCooldown()
 
@@ -136,8 +137,7 @@ subtask("staked-withdraw", "Withdraw MTA or mBPT in V2 Staking Token")
         const signer = await getSigner(hre, taskArgs.speed, false)
         const chain = getChain(hre)
 
-        const tokenType = taskArgs.asset === "MTA" ? "vault" : "address"
-        const stakingTokenAddress = resolveAddress(taskArgs.asset, chain, tokenType)
+        const stakingTokenAddress = resolveAddress(taskArgs.asset, chain, "vault")
         const stakingToken = StakedToken__factory.connect(stakingTokenAddress, signer)
         const withdrawAmount = simpleToExactAmount(taskArgs.amount)
         const recipientAddress = taskArgs.recipient ? resolveAddress(taskArgs.recipient, chain) : await signer.getAddress()
@@ -195,8 +195,7 @@ subtask("staked-delegate", "Delegate V2 Staking Tokens")
         const signer = await getSigner(hre, taskArgs.speed, false)
         const chain = getChain(hre)
 
-        const tokenType = taskArgs.asset === "MTA" ? "vault" : "address"
-        const stakingTokenAddress = resolveAddress(taskArgs.asset, chain, tokenType)
+        const stakingTokenAddress = resolveAddress(taskArgs.asset, chain, "vault")
         const stakingToken = StakedToken__factory.connect(stakingTokenAddress, signer)
         const delegateAddress = resolveAddress(taskArgs.delegate, chain)
         const tx = await stakingToken.delegate(delegateAddress)
@@ -254,5 +253,25 @@ subtask("staked-fees", "Converts fees accrued in BPT to MTA, before depositing t
         await logTxDetails(tx, `convert mBPT to fees`)
     })
 task("staked-fees").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})
+
+subtask("staked-time", "Updates a user's time multiplier.")
+    .addParam("user", "Address or contract name of user", undefined, types.string)
+    .addOptionalParam("asset", "Symbol of staking token. MTA or mBPT", "MTA", types.string)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed, false)
+        const chain = getChain(hre)
+
+        const stakingTokenAddress = resolveAddress("MTA", chain, "vault")
+        const stakingToken = StakedToken__factory.connect(stakingTokenAddress, signer)
+
+        const userAddress = resolveAddress(taskArgs.user, chain)
+
+        const tx = await stakingToken.reviewTimestamp(userAddress)
+        await logTxDetails(tx, `update time multiplier`)
+    })
+task("staked-time").setAction(async (_, __, runSuper) => {
     await runSuper()
 })
