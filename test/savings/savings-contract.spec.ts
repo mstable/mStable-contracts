@@ -1452,7 +1452,6 @@ describe("SavingsContract with Unwrapper", async () => {
     let feederMachine: FeederMachine
 
     let savingsContract: SavingsContract
-    let unwrapperContract: Unwrapper
     let masset: MockERC20 & Masset
     let mDetails: MassetDetails
     let fDetails: FeederDetails
