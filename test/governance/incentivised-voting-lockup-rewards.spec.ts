@@ -322,7 +322,7 @@ describe("IncentivisedVotingLockupRewards", () => {
      * @dev Ensures a funding is successful, checking that it updates the rewardRate etc
      * @param rewardUnits Number of units to stake
      */
-    const expectSuccesfulFunding = async (rewardUnits: BN): Promise<void> => {
+    const expectSuccessfulFunding = async (rewardUnits: BN): Promise<void> => {
         const beforeData = await snapshotStakingData()
         const tx = await votingLockup.connect(rewardsDistributor.signer).notifyRewardAmount(rewardUnits)
         await expect(tx).to.emit(votingLockup, "RewardAdded").withArgs(rewardUnits)
@@ -386,7 +386,7 @@ describe("IncentivisedVotingLockupRewards", () => {
         describe("notifying the pool of reward", () => {
             it("should begin a new period through", async () => {
                 const rewardUnits = simpleToExactAmount(1, DEFAULT_DECIMALS)
-                await expectSuccesfulFunding(rewardUnits)
+                await expectSuccessfulFunding(rewardUnits)
             })
         })
         describe("staking in the new period", () => {
@@ -471,7 +471,7 @@ describe("IncentivisedVotingLockupRewards", () => {
             votingLockup = await redeployRewards()
         })
         it("should retrospectively assign rewards to the first staker", async () => {
-            await expectSuccesfulFunding(simpleToExactAmount(100, DEFAULT_DECIMALS))
+            await expectSuccessfulFunding(simpleToExactAmount(100, DEFAULT_DECIMALS))
 
             // Do the stake
             const rewardRate = await votingLockup.rewardRate()
@@ -506,14 +506,14 @@ describe("IncentivisedVotingLockupRewards", () => {
             it("should assign all the rewards from the periods", async () => {
                 const fundAmount1 = simpleToExactAmount(100, DEFAULT_DECIMALS)
                 const fundAmount2 = simpleToExactAmount(200, DEFAULT_DECIMALS)
-                await expectSuccesfulFunding(fundAmount1)
+                await expectSuccessfulFunding(fundAmount1)
 
                 const stakeAmount = simpleToExactAmount(1, DEFAULT_DECIMALS)
                 await expectSuccessfulStake(LockAction.CREATE_LOCK, stakeAmount)
 
                 await increaseTime(ONE_WEEK.mul(2))
 
-                await expectSuccesfulFunding(fundAmount2)
+                await expectSuccessfulFunding(fundAmount2)
 
                 await increaseTime(ONE_WEEK.mul(2))
 
@@ -573,7 +573,7 @@ describe("IncentivisedVotingLockupRewards", () => {
                 await goToNextUnixWeekStart()
                 await expectSuccessfulStake(LockAction.CREATE_LOCK, staker1Stake1)
                 await expectSuccessfulStake(LockAction.CREATE_LOCK, staker3Stake, staker3)
-                await expectSuccesfulFunding(fundAmount1)
+                await expectSuccessfulFunding(fundAmount1)
 
                 await increaseTime(ONE_WEEK.div(2).add(1))
 
@@ -582,7 +582,7 @@ describe("IncentivisedVotingLockupRewards", () => {
                 await increaseTime(ONE_WEEK.div(2).add(1))
 
                 // WEEK 1-2 START
-                await expectSuccesfulFunding(fundAmount2)
+                await expectSuccessfulFunding(fundAmount2)
 
                 await votingLockup.eject(staker3.address)
                 await votingLockup.connect(sa.default.signer).withdraw()
@@ -610,7 +610,7 @@ describe("IncentivisedVotingLockupRewards", () => {
         })
         it("should stop accruing rewards after the period is over", async () => {
             await expectSuccessfulStake(LockAction.CREATE_LOCK, simpleToExactAmount(1, DEFAULT_DECIMALS))
-            await expectSuccesfulFunding(fundAmount1)
+            await expectSuccessfulFunding(fundAmount1)
 
             await increaseTime(ONE_WEEK.add(1))
 
@@ -664,7 +664,7 @@ describe("IncentivisedVotingLockupRewards", () => {
             })
             it("should factor in unspent units to the new rewardRate", async () => {
                 // Do the initial funding
-                await expectSuccesfulFunding(funding1)
+                await expectSuccessfulFunding(funding1)
                 const actualRewardRate = await votingLockup.rewardRate()
                 const expectedRewardRate = funding1.div(ONE_WEEK)
                 expect(expectedRewardRate).eq(actualRewardRate)
@@ -674,7 +674,7 @@ describe("IncentivisedVotingLockupRewards", () => {
 
                 // Do the second funding, and factor in the unspent units
                 const expectedLeftoverReward = funding1.div(2)
-                await expectSuccesfulFunding(funding2)
+                await expectSuccessfulFunding(funding2)
                 const actualRewardRateAfter = await votingLockup.rewardRate()
                 const totalRewardsForWeek = funding2.add(expectedLeftoverReward)
                 const expectedRewardRateAfter = totalRewardsForWeek.div(ONE_WEEK)
@@ -682,7 +682,7 @@ describe("IncentivisedVotingLockupRewards", () => {
             })
             it("should factor in unspent units to the new rewardRate if instant", async () => {
                 // Do the initial funding
-                await expectSuccesfulFunding(funding1)
+                await expectSuccessfulFunding(funding1)
                 const actualRewardRate = await votingLockup.rewardRate()
                 const expectedRewardRate = funding1.div(ONE_WEEK)
                 expect(expectedRewardRate).eq(actualRewardRate)
@@ -691,7 +691,7 @@ describe("IncentivisedVotingLockupRewards", () => {
                 await increaseTime(1)
 
                 // Do the second funding, and factor in the unspent units
-                await expectSuccesfulFunding(funding2)
+                await expectSuccessfulFunding(funding2)
                 const actualRewardRateAfter = await votingLockup.rewardRate()
                 const expectedRewardRateAfter = funding1.add(funding2).div(ONE_WEEK)
                 assertBNClose(actualRewardRateAfter, expectedRewardRateAfter, actualRewardRate.div(ONE_WEEK).mul(20))
@@ -705,7 +705,7 @@ describe("IncentivisedVotingLockupRewards", () => {
             })
             it("should start a new period with the correct rewardRate", async () => {
                 // Do the initial funding
-                await expectSuccesfulFunding(funding1)
+                await expectSuccessfulFunding(funding1)
                 const actualRewardRate = await votingLockup.rewardRate()
                 const expectedRewardRate = funding1.div(ONE_WEEK)
                 expect(expectedRewardRate).eq(actualRewardRate)
@@ -714,7 +714,7 @@ describe("IncentivisedVotingLockupRewards", () => {
                 await increaseTime(ONE_WEEK.add(1))
 
                 // Do the second funding, and factor in the unspent units
-                await expectSuccesfulFunding(funding1.mul(2))
+                await expectSuccessfulFunding(funding1.mul(2))
                 const actualRewardRateAfter = await votingLockup.rewardRate()
                 const expectedRewardRateAfter = expectedRewardRate.mul(2)
                 expect(actualRewardRateAfter).eq(expectedRewardRateAfter)
@@ -731,7 +731,7 @@ describe("IncentivisedVotingLockupRewards", () => {
                 votingLockup = await redeployRewards()
                 await expectSuccessfulStake(LockAction.CREATE_LOCK, stakeAmount)
                 await increaseTime(ONE_WEEK.div(3).mul(2))
-                await expectSuccesfulFunding(fundAmount)
+                await expectSuccessfulFunding(fundAmount)
                 await increaseTime(ONE_WEEK.div(3).mul(2))
             })
             it("should revert for a non-staker", async () => {
@@ -772,7 +772,7 @@ describe("IncentivisedVotingLockupRewards", () => {
 
             before(async () => {
                 votingLockup = await redeployRewards()
-                await expectSuccesfulFunding(fundAmount)
+                await expectSuccessfulFunding(fundAmount)
                 await stakingToken.connect(rewardsDistributor.signer).transfer(votingLockup.address, fundAmount)
                 await stakingToken.connect(rewardsDistributor.signer).transfer(sa.dummy2.address, stakeAmount)
                 await expectSuccessfulStake(LockAction.CREATE_LOCK, stakeAmount, sa.dummy2)
@@ -817,7 +817,7 @@ describe("IncentivisedVotingLockupRewards", () => {
 
             before(async () => {
                 votingLockup = await redeployRewards()
-                await expectSuccesfulFunding(fundAmount)
+                await expectSuccessfulFunding(fundAmount)
                 await stakingToken.connect(rewardsDistributor.signer).transfer(votingLockup.address, fundAmount)
                 await expectSuccessfulStake(LockAction.CREATE_LOCK, stakeAmount)
                 await increaseTime(ONE_WEEK.add(1))
@@ -870,7 +870,7 @@ describe("IncentivisedVotingLockupRewards", () => {
         })
         it("1. should allow the rewardsDistributor to fund the pool", async () => {
             await stakingToken.connect(rewardsDistributor.signer).transfer(votingLockup.address, fundAmount)
-            await expectSuccesfulFunding(fundAmount)
+            await expectSuccessfulFunding(fundAmount)
         })
         it("2. should allow stakers to stake and earn rewards", async () => {
             await expectSuccessfulStake(LockAction.CREATE_LOCK, stakeAmount)
