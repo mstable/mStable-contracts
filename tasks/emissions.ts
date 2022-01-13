@@ -6,13 +6,12 @@ import {
     DisperseForwarder__factory,
     EmissionsController__factory,
     IERC20__factory,
-    IRootChainManager__factory,
+    L2EmissionsController__factory,
     RevenueBuyBack__factory,
+    RevenueForwarder__factory,
     SavingsManager__factory,
 } from "types/generated"
 import { ONE_HOUR } from "@utils/constants"
-import { simpleToExactAmount } from "@utils/math"
-import { ethers } from "ethers"
 import { logTxDetails, logger, mUSD, mBTC } from "./utils"
 import { getSigner } from "./utils/signerFactory"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
@@ -55,6 +54,25 @@ subtask("emission-dist", "Distribute the weekly emissions")
         await logTxDetails(tx, `distribute rewards for dial ids ${dialIds}`)
     })
 task("emission-dist").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})
+
+subtask("l2-emission-dist", "Distribute the weekly emissions on layer 2 to vaults")
+    .addParam("recipient", "The address of the end recipient. eg Vault", undefined, types.string)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const emissionsControllerAddress = resolveAddress("EmissionsController", chain)
+        const emissionsController = L2EmissionsController__factory.connect(emissionsControllerAddress, signer)
+
+        const recipientAddress = resolveAddress(taskArgs.recipient, chain, "vault")
+
+        const tx = await emissionsController.distributeRewards([recipientAddress])
+        await logTxDetails(tx, `distribute rewards to ${taskArgs.recipient}`)
+    })
+task("l2-emission-dist").setAction(async (_, __, runSuper) => {
     await runSuper()
 })
 
@@ -106,6 +124,22 @@ task("savings-dist-fees").setAction(async (_, __, runSuper) => {
     await runSuper()
 })
 
+subtask("revenue-forward", "Forwards received revenue. eg Polygon mUSD revenue from SavingsManager")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const revenueForwarderAddress = resolveAddress("RevenueRecipient", chain)
+        const revenueForwarder = RevenueForwarder__factory.connect(revenueForwarderAddress, signer)
+
+        const tx = await revenueForwarder.forward()
+        await logTxDetails(tx, `forward gov fees`)
+    })
+task("revenue-forward").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})
+
 subtask("revenue-buy-back", "Buy back MTA from mUSD and mBTC gov fees")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
@@ -142,32 +176,6 @@ subtask("revenue-donate-rewards", "Donate purchased MTA to the staking dials in 
         await logTxDetails(tx, `donate purchased MTA to Emissions Controller`)
     })
 task("revenue-donate-rewards").setAction(async (_, __, runSuper) => {
-    await runSuper()
-})
-
-subtask("bridge-deposit", "Sends mainnet token to Polygon across Polygon's PoS Bridge")
-    .addOptionalParam("token", "Symbol of mainnet token that is to be sent. eg MTA or mBTC", "MTA", types.string)
-    .addOptionalParam("user", "Address of the account on Polygon that will receive the bridged tokens", undefined, types.string)
-    .addParam("amount", "Amount of tokens to be sent without the token decimals.", undefined, types.float)
-    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
-    .setAction(async (taskArgs, hre) => {
-        const signer = await getSigner(hre, taskArgs.speed)
-        const chain = getChain(hre)
-
-        const chainManagerAddress = resolveAddress("PolygonRootChainManager", chain)
-        const chainManager = IRootChainManager__factory.connect(chainManagerAddress, signer)
-
-        const tokenAddress = resolveAddress(taskArgs.token, chain)
-        const userAddress = resolveAddress(taskArgs.user, chain)
-        const amount = simpleToExactAmount(taskArgs.amount)
-
-        const abiCoder = ethers.utils.defaultAbiCoder
-        const amountData = abiCoder.encode(["uint256"], [amount])
-
-        const tx = await chainManager.depositFor(userAddress, tokenAddress, amountData)
-        await logTxDetails(tx, `deposit to Polygon PoS Bridge`)
-    })
-task("bridge-deposit").setAction(async (_, __, runSuper) => {
     await runSuper()
 })
 

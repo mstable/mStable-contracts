@@ -55,7 +55,6 @@ task("deployFeederPool", "Deploy Feeder Pool")
         await deployFeederPool(signer, poolData, hre)
     })
 
-// hh --config tasks-fork.config.ts --network hardhat deployNonPeggedFeederPool --masset mUSD --fasset RAI
 task("deployNonPeggedFeederPool", "Deploy Non Pegged Feeder Pool")
     .addParam("masset", "Token symbol of mAsset. eg mUSD or PmUSD for Polygon", "mUSD", types.string)
     .addParam("fasset", "Token symbol of Feeder Pool asset. eg GUSD, WBTC, PFRAX for Polygon", "alUSD", types.string)
@@ -118,9 +117,6 @@ task("deployAlcxInt", "Deploy Alchemix integration contract for alUSD Feeder Poo
         console.log(`migrateBassets data:\n${migrateData}`)
     })
 
-// vault:
-// // hh --config tasks-fork.config.ts --network hardhat deployVault --name "mUSD/RAI fPool Vault" --symbol v-fPmUSD/RAI
-//                                     --boosted true --stakingToken mUSD --rewardToken MTA --dualRewardToken FLX --price ?
 task("deployVault", "Deploy Feeder Pool with boosted dual vault")
     .addParam("name", "Token name of the vault. eg mUSD/alUSD fPool Vault", undefined, types.string)
     .addParam("symbol", "Token symbol of the vault. eg v-fPmUSD/alUSD", undefined, types.string)
@@ -134,6 +130,7 @@ task("deployVault", "Deploy Feeder Pool with boosted dual vault")
     .addOptionalParam("rewardToken", "Token symbol of reward. eg MTA", "MTA", types.string)
     .addOptionalParam("dualRewardToken", "Token symbol of second reward. eg WMATIC, ALCX, QI", undefined, types.string)
     .addOptionalParam("price", "Price coefficient is the value of the mAsset in USD. eg mUSD/USD = 1, mBTC/USD", 1, types.int)
+    .addOptionalParam("boostCoeff", "Boost coefficient", 9, types.int)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const chain = getChain(hre)
@@ -156,6 +153,8 @@ task("deployVault", "Deploy Feeder Pool with boosted dual vault")
 
         if (taskArgs.price < 0 || taskArgs.price >= simpleToExactAmount(1)) throw Error(`Invalid price coefficient ${taskArgs.price}`)
 
+        if (taskArgs.boostCoeff < 1 || taskArgs.boostCoeff > 10) throw Error(`Invalid boost coefficient ${taskArgs.boostCoeff}`)
+
         const dualRewardToken = tokens.find((t) => t.symbol === taskArgs.dualRewardToken)
 
         const vaultData: VaultData = {
@@ -166,6 +165,7 @@ task("deployVault", "Deploy Feeder Pool with boosted dual vault")
             stakingToken: stakingTokenAddress,
             rewardToken: rewardToken.address,
             dualRewardToken: dualRewardToken?.address,
+            boostCoeff: taskArgs.boostCoeff,
         }
 
         await deployVault(hre, vaultData)

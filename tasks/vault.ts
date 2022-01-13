@@ -79,7 +79,7 @@ subtask("vault-stake", "Stake into a vault")
         const amount = simpleToExactAmount(taskArgs.amount)
 
         const tx = await vault["stake(uint256)"](amount)
-        await logTxDetails(tx, `${signerAccount.address} stakes ${amount} ${taskArgs.asset} in vault`)
+        await logTxDetails(tx, `${signerAccount.address} stakes ${taskArgs.amount} ${taskArgs.asset} in vault`)
     })
 task("vault-stake").setAction(async (_, __, runSuper) => {
     await runSuper()
@@ -99,7 +99,7 @@ subtask("vault-withdraw", "Withdraw from a vault")
         const amount = simpleToExactAmount(taskArgs.amount)
 
         const tx = await vault.withdraw(amount)
-        await logTxDetails(tx, `${signerAccount.address} withdraw ${amount} ${taskArgs.asset} from vault`)
+        await logTxDetails(tx, `${signerAccount.address} withdraw ${taskArgs.amount} ${taskArgs.asset} from vault`)
     })
 task("vault-withdraw").setAction(async (_, __, runSuper) => {
     await runSuper()

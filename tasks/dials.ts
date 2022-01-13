@@ -165,7 +165,7 @@ const outputDialsSnap = (dialsSnap: DialsSnap) => {
  *   5.- Get MTA balance in the Emissions Controller  - // (REWARD_TOKEN.balanceOf(emissionsController))
  */
 task("dials-snap", "Snaps Emissions Controller's dials")
-    .addOptionalParam("csv", "Output in comma separated values", true, types.boolean)
+    .addOptionalParam("csv", "Output in comma separated values", false, types.boolean)
     .addOptionalParam("block", "Block number. (default: current block)", 0, types.int)
     .setAction(async (_taskArgs, hre) => {
         const signer = await getSigner(hre)

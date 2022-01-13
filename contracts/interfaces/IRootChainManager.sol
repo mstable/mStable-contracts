@@ -12,3 +12,9 @@ interface IRootChainManager {
 interface IStateReceiver {
     function onStateReceive(uint256 id, bytes calldata data) external;
 }
+
+interface IChildToken {
+    function deposit(address user, bytes calldata depositData) external;
+
+    function withdraw(uint256 amount) external;
+}

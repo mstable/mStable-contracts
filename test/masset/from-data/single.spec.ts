@@ -40,7 +40,7 @@ const getReserves = (data: any) =>
 
 const runLongTests = process.env.LONG_TESTS === "true"
 
-describe("Feeder Logic - One basket one test", () => {
+describe("Feeder Logic - One basket one test @skip-on-coverage", () => {
     let validator: ExposedMassetLogic
     let sa: StandardAccounts
 
