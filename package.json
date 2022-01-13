@@ -26,7 +26,7 @@
         "compile-ts": "npx tsc",
         "compile": "yarn hardhat compile && yarn run compile-abis",
         "flatten": "npx sol-merger \"./contracts/**/*.sol\" ./_flat",
-        "coverage": "yarn hardhat compile --force && node --max_old_space_size=6144 node_modules/.bin/hardhat coverage --temp 'build/contracts' --testfiles 'test/**/*.spec.ts' --show-stack-traces",
+        "coverage": "node --max_old_space_size=6144 node_modules/.bin/hardhat coverage --temp 'build/contracts' --testfiles 'test/**/*.spec.ts' --show-stack-traces",
         "convertTestFiles": "cd test-utils/validator-data; ts-node ./convertCsvTestFiles.ts",
         "task": "yarn hardhat --config tasks.config.ts",
         "task:fork": "yarn hardhat --config tasks-fork.config.ts",

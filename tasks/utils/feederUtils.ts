@@ -55,6 +55,7 @@ export interface VaultData {
     stakingToken: string
     rewardToken: string
     dualRewardToken?: string
+    boostCoeff?: number
 }
 
 export const deployFasset = async (
@@ -156,17 +157,12 @@ export const deployFeederPool = async (signer: Signer, feederData: FeederData, h
 
 export const deployVault = async (
     hre: HardhatRuntimeEnvironment,
-    vaultParams: VaultData,
+    vaultData: VaultData,
 ): Promise<BoostedDualVault | BoostedVault | StakingRewardsWithPlatformToken | StakingRewards> => {
     const signer = await getSigner(hre)
     const chain = getChain(hre)
-
-    const vaultData: VaultData = {
-        priceCoeff: simpleToExactAmount(1),
-        ...vaultParams,
-    }
     const rewardsDistributorAddress = getChainAddress("RewardsDistributor", chain)
-    const boostCoeff = 48
+
     let vault: BoostedDualVault | BoostedVault | StakingRewardsWithPlatformToken | StakingRewards
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let constructorArguments: any[]
@@ -177,7 +173,7 @@ export const deployVault = async (
                 vaultData.stakingToken,
                 getChainAddress("BoostDirector", chain),
                 vaultData.priceCoeff,
-                boostCoeff,
+                vaultData.boostCoeff,
                 vaultData.rewardToken,
                 vaultData.dualRewardToken,
             ]
@@ -188,7 +184,7 @@ export const deployVault = async (
                 vaultData.stakingToken,
                 getChainAddress("BoostDirector", chain),
                 vaultData.priceCoeff,
-                boostCoeff,
+                vaultData.boostCoeff,
                 vaultData.rewardToken,
             ]
             vault = await deployContract<BoostedVault>(new BoostedVault__factory(signer), "BoostedVault", constructorArguments)
@@ -206,7 +202,7 @@ export const deployVault = async (
             vaultData.stakingToken,
             getChainAddress("BoostDirector", chain),
             vaultData.priceCoeff,
-            boostCoeff,
+            vaultData.boostCoeff,
             vaultData.rewardToken,
         ]
         vault = await deployContract<StakingRewards>(new StakingRewards__factory(signer), "StakingRewards", constructorArguments)

@@ -3,25 +3,34 @@ import { ethers } from "hardhat"
 import { expect } from "chai"
 
 import { simpleToExactAmount, BN } from "@utils/math"
-import { FeederDetails, FeederMachine, MassetMachine, StandardAccounts } from "@utils/machines"
+import { FeederDetails, FeederMachine, MassetMachine, StandardAccounts, MassetDetails } from "@utils/machines"
 
 import { DEAD_ADDRESS, MAX_UINT256, ONE_DAY, ONE_HOUR, ONE_MIN, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import {
+    DudIntegration,
+    DudIntegration__factory,
+    DudPlatform,
+    DudPlatform__factory,
+    IPlatformIntegration__factory,
     FeederPool,
     MaliciousAaveIntegration,
     MaliciousAaveIntegration__factory,
     MockERC20,
     MockPlatformIntegration,
     MockPlatformIntegration__factory,
+    MockNexus,
 } from "types/generated"
+
 import { BassetStatus } from "@utils/mstable-objects"
 import { getTimestamp, increaseTime } from "@utils/time"
+import { impersonate } from "@utils/fork"
 
 describe("Feeder Admin", () => {
     let sa: StandardAccounts
     let mAssetMachine: MassetMachine
     let feederMachine: FeederMachine
     let details: FeederDetails
+    let nexus: MockNexus
 
     const runSetup = async (
         useLendingMarkets = false,
@@ -30,6 +39,7 @@ describe("Feeder Admin", () => {
         mAssetWeights?: Array<BN | number>,
     ): Promise<void> => {
         details = await feederMachine.deployFeeder(feederWeights, mAssetWeights, useLendingMarkets, useInterestValidator)
+        nexus = details.mAssetDetails.nexus
     }
 
     before("Init contract", async () => {
@@ -923,6 +933,402 @@ describe("Feeder Admin", () => {
             // updates the integrator address
             const [[, newIntegratorAddress]] = await pool.getBasset(transferringAsset.address)
             expect(newIntegratorAddress).eq(newMigration.address)
+        })
+    })
+
+    describe("when going from platform to no platform", () => {
+        let pool: FeederPool
+
+        let transferringAsset: MockERC20
+        let stayingAsset: MockERC20
+        const bAssetStartingBal = 1000
+
+        context("should succeed", () => {
+            let newIntegration: DudIntegration
+            let dudPlatform: DudPlatform
+
+            before(async () => {
+                await runSetup(true, false, [bAssetStartingBal, bAssetStartingBal])
+                ;[stayingAsset, transferringAsset] = details.bAssets
+
+                pool = details.pool.connect(sa.governor.signer)
+            })
+
+            it("should deploy dudPlatform", async () => {
+                dudPlatform = await new DudPlatform__factory(sa.default.signer).deploy(nexus.address, transferringAsset.address)
+                expect(dudPlatform.address).not.eq(ZERO_ADDRESS)
+
+                expect(await dudPlatform.bAsset()).eq(transferringAsset.address)
+                expect(await dudPlatform.integration()).eq(ZERO_ADDRESS)
+            })
+            it("should deploy new Integration", async () => {
+                newIntegration = await new DudIntegration__factory(sa.default.signer).deploy(
+                    nexus.address,
+                    pool.address,
+                    transferringAsset.address,
+                    dudPlatform.address,
+                )
+
+                expect(newIntegration.address).not.eq(ZERO_ADDRESS)
+                expect(await newIntegration.lpAddress()).eq(pool.address)
+                expect(await newIntegration.bAsset()).eq(transferringAsset.address)
+                expect(await newIntegration.platform()).eq(dudPlatform.address)
+
+                expect(await transferringAsset.allowance(newIntegration.address, dudPlatform.address)).eq(0)
+
+                await newIntegration.connect(sa.default.signer)["initialize()"]()
+
+                expect(await transferringAsset.allowance(newIntegration.address, dudPlatform.address)).eq(MAX_UINT256)
+            })
+            it("should attach the dudPlatform", async () => {
+                expect(await dudPlatform.integration()).eq(ZERO_ADDRESS)
+                await dudPlatform.initialize(newIntegration.address)
+                expect(await dudPlatform.integration()).eq(newIntegration.address)
+            })
+            it("should reapprove contracts", async () => {
+                await newIntegration.connect(sa.governor.signer).reapproveContracts()
+                expect(await transferringAsset.allowance(newIntegration.address, dudPlatform.address)).eq(MAX_UINT256)
+            })
+            it("should migrate everything correctly", async () => {
+                // get balances before
+                const rawBalBefore = (await pool.getBasset(transferringAsset.address))[1][1]
+                expect(rawBalBefore).eq(simpleToExactAmount(bAssetStartingBal))
+
+                const integratorAddress = (await pool.getBasset(transferringAsset.address))[0][1]
+                expect(integratorAddress, "Have prev. Integration set").not.eq(ZERO_ADDRESS)
+                expect(await transferringAsset.balanceOf(pool.address), "New Integration BAL 0").to.eq(0)
+
+                // Old integration does not have bAssets at this point
+                const balOldCache = await transferringAsset.balanceOf(integratorAddress)
+                expect(balOldCache, "Old Integration BAL = Cached").to.gte(0)
+
+                // Check balance
+                const balBefore = await IPlatformIntegration__factory.connect(integratorAddress, sa.default.signer).callStatic.checkBalance(
+                    transferringAsset.address,
+                )
+                expect(balBefore, "Bal before in Old Integration").gt(0)
+
+                // call migrate, cache to be in DudIntegration, deposited amount is in Feeder Pool
+                const tx = await pool.connect(sa.governor.signer).migrateBassets([transferringAsset.address], newIntegration.address)
+                // emits BassetsMigrated
+                await expect(tx).to.emit(pool, "BassetsMigrated").withArgs([transferringAsset.address], newIntegration.address)
+                await expect(tx).to.emit(dudPlatform, "PlatformDeposited").withArgs(newIntegration.address, balBefore)
+
+                // updates the integrator address
+                const [[, newIntegratorAddress]] = await pool.getBasset(transferringAsset.address)
+                expect(newIntegratorAddress, "New integration address set").eq(newIntegration.address)
+
+                // moves all bAssets from old to new
+                const balPseudoDeposited = await newIntegration.checkBalance(transferringAsset.address)
+                expect(balPseudoDeposited, "Balance deposited in lending pool").eq(balBefore)
+                expect(await transferringAsset.balanceOf(dudPlatform.address), "Balance deposited in lending pool").eq(balPseudoDeposited)
+
+                // Check pool balances
+                expect(await transferringAsset.balanceOf(pool.address), "Holding the deposited amount").to.eq(0)
+
+                // Check cached amount: old cache = new chace
+                const balNewCache = await transferringAsset.balanceOf(newIntegration.address)
+                expect(balNewCache, "New Integration Balance, Cache").eq(balOldCache)
+
+                // Check that cached amount + pseudoDeposited = total amount in integration
+                const balTotal = balPseudoDeposited.add(balNewCache)
+                expect(balTotal, "Total amount in new integration").eq(rawBalBefore)
+            })
+            it("should be able to withdraw something", async () => {
+                const withdrawAmount = simpleToExactAmount(10)
+
+                // Balance before
+                const balPoolBefore = (await pool.getBasset(transferringAsset.address))[1][1]
+
+                const balCacheBefore = await transferringAsset.balanceOf(newIntegration.address)
+                const balDudPlatformBefore = await transferringAsset.balanceOf(dudPlatform.address)
+                const balPseudoDepositedBefore = await newIntegration.checkBalance(transferringAsset.address)
+
+                expect(balPoolBefore, "Balance in cache before").gt(0)
+                expect(balPoolBefore).to.eq(balCacheBefore.add(balDudPlatformBefore))
+                expect(balDudPlatformBefore).to.eq(balPseudoDepositedBefore)
+
+                // Withdraw some
+                const tx = await pool
+                    .connect(sa.default.signer)
+                    .redeemExactBassets(
+                        [stayingAsset.address, transferringAsset.address],
+                        [withdrawAmount, withdrawAmount],
+                        MAX_UINT256,
+                        sa.default.address,
+                    )
+
+                const balPoolAfter = (await pool.getBasset(transferringAsset.address))[1][1]
+                expect(balPoolAfter, "Balance after").eq(balPoolBefore.sub(withdrawAmount))
+
+                const balDudPlatformAfter = await transferringAsset.balanceOf(dudPlatform.address)
+                const balPseudoDepositedAfter = await newIntegration.checkBalance(transferringAsset.address)
+
+                expect(balDudPlatformAfter, "Balance after").eq(balPseudoDepositedAfter)
+            })
+            it("should be able to deposit something", async () => {
+                const depositAmount = simpleToExactAmount(10)
+
+                // Balance before
+                const balPoolBefore = (await pool.getBasset(transferringAsset.address))[1][1]
+
+                const balCacheBefore = await transferringAsset.balanceOf(newIntegration.address)
+                const balDudPlatformBefore = await transferringAsset.balanceOf(dudPlatform.address)
+                const balPseudoDepositedBefore = await newIntegration.checkBalance(transferringAsset.address)
+
+                expect(balPoolBefore, "Balance in cache before").gt(0)
+                expect(balPoolBefore).to.eq(balCacheBefore.add(balDudPlatformBefore))
+                expect(balDudPlatformBefore).to.eq(balPseudoDepositedBefore)
+
+                await transferringAsset.approve(pool.address, depositAmount, { from: sa.default.address })
+                await stayingAsset.approve(pool.address, depositAmount, { from: sa.default.address })
+
+                // Withdraw some
+                const tx = await pool
+                    .connect(sa.default.signer)
+                    .mintMulti([stayingAsset.address, transferringAsset.address], [depositAmount, depositAmount], 1, sa.default.address)
+
+                const balPoolAfter = (await pool.getBasset(transferringAsset.address))[1][1]
+                expect(balPoolAfter, "Balance after").eq(balPoolBefore.add(depositAmount))
+
+                const balDudPlatformAfter = await transferringAsset.balanceOf(dudPlatform.address)
+                const balPseudoDepositedAfter = await newIntegration.checkBalance(transferringAsset.address)
+
+                expect(balDudPlatformAfter, "Balance after").eq(balPseudoDepositedAfter)
+            })
+            it("should clear the Integration and shortcircuit the deposit", async () => {
+                const balDudPlatformBefore = await transferringAsset.balanceOf(dudPlatform.address)
+                const balIntegrationBefore = await transferringAsset.balanceOf(newIntegration.address)
+
+                expect(await newIntegration.cleared()).eq(false)
+                expect(balDudPlatformBefore, "Balance in Dud Platform").gt(0)
+
+                const tx = await newIntegration.connect(sa.governor.signer)["clear()"]()
+                await expect(tx).to.emit(newIntegration, "PlatformCleared").withArgs(dudPlatform.address, balDudPlatformBefore)
+
+                expect(await newIntegration.cleared()).eq(true)
+                expect(await transferringAsset.balanceOf(dudPlatform.address), "Balance in Dud Platform").eq(0)
+
+                expect(await transferringAsset.balanceOf(newIntegration.address), "Balance in Integration").eq(
+                    balIntegrationBefore.add(balDudPlatformBefore),
+                )
+            })
+            it("should be able to deposit more", async () => {
+                const mintAmount = simpleToExactAmount(1000)
+
+                // Balance before
+                const balPoolBefore = (await pool.getBasset(transferringAsset.address))[1][1]
+
+                const balCacheBefore = await transferringAsset.balanceOf(newIntegration.address)
+                const balDudPlatformBefore = await transferringAsset.balanceOf(dudPlatform.address)
+                const balPseudoDepositedBefore = await newIntegration.checkBalance(transferringAsset.address)
+
+                expect(balPseudoDepositedBefore.add(balCacheBefore), "Total balance in new integration").eq(balPoolBefore)
+                expect(balCacheBefore.add(balDudPlatformBefore), "Total balance in new integration").eq(balPoolBefore)
+
+                // Approve the transfer
+                await transferringAsset.approve(pool.address, mintAmount, { from: sa.default.address })
+                await stayingAsset.approve(pool.address, mintAmount, { from: sa.default.address })
+
+                const tx = await pool
+                    .connect(sa.default.signer)
+                    .mintMulti([stayingAsset.address, transferringAsset.address], [mintAmount, mintAmount], 1, sa.default.address)
+
+                const balPoolAfter = (await pool.getBasset(transferringAsset.address))[1][1]
+                const balCacheAfter = await transferringAsset.balanceOf(newIntegration.address)
+                const balPseudoDepositedAfter = await newIntegration.checkBalance(transferringAsset.address)
+                const balDudPlatformAfter = await transferringAsset.balanceOf(dudPlatform.address)
+                expect(balPseudoDepositedAfter).to.eq(balDudPlatformAfter)
+
+                const balTotalCalc = balDudPlatformAfter.add(balCacheAfter)
+                expect(balTotalCalc).to.eq(balPoolAfter)
+
+                expect(balTotalCalc, "Total amount in new integration").eq(balPoolBefore.add(mintAmount))
+            })
+            it("should be able to withdraw ~ cached amount", async () => {
+                const withdrawAmount = simpleToExactAmount(200)
+
+                // Balance before
+                const balPoolBefore = (await pool.getBasset(transferringAsset.address))[1][1]
+
+                const balCacheBefore = await transferringAsset.balanceOf(newIntegration.address)
+                const balDudPlatformBefore = await transferringAsset.balanceOf(dudPlatform.address)
+                const balPseudoDepositedBefore = await newIntegration.checkBalance(transferringAsset.address)
+
+                expect(balCacheBefore).to.eq(balPoolBefore)
+                expect(balDudPlatformBefore).to.eq(0)
+                expect(balPseudoDepositedBefore).to.eq(0)
+
+                // Withdraw some
+                const tx = await pool
+                    .connect(sa.default.signer)
+                    .redeemExactBassets(
+                        [stayingAsset.address, transferringAsset.address],
+                        [withdrawAmount, withdrawAmount],
+                        MAX_UINT256,
+                        sa.default.address,
+                    )
+
+                const balPoolAfter = (await pool.getBasset(transferringAsset.address))[1][1]
+                expect(balPoolAfter, "Balance after").eq(balPoolBefore.sub(withdrawAmount))
+
+                const balCacheAfter = await transferringAsset.balanceOf(newIntegration.address)
+                expect(balCacheAfter, "Balance after").eq(balPoolAfter)
+
+                const balDudPlatformAfter = await transferringAsset.balanceOf(dudPlatform.address)
+                const balPseudoDepositedAfter = await newIntegration.checkBalance(transferringAsset.address)
+
+                expect(balDudPlatformAfter, "Balance after").eq(0)
+                expect(balPseudoDepositedAfter, "Balance after").eq(0)
+            })
+            it("should be able to withdraw, more that cached amount", async () => {
+                const withdrawAmount = simpleToExactAmount(500)
+
+                // Balance before
+                const balPoolBefore = (await pool.getBasset(transferringAsset.address))[1][1]
+
+                const balCacheBefore = await transferringAsset.balanceOf(newIntegration.address)
+                const balDudPlatformBefore = await transferringAsset.balanceOf(dudPlatform.address)
+                const balPseudoDepositedBefore = await newIntegration.checkBalance(transferringAsset.address)
+
+                expect(balCacheBefore).to.eq(balPoolBefore)
+                expect(balDudPlatformBefore).to.eq(0)
+                expect(balPseudoDepositedBefore).to.eq(0)
+
+                // Withdraw some
+                const tx = await pool
+                    .connect(sa.default.signer)
+                    .redeemExactBassets(
+                        [stayingAsset.address, transferringAsset.address],
+                        [withdrawAmount, withdrawAmount],
+                        MAX_UINT256,
+                        sa.default.address,
+                    )
+
+                const balPoolAfter = (await pool.getBasset(transferringAsset.address))[1][1]
+                expect(balPoolAfter, "Balance after").eq(balPoolBefore.sub(withdrawAmount))
+
+                const balCacheAfter = await transferringAsset.balanceOf(newIntegration.address)
+                expect(balCacheAfter, "Balance after").eq(balPoolAfter)
+
+                const balDudPlatformAfter = await transferringAsset.balanceOf(dudPlatform.address)
+                const balPseudoDepositedAfter = await newIntegration.checkBalance(transferringAsset.address)
+
+                expect(balDudPlatformAfter, "Balance after").eq(0)
+                expect(balPseudoDepositedAfter, "Balance after").eq(0)
+            })
+            it("Should be able to migrate away", async () => {
+                const newDudPlatform = await new DudPlatform__factory(sa.default.signer).deploy(nexus.address, transferringAsset.address)
+
+                const newestIntegration = await new DudIntegration__factory(sa.default.signer).deploy(
+                    DEAD_ADDRESS,
+                    pool.address,
+                    transferringAsset.address,
+                    dudPlatform.address,
+                )
+                await newestIntegration.connect(sa.default.signer)["initialize()"]()
+
+                const tx = pool.connect(sa.governor.signer).migrateBassets([transferringAsset.address], newestIntegration.address)
+                // emits BassetsMigrated
+                await expect(tx).to.emit(pool, "BassetsMigrated").withArgs([transferringAsset.address], newestIntegration.address)
+
+                // updates the integrator address
+                const [[, integratorAddress]] = await pool.getBasset(transferringAsset.address)
+                expect(integratorAddress, "New integration address set").eq(newestIntegration.address)
+
+                // Check integration balance is 0
+                const balAfter = await transferringAsset.balanceOf(newIntegration.address)
+                expect(balAfter, "Integration balance").eq(0)
+
+                // Check newest integration balance is gt 0
+                const balAfterNewest = await transferringAsset.balanceOf(newestIntegration.address)
+                expect(balAfterNewest, "New integration balance").gt(0)
+            })
+        })
+        context("Should fail, pre deploy", async () => {
+            let dudPlatform: DudPlatform
+
+            beforeEach(async () => {
+                await runSetup(true, false, [bAssetStartingBal, bAssetStartingBal])
+                ;[stayingAsset, transferringAsset] = details.bAssets
+                pool = details.pool.connect(sa.governor.signer)
+            })
+            it("When deploying dudPlatform with invalid bAsset", async () => {
+                await expect(new DudPlatform__factory(sa.default.signer).deploy(DEAD_ADDRESS, ZERO_ADDRESS)).to.be.revertedWith(
+                    "Invalid bAsset",
+                )
+            })
+            it("When deploying DudIntegration with invalid bAsset", async () => {
+                dudPlatform = await new DudPlatform__factory(sa.default.signer).deploy(DEAD_ADDRESS, transferringAsset.address)
+                await expect(
+                    new DudIntegration__factory(sa.default.signer).deploy(DEAD_ADDRESS, pool.address, ZERO_ADDRESS, dudPlatform.address),
+                ).to.be.revertedWith("Invalid bAsset")
+            })
+            it("When deploying DudIntegration with invalid platform", async () => {
+                await expect(
+                    new DudIntegration__factory(sa.default.signer).deploy(
+                        DEAD_ADDRESS,
+                        pool.address,
+                        transferringAsset.address,
+                        ZERO_ADDRESS,
+                    ),
+                ).to.be.revertedWith("Invalid platform")
+            })
+        })
+        context("Should fail, post deploy", async () => {
+            let newIntegration: DudIntegration
+            let dudPlatform: DudPlatform
+
+            before(async () => {
+                await runSetup(true, false, [bAssetStartingBal, bAssetStartingBal])
+                ;[stayingAsset, transferringAsset] = details.bAssets
+
+                pool = details.pool.connect(sa.governor.signer)
+            })
+
+            beforeEach(async () => {
+                // initialize pool
+                dudPlatform = await new DudPlatform__factory(sa.default.signer).deploy(nexus.address, transferringAsset.address)
+                newIntegration = await new DudIntegration__factory(sa.default.signer).deploy(
+                    nexus.address,
+                    pool.address,
+                    transferringAsset.address,
+                    dudPlatform.address,
+                )
+                await newIntegration.connect(sa.default.signer)["initialize()"]()
+            })
+            it("When depositing from non integration address", async () => {
+                await expect(
+                    dudPlatform.connect(sa.default.signer).deposit(transferringAsset.address, simpleToExactAmount(100)),
+                ).to.be.revertedWith("Only integration")
+            })
+            it("When withdrawing from non integration address", async () => {
+                await expect(
+                    dudPlatform.connect(sa.default.signer).withdraw(transferringAsset.address, simpleToExactAmount(100)),
+                ).to.be.revertedWith("Only integration")
+            })
+            it("When withdrawing while integration address is not set", async () => {
+                const contractSigner = await impersonate(newIntegration.address, true)
+                await expect(
+                    dudPlatform.connect(contractSigner).withdraw(transferringAsset.address, simpleToExactAmount(100)),
+                ).to.be.revertedWith("Only integration")
+            })
+            it("When clear from non-Governor address", async () => {
+                await expect(newIntegration.connect(sa.default.signer).clear()).to.be.revertedWith("Only governor can execute")
+            })
+            it("When calling reapproveContracts from non-Governor address", async () => {
+                await expect(newIntegration.connect(sa.default.signer).reapproveContracts()).to.be.revertedWith("Only governor can execute")
+            })
+            it("When clearing dudPlatform twice", async () => {
+                await dudPlatform.initialize(newIntegration.address)
+                const tx = await newIntegration.connect(sa.governor.signer).clear()
+                const balBefore = await transferringAsset.balanceOf(dudPlatform.address)
+                expect(tx).to.emit(newIntegration, "PlatformCleared").withArgs(dudPlatform.address, balBefore)
+                const balAfter = await transferringAsset.balanceOf(dudPlatform.address)
+                expect(balAfter).to.eq(0)
+                // Cleared ok, try again
+                await expect(newIntegration.connect(sa.governor.signer).clear()).to.be.revertedWith("Already cleared")
+            })
         })
     })
 })
