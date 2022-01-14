@@ -25,7 +25,7 @@ import { AaveStakedTokenV2__factory } from "types/generated/factories/AaveStaked
 import { Comptroller__factory } from "types/generated/factories/Comptroller__factory"
 import { MusdLegacy } from "types/generated/MusdLegacy"
 import { QuantityFormatter, usdFormatter } from "./quantity-formatters"
-import { AAVE, ALCX, alUSD, BUSD, Chain, COMP, DAI, GUSD, RAI, stkAAVE, sUSD, Token, USDC, USDT, WBTC } from "./tokens"
+import { AAVE, ALCX, alUSD, BUSD, Chain, COMP, DAI, FEI, GUSD, RAI, stkAAVE, sUSD, Token, USDC, USDT, WBTC } from "./tokens"
 import { getChainAddress, resolveAddress } from "./networkAddressFactory"
 
 const comptrollerAddress = "0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B"
@@ -57,6 +57,11 @@ export interface SwapRate {
     mOutputRaw: BN
     curveOutputRaw: BN
     curveInverseOutputRaw: BN
+}
+
+export interface SwapQuote {
+    outAmount: BN
+    exchangeRate: BN
 }
 
 // Only the FeederPool has the redeemProportionately function
@@ -705,10 +710,7 @@ export const quoteSwap = async (
     toBlock: BlockInfo,
     path?: string[],
     fees = [3000, 3000],
-): Promise<{
-    outAmount: BN
-    exchangeRate: BN
-}> => {
+): Promise<SwapQuote> => {
     // Get USDC value from Uniswap
     const uniswapPath = path || [from.address, uniswapEthToken, to.address]
     let outAmount: BN
@@ -791,7 +793,7 @@ export const getAaveTokens = async (
     // Get accrued stkAave for each integration contract that is still to be claimed from the  controller
     console.log(`\nstkAAVE accrued and unclaimed`)
     let totalUnclaimed = BN.from(0)
-    const integrationTokens = [[DAI, USDT, sUSD], [GUSD], [BUSD], [RAI], [WBTC]]
+    const integrationTokens = [[DAI, USDT, sUSD], [GUSD], [BUSD], [RAI], [FEI], [WBTC]]
     for (const bAssets of integrationTokens) {
         const bAssetSymbols = bAssets.reduce((symbols, token) => `${symbols}${token.symbol} `, "")
         const aTokens = bAssets.map((t) => t.liquidityProvider)
@@ -825,10 +827,7 @@ export const getAaveTokens = async (
     totalStkAaveAndAave = totalStkAaveAndAave.add(liquidatorStkAaveBal)
     totalStkAaveAndAave = totalStkAaveAndAave.add(liquidatorAaveBal)
 
-    let aaveUsdc: {
-        outAmount: BN
-        exchangeRate: BN
-    }
+    let aaveUsdc: SwapQuote
     if (liquidatorStkAaveBal.gt(0)) {
         aaveUsdc = await quoteSwap(signer, AAVE, USDC, liquidatorStkAaveBal, toBlock)
         console.log(`\nLiquidator ${quantityFormatter(liquidatorStkAaveBal)} ${quantityFormatter(aaveUsdc.outAmount, USDC.decimals)} USDC`)
@@ -843,8 +842,16 @@ export const getAaveTokens = async (
     console.log(`AAVE/USDC exchange rate: ${aaveUsdc.exchangeRate}`)
 
     // Get AAVE/USDC exchange rate
-    const liqData = await liquidator.liquidations(USDT.integrator, { blockTag: toBlock.blockNumber })
-    console.log(`Min AAVE/USDC rate ${formatUnits(liqData.minReturn, USDC.decimals)}`)
+    const musdLiqData = await liquidator.liquidations(USDT.integrator, { blockTag: toBlock.blockNumber })
+    console.log(`Min AAVE/USDC rate ${formatUnits(musdLiqData.minReturn, USDC.decimals)}`)
+
+    // Get AAVE/GUSD exchange rate
+    const gusdLiqData = await liquidator.liquidations(GUSD.integrator, { blockTag: toBlock.blockNumber })
+    console.log(`Min AAVE/GUSD rate ${formatUnits(gusdLiqData.minReturn, GUSD.decimals)}`)
+
+    // Get AAVE/BTC exchange rate
+    const btcLiqData = await liquidator.liquidations(WBTC.integrator, { blockTag: toBlock.blockNumber })
+    console.log(`Min AAVE/WBTC rate ${formatUnits(btcLiqData.minReturn, WBTC.decimals)}`)
 
     // Get next unlock window
     const cooldownStart = await stkAaveToken.stakersCooldowns(liquidatorAddress, { blockTag: toBlock.blockNumber })
