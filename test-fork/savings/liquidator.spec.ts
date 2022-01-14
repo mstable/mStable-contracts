@@ -4,7 +4,7 @@ import { impersonateAccount } from "@utils/fork"
 import { ethers, network } from "hardhat"
 import { Account } from "types"
 import { deployContract } from "tasks/utils/deploy-utils"
-import { AAVE, stkAAVE, DAI, mBTC, mUSD, USDC, USDT, WBTC, COMP, GUSD, BUSD, CREAM, cyMUSD } from "tasks/utils/tokens"
+import { AAVE, stkAAVE, DAI, mBTC, mUSD, USDC, USDT, WBTC, COMP, GUSD, BUSD, CREAM, cyMUSD, RAI } from "tasks/utils/tokens"
 import {
     CompoundIntegration__factory,
     DelayedProxyAdmin,
@@ -28,16 +28,16 @@ import { formatUnits } from "ethers/lib/utils"
 import { increaseTime } from "@utils/time"
 import { ONE_DAY, ONE_HOUR, ONE_MIN, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { encodeUniswapPath } from "@utils/peripheral/uniswap"
+import { resolveAddress } from "tasks/utils/networkAddressFactory"
 
 // Addresses for signers
-const opsAddress = "0xb81473f20818225302b8fffb905b53d58a793d84"
-const governorAddress = "0xF6FF1F7FCEB2cE6d26687EaaB5988b445d0b94a2"
+const governorAddress = resolveAddress("Governor")
 const delayedAdminAddress = "0x5c8eb57b44c1c6391fc7a8a0cf44d26896f92386"
 const ethWhaleAddress = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 const stkAaveWhaleAddress = "0xdb5AA12AD695Ef2a28C6CdB69f2BB04BEd20a48e"
 const musdWhaleAddress = "0x9b0c19000a8631c1f555bb365bDE308384E4f2Ff"
 
-const liquidatorAddress = "0xe595D67181D701A5356e010D9a58EB9A341f1DbD"
+const liquidatorAddress = resolveAddress("Liquidator")
 const aaveMusdIntegrationAddress = "0xA2a3CAe63476891AB2d640d9a5A800755Ee79d6E"
 const aaveMbtcIntegrationAddress = "0xC9451a4483d1752a3E9A3f5D6b1C7A6c34621fC6"
 const compoundIntegrationAddress = "0xD55684f4369040C12262949Ff78299f2BC9dB735"
@@ -84,7 +84,7 @@ context("Liquidator forked network tests", () => {
                 },
             ],
         })
-        ops = await impersonateAccount(opsAddress)
+        ops = await impersonateAccount(resolveAddress("OperationsSigner"))
         stkAaveWhale = await impersonateAccount(stkAaveWhaleAddress)
         governor = await impersonateAccount(governorAddress)
         ethWhale = await impersonateAccount(ethWhaleAddress)
@@ -93,7 +93,7 @@ context("Liquidator forked network tests", () => {
         // send some Ether to the impersonated multisig contract as it doesn't have Ether
         await ethWhale.signer.sendTransaction({
             to: governorAddress,
-            value: simpleToExactAmount(10),
+            value: simpleToExactAmount(5),
         })
 
         delayedProxyAdmin = DelayedProxyAdmin__factory.connect(delayedAdminAddress, governor.signer)
@@ -1164,6 +1164,75 @@ context("Liquidator forked network tests", () => {
             expect(await aaveStakedToken.balanceOf(aaveMusdIntegrationAddress), "stkAAVE in integration after").to.gt(
                 expectedAccruedDai.add(expectedAccruedUsdt),
             )
+        })
+    })
+    context.only("Aave liquidation of new Feeder Pools", () => {
+        let liquidator: Liquidator
+
+        const uniswapAaveBusdPath = encodeUniswapPath([AAVE.address, uniswapEthToken, BUSD.address], [3000, 10000])
+        const uniswapAaveRaiPath = encodeUniswapPath([AAVE.address, uniswapEthToken, RAI.address], [3000, 3000])
+        before("reset block number", async () => {
+            await runSetup(14000900)
+            liquidator = Liquidator__factory.connect(liquidatorAddress, ops.signer)
+        })
+        it("Added liquidation for BUSD Feeder Pool Aave integration", async () => {
+            await liquidator
+                .connect(governor.signer)
+                .createLiquidation(
+                    BUSD.integrator,
+                    AAVE.address,
+                    BUSD.address,
+                    uniswapAaveBusdPath.encoded,
+                    uniswapAaveBusdPath.encodedReversed,
+                    0,
+                    simpleToExactAmount(120, BUSD.decimals),
+                    ZERO_ADDRESS,
+                    true,
+                )
+            console.log(`AAVE > BUSD ${uniswapAaveBusdPath.encoded}`)
+            console.log(`Reversed    ${uniswapAaveBusdPath.encodedReversed}`)
+        })
+        it("Added liquidation for RAI Feeder Pool Aave integration", async () => {
+            await liquidator
+                .connect(governor.signer)
+                .createLiquidation(
+                    RAI.integrator,
+                    AAVE.address,
+                    RAI.address,
+                    uniswapAaveRaiPath.encoded,
+                    uniswapAaveRaiPath.encodedReversed,
+                    0,
+                    simpleToExactAmount(40, RAI.decimals),
+                    ZERO_ADDRESS,
+                    true,
+                )
+            console.log(`AAVE > RAI ${uniswapAaveRaiPath.encoded}`)
+            console.log(`Reversed   ${uniswapAaveRaiPath.encodedReversed}`)
+        })
+        it("trigger liquidation of Aave after 11 days", async () => {
+            await increaseTime(ONE_DAY.mul(11))
+            expect(await aaveStakedToken.balanceOf(liquidatorAddress), "Liquidator has some stkAave before").gt(0)
+            expect(await aaveToken.balanceOf(liquidatorAddress), "Liquidator has no Aave before").lte(1)
+
+            await liquidator.triggerLiquidationAave()
+
+            expect(await aaveStakedToken.balanceOf(liquidatorAddress), "Liquidator has no stkAave after").eq(0)
+            expect(await aaveToken.balanceOf(liquidatorAddress), "Liquidator has no Aave after").lte(1)
+        })
+        it("Claim stkAave for new integration contracts", async () => {
+            const aaveBalanceBefore = await aaveStakedToken.balanceOf(liquidatorAddress)
+            await liquidator.claimStakedAave()
+            expect(await aaveStakedToken.balanceOf(liquidatorAddress), "Liquidator's stkAave increased").gt(aaveBalanceBefore)
+        })
+        it("trigger liquidation including new integration contracts for the first time", async () => {
+            await increaseTime(ONE_DAY.mul(11))
+            expect(await aaveStakedToken.balanceOf(liquidatorAddress), "Liquidator has some stkAave before").gt(0)
+            expect(await aaveToken.balanceOf(liquidatorAddress), "Liquidator has no Aave before").lte(1)
+
+            await liquidator.triggerLiquidationAave()
+
+            expect(await aaveStakedToken.balanceOf(liquidatorAddress), "Liquidator has no stkAave after").eq(0)
+            expect(await aaveToken.balanceOf(liquidatorAddress), "Liquidator has no Aave after").lte(1)
         })
     })
 })
