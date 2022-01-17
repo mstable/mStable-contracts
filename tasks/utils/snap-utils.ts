@@ -758,7 +758,9 @@ export const getCompTokens = async (
     totalComp = totalComp.add(compLiquidatorBal)
     console.log(`Liquidator  ${quantityFormatter(compLiquidatorBal)}`)
 
-    const compUsdc = await quoteSwap(signer, COMP, USDC, totalComp, toBlock)
+    const compUsdc: SwapQuote = totalComp.gt(0)
+        ? await quoteSwap(signer, COMP, USDC, totalComp, toBlock)
+        : { outAmount: BN.from(0), exchangeRate: BN.from(0) }
     console.log(`Total       ${quantityFormatter(totalComp)} ${quantityFormatter(compUsdc.outAmount, USDC.decimals)} USDC`)
     console.log(`COMP/USDC exchange rate: ${compUsdc.exchangeRate}`)
 
