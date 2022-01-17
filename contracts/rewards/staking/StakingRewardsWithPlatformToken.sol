@@ -3,7 +3,9 @@ pragma solidity 0.8.6;
 
 // Internal
 import { IRewardsDistributionRecipient, IRewardsRecipientWithPlatformToken } from "../../interfaces/IRewardsDistributionRecipient.sol";
+import { IStakingRewardsWithPlatformToken } from "../../interfaces/IStakingRewardsWithPlatformToken.sol";
 import { InitializableRewardsDistributionRecipient } from "../InitializableRewardsDistributionRecipient.sol";
+import { ISavingsContractV3 } from "../../interfaces/ISavingsContract.sol";
 import { StakingTokenWrapper } from "./StakingTokenWrapper.sol";
 import { PlatformTokenVendor } from "./PlatformTokenVendor.sol";
 import { StableMath } from "../../shared/StableMath.sol";
@@ -26,6 +28,7 @@ contract StakingRewardsWithPlatformToken is
     Initializable,
     StakingTokenWrapper,
     IRewardsRecipientWithPlatformToken,
+    IStakingRewardsWithPlatformToken,
     InitializableRewardsDistributionRecipient
 {
     using SafeERC20 for IERC20;
@@ -136,7 +139,7 @@ contract StakingRewardsWithPlatformToken is
      * @dev Stakes a given amount of the StakingToken for the sender
      * @param _amount Units of StakingToken
      */
-    function stake(uint256 _amount) external {
+    function stake(uint256 _amount) external override {
         _stake(msg.sender, _amount);
     }
 
@@ -145,7 +148,7 @@ contract StakingRewardsWithPlatformToken is
      * @param _beneficiary Staked tokens are credited to this address
      * @param _amount      Units of StakingToken
      */
-    function stake(address _beneficiary, uint256 _amount) external {
+    function stake(address _beneficiary, uint256 _amount) external override {
         _stake(_beneficiary, _amount);
     }
 
@@ -168,18 +171,56 @@ contract StakingRewardsWithPlatformToken is
     /**
      * @dev Withdraws stake from pool and claims any rewards
      */
-    function exit() external {
-        withdraw(balanceOf(msg.sender));
-        claimReward();
+    function exit() external override updateReward(msg.sender) {
+        uint256 amount = balanceOf(msg.sender);
+        _withdraw(amount);
+        emit Withdrawn(msg.sender, amount);
+        _claimReward(true);
     }
 
     /**
      * @dev Withdraws given stake amount from the pool
      * @param _amount Units of the staked token to withdraw
      */
-    function withdraw(uint256 _amount) public updateReward(msg.sender) {
-        require(_amount > 0, "Cannot withdraw 0");
+    function withdraw(uint256 _amount) external override updateReward(msg.sender) {
         _withdraw(_amount);
+        emit Withdrawn(msg.sender, _amount);
+    }
+
+    /**
+     * @dev Withdraws given stake amount from the pool and
+     * redeems the staking token into a given asset.
+     * @param _amount        Units of the staked token to withdraw
+     * @param _minAmountOut  Minimum amount of `output` to unwrap for
+     * @param _output        Asset to unwrap from underlying
+     * @param _beneficiary   Address to send staked token to
+     * @param _router        Router address to redeem/swap
+     * @param _isBassetOut   Route action of redeem/swap
+     */
+    function withdrawAndUnwrap(
+        uint256 _amount,
+        uint256 _minAmountOut,
+        address _output,
+        address _beneficiary,
+        address _router,
+        bool _isBassetOut
+    ) external override updateReward(msg.sender) {
+        require(_amount > 0, "Cannot withdraw 0");
+
+        // Reduce raw balance (but do not transfer `stakingToken`)
+        _reduceRaw(_amount);
+
+        // Unwrap `stakingToken` into `output` and send to `beneficiary`
+        ISavingsContractV3(address(stakingToken)).redeemAndUnwrap(
+            _amount,
+            true,
+            _minAmountOut,
+            _output,
+            _beneficiary,
+            _router,
+            _isBassetOut
+        );
+
         emit Withdrawn(msg.sender, _amount);
     }
 
@@ -187,25 +228,35 @@ contract StakingRewardsWithPlatformToken is
      * @dev Claims outstanding rewards (both platform and native) for the sender.
      * First updates outstanding reward allocation and then transfers.
      */
-    function claimReward() public updateReward(msg.sender) {
-        uint256 reward = _claimReward();
-        uint256 platformReward = _claimPlatformReward();
-        emit RewardPaid(msg.sender, reward, platformReward);
+    function claimReward() external override updateReward(msg.sender) {
+        _claimReward(true);
     }
 
     /**
      * @dev Claims outstanding rewards for the sender. Only the native
      * rewards token, and not the platform rewards
      */
-    function claimRewardOnly() public updateReward(msg.sender) {
-        uint256 reward = _claimReward();
-        emit RewardPaid(msg.sender, reward, 0);
+    function claimRewardOnly() external override updateReward(msg.sender) {
+        _claimReward(false);
+    }
+
+    /**
+     * @dev Claims outstanding rewards for the sender.
+     * @param _isClaimingPlatform   If true, it claims the rewards from the platform.
+     */
+    function _claimReward(bool _isClaimingPlatform) internal {
+        uint256 reward = _claimTokenReward();
+        uint256 platformReward = 0;
+        if (_isClaimingPlatform) {
+            platformReward = _claimPlatformReward();
+        }
+        emit RewardPaid(msg.sender, reward, platformReward);
     }
 
     /**
      * @dev Credits any outstanding rewards to the sender
      */
-    function _claimReward() internal returns (uint256) {
+    function _claimTokenReward() internal returns (uint256) {
         uint256 reward = rewards[msg.sender];
         if (reward > 0) {
             rewards[msg.sender] = 0;
@@ -256,7 +307,7 @@ contract StakingRewardsWithPlatformToken is
     /**
      * @dev Gets the last applicable timestamp for this reward period
      */
-    function lastTimeRewardApplicable() public view returns (uint256) {
+    function lastTimeRewardApplicable() public view override returns (uint256) {
         return StableMath.min(block.timestamp, periodFinish);
     }
 
@@ -264,7 +315,7 @@ contract StakingRewardsWithPlatformToken is
      * @dev Calculates the amount of unclaimed rewards a user has earned
      * @return 'Reward' per staked token
      */
-    function rewardPerToken() public view returns (uint256, uint256) {
+    function rewardPerToken() public view override returns (uint256, uint256) {
         // If there is no StakingToken liquidity, avoid div(0)
         uint256 stakedTokens = totalSupply();
         if (stakedTokens == 0) {
@@ -291,7 +342,7 @@ contract StakingRewardsWithPlatformToken is
      * @param _account User address
      * @return Total reward amount earned
      */
-    function earned(address _account) public view returns (uint256, uint256) {
+    function earned(address _account) public view override returns (uint256, uint256) {
         // current rate per token - rate user previously received
         (uint256 currentRewardPerToken, uint256 currentPlatformRewardPerToken) = rewardPerToken();
         uint256 userRewardDelta = currentRewardPerToken - userRewardPerTokenPaid[_account];

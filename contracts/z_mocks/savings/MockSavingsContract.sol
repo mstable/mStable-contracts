@@ -12,7 +12,7 @@ import { StableMath } from "../../shared/StableMath.sol";
  */
 contract MockSavingsContract is ERC20 {
     using StableMath for uint256;
-   
+
     uint8 dec;
     uint256 private constant startingRate = 1e17;
     uint256 public exchangeRate;
@@ -25,6 +25,7 @@ contract MockSavingsContract is ERC20 {
         uint256 creditsRedeemed,
         uint256 savingsCredited
     );
+
     constructor(
         string memory _name,
         string memory _symbol,
@@ -80,8 +81,9 @@ contract MockSavingsContract is ERC20 {
         return (credits_, underlying_);
     }
 
-    
-       function redeemAndUnwrap(
+    /* solhint-disable */
+
+    function redeemAndUnwrap(
         uint256 _amount,
         bool _isCreditAmt,
         uint256 _minAmountOut,
@@ -89,7 +91,7 @@ contract MockSavingsContract is ERC20 {
         address _beneficiary,
         address _router,
         bool _isBassetOut
-    ) external  returns (uint256 creditsBurned, uint256 massetReturned) {
+    ) external returns (uint256 creditsBurned, uint256 massetReturned) {
         require(_amount > 0, "Must withdraw something");
         require(_output != address(0), "Output address is zero");
         require(_beneficiary != address(0), "Beneficiary address is zero");
@@ -109,6 +111,9 @@ contract MockSavingsContract is ERC20 {
         // Unwrap the underlying into `output` and transfer to `beneficiary`
         // IUnwrapper(unwrapper).unwrapAndSend()
     }
+
+    /* solhint-enable */
+
     /**
      * @dev Converts masset amount into credits based on exchange rate
      *               c = (masset / exchangeRate) + 1

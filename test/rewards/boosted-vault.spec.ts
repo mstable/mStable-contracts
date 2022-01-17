@@ -422,7 +422,7 @@ describe("BoostedVault", async () => {
      * @param withdrawAmount Exact amount to withdraw
      * @param sender User to execute the tx
      */
-    const expectStakingWithdrawAndUnwrap = async (config: ConfigRedeemAndUnwrap): Promise<void> => {
+    const expectStakingWithdrawalAndUnwrap = async (config: ConfigRedeemAndUnwrap): Promise<void> => {
         // 1. Get data from the contract
         const sender = config.beneficiary || sa.default
         const beforeData = await snapshotStakingData(sender)
@@ -1546,7 +1546,7 @@ describe("BoostedVault", async () => {
                 expect(dataBefore.userData.rewards).to.be.eq(BN.from(0))
 
                 // Execute the withdrawal
-                await expectStakingWithdrawAndUnwrap(config)
+                await expectStakingWithdrawalAndUnwrap(config)
 
                 // Ensure that the new awards are added + assigned to user
                 const earnedAfter = await savingsVault.earned(sa.default.address)

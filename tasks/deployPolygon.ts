@@ -1,16 +1,23 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-console */
+import { formatUnits } from "@ethersproject/units"
+import { DEAD_ADDRESS, KEY_LIQUIDATOR, KEY_PROXY_ADMIN, KEY_SAVINGS_MANAGER, ONE_DAY, ZERO_ADDRESS } from "@utils/constants"
+import { BN, simpleToExactAmount } from "@utils/math"
+import { Signer } from "ethers"
+import { task, types } from "hardhat/config"
 import "ts-node/register"
 import "tsconfig-paths/register"
-import { task, types } from "hardhat/config"
 import {
     AssetProxy,
     AssetProxy__factory,
     DelayedProxyAdmin,
     DelayedProxyAdmin__factory,
+    ERC20,
+    Masset,
+    MassetLogic,
+    MassetLogic__factory,
     MassetManager,
     MassetManager__factory,
-    Masset,
     Masset__factory,
     MockERC20,
     MockERC20__factory,
@@ -20,29 +27,24 @@ import {
     Nexus__factory,
     PAaveIntegration,
     PAaveIntegration__factory,
+    PLiquidator,
+    PLiquidator__factory,
+    RewardsDistributor__factory,
     SaveWrapper,
     SaveWrapper__factory,
     SavingsContract,
     SavingsContract__factory,
-    MassetLogic,
-    MassetLogic__factory,
-    PLiquidator,
-    PLiquidator__factory,
-    ERC20,
-    SavingsManager__factory,
     SavingsManager,
-    RewardsDistributor__factory,
-    StakingRewardsWithPlatformToken__factory,
+    SavingsManager__factory,
     StakingRewardsWithPlatformToken,
+    StakingRewardsWithPlatformToken__factory,
+    Unwrapper,
+    Unwrapper__factory,
 } from "types/generated"
-import { DEAD_ADDRESS, KEY_LIQUIDATOR, KEY_PROXY_ADMIN, KEY_SAVINGS_MANAGER, ONE_DAY, ZERO_ADDRESS } from "@utils/constants"
-import { BN, simpleToExactAmount } from "@utils/math"
-import { formatUnits } from "@ethersproject/units"
 import { MassetLibraryAddresses } from "types/generated/factories/Masset__factory"
-import { Signer } from "ethers"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
-import { getSigner } from "./utils/signerFactory"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
+import { getSigner } from "./utils/signerFactory"
 import { PMTA, PmUSD, PWMATIC, tokens } from "./utils/tokens"
 
 // FIXME: this import does not work for some reason
@@ -166,6 +168,7 @@ const deployInterestBearingMasset = async (
     deployer: Signer,
     nexus: Nexus,
     mUsd: Masset,
+    unwrapper: Unwrapper,
     delayedProxyAdmin: DelayedProxyAdmin,
     poker: string,
     symbol: string,
@@ -174,6 +177,7 @@ const deployInterestBearingMasset = async (
     const impl = await deployContract<SavingsContract>(new SavingsContract__factory(deployer), "SavingsContract Impl", [
         nexus.address,
         mUsd.address,
+        unwrapper.address,
     ])
     const initializeData = impl.interface.encodeFunctionData("initialize", [poker, name, symbol])
     const proxy = await deployContract<AssetProxy>(new AssetProxy__factory(deployer), "SavingsContract Proxy", [
@@ -379,11 +383,17 @@ task("deploy-polly", "Deploys mUSD & System to a Polygon network")
 
         await sleep(sleepTime)
 
+        const unwrapperFactory = await new Unwrapper__factory(signer)
+        const unwrapper = await unwrapperFactory.deploy(nexus.address)
+
+        await sleep(sleepTime)
+
         // Deploy Interest Bearing mUSD
         const imUsd = await deployInterestBearingMasset(
             signer,
             nexus,
             mUsd,
+            unwrapper,
             delayedProxyAdmin,
             DEAD_ADDRESS,
             "imUSD",
