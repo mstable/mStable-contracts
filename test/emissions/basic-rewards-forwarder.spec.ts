@@ -36,7 +36,7 @@ describe("BasicRewardsForwarder", () => {
         emissionsController = sa.dummy2
         endRecipientAddress = Wallet.createRandom().address
 
-        // Deploy aRevenueForwarder
+        // Deploy RevenueForwarder
         forwarder = await new BasicRewardsForwarder__factory(owner.signer).deploy(nexus.address, rewardsToken.address)
         await forwarder.initialize(emissionsController.address, endRecipientAddress)
 

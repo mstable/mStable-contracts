@@ -19,6 +19,7 @@ import {
     FeederWrapper,
     Masset__factory,
     InterestValidator__factory,
+    IERC20Metadata,
 } from "types/generated"
 import { simpleToExactAmount, BN } from "@utils/math"
 import { impersonate } from "@utils/fork"
@@ -164,7 +165,7 @@ const mint = async (sender: Signer, bAssets: DeployedFasset[], feederData: Feede
     // eslint-disable-next-line
     for (const bAsset of bAssets) {
         // eslint-disable-next-line
-        const dec = await bAsset.contract.decimals()
+        const dec = await (bAsset.contract as unknown as IERC20Metadata).decimals()
         const approval = dec === 18 ? scaledTestQty : scaledTestQty.div(simpleToExactAmount(1, BN.from(18).sub(dec)))
         approvals.push(approval)
         // eslint-disable-next-line

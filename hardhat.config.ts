@@ -21,24 +21,23 @@ import "tsconfig-paths/register"
 // accounts: HttpNetworkAccountsConfig;
 
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-export const compilerConfig = (version:string) => 
-            ({
-                version,
-                settings: {
-                    optimizer: {
-                        enabled: true,
-                        runs: 200,
-                    },
-                    outputSelection: {
-                        "*": {
-                            Masset: ["storageLayout"],
-                            FeederPool: ["storageLayout"],
-                            EmissionsController: ["storageLayout"],
-                            SavingsContract: ["storageLayout"],
-                        },
-                    },
-                },
-            })
+export const compilerConfig = (version: string) => ({
+    version,
+    settings: {
+        optimizer: {
+            enabled: true,
+            runs: 200,
+        },
+        outputSelection: {
+            "*": {
+                Masset: ["storageLayout"],
+                FeederPool: ["storageLayout"],
+                EmissionsController: ["storageLayout"],
+                SavingsContract: ["storageLayout"],
+            },
+        },
+    },
+})
 
 export const hardhatConfig = {
     networks: {
@@ -63,11 +62,7 @@ export const hardhatConfig = {
         },
     },
     solidity: {
-        compilers: [
-            { ...compilerConfig("0.8.6")},
-            { ...compilerConfig("0.8.2")},
-            { ...compilerConfig("0.5.16")},
-        ],
+        compilers: [{ ...compilerConfig("0.8.6") }, { ...compilerConfig("0.8.2") }, { ...compilerConfig("0.5.16") }],
     },
     paths: { artifacts: "./build" },
     abiExporter: {

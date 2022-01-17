@@ -1,22 +1,55 @@
 /* eslint-disable no-nested-ternary */
+import { assertBNClose, assertBNSlightlyGT } from "@utils/assertions"
+import { FIVE_DAYS, fullScale, MAX_UINT256, ONE_DAY, ONE_WEEK, ZERO, ZERO_ADDRESS } from "@utils/constants"
 import { StandardAccounts } from "@utils/machines"
 import { BN, simpleToExactAmount } from "@utils/math"
-import { FIVE_DAYS, fullScale, MAX_UINT256, ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
+import { getTimestamp, increaseTime } from "@utils/time"
+import { expect } from "chai"
+import { ethers } from "hardhat"
+import { Account } from "types"
 import {
     AssetProxy__factory,
+    ExposedMasset,
+    FeederPool,
     MockERC20,
     MockERC20__factory,
     MockNexus,
     MockNexus__factory,
+    MockSavingsContract__factory,
     PlatformTokenVendor__factory,
     StakingRewardsWithPlatformToken,
     StakingRewardsWithPlatformToken__factory,
 } from "types/generated"
-import { ethers } from "hardhat"
-import { expect } from "chai"
-import { assertBNClose, assertBNSlightlyGT } from "@utils/assertions"
-import { Account } from "types"
-import { getTimestamp, increaseTime } from "@utils/time"
+
+interface StakingData {
+    totalSupply: BN
+    userStakingBalance: BN
+    senderStakingTokenBalance: BN
+    contractStakingTokenBalance: BN
+    userRewardPerTokenPaid: BN
+    userPlatformRewardPerTokenPaid: BN
+    beneficiaryRewardsEarned: BN
+    beneficiaryPlatformRewardsEarned: BN
+    rewardPerTokenStored: BN
+    platformRewardPerTokenStored: BN
+    rewardRate: BN
+    platformRewardRate: BN
+    lastUpdateTime: BN
+    lastTimeRewardApplicable: BN
+    periodFinishTime: BN
+    platformTokenVendor: string
+    platformTokenBalanceVendor: BN
+    platformTokenBalanceStakingRewards: BN
+}
+
+interface ConfigRedeemAndUnwrap {
+    amount: BN
+    minAmountOut: BN
+    isBassetOut: boolean
+    beneficiary: Account
+    output: MockERC20 // Asset to unwrap from underlying
+    router: ExposedMasset | FeederPool | MockERC20 // Router address = mAsset || feederPool
+}
 
 describe("StakingRewardsWithPlatformToken", async () => {
     let sa: StandardAccounts
@@ -43,7 +76,16 @@ describe("StakingRewardsWithPlatformToken", async () => {
             rewardsDistributor.address,
             1000000,
         )
-        stakingToken = await new MockERC20__factory(deployer).deploy("Staking", "ST8k", stakingDecimals, sa.default.address, 1000000)
+        const mAsset = await new MockERC20__factory(sa.default.signer).deploy("mUSD", "mUSD", stakingDecimals, sa.default.address, 1000000)
+        stakingToken = await new MockSavingsContract__factory(sa.default.signer).deploy(
+            "Staking",
+            "ST8k",
+            stakingDecimals,
+            sa.default.address,
+            1000000,
+            mAsset.address,
+        )
+
         const stakingRewardsImpl = await new StakingRewardsWithPlatformToken__factory(deployer).deploy(
             nexusAddress,
             stakingToken.address,
@@ -60,27 +102,6 @@ describe("StakingRewardsWithPlatformToken", async () => {
         stakingRewards = StakingRewardsWithPlatformToken__factory.connect(proxy.address, deployer)
 
         return stakingRewards
-    }
-
-    interface StakingData {
-        totalSupply: BN
-        userStakingBalance: BN
-        senderStakingTokenBalance: BN
-        contractStakingTokenBalance: BN
-        userRewardPerTokenPaid: BN
-        userPlatformRewardPerTokenPaid: BN
-        beneficiaryRewardsEarned: BN
-        beneficiaryPlatformRewardsEarned: BN
-        rewardPerTokenStored: BN
-        platformRewardPerTokenStored: BN
-        rewardRate: BN
-        platformRewardRate: BN
-        lastUpdateTime: BN
-        lastTimeRewardApplicable: BN
-        periodFinishTime: BN
-        platformTokenVendor: string
-        platformTokenBalanceVendor: BN
-        platformTokenBalanceStakingRewards: BN
     }
 
     const snapshotStakingData = async (sender = sa.default, beneficiary = sa.default): Promise<StakingData> => {
@@ -363,7 +384,47 @@ describe("StakingRewardsWithPlatformToken", async () => {
         //    Updates total supply
         expect(beforeData.totalSupply.sub(withdrawAmount)).eq(afterData.totalSupply)
     }
+    /**
+     * @dev Makes a withdrawal adn unwrap from the contract, and ensures that resulting state is correct
+     * and the rewards have been unwrapped
+     * @param withdrawAmount Exact amount to withdraw
+     * @param sender User to execute the tx
+     */
+    const expectStakingWithdrawalAndUnwrap = async (config: ConfigRedeemAndUnwrap): Promise<void> => {
+        // 1. Get data from the contract
+        const sender = config.beneficiary || sa.default
+        const beforeData = await snapshotStakingData(sender)
+        const isExistingStaker = beforeData.userStakingBalance.gt(BN.from(0))
+        const withdrawAmount = config.amount
+        expect(isExistingStaker).eq(true)
+        expect(withdrawAmount).to.be.gte(beforeData.userStakingBalance)
 
+        // 2. Send withdrawal tx
+        const tx = stakingRewards
+            .connect(sender.signer)
+            .withdrawAndUnwrap(
+                config.amount,
+                config.minAmountOut,
+                config.output.address,
+                config.beneficiary.address,
+                config.router.address,
+                config.isBassetOut,
+            )
+        await expect(tx).to.emit(stakingRewards, "Withdrawn").withArgs(sender.address, withdrawAmount)
+
+        // 3. Expect Rewards to accrue to the beneficiary
+        //    StakingToken balance of sender
+        const afterData = await snapshotStakingData(sender)
+        await assertRewardsAssigned(beforeData, afterData, isExistingStaker)
+
+        // 4. Expect token transfer
+        //    StakingToken balance of sender is reduced, as the staked token is unwrapped to a bAsset or fAsset
+        expect(beforeData.senderStakingTokenBalance).to.be.eq(afterData.senderStakingTokenBalance)
+        //    Withdraws from the actual rewards wrapper token
+        expect(beforeData.userStakingBalance.sub(withdrawAmount)).to.be.eq(afterData.userStakingBalance)
+        //    Updates total supply
+        expect(beforeData.totalSupply.sub(withdrawAmount)).eq(afterData.totalSupply)
+    }
     context("initializing and staking in a new pool", () => {
         before(async () => {
             await redeployRewards()
@@ -1086,6 +1147,103 @@ describe("StakingRewardsWithPlatformToken", async () => {
                 expect(beforeData.totalSupply.sub(stakeAmount)).eq(afterData.totalSupply)
 
                 await expect(stakingRewards.exit()).to.revertedWith("Cannot withdraw 0")
+            })
+        })
+    })
+    context("withdrawing and unwrapping", () => {
+        context("withdrawing a stake amount", () => {
+            let config: ConfigRedeemAndUnwrap
+            const fundAmount = simpleToExactAmount(100, 21)
+            const stakeAmount = simpleToExactAmount(100, 18)
+
+            before(async () => {
+                stakingRewards = await redeployRewards()
+                await platformToken.connect(rewardsDistributor.signer).transfer(stakingRewards.address, fundAmount)
+                await expectSuccessfulFunding(fundAmount, fundAmount)
+                await expectSuccessfulStake(stakeAmount)
+                await increaseTime(10)
+                config = {
+                    amount: stakeAmount,
+                    minAmountOut: stakeAmount.mul(98).div(100),
+                    isBassetOut: true,
+                    beneficiary: sa.default,
+                    output: stakingToken, // bAsset,
+                    router: stakingToken, // mAsset,
+                }
+            })
+            it("should revert for a non-staker", async () => {
+                await expect(
+                    stakingRewards
+                        .connect(sa.dummy1.signer)
+                        .withdrawAndUnwrap(1, ZERO, ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS, config.isBassetOut),
+                ).to.be.revertedWith("VM Exception")
+            })
+            it("should revert if insufficient balance", async () => {
+                await expect(
+                    stakingRewards
+                        .connect(sa.default.signer)
+                        .withdrawAndUnwrap(stakeAmount.add(1), ZERO, ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS, config.isBassetOut),
+                ).to.be.revertedWith("VM Exception")
+            })
+            it("should fail if trying to withdraw 0", async () => {
+                await expect(
+                    stakingRewards
+                        .connect(sa.default.signer)
+                        .withdrawAndUnwrap(ZERO, ZERO, ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS, config.isBassetOut),
+                ).to.be.revertedWith("Cannot withdraw 0")
+            })
+            it("should withdraw the stake and update the existing reward accrual", async () => {
+                // Check that the user has earned something
+                const earnedBefore = await stakingRewards.earned(sa.default.address)
+                expect(earnedBefore[0]).gt(0)
+                expect(earnedBefore[1]).gt(0)
+                const rewardsBefore = await stakingRewards.rewards(sa.default.address)
+                expect(rewardsBefore).eq(0)
+
+                const dataBefore = await snapshotStakingData()
+                expect(dataBefore.userRewardPerTokenPaid).to.be.eq(BN.from(0))
+                expect(dataBefore.userPlatformRewardPerTokenPaid).to.be.eq(BN.from(0))
+
+                // Execute the withdrawal
+                await expectStakingWithdrawalAndUnwrap(config)
+                // AssertionError: Expected "21494708994708994" to be equal 2149470899470899400
+
+                // Ensure that the new awards are added + assigned to user
+                const earnedAfter = await stakingRewards.earned(sa.default.address)
+                expect(earnedAfter[0]).gte(earnedBefore[0])
+                expect(earnedAfter[1]).gte(earnedBefore[1])
+                const rewardsAfter = await stakingRewards.rewards(sa.default.address)
+                expect(rewardsAfter).eq(earnedAfter[0])
+
+                const dataAfter = await snapshotStakingData()
+                expect(dataAfter.beneficiaryRewardsEarned).to.be.eq(earnedAfter[0])
+                expect(dataAfter.beneficiaryPlatformRewardsEarned).to.be.eq(earnedAfter[0])
+
+                expect(dataAfter.totalSupply).to.be.eq(dataBefore.totalSupply.sub(config.amount))
+                expect(dataAfter.userStakingBalance).to.be.eq(dataBefore.userStakingBalance.sub(config.amount))
+                // As the token is not wrapped, the contractStakingTokenBalance should be the same
+                expect(dataAfter.senderStakingTokenBalance, "Sender token balance unchanged").to.be.eq(dataBefore.senderStakingTokenBalance)
+                expect(dataAfter.contractStakingTokenBalance).to.be.eq(dataBefore.contractStakingTokenBalance.sub(config.amount))
+                expect(dataAfter.totalSupply).to.be.eq(dataBefore.totalSupply.sub(config.amount))
+
+                // Zoom forward now
+                await increaseTime(10)
+
+                // Check that the user does not earn anything else
+                const earnedEnd = await stakingRewards.earned(sa.default.address)
+                expect(earnedEnd[0]).eq(earnedAfter[0])
+                expect(earnedEnd[1]).eq(earnedAfter[1])
+                const rewardsEnd = await stakingRewards.rewards(sa.default.address)
+                expect(rewardsEnd).eq(rewardsAfter)
+
+                const dataEnd = await snapshotStakingData()
+                expect(dataEnd.beneficiaryRewardsEarned).to.be.eq(dataAfter.beneficiaryRewardsEarned)
+                expect(dataEnd.beneficiaryPlatformRewardsEarned).to.be.eq(dataAfter.beneficiaryPlatformRewardsEarned)
+
+                // Cannot withdraw anything else
+                await expect(stakingRewards.connect(sa.default.signer).withdraw(stakeAmount.add(1))).to.revertedWith(
+                    "Not enough user rewards",
+                )
             })
         })
     })

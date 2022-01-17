@@ -1,17 +1,15 @@
 /* eslint-disable no-restricted-syntax */
 import { BN, simpleToExactAmount } from "@utils/math"
 import { subtask, task, types } from "hardhat/config"
-import { RewardsDistributorEth__factory } from "types/generated/factories/RewardsDistributorEth__factory"
-import { RewardsDistributor__factory } from "types/generated/factories/RewardsDistributor__factory"
 import { formatUnits } from "ethers/lib/utils"
 import { TransactionResponse } from "@ethersproject/providers"
 import { Collector__factory, Liquidator__factory } from "types/generated"
 import { Comptroller__factory } from "types/generated/factories/Comptroller__factory"
 import rewardsFiles from "./balancer-mta-rewards/20210817.json"
-import { Chain, logTxDetails, mBTC, mUSD, USDC, usdFormatter } from "./utils"
+import { logTxDetails, mBTC, mUSD, USDC, usdFormatter } from "./utils"
 import { getAaveTokens, getAlcxTokens, getBlock, getCompTokens } from "./utils/snap-utils"
 import { getSigner } from "./utils/signerFactory"
-import { getChain, getChainAddress, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
+import { getChain, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
 import { sendPrivateTransaction } from "./utils/flashbots"
 
 task("sum-rewards", "Totals the rewards in a disperse json file")

@@ -21,6 +21,8 @@ import {
     SaveWrapper__factory,
     RenWrapper__factory,
     BoostDirector__factory,
+    IERC20Metadata,
+    Unwrapper__factory,
 } from "types/generated"
 import { simpleToExactAmount, BN } from "@utils/math"
 
@@ -136,7 +138,7 @@ const mint = async (sender: Signer, bAssets: DeployedBasset[], mBTC: Masset) => 
     // eslint-disable-next-line
     for (const bAsset of bAssets) {
         // eslint-disable-next-line
-        const dec = await bAsset.contract.decimals()
+        const dec = await (bAsset.contract as unknown as IERC20Metadata).decimals()
         const approval = dec === 18 ? scaledTestQty : scaledTestQty.div(simpleToExactAmount(1, BN.from(18).sub(dec)))
         approvals.push(approval)
         // eslint-disable-next-line
@@ -183,7 +185,10 @@ const deploySave = async (
 ): Promise<SaveContracts> => {
     // Save impl
     console.log(`Deploying Savings Contract nexus: ${addresses.nexus} and underlying ${mBTC.address}`)
-    const sImpl = await new SavingsContract__factory(sender).deploy(addresses.nexus, mBTC.address)
+    const unwrapperFactory = await new Unwrapper__factory(sender)
+    const unwrapperContract = await unwrapperFactory.deploy(addresses.nexus)
+
+    const sImpl = await new SavingsContract__factory(sender).deploy(addresses.nexus, mBTC.address, unwrapperContract.address)
     const receiptSaving = await sImpl.deployTransaction.wait()
     console.log(`Deployed Savings contract to ${sImpl.address}. gas used ${receiptSaving.gasUsed}`)
 
@@ -388,7 +393,7 @@ task("reDeployMBTC", "Re-deploys the mBTC contracts given bAsset addresses").set
             contract: await erc20Factory.attach(b.address),
             integrator: b.integrator,
             txFee: b.txFee,
-            symbol: await (await erc20Factory.attach(b.address)).symbol(),
+            symbol: await (erc20Factory.attach(b.address) as unknown as IERC20Metadata).symbol(),
         })),
     )
 
@@ -460,7 +465,7 @@ task("deployMBTC-mainnet", "Deploys the mBTC contracts to Mainnet").setAction(as
             contract: await erc20Factory.attach(b.address),
             integrator: b.integrator,
             txFee: b.txFee,
-            symbol: await (await erc20Factory.attach(b.address)).symbol(),
+            symbol: await (erc20Factory.attach(b.address) as unknown as IERC20Metadata).symbol(),
         })),
     )
 

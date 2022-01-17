@@ -78,11 +78,22 @@ contract StakingTokenWrapper is InitializableReentrancyGuard {
      * @param _amount Units of StakingToken
      */
     function _withdraw(uint256 _amount) internal nonReentrant {
+        require(_amount > 0, "Cannot withdraw 0");
         require(_balances[msg.sender] >= _amount, "Not enough user rewards");
         _totalSupply = _totalSupply - _amount;
         _balances[msg.sender] = _balances[msg.sender] - _amount;
         stakingToken.safeTransfer(msg.sender, _amount);
 
         emit Transfer(msg.sender, address(0), _amount);
+    }
+
+    /**
+     * @dev Reduced a given staked balance of sender (no transfer)
+     * @param _amount Units of StakingToken
+     */
+    function _reduceRaw(uint256 _amount) internal nonReentrant {
+        require(_balances[msg.sender] >= _amount, "Not enough user rewards");
+        _totalSupply = _totalSupply - _amount;
+        _balances[msg.sender] -= _amount;
     }
 }
