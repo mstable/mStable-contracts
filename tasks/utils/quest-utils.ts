@@ -26,7 +26,7 @@ export const getQueuedUsersForQuest = async (questId: number): Promise<string[]>
         console.log(response?.data)
         throw Error(`Failed to get quests from queue`)
     }
-    // filter users to just the migration quest
+    // filter users to just the requested quest identifier
     const usersInQueue = queue.filter((quest) => quest.ethereumId === questId)
     const usersForQuest = usersInQueue.map((quest) => quest.userId)
 
