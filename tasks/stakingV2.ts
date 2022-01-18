@@ -34,12 +34,14 @@ subtask("staked-snap", "Dumps a user's staking token details.")
         const effectiveMultiplier = rawBalance.gt(0) ? boostedBalance.mul(10000).div(rawBalance) : BN.from(0)
         const delegatee = await stakingToken.delegates(userAddress, callOverride)
         const priceCoeff = taskArgs.asset === "MTA" ? BN.from(10000) : await stakingToken.priceCoefficient()
+        const userData = await stakingToken.userData(userAddress, callOverride)
 
         console.log(`Raw balance          ${usdFormatter(rawBalance)}`)
         console.log(`Boosted balance      ${usdFormatter(boostedBalance)}`)
         console.log(`Delegated votes      ${usdFormatter(delegatedVotes)}`)
         console.log(`Cooldown balance     ${usdFormatter(cooldownBalance)}`)
         console.log(`Voting power         ${usdFormatter(votes)}`)
+        console.log(`Claimable MTA        ${usdFormatter(userData.rewards)}`)
 
         const balanceData = await stakingToken.balanceData(userAddress, callOverride)
 
