@@ -27,5 +27,6 @@ import "./tasks/stakingV2"
 import "./tasks/token"
 import "./tasks/vault"
 import "./tasks/ens"
+import "./tasks/ironBankMigration"
 
 export default config
