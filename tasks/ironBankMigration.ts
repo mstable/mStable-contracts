@@ -2,7 +2,7 @@ import "ts-node/register"
 import "tsconfig-paths/register"
 
 import { task, types } from "hardhat/config"
-import { DudIntegration__factory, DudPlatform, DudPlatform__factory } from "types/generated"
+import { DudIntegration, DudIntegration__factory, DudPlatform, DudPlatform__factory } from "types/generated"
 import { getSigner } from "./utils/signerFactory"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
@@ -29,7 +29,13 @@ task("deploy-dud-contracts", "Deploys dud platform and integration contracts for
         })
 
         const integrationConstructorArgs = [nexusAddress, feederPoolAddress, mUSD.address, dudPlatform.address]
-        const dudIntegration = await deployContract(new DudIntegration__factory(signer), "DudIntegration", integrationConstructorArgs)
+        const dudIntegration = await deployContract<DudIntegration>(
+            new DudIntegration__factory(signer),
+            "DudIntegration",
+            integrationConstructorArgs,
+        )
+        const tx1 = await dudIntegration["initialize()"]()
+        await logTxDetails(tx1, "DudIntegration.initialize")
 
         await verifyEtherscan(hre, {
             address: dudIntegration.address,
@@ -37,8 +43,8 @@ task("deploy-dud-contracts", "Deploys dud platform and integration contracts for
             contract: "contracts/masset/peripheral/DudIntegration.sol:DudIntegration",
         })
 
-        const tx = await dudPlatform.initialize(dudIntegration.address)
-        await logTxDetails(tx, "DudPlatform.initialize")
+        const tx2 = await dudPlatform.initialize(dudIntegration.address)
+        await logTxDetails(tx2, "DudPlatform.initialize")
     })
 
 module.exports = {}
