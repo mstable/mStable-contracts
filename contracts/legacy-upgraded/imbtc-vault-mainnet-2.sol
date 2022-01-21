@@ -11,6 +11,12 @@ interface ISavingsContractV3 {
         address _router,
         bool _isBassetOut
     ) external returns (uint256 creditsBurned, uint256 massetReturned);
+
+    function depositSavings(
+        uint256 _underlying,
+        address _beneficiary,
+        address _referrer
+    ) external returns (uint256 creditsIssued);
 }
 
 interface IERC20 {
@@ -123,7 +129,26 @@ interface IBoostedVaultWithLockup {
     function withdraw(uint256 _amount) external;
 
     /**
-     * @dev Claims only the tokens that have been immediately unlocked, not including
+     * @dev Withdraws given stake amount from the pool and
+     * redeems the staking token into a given asset.
+     * @param _amount        Units of the staked token to withdraw
+     * @param _minAmountOut  Minimum amount of `_output` to receive
+     * @param _output        Address of desired output b/f-Asset
+     * @param _beneficiary   Address to send output and any claimed reward to
+     * @param _router        Router address to redeem/swap
+     * @param _isBassetOut   Route action of redeem/swap
+     */
+    function withdrawAndUnwrap(
+        uint256 _amount,
+        uint256 _minAmountOut,
+        address _output,
+        address _beneficiary,
+        address _router,
+        bool _isBassetOut
+    ) external;
+
+    /**
+    * @dev Claims only the tokens that have been immediately unlocked, not including
      * those that are in the lockers.
      */
     function claimReward() external;
@@ -1663,8 +1688,8 @@ contract BoostedSavingsVault_imbtc_mainnet_2 is
      * @param _minAmountOut  Minimum amount of `output` to unwrap for
      * @param _output        Asset to unwrap from underlying
      * @param _beneficiary   Address to send staked token to
-     * @param _router        Router to redeem/swap
-     * @param _isBassetOut     Route action of redeem/swap
+     * @param _router        Router address to redeem/swap
+     * @param _isBassetOut   Route action of redeem/swap
      */
     function withdrawAndUnwrap(
         uint256 _amount,
@@ -1673,7 +1698,7 @@ contract BoostedSavingsVault_imbtc_mainnet_2 is
         address _beneficiary,
         address _router,
         bool _isBassetOut
-    ) external updateReward(msg.sender) updateBoost(msg.sender) {
+    ) external override updateReward(msg.sender) updateBoost(msg.sender) {
         require(_amount > 0, "Cannot withdraw 0");
 
         // Reduce raw balance (but do not transfer `stakingToken`)

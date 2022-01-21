@@ -10,6 +10,12 @@ interface ISavingsContractV3 {
         address _router,
         bool _isBassetOut
     ) external returns (uint256 creditsBurned, uint256 massetReturned);
+
+    function depositSavings(
+        uint256 _underlying,
+        address _beneficiary,
+        address _referrer
+    ) external returns (uint256 creditsIssued);
 }
 
 interface IERC20 {
@@ -120,6 +126,25 @@ interface IBoostedVaultWithLockup {
      * @param _amount Units of the staked token to withdraw
      */
     function withdraw(uint256 _amount) external;
+
+    /**
+     * @dev Withdraws given stake amount from the pool and
+     * redeems the staking token into a given asset.
+     * @param _amount        Units of the staked token to withdraw
+     * @param _minAmountOut  Minimum amount of `_output` to receive
+     * @param _output        Address of desired output b/f-Asset
+     * @param _beneficiary   Address to send output and any claimed reward to
+     * @param _router        Router address to redeem/swap
+     * @param _isBassetOut   Route action of redeem/swap
+     */
+    function withdrawAndUnwrap(
+        uint256 _amount,
+        uint256 _minAmountOut,
+        address _output,
+        address _beneficiary,
+        address _router,
+        bool _isBassetOut
+    ) external;
 
     /**
      * @dev Claims only the tokens that have been immediately unlocked, not including
@@ -1538,8 +1563,8 @@ contract BoostedSavingsVault_imusd_mainnet_2 is
      * @param _minAmountOut  Minimum amount of `output` to unwrap for
      * @param _output        Asset to unwrap from underlying
      * @param _beneficiary   Address to send staked token to
-     * @param _router        Router to redeem/swap
-     * @param _isBassetOut     Route action of redeem/swap
+     * @param _router        Router address to redeem/swap
+     * @param _isBassetOut   Route action of redeem/swap
      */
     function withdrawAndUnwrap(
         uint256 _amount,
@@ -1567,6 +1592,7 @@ contract BoostedSavingsVault_imusd_mainnet_2 is
 
         emit Withdrawn(msg.sender, _amount);
     }
+
 
     /**
      * @dev Claims only the tokens that have been immediately unlocked, not including

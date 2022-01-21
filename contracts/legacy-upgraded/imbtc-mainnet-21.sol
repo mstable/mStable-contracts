@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.2;
+pragma solidity ^0.8.0;
 
 interface IUnwrapper {
     // @dev Get bAssetOut status
@@ -43,9 +43,6 @@ interface ISavingsManager {
 
     /** @dev Public privs */
     function collectAndDistributeInterest(address _mAsset) external;
-
-    /** @dev getter for public lastBatchCollected mapping */
-    function lastBatchCollected(address _mAsset) external view returns (uint256);
 }
 
 interface ISavingsContractV3 {
@@ -206,14 +203,14 @@ contract ERC205 is Context, IERC20 {
     /**
      * @dev See {IERC20-totalSupply}.
      */
-    function totalSupply() public view virtual override returns (uint256) {
+    function totalSupply() public view override returns (uint256) {
         return _totalSupply;
     }
 
     /**
      * @dev See {IERC20-balanceOf}.
      */
-    function balanceOf(address account) public view virtual override returns (uint256) {
+    function balanceOf(address account) public view override returns (uint256) {
         return _balances[account];
     }
 
@@ -225,7 +222,7 @@ contract ERC205 is Context, IERC20 {
      * - `recipient` cannot be the zero address.
      * - the caller must have a balance of at least `amount`.
      */
-    function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
+    function transfer(address recipient, uint256 amount) public override returns (bool) {
         _transfer(_msgSender(), recipient, amount);
         return true;
     }
@@ -233,13 +230,7 @@ contract ERC205 is Context, IERC20 {
     /**
      * @dev See {IERC20-allowance}.
      */
-    function allowance(address owner, address spender)
-        public
-        view
-        virtual
-        override
-        returns (uint256)
-    {
+    function allowance(address owner, address spender) public view override returns (uint256) {
         return _allowances[owner][spender];
     }
 
@@ -250,7 +241,7 @@ contract ERC205 is Context, IERC20 {
      *
      * - `spender` cannot be the zero address.
      */
-    function approve(address spender, uint256 amount) public virtual override returns (bool) {
+    function approve(address spender, uint256 amount) public override returns (bool) {
         _approve(_msgSender(), spender, amount);
         return true;
     }
@@ -259,26 +250,21 @@ contract ERC205 is Context, IERC20 {
      * @dev See {IERC20-transferFrom}.
      *
      * Emits an {Approval} event indicating the updated allowance. This is not
-     * required by the EIP. See the note at the beginning of {ERC20}.
+     * required by the EIP. See the note at the beginning of {ERC20};
      *
      * Requirements:
-     *
      * - `sender` and `recipient` cannot be the zero address.
      * - `sender` must have a balance of at least `amount`.
-     * - the caller must have allowance for ``sender``'s tokens of at least
+     * - the caller must have allowance for `sender`'s tokens of at least
      * `amount`.
      */
     function transferFrom(
         address sender,
         address recipient,
         uint256 amount
-    ) public virtual override returns (bool) {
+    ) public override returns (bool) {
         _transfer(sender, recipient, amount);
-
-        uint256 currentAllowance = _allowances[sender][_msgSender()];
-        require(currentAllowance >= amount, "ERC20: transfer amount exceeds allowance");
-        _approve(sender, _msgSender(), currentAllowance - amount);
-
+        _approve(sender, _msgSender(), _allowances[sender][_msgSender()] - amount);
         return true;
     }
 
@@ -294,7 +280,7 @@ contract ERC205 is Context, IERC20 {
      *
      * - `spender` cannot be the zero address.
      */
-    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
+    function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {
         _approve(_msgSender(), spender, _allowances[_msgSender()][spender] + addedValue);
         return true;
     }
@@ -313,15 +299,8 @@ contract ERC205 is Context, IERC20 {
      * - `spender` must have allowance for the caller of at least
      * `subtractedValue`.
      */
-    function decreaseAllowance(address spender, uint256 subtractedValue)
-        public
-        virtual
-        returns (bool)
-    {
-        uint256 currentAllowance = _allowances[_msgSender()][spender];
-        require(currentAllowance >= subtractedValue, "ERC20: decreased allowance below zero");
-        _approve(_msgSender(), spender, currentAllowance - subtractedValue);
-
+    function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender] - subtractedValue);
         return true;
     }
 
@@ -343,15 +322,12 @@ contract ERC205 is Context, IERC20 {
         address sender,
         address recipient,
         uint256 amount
-    ) internal virtual {
+    ) internal {
         require(sender != address(0), "ERC20: transfer from the zero address");
         require(recipient != address(0), "ERC20: transfer to the zero address");
 
-        uint256 senderBalance = _balances[sender];
-        require(senderBalance >= amount, "ERC20: transfer amount exceeds balance");
-        _balances[sender] = senderBalance - amount;
+        _balances[sender] -= amount;
         _balances[recipient] += amount;
-
         emit Transfer(sender, recipient, amount);
     }
 
@@ -360,11 +336,11 @@ contract ERC205 is Context, IERC20 {
      *
      * Emits a {Transfer} event with `from` set to the zero address.
      *
-     * Requirements:
+     * Requirements
      *
      * - `to` cannot be the zero address.
      */
-    function _mint(address account, uint256 amount) internal virtual {
+    function _mint(address account, uint256 amount) internal {
         require(account != address(0), "ERC20: mint to the zero address");
 
         _totalSupply += amount;
@@ -378,26 +354,23 @@ contract ERC205 is Context, IERC20 {
      *
      * Emits a {Transfer} event with `to` set to the zero address.
      *
-     * Requirements:
+     * Requirements
      *
      * - `account` cannot be the zero address.
      * - `account` must have at least `amount` tokens.
      */
-    function _burn(address account, uint256 amount) internal virtual {
+    function _burn(address account, uint256 amount) internal {
         require(account != address(0), "ERC20: burn from the zero address");
 
-        uint256 accountBalance = _balances[account];
-        require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
-        _balances[account] = accountBalance - amount;
+        _balances[account] -= amount;
         _totalSupply -= amount;
-
         emit Transfer(account, address(0), amount);
     }
 
     /**
-     * @dev Sets `amount` as the allowance of `spender` over the `owner` s tokens.
+     * @dev Sets `amount` as the allowance of `spender` over the `owner`s tokens.
      *
-     * This internal function is equivalent to `approve`, and can be used to
+     * This is internal function is equivalent to `approve`, and can be used to
      * e.g. set automatic allowances for certain subsystems, etc.
      *
      * Emits an {Approval} event.
@@ -411,12 +384,23 @@ contract ERC205 is Context, IERC20 {
         address owner,
         address spender,
         uint256 amount
-    ) internal virtual {
+    ) internal {
         require(owner != address(0), "ERC20: approve from the zero address");
         require(spender != address(0), "ERC20: approve to the zero address");
 
         _allowances[owner][spender] = amount;
         emit Approval(owner, spender, amount);
+    }
+
+    /**
+     * @dev Destroys `amount` tokens from `account`.`amount` is then deducted
+     * from the caller's allowance.
+     *
+     * See {_burn} and {_approve}.
+     */
+    function _burnFrom(address account, uint256 amount) internal {
+        _burn(account, amount);
+        _approve(account, _msgSender(), _allowances[account][_msgSender()] - amount);
     }
 }
 
@@ -516,9 +500,6 @@ contract ModuleKeys {
     // keccak256("Liquidator");
     bytes32 internal constant KEY_LIQUIDATOR =
         0x1e9cb14d7560734a61fa5ff9273953e971ff3cd9283c03d8346e3264617933d4;
-    // keccak256("InterestValidator");
-    bytes32 internal constant KEY_INTEREST_VALIDATOR =
-        0xc10a28f028c7f7282a03c90608e38a4a646e136e614e4b07d119280c5f7f839f;
 }
 
 interface INexus {
@@ -578,6 +559,22 @@ abstract contract ImmutableModule is ModuleKeys {
     }
 
     /**
+     * @dev Modifier to allow function calls only from the ProxyAdmin.
+     */
+    modifier onlyProxyAdmin() {
+        require(msg.sender == _proxyAdmin(), "Only ProxyAdmin can execute");
+        _;
+    }
+
+    /**
+     * @dev Modifier to allow function calls only from the Manager.
+     */
+    modifier onlyManager() {
+        require(msg.sender == _manager(), "Only manager can execute");
+        _;
+    }
+
+    /**
      * @dev Returns Governor address from the Nexus
      * @return Address of Governor Contract
      */
@@ -594,6 +591,46 @@ abstract contract ImmutableModule is ModuleKeys {
     }
 
     /**
+     * @dev Return Staking Module address from the Nexus
+     * @return Address of the Staking Module contract
+     */
+    function _staking() internal view returns (address) {
+        return nexus.getModule(KEY_STAKING);
+    }
+
+    /**
+     * @dev Return ProxyAdmin Module address from the Nexus
+     * @return Address of the ProxyAdmin Module contract
+     */
+    function _proxyAdmin() internal view returns (address) {
+        return nexus.getModule(KEY_PROXY_ADMIN);
+    }
+
+    /**
+     * @dev Return MetaToken Module address from the Nexus
+     * @return Address of the MetaToken Module contract
+     */
+    function _metaToken() internal view returns (address) {
+        return nexus.getModule(KEY_META_TOKEN);
+    }
+
+    /**
+     * @dev Return OracleHub Module address from the Nexus
+     * @return Address of the OracleHub Module contract
+     */
+    function _oracleHub() internal view returns (address) {
+        return nexus.getModule(KEY_ORACLE_HUB);
+    }
+
+    /**
+     * @dev Return Manager Module address from the Nexus
+     * @return Address of the Manager Module contract
+     */
+    function _manager() internal view returns (address) {
+        return nexus.getModule(KEY_MANAGER);
+    }
+
+    /**
      * @dev Return SavingsManager Module address from the Nexus
      * @return Address of the SavingsManager Module contract
      */
@@ -607,22 +644,6 @@ abstract contract ImmutableModule is ModuleKeys {
      */
     function _recollateraliser() internal view returns (address) {
         return nexus.getModule(KEY_RECOLLATERALISER);
-    }
-
-    /**
-     * @dev Return Recollateraliser Module address from the Nexus
-     * @return  Address of the Recollateraliser Module contract (Phase 2)
-     */
-    function _liquidator() internal view returns (address) {
-        return nexus.getModule(KEY_LIQUIDATOR);
-    }
-
-    /**
-     * @dev Return ProxyAdmin Module address from the Nexus
-     * @return Address of the ProxyAdmin Module contract
-     */
-    function _proxyAdmin() internal view returns (address) {
-        return nexus.getModule(KEY_PROXY_ADMIN);
     }
 }
 
@@ -894,73 +915,6 @@ library StableMath {
     }
 }
 
-library YieldValidator {
-    uint256 private constant SECONDS_IN_YEAR = 365 days;
-    uint256 private constant THIRTY_MINUTES = 30 minutes;
-
-    uint256 private constant MAX_APY = 15e18;
-    uint256 private constant TEN_BPS = 1e15;
-
-    /**
-     * @dev Validates that an interest collection does not exceed a maximum APY. If last collection
-     * was under 30 mins ago, simply check it does not exceed 10bps
-     * @param _newSupply               New total supply of the mAsset
-     * @param _interest                Increase in total supply since last collection
-     * @param _timeSinceLastCollection Seconds since last collection
-     */
-    function validateCollection(
-        uint256 _newSupply,
-        uint256 _interest,
-        uint256 _timeSinceLastCollection
-    ) internal pure returns (uint256 extrapolatedAPY) {
-        return
-            validateCollection(_newSupply, _interest, _timeSinceLastCollection, MAX_APY, TEN_BPS);
-    }
-
-    /**
-     * @dev Validates that an interest collection does not exceed a maximum APY. If last collection
-     * was under 30 mins ago, simply check it does not exceed 10bps
-     * @param _newSupply               New total supply of the mAsset
-     * @param _interest                Increase in total supply since last collection
-     * @param _timeSinceLastCollection Seconds since last collection
-     * @param _maxApy                  Max APY where 100% == 1e18
-     * @param _baseApy                 If less than 30 mins, do not exceed this % increase
-     */
-    function validateCollection(
-        uint256 _newSupply,
-        uint256 _interest,
-        uint256 _timeSinceLastCollection,
-        uint256 _maxApy,
-        uint256 _baseApy
-    ) internal pure returns (uint256 extrapolatedAPY) {
-        uint256 protectedTime = _timeSinceLastCollection == 0 ? 1 : _timeSinceLastCollection;
-
-        // Percentage increase in total supply
-        // e.g. (1e20 * 1e18) / 1e24 = 1e14 (or a 0.01% increase)
-        // e.g. (5e18 * 1e18) / 1.2e24 = 4.1667e12
-        // e.g. (1e19 * 1e18) / 1e21 = 1e16
-        uint256 oldSupply = _newSupply - _interest;
-        uint256 percentageIncrease = (_interest * 1e18) / oldSupply;
-
-        //      If over 30 mins, extrapolate APY
-        // e.g. day: (86400 * 1e18) / 3.154e7 = 2.74..e15
-        // e.g. 30 mins: (1800 * 1e18) / 3.154e7 = 5.7..e13
-        // e.g. epoch: (1593596907 * 1e18) / 3.154e7 = 50.4..e18
-        uint256 yearsSinceLastCollection = (protectedTime * 1e18) / SECONDS_IN_YEAR;
-
-        // e.g. 0.01% (1e14 * 1e18) / 2.74..e15 = 3.65e16 or 3.65% apr
-        // e.g. (4.1667e12 * 1e18) / 5.7..e13 = 7.1e16 or 7.1% apr
-        // e.g. (1e16 * 1e18) / 50e18 = 2e14
-        extrapolatedAPY = (percentageIncrease * 1e18) / yearsSinceLastCollection;
-
-        if (protectedTime > THIRTY_MINUTES) {
-            require(extrapolatedAPY < _maxApy, "Interest protected from inflating past maxAPY");
-        } else {
-            require(percentageIncrease < _baseApy, "Interest protected from inflating past 10 Bps");
-        }
-    }
-}
-
 /**
  * @title   SavingsContract
  * @author  mStable
@@ -970,7 +924,7 @@ library YieldValidator {
  * @dev     VERSION: 2.1
  *          DATE:    2021-11-25
  */
-contract SavingsContract_imusd_polygon_21 is
+contract SavingsContract_imbtc_mainnet_21 is
     ISavingsContractV3,
     Initializable,
     InitializableToken,
@@ -1028,7 +982,7 @@ contract SavingsContract_imusd_polygon_21 is
     // Max APY generated on the capital in the connector
     uint256 private constant MAX_APY = 4e18;
     uint256 private constant SECONDS_IN_YEAR = 365 days;
-    // Proxy contract for easy redemption
+        // Proxy contract for easy redemption
     address public immutable unwrapper;
 
     constructor(
@@ -1302,7 +1256,7 @@ contract SavingsContract_imusd_polygon_21 is
         return credits;
     }
 
-    /**
+   /**
      * @dev Redeem credits into a specific amount of underlying, unwrap
      *      into a selected output asset, and send to a beneficiary
      *      Credits needed to burn is calculated using:
@@ -1386,7 +1340,6 @@ contract SavingsContract_imusd_polygon_21 is
         if (_transferUnderlying) {
             require(underlying.transfer(msg.sender, underlying_), "Must send tokens");
         }
-
         // If this withdrawal pushes the portion of stored collateral in the `connector` over a certain
         // threshold (fraction + 20%), then this should trigger a _poke on the connector. This is to avoid
         // a situation in which there is a rush on withdrawals for some reason, causing the connector
@@ -1544,12 +1497,10 @@ contract SavingsContract_imusd_polygon_21 is
             require(connectorBalance >= lastBalance_, "Invalid yield");
             if (connectorBalance > 0) {
                 //  Validate the collection by ensuring that the APY is not ridiculous
-                YieldValidator.validateCollection(
+                _validateCollection(
                     connectorBalance,
                     connectorBalance - lastBalance_,
-                    timeSinceLastPoke,
-                    MAX_APY,
-                    1e15
+                    timeSinceLastPoke
                 );
             }
 
@@ -1611,6 +1562,37 @@ contract SavingsContract_imusd_polygon_21 is
             newExchangeRate,
             _realSum > totalCredited ? _realSum - totalCredited : 0
         );
+    }
+
+    /**
+     * FORKED DIRECTLY FROM SAVINGSMANAGER.sol
+     * ---------------------------------------
+     * @dev Validates that an interest collection does not exceed a maximum APY. If last collection
+     * was under 30 mins ago, simply check it does not exceed 10bps
+     * @param _newBalance              New balance of the underlying
+     * @param _interest                Increase in total supply since last collection
+     * @param _timeSinceLastCollection Seconds since last collection
+     */
+    function _validateCollection(
+        uint256 _newBalance,
+        uint256 _interest,
+        uint256 _timeSinceLastCollection
+    ) internal pure returns (uint256 extrapolatedAPY) {
+        // Protect against division by 0
+        uint256 protectedTime = StableMath.max(1, _timeSinceLastCollection);
+
+        uint256 oldSupply = _newBalance - _interest;
+        uint256 percentageIncrease = _interest.divPrecisely(oldSupply);
+
+        uint256 yearsSinceLastCollection = protectedTime.divPrecisely(SECONDS_IN_YEAR);
+
+        extrapolatedAPY = percentageIncrease.divPrecisely(yearsSinceLastCollection);
+
+        if (protectedTime > 30 minutes) {
+            require(extrapolatedAPY < MAX_APY, "Interest protected from inflating past maxAPY");
+        } else {
+            require(percentageIncrease < 1e15, "Interest protected from inflating past 10 Bps");
+        }
     }
 
     /***************************************
