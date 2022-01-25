@@ -103,11 +103,7 @@ export const getBlockRange = async (ethers, fromBlockNumber: number, _toBlockNum
     // const endTime = new Date(toBlock.timestamp * 1000)
     const toBlock = await getBlock(ethers, _toBlockNumber)
     const fromBlock = await getBlock(ethers, fromBlockNumber)
-    console.log(
-        `Between blocks ${
-            fromBlock.blockNumber
-        } and ${toBlockNumber}. ${fromBlock.blockTime.toUTCString()} and ${toBlock.blockTime.toUTCString()}`,
-    )
+    console.log(`Between blocks ${fromBlock.blockNumber} and ${toBlockNumber}. ${fromBlock.blockTime} and ${toBlock.blockTime}`)
 
     return {
         fromBlock,
@@ -132,7 +128,7 @@ export const snapConfig = async (asset: Masset | MusdEth | MusdLegacy | FeederPo
     const endDate = new Date(ampData.rampEndTime.toNumber() * 1000)
     if (startDate.valueOf() !== endDate.valueOf()) {
         console.log(`Ramp A: initial ${formatUnits(ampData.initialA, 2)}; target ${formatUnits(ampData.targetA, 2)}`)
-        console.log(`Ramp A: start ${startDate.toUTCString()}; end ${endDate.toUTCString()}`)
+        console.log(`Ramp A: start ${startDate}; end ${endDate}`)
     }
     console.log(`Weights: min ${formatUnits(conf.limits.min, 16)}% max ${formatUnits(conf.limits.max, 16)}%`)
 }
@@ -503,12 +499,12 @@ export const outputFees = (
 ): void => {
     const totalFees = redeems.fees.add(multiRedeems.fees).add(swaps.fees)
     if (totalFees.eq(0)) {
-        console.log(`\nNo fees since ${startTime.toUTCString()}`)
+        console.log(`\nNo fees since ${startTime}`)
         return
     }
     const totalTransactions = mints.total.add(multiMints.total).add(redeems.total).add(multiRedeems.total).add(swaps.total)
     const totalFeeTransactions = redeems.total.add(multiRedeems.total).add(swaps.total)
-    console.log(`\nFees since ${startTime.toUTCString()}`)
+    console.log(`\nFees since ${startTime}`)
     console.log("              #          Volume      Fees    %")
     console.log(
         `Mints         ${mints.count.toString().padEnd(2)} ${quantityFormatter(mints.total)} ${quantityFormatter(
@@ -592,7 +588,7 @@ export const getCollectedInterest = async (
     const filter = mAsset.filters.MintedMulti(mAsset.address, null, null, null, null)
     const logs = await mAsset.queryFilter(filter, fromBlock.blockNumber, toBlock.blockNumber)
 
-    console.log(`\nCollected Interest between ${fromBlock.blockTime.toUTCString()} and ${toBlock.blockTime.toUTCString()}`)
+    console.log(`\nCollected Interest between ${fromBlock.blockTime} and ${toBlock.blockTime}`)
     console.log("Block#\t Tx hash\t\t\t\t\t\t\t\t  Quantity")
     let total = BN.from(0)
     let tradingFees = BN.from(0)
@@ -859,7 +855,7 @@ export const getAaveTokens = async (
     const cooldownStart = await stkAaveToken.stakersCooldowns(liquidatorAddress, { blockTag: toBlock.blockNumber })
     const cooldownEnd = cooldownStart.add(ONE_DAY.mul(10))
     const colldownEndDate = new Date(cooldownEnd.toNumber() * 1000)
-    console.log(`next stkAAVE unlock ${colldownEndDate.toUTCString()} (${cooldownEnd})`)
+    console.log(`next stkAAVE unlock ${colldownEndDate} (${cooldownEnd})`)
 
     // Get unclaimed rewards
     const integrations = [

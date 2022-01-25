@@ -144,7 +144,7 @@ task("mBTC-rates", "mBTC rate comparison to Curve")
         const mAsset = await getMasset(signer)
         const block = await getBlock(hre.ethers, taskArgs.block)
 
-        console.log(`\nGetting rates for mBTC at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
+        console.log(`\nGetting rates for mBTC at block ${block.blockNumber}, ${block.blockTime}`)
 
         console.log("      Qty Input     Output      Qty Out    Rate             Output    Rate   Diff      Arb$")
         await getSwapRates(bAssets, bAssets, mAsset, block.blockNumber, btcFormatter, BN.from(taskArgs.swapSize), chain)
