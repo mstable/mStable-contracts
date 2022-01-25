@@ -42,7 +42,7 @@ task("collect-interest", "Collects and streams interest from platforms")
 
         const lastBatchCollected = await savingsManager.lastBatchCollected(asset.address)
         const lastBatchDate = new Date(lastBatchCollected.mul(1000).toNumber())
-        console.log(`The last interest collection was ${lastBatchDate.toUTCString()}, epoch ${lastBatchCollected} seconds`)
+        console.log(`The last interest collection was ${lastBatchDate}, epoch ${lastBatchCollected} seconds`)
 
         const currentEpoch = new Date().getTime() / 1000
         if (currentEpoch - lastBatchCollected.toNumber() < 60 * 60 * 6) {

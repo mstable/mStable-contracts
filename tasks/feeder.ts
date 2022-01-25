@@ -191,7 +191,7 @@ task("feeder-rates", "Feeder rate comparison to Curve")
             console.error(`Failed to find feeder pool asset with token symbol ${taskArgs.fasset}`)
             process.exit(1)
         }
-        console.log(`\nGetting rates for feeder pool ${fAsset.symbol} at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
+        console.log(`\nGetting rates for feeder pool ${fAsset.symbol} at block ${block.blockNumber}, ${block.blockTime}`)
         const feederPool = getFeederPool(signer, fAsset.feederPool)
 
         const mAsset = tokens.find((t) => t.symbol === fAsset.parent)
@@ -396,7 +396,7 @@ task("feeder-collect-interest", "Collects interest from feeder pools")
 
         const lastBatchCollected = await validator.lastBatchCollected(fpAddress)
         const lastBatchDate = new Date(lastBatchCollected.mul(1000).toNumber())
-        console.log(`The last interest collection was ${lastBatchDate.toUTCString()}, epoch ${lastBatchCollected} seconds`)
+        console.log(`The last interest collection was ${lastBatchDate}, epoch ${lastBatchCollected} seconds`)
 
         const currentEpoch = new Date().getTime() / 1000
         if (currentEpoch - lastBatchCollected.toNumber() < 60 * 60 * 12) {

@@ -12,7 +12,7 @@ export const sendPrivateTransaction = async (tx: PopulatedTransaction, signer: S
     console.log(`About to send private transaction using signer address ${await signer.getAddress()}`)
 
     const gasPriceChain = tx.gasPrice ?? (await signer.getGasPrice())
-    const gasPrice = gasPriceChain.mul(6).div(5) // add 20% to gas price
+    const gasPrice = gasPriceChain.mul(11).div(10) // add 10% to gas price
 
     const txUnsigned: UnsignedTransaction = {
         to: tx.to,

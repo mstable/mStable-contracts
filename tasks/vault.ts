@@ -21,7 +21,7 @@ subtask("vault-snap", "Dumps user data for a vault")
         const overrides = {
             blockTag: block.blockNumber,
         }
-        console.log(`\nGetting vault data for user ${taskArgs.user} at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
+        console.log(`\nGetting vault data for user ${taskArgs.user} at block ${block.blockNumber}, ${block.blockTime}`)
 
         const vaultAddress = resolveAddress(taskArgs.asset, chain, "vault")
         const vault = BoostedVault__factory.connect(vaultAddress, signerAccount.signer)
