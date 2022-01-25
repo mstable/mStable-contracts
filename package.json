@@ -1,6 +1,6 @@
 {
     "name": "@mstable/protocol",
-    "version": "2.4.0",
+    "version": "2.4.1",
     "description": "mStable Contracts",
     "author": "mStable <info@mstable.org>",
     "license": "AGPL-3.0-or-later",
@@ -38,7 +38,7 @@
         "test:file": "yarn hardhat test",
         "test:file:long": "LONG_TESTS=true yarn hardhat test",
         "copy-types": "cp -R types/generated dist/types",
-        "prepublishOnly": "yarn compile && yarn copy-types"
+        "prepublishOnly": "yarn compile && yarn compile-ts && yarn copy-types"
     },
     "repository": {
         "type": "git",
