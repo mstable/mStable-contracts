@@ -51,7 +51,7 @@ We publish the contract artifacts to an npm package called [@mstable/protocol](h
 
 ### Prerequisites
 
--   Node.js v10.22.0 (you may wish to use [nvm][1])
+-   Node.js v14.16.1 (you may wish to use [nvm][1])
 -   [ganache-cli][2]
 
 ### Installing dependencies
@@ -74,6 +74,7 @@ Key folders:
 
 -   `/contracts/z_mocks`: All mocks used throughout the test suite
 -   `/security`: Scripts used to run static analysis tools like Slither and Securify
+-   `/tasks`: Hardhat tasks that run operational reports and transactions.
 -   `/test`: Unit tests in folders corresponding to contracts/xx
 -   `/test-utils`: Core util files used throughout the test framework
     -   `/machines`: Mock contract machines for creating configurable instances of the contracts
@@ -90,10 +91,10 @@ _NB: solidity-coverage runs with solc `optimizer=false` (see [discussion](https:
 
 ### CI
 
-Codebase rules are enforced through a passing [CI](https://circleci.com) (visible in `.circleci/config.yml`). These rules are:
+Codebase rules are enforced through a passing [GitHub Actions](https://github.com/features/actions) (workflow configs are in `.github/workflows`). These rules are:
 
 -   Linting of both the contracts (through Solium) and TS files (ESLint)
--   Passing test suite
+-   Passing unit test suite
 -   Maintaining high unit testing coverage
 
 ### Code formatting
