@@ -1,66 +1,32 @@
 import { impersonate } from "@utils/fork"
-import { Signer } from "ethers"
+import { Signer, ContractFactory } from "ethers"
 import { expect } from "chai"
 import { network } from "hardhat"
-import { deployContract } from "tasks/utils/deploy-utils"
-// import { BoostedSavingsVaultImusdMainnet1__factory } from "types/generated/factories/BoostedSavingsVaultImusdMainnet1__factory"
-// import { BoostedSavingsVaultImusdMainnet1 } from "types/generated/BoostedSavingsVaultImusdMainnet1"
-// import { BoostedSavingsVaultImusdMainnet2__factory } from "types/generated/factories/BoostedSavingsVaultImusdMainnet2__factory"
-// import { BoostedSavingsVaultImusdMainnet2 } from "types/generated/BoostedSavingsVaultImusdMainnet2"
-// import { BoostedSavingsVaultImbtcMainnet1__factory } from "types/generated/factories/BoostedSavingsVaultImbtcMainnet1__factory"
-// import { BoostedSavingsVaultImbtcMainnet1 } from "types/generated/BoostedSavingsVaultImbtcMainnet1"
-
-// import { StakingRewardsWithPlatformTokenImusdPolygon1__factory } from "types/generated/factories/StakingRewardsWithPlatformTokenImusdPolygon1__factory"
-// import { StakingRewardsWithPlatformTokenImusdPolygon1 } from "types/generated/StakingRewardsWithPlatformTokenImusdPolygon1"
-// import { StakingRewardsWithPlatformTokenImusdPolygon2__factory } from "types/generated/factories/StakingRewardsWithPlatformTokenImusdPolygon2__factory"
-// import { StakingRewardsWithPlatformTokenImusdPolygon2 } from "types/generated/StakingRewardsWithPlatformTokenImusdPolygon2"
-// import { SavingsContractImusdMainnet20__factory } from "types/generated/factories/SavingsContractImusdMainnet20__factory"
-// import { SavingsContractImusdMainnet20 } from "types/generated/SavingsContractImusdMainnet20"
-// import { SavingsContractImusdMainnet21__factory } from "types/generated/factories/SavingsContractImusdMainnet21__factory"
-// import { SavingsContractImusdMainnet21 } from "types/generated/SavingsContractImusdMainnet21"
-// import { SavingsContractImbtcMainnet20__factory } from "types/generated/factories/SavingsContractImbtcMainnet20__factory"
-// import { SavingsContractImbtcMainnet20 } from "types/generated/SavingsContractImbtcMainnet20"
-// import { SavingsContractImusdPolygon20__factory } from "types/generated/factories/SavingsContractImusdPolygon20__factory"
-// import { SavingsContractImusdPolygon20 } from "types/generated/SavingsContractImusdPolygon20"
-// import { SavingsContractImusdPolygon21__factory } from "types/generated/factories/SavingsContractImusdPolygon21__factory"
-
+import { deployContract, upgradeContract } from "tasks/utils/deploy-utils"
+// Mainnet imBTC Contract
 import { SavingsContractImbtcMainnet21__factory } from "types/generated/factories/SavingsContractImbtcMainnet21__factory"
 import { SavingsContractImbtcMainnet21 } from "types/generated/SavingsContractImbtcMainnet21"
-
+// Mainnet imBTC Vault
 import { BoostedSavingsVaultImbtcMainnet2__factory } from "types/generated/factories/BoostedSavingsVaultImbtcMainnet2__factory"
 import { BoostedSavingsVaultImbtcMainnet2 } from "types/generated/BoostedSavingsVaultImbtcMainnet2"
-
-import { SavingsContractImusdMainnet21__factory } from "types/generated/factories/SavingsContractImusdMainnet21__factory"
-import { SavingsContractImusdMainnet21 } from "types/generated/SavingsContractImusdMainnet21"
-
-import { SavingsContractImusdPolygon21__factory } from "types/generated/factories/SavingsContractImusdPolygon21__factory"
-import { SavingsContractImusdPolygon21 } from "types/generated/SavingsContractImusdPolygon21"
-
+// Mainnet imUSD Vault
 import { BoostedSavingsVaultImusdMainnet2__factory } from "types/generated/factories/BoostedSavingsVaultImusdMainnet2__factory"
 import { BoostedSavingsVaultImusdMainnet2 } from "types/generated/BoostedSavingsVaultImusdMainnet2"
-
-import { StakingRewardsWithPlatformTokenImusdPolygon2__factory } from "types/generated/factories/StakingRewardsWithPlatformTokenImusdPolygon2__factory"
-import { StakingRewardsWithPlatformTokenImusdPolygon2 } from "types/generated/StakingRewardsWithPlatformTokenImusdPolygon2"
-
-
-
-
 import {
     BoostedVault__factory,
     DelayedProxyAdmin,
     DelayedProxyAdmin__factory,
     ERC20__factory,
     IERC20__factory,
-    Nexus__factory,
+    // Mainnet imUSD Contract
     SavingsContract,
     SavingsContract__factory,
     Unwrapper,
     Unwrapper__factory,
 } from "types/generated"
-import { Chain, DEAD_ADDRESS, increaseTime, ONE_WEEK, simpleToExactAmount } from "index"
+import { Chain, DEAD_ADDRESS, simpleToExactAmount, assertBNClosePercent } from "index"
 import { BigNumber } from "@ethersproject/bignumber"
-import { getChainAddress , resolveAddress} from "tasks/utils/networkAddressFactory"
-
+import { getChainAddress } from "tasks/utils/networkAddressFactory"
 
 const chain = Chain.mainnet
 const delayedProxyAdminAddress = getChainAddress("DelayedProxyAdmin", chain)
@@ -103,7 +69,7 @@ context("Unwrapper", () => {
                 {
                     forking: {
                         jsonRpcUrl: process.env.NODE_URL,
-                         //  (Nov-01-2021 06:33:00 AM +UTC)
+                        //  (Nov-01-2021 06:33:00 AM +UTC)
                         blockNumber: 13529662,
                     },
                 },
@@ -155,10 +121,6 @@ context("Unwrapper", () => {
         const signerAddress = await signer.getAddress()
         const isBassetOut = await unwrapper.callStatic.getIsBassetOut(config.input, config.isCredit, config.output)
 
-        // await network.provider.send("debug_traceTransaction", [
-        //     deployerAddress
-        //  ]);    
-
         const amountOut = await unwrapper.getUnwrapOutput(
             isBassetOut,
             config.router,
@@ -185,19 +147,17 @@ context("Unwrapper", () => {
         await musd.approve(unwrapper.address, config.amount)
 
         // redeem to basset via unwrapAndSend
-        await unwrapper.connect(signer).unwrapAndSend(
-            isBassetOut,
-            newConfig.router,
-            newConfig.input,
-            newConfig.output,
-            newConfig.amount,
-            newConfig.minAmountOut,
-            newConfig.beneficiary,
-        )
-        // await network.provider.send("debug_traceTransaction", [
-        //     tx.hash
-        //   ]);
-
+        await unwrapper
+            .connect(signer)
+            .unwrapAndSend(
+                isBassetOut,
+                newConfig.router,
+                newConfig.input,
+                newConfig.output,
+                newConfig.amount,
+                newConfig.minAmountOut,
+                newConfig.beneficiary,
+            )
         // check balance after
         const tokenBalanceAfter = await tokenOut.balanceOf(signerAddress)
         expect(tokenBalanceAfter, "Token balance has increased").to.be.gt(tokenBalanceBefore)
@@ -253,23 +213,16 @@ context("Unwrapper", () => {
             constructorArguments,
         )
 
-        expect(await delayedProxyAdmin.callStatic.nexus(), "nexus not match").to.eq(nexusAddress)
-        expect(await Nexus__factory.connect(nexusAddress, governor).callStatic.governor(), "governor not match").to.eq(governorAddress)
-
-        await delayedProxyAdmin.proposeUpgrade(imusdAddress, musdSaveImpl.address, [])
-        await increaseTime(ONE_WEEK.add(60))
-
-        // check request is correct
-        const request = await delayedProxyAdmin.requests(imusdAddress)
-        expect(request.implementation).eq(musdSaveImpl.address)
-
-        // accept upgrade
-        await delayedProxyAdmin.acceptUpgradeRequest(imusdAddress)
-
-        // verify unwrapper address set
-        const saveContractProxy = SavingsContract__factory.connect(imusdAddress, governor)
+        const saveContractProxy = await upgradeContract<SavingsContract>(
+            SavingsContract__factory as unknown as ContractFactory,
+            musdSaveImpl,
+            imusdAddress,
+            governor,
+            delayedProxyAdmin,
+        )
         const unwrapperAddress = await saveContractProxy.unwrapper()
         expect(unwrapperAddress).to.eq(unwrapper.address)
+        expect(await delayedProxyAdmin.getProxyImplementation(imusdAddress)).eq(musdSaveImpl.address)
     })
 
     it("imUSD contract works after upgraded", async () => {
@@ -321,21 +274,16 @@ context("Unwrapper", () => {
             "mStable: mUSD Savings Vault",
             [],
         )
-
-        await delayedProxyAdmin.proposeUpgrade(imusdVaultAddress, saveVaultImpl.address, "0x")
-        await increaseTime(ONE_WEEK.add(60))
-
-        // check request is correct
-        const request = await delayedProxyAdmin.requests(imusdVaultAddress)
-        expect(request.implementation).eq(saveVaultImpl.address)
-
-        // accept upgrade
-        await delayedProxyAdmin.acceptUpgradeRequest(imusdVaultAddress)
-
+        await upgradeContract<BoostedSavingsVaultImusdMainnet2>(
+            BoostedSavingsVaultImusdMainnet2__factory as unknown as ContractFactory,
+            saveVaultImpl,
+            imusdVaultAddress,
+            governor,
+            delayedProxyAdmin,
+        )
         expect(await delayedProxyAdmin.getProxyImplementation(imusdVaultAddress)).eq(saveVaultImpl.address)
     })
     const withdrawAndUnwrap = async (holderAddress: string, router: string, input: "musd" | "mbtc", outputAddress: string) => {
-
         const isCredit = true
         const holder = await impersonate(holderAddress)
         const vaultAddress = input === "musd" ? imusdVaultAddress : imbtcVaultAddress
@@ -371,10 +319,8 @@ context("Unwrapper", () => {
 
         const tokenBalanceAfter = await outContract.balanceOf(holderAddress)
         const tokenBalanceDifference = tokenBalanceAfter.sub(tokenBalanceBefore)
-        console.log("tokenBalanceAfter", tokenBalanceAfter, "tokenBalanceDifference", tokenBalanceDifference)
-        // TODO  - CHANGE FOR CLOSE INSTEAD OF EQUAL
-        // expect(tokenBalanceDifference, "Withdrawn amount eq estimated amountOut").to.be.eq(amountOut)
-        // expect(tokenBalanceAfter, "Token balance has increased").to.be.gt(tokenBalanceBefore)
+        assertBNClosePercent(tokenBalanceDifference, amountOut, 0.0001)
+        expect(tokenBalanceAfter, "Token balance has increased").to.be.gt(tokenBalanceBefore)
     }
 
     it("imUSD Vault redeem to bAsset", async () => {
@@ -393,19 +339,16 @@ context("Unwrapper", () => {
             constructorArguments,
         )
 
-        await delayedProxyAdmin.proposeUpgrade(imbtcAddress, saveImpl.address, "0x")
-        await increaseTime(ONE_WEEK.add(60))
-
-        // check request is correct
-        const request = await delayedProxyAdmin.requests(imbtcAddress)
-        expect(request.implementation).eq(saveImpl.address)
-
-        // accept upgrade
-        await delayedProxyAdmin.acceptUpgradeRequest(imbtcAddress)
-
+        await upgradeContract<SavingsContractImbtcMainnet21>(
+            SavingsContractImbtcMainnet21__factory as unknown as ContractFactory,
+            saveImpl,
+            imbtcAddress,
+            governor,
+            delayedProxyAdmin,
+        )
         expect(await delayedProxyAdmin.getProxyImplementation(imbtcAddress)).eq(saveImpl.address)
     })
-    it("imBTC contract works after upgraded", async () => {        
+    it("imBTC contract works after upgraded", async () => {
         const imbtcHolder = await impersonate(imbtcHolderAddress)
 
         const config = {
@@ -458,17 +401,13 @@ context("Unwrapper", () => {
             "mStable: mBTC Savings Vault",
             [nexusAddress, imbtcAddress, boostDirector, priceCoeff, boostCoeff, mtaAddress],
         )
-
-        await delayedProxyAdmin.proposeUpgrade(imbtcVaultAddress, saveVaultImpl.address, "0x")
-        await increaseTime(ONE_WEEK.add(60))
-
-        // check request is correct
-        const request = await delayedProxyAdmin.requests(imbtcVaultAddress)
-        expect(request.implementation).eq(saveVaultImpl.address)
-
-        // accept upgrade
-        await delayedProxyAdmin.acceptUpgradeRequest(imbtcVaultAddress)
-
+        await upgradeContract<BoostedSavingsVaultImbtcMainnet2>(
+            BoostedSavingsVaultImbtcMainnet2__factory as unknown as ContractFactory,
+            saveVaultImpl,
+            imbtcVaultAddress,
+            governor,
+            delayedProxyAdmin,
+        )
         expect(await delayedProxyAdmin.getProxyImplementation(imbtcVaultAddress)).eq(saveVaultImpl.address)
     })
 

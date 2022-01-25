@@ -148,7 +148,7 @@ interface IBoostedVaultWithLockup {
     ) external;
 
     /**
-    * @dev Claims only the tokens that have been immediately unlocked, not including
+     * @dev Claims only the tokens that have been immediately unlocked, not including
      * those that are in the lockers.
      */
     function claimReward() external;

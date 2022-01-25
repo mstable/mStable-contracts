@@ -982,7 +982,7 @@ contract SavingsContract_imbtc_mainnet_21 is
     // Max APY generated on the capital in the connector
     uint256 private constant MAX_APY = 4e18;
     uint256 private constant SECONDS_IN_YEAR = 365 days;
-        // Proxy contract for easy redemption
+    // Proxy contract for easy redemption
     address public immutable unwrapper;
 
     constructor(
@@ -1256,7 +1256,7 @@ contract SavingsContract_imbtc_mainnet_21 is
         return credits;
     }
 
-   /**
+    /**
      * @dev Redeem credits into a specific amount of underlying, unwrap
      *      into a selected output asset, and send to a beneficiary
      *      Credits needed to burn is calculated using:
