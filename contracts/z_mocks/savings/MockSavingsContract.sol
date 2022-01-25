@@ -81,8 +81,6 @@ contract MockSavingsContract is ERC20 {
         return (credits_, underlying_);
     }
 
-    /* solhint-disable */
-
     function redeemAndUnwrap(
         uint256 _amount,
         bool _isCreditAmt,
@@ -93,6 +91,7 @@ contract MockSavingsContract is ERC20 {
         bool _isBassetOut
     ) external returns (uint256 creditsBurned, uint256 massetReturned) {
         require(_amount > 0, "Must withdraw something");
+        require(_minAmountOut >= 0, "Must withdraw something");
         require(_output != address(0), "Output address is zero");
         require(_beneficiary != address(0), "Beneficiary address is zero");
         require(_router != address(0), "Router address is zero");
@@ -111,8 +110,6 @@ contract MockSavingsContract is ERC20 {
         // Unwrap the underlying into `output` and transfer to `beneficiary`
         // IUnwrapper(unwrapper).unwrapAndSend()
     }
-
-    /* solhint-enable */
 
     /**
      * @dev Converts masset amount into credits based on exchange rate

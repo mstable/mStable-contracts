@@ -26,9 +26,8 @@ interface IUnwrapper {
         uint256 _amount,
         uint256 _minAmountOut,
         address _beneficiary
-    ) external view returns (uint256 outputQuantity);
+    ) external returns (uint256 outputQuantity);
 }
-
 
 interface ISavingsManager {
     /** @dev Admin privs */
@@ -55,6 +54,7 @@ interface ISavingsContractV1 {
 
     function creditBalances(address) external view returns (uint256);
 }
+
 interface ISavingsContractV3 {
     // DEPRECATED but still backwards compatible
     function redeem(uint256 _amount) external returns (uint256 massetReturned);
@@ -1179,7 +1179,7 @@ contract SavingsContract_imusd_mainnet_21 is
     uint256 private constant MAX_APY = 4e18;
     uint256 private constant SECONDS_IN_YEAR = 365 days;
     // Proxy contract for easy redemption
-    address public constant unwrapper = address(0x0); // TODO!!
+    address public unwrapper; // TODO!!
 
     // Add these constants to bytecode at deploytime
     function initialize(
@@ -1195,6 +1195,12 @@ contract SavingsContract_imusd_mainnet_21 is
         fraction = 2e17;
         automateInterestCollection = true;
         exchangeRate = startingRate;
+    }
+
+    function upgradeV3(address _unwrapper) external {
+        // TODO - REMOVE BEFORE DEPLOYMENT
+        require(_unwrapper != address(0), "Invalid unwrapper address");
+        unwrapper = _unwrapper;
     }
 
     /** @dev Only the savings managaer (pulled from Nexus) can execute this */
@@ -1431,7 +1437,7 @@ contract SavingsContract_imusd_mainnet_21 is
         return credits;
     }
 
-  /**
+    /**
      * @dev Redeem credits into a specific amount of underlying, unwrap
      *      into a selected output asset, and send to a beneficiary
      *      Credits needed to burn is calculated using:
@@ -1453,7 +1459,7 @@ contract SavingsContract_imusd_mainnet_21 is
         address _beneficiary,
         address _router,
         bool _isBassetOut
-    ) external  returns (uint256 creditsBurned, uint256 massetReturned) {
+    ) external returns (uint256 creditsBurned, uint256 massetReturned) {
         require(_amount > 0, "Must withdraw something");
         require(_output != address(0), "Output address is zero");
         require(_beneficiary != address(0), "Beneficiary address is zero");

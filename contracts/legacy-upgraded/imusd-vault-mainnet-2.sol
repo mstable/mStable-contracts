@@ -1593,7 +1593,6 @@ contract BoostedSavingsVault_imusd_mainnet_2 is
         emit Withdrawn(msg.sender, _amount);
     }
 
-
     /**
      * @dev Claims only the tokens that have been immediately unlocked, not including
      * those that are in the lockers.

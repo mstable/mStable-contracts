@@ -791,7 +791,7 @@ contract StakingTokenWrapper is InitializableReentrancyGuard {
         require(_balances[msg.sender] >= _amount, "Not enough user rewards");
         _totalSupply = _totalSupply - _amount;
         _balances[msg.sender] -= _amount;
-    }    
+    }
 }
 
 library MassetHelpers {
@@ -1324,7 +1324,6 @@ contract StakingRewardsWithPlatformToken_imusd_polygon_2 is
         }
         emit RewardPaid(msg.sender, reward, platformReward);
     }
-
 
     /**
      * @dev Credits any outstanding rewards to the sender
