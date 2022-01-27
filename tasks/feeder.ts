@@ -383,18 +383,30 @@ task("feeder-swap", "Swap some Feeder Pool tokens")
     })
 
 task("feeder-collect-interest", "Collects interest from feeder pools")
-    .addParam("fasset", "Token symbol of feeder pool. eg HBTC, alUSD or PFRAX", undefined, types.string, false)
+    .addOptionalParam("fasset", "Token symbol of feeder pool. eg HBTC, alUSD or PFRAX", undefined, types.string)
+    .addOptionalParam(
+        "fassets",
+        "Comma separated token symbols of feeder pools . eg HBTC,alUSD or PFRAX",
+        "GUSD,BUSD,alUSD,RAI,FEI",
+        types.string,
+    )
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
     .setAction(async (taskArgs, hre) => {
         const chain = getChain(hre)
         const signer = await getSigner(hre, taskArgs.speed)
 
-        const fpAddress = resolveAddress(taskArgs.fasset, chain, "feederPool")
+        let fassetAddresses: string[]
+        if (taskArgs.fasset) {
+            fassetAddresses = [resolveAddress(taskArgs.fasset, chain, "feederPool")]
+        } else if (taskArgs.fassets) {
+            const fassetSymbols = taskArgs.fassets.split(",")
+            fassetAddresses = fassetSymbols.map((symbol) => resolveAddress(symbol, chain, "feederPool"))
+        } else throw Error(`Missing fasset or fassets command line option`)
 
         const interestValidatorAddress = resolveAddress("FeederInterestValidator", chain)
         const validator = InterestValidator__factory.connect(interestValidatorAddress, signer)
 
-        const lastBatchCollected = await validator.lastBatchCollected(fpAddress)
+        const lastBatchCollected = await validator.lastBatchCollected(fassetAddresses[0])
         const lastBatchDate = new Date(lastBatchCollected.mul(1000).toNumber())
         console.log(`The last interest collection was ${lastBatchDate}, epoch ${lastBatchCollected} seconds`)
 
@@ -404,8 +416,8 @@ task("feeder-collect-interest", "Collects interest from feeder pools")
             process.exit(3)
         }
 
-        const tx = await validator.collectAndValidateInterest([fpAddress])
-        await logTxDetails(tx, `collect interest from ${taskArgs.fasset} FP`)
+        const tx = await validator.collectAndValidateInterest(fassetAddresses)
+        await logTxDetails(tx, `collect interest from ${fassetAddresses} Feeder Pools`)
     })
 
 task("feeder-collect-fees", "Collects governance fees from feeder pools")
