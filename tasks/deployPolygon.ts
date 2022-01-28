@@ -43,7 +43,7 @@ import {
 } from "types/generated"
 import { MassetLibraryAddresses } from "types/generated/factories/Masset__factory"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
-import { getChain, getChainAddress } from "./utils/networkAddressFactory"
+import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getSigner } from "./utils/signerFactory"
 import { PMTA, PmUSD, PWMATIC, tokens } from "./utils/tokens"
 
@@ -465,8 +465,10 @@ task("liquidator-snap", "Dumps the config details of the liquidator on Polygon")
 task("deploy-vimusd", "Deploy Polygon imUSD staking contract v-imUSD")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
+
         const signer = await getSigner(hre, taskArgs.speed)
         const chain = getChain(hre)
+        const proxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)
 
         const fundManagerAddress = getChainAddress("FundManager", chain)
         const governorAddress = getChainAddress("Governor", chain)
@@ -498,7 +500,7 @@ task("deploy-vimusd", "Deploy Polygon imUSD staking contract v-imUSD")
         ])
         const proxy = await deployContract(new AssetProxy__factory(signer), "Staking Rewards Proxy", [
             stakingRewardsImpl.address,
-            governorAddress,
+            proxyAdminAddress,
             initializeData,
         ])
         const stakingRewards = StakingRewardsWithPlatformToken__factory.connect(proxy.address, signer)
