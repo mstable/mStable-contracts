@@ -39,6 +39,7 @@ export const upgradeContract = async <T extends Contract>(
     upgradeData: BytesLike = [],
 ): Promise<T> => {
     await delayedProxyAdmin.proposeUpgrade(proxyAddress, implementation.address, upgradeData)
+
     const proposeUpgradeData = delayedProxyAdmin.interface.encodeFunctionData("proposeUpgrade", [
         proxyAddress,
         implementation.address,
@@ -52,7 +53,6 @@ export const upgradeContract = async <T extends Contract>(
     // check request is correct
     const request = await delayedProxyAdmin.requests(proxyAddress)
     if (request.implementation !== implementation.address) throw new Error("Upgrade request incorrect")
-    // console.log("delayedProxyAdmin.request.implementation", request.implementation )
 
     // accept upgrade
     await delayedProxyAdmin.acceptUpgradeRequest(proxyAddress)
