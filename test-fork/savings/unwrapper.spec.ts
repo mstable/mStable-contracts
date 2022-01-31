@@ -2,7 +2,7 @@ import { impersonate } from "@utils/fork"
 import { Signer, ContractFactory } from "ethers"
 import { expect } from "chai"
 import { network } from "hardhat"
-import { deployContract, upgradeContract } from "tasks/utils/deploy-utils"
+import { deployContract } from "tasks/utils/deploy-utils"
 // Mainnet imBTC Contract
 import { SavingsContractImbtcMainnet21__factory } from "types/generated/factories/SavingsContractImbtcMainnet21__factory"
 import { SavingsContractImbtcMainnet21 } from "types/generated/SavingsContractImbtcMainnet21"
@@ -27,6 +27,7 @@ import {
 import { Chain, DEAD_ADDRESS, simpleToExactAmount, assertBNClosePercent } from "index"
 import { BigNumber } from "@ethersproject/bignumber"
 import { getChainAddress } from "tasks/utils/networkAddressFactory"
+import { upgradeContract } from "@utils/deploy"
 
 const chain = Chain.mainnet
 const delayedProxyAdminAddress = getChainAddress("DelayedProxyAdmin", chain)
