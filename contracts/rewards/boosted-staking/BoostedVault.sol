@@ -251,14 +251,20 @@ contract BoostedVault is
     }
 
     /**
-     * @dev Withdraws given stake amount from the pool and
-     * redeems the staking token into a given asset.
-     * @param _amount        Units of the staked token to withdraw
-     * @param _minAmountOut  Minimum amount of `output` to unwrap for
-     * @param _output        Asset to unwrap from underlying
-     * @param _beneficiary   Address to send staked token to
-     * @param _router        Router address to redeem/swap
-     * @param _isBassetOut   Route action of redeem/swap
+     * @notice Redeems staked interest-bearing asset tokens for either bAsset or fAsset tokens.
+     * Withdraws a given staked amount of interest-bearing assets from the vault,
+     * redeems the interest-bearing asset for the underlying mAsset and either
+     * 1. Redeems the underlying mAsset tokens for bAsset tokens.
+     * 2. Swaps the underlying mAsset tokens for fAsset tokens in a Feeder Pool.
+     * @param _amount        Units of the staked interest-bearing asset tokens to withdraw. eg imUSD or imBTC.
+     * @param _minAmountOut  Minimum units of `output` tokens to be received by the beneficiary. This is to the same decimal places as the `output` token.
+     * @param _output        Asset to receive in exchange for the redeemed mAssets. This can be a bAsset or a fAsset. For example:
+        - bAssets (USDC, DAI, sUSD or USDT) or fAssets (GUSD, BUSD, alUSD, FEI or RAI) for mainnet imUSD Vault.
+        - bAssets (USDC, DAI or USDT) or fAsset FRAX for Polygon imUSD Vault.
+        - bAssets (WBTC, sBTC or renBTC) or fAssets (HBTC or TBTCV2) for mainnet imBTC Vault.
+     * @param _beneficiary   Address to send `output` tokens to.
+     * @param _router        mAsset address if the output is a bAsset. Feeder Pool address if the output is a fAsset.
+     * @param _isBassetOut   true if output is a bAsset. false if output is a fAsset.
      */
     function withdrawAndUnwrap(
         uint256 _amount,
