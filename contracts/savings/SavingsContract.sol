@@ -358,14 +358,17 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
      *      into a selected output asset, and send to a beneficiary
      *      Credits needed to burn is calculated using:
      *                    credits = underlying / exchangeRate
-     * @param _amount             Units to redeem (either underlying or credit amount)
-     * @param _isCreditAmt        Bool signalling if the `_amount` is credits (true) or underlying (false)
-     * @param _minAmountOut       Minimum amount of `output` to unwrap for
-     * @param _output             Asset to unwrap from underlying
-     * @param _beneficiary        Address to send `asset` to
-     * @param _router             Router address = mAsset || feederPool
-     * @param _isBassetOut        Route action of redeem/swap
-     * @return creditsBurned      Units of credits burned from sender
+     * @param _amount         Units to redeem (either underlying or credit amount).
+     * @param _isCreditAmt    true if `amount` is in credits. eg imUSD. false if `amount` is in underlying. eg mUSD.
+     * @param _minAmountOut   Minimum amount of `output` tokens to unwrap for. This is to the same decimal places as the `output` token.
+     * @param _output         Asset to receive in exchange for the redeemed mAssets. This can be a bAsset or a fAsset. For example:
+        - bAssets (USDC, DAI, sUSD or USDT) or fAssets (GUSD, BUSD, alUSD, FEI or RAI) for mainnet imUSD Vault.
+        - bAssets (USDC, DAI or USDT) or fAsset FRAX for Polygon imUSD Vault.
+        - bAssets (WBTC, sBTC or renBTC) or fAssets (HBTC or TBTCV2) for mainnet imBTC Vault.
+     * @param _beneficiary    Address to send `output` tokens to.
+     * @param _router         mAsset address if the output is a bAsset. Feeder Pool address if the output is a fAsset.
+     * @param _isBassetOut    true if output is a bAsset. false if output is a fAsset.
+     * @return creditsBurned  Units of credits burned from sender.
      */
     function redeemAndUnwrap(
         uint256 _amount,
