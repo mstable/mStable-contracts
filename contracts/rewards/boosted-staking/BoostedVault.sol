@@ -185,7 +185,7 @@ contract BoostedVault is
     ****************************************/
 
     /**
-     * @dev Stakes a given amount of the StakingToken for the sender
+     * @notice Stakes a given amount of the StakingToken for the sender
      * @param _amount Units of StakingToken
      */
     function stake(uint256 _amount)
@@ -198,7 +198,7 @@ contract BoostedVault is
     }
 
     /**
-     * @dev Stakes a given amount of the StakingToken for a given beneficiary
+     * @notice Stakes a given amount of the StakingToken for a given beneficiary
      * @param _beneficiary Staked tokens are credited to this address
      * @param _amount      Units of StakingToken
      */
@@ -212,7 +212,7 @@ contract BoostedVault is
     }
 
     /**
-     * @dev Withdraws stake from pool and claims any unlocked rewards.
+     * @notice Withdraws stake from pool and claims any unlocked rewards.
      * Note, this function is costly - the args for _claimRewards
      * should be determined off chain and then passed to other fn
      */
@@ -223,7 +223,7 @@ contract BoostedVault is
     }
 
     /**
-     * @dev Withdraws stake from pool and claims any unlocked rewards.
+     * @notice Withdraws stake from pool and claims any unlocked rewards.
      * @param _first    Index of the first array element to claim
      * @param _last     Index of the last array element to claim
      */
@@ -238,7 +238,7 @@ contract BoostedVault is
     }
 
     /**
-     * @dev Withdraws given stake amount from the pool
+     * @notice Withdraws given stake amount from the pool
      * @param _amount Units of the staked token to withdraw
      */
     function withdraw(uint256 _amount)
@@ -256,15 +256,16 @@ contract BoostedVault is
      * redeems the interest-bearing asset for the underlying mAsset and either
      * 1. Redeems the underlying mAsset tokens for bAsset tokens.
      * 2. Swaps the underlying mAsset tokens for fAsset tokens in a Feeder Pool.
-     * @param _amount        Units of the staked interest-bearing asset tokens to withdraw. eg imUSD or imBTC.
-     * @param _minAmountOut  Minimum units of `output` tokens to be received by the beneficiary. This is to the same decimal places as the `output` token.
-     * @param _output        Asset to receive in exchange for the redeemed mAssets. This can be a bAsset or a fAsset. For example:
+     * @param _amount         Units of the staked interest-bearing asset tokens to withdraw. eg imUSD or imBTC.
+     * @param _minAmountOut   Minimum units of `output` tokens to be received by the beneficiary. This is to the same decimal places as the `output` token.
+     * @param _output         Asset to receive in exchange for the redeemed mAssets. This can be a bAsset or a fAsset. For example:
         - bAssets (USDC, DAI, sUSD or USDT) or fAssets (GUSD, BUSD, alUSD, FEI or RAI) for mainnet imUSD Vault.
         - bAssets (USDC, DAI or USDT) or fAsset FRAX for Polygon imUSD Vault.
         - bAssets (WBTC, sBTC or renBTC) or fAssets (HBTC or TBTCV2) for mainnet imBTC Vault.
-     * @param _beneficiary   Address to send `output` tokens to.
-     * @param _router        mAsset address if the output is a bAsset. Feeder Pool address if the output is a fAsset.
-     * @param _isBassetOut   true if output is a bAsset. false if output is a fAsset.
+     * @param _beneficiary    Address to send `output` tokens to.
+     * @param _router         mAsset address if the `output` is a bAsset. Feeder Pool address if the `output` is a fAsset.
+     * @param _isBassetOut    `true` if `output` is a bAsset. `false` if `output` is a fAsset.
+     * @return outputQuantity Units of `output` tokens sent to the beneficiary. This is to the same decimal places as the `output` token.
      */
     function withdrawAndUnwrap(
         uint256 _amount,
@@ -273,14 +274,20 @@ contract BoostedVault is
         address _beneficiary,
         address _router,
         bool _isBassetOut
-    ) external override updateReward(msg.sender) updateBoost(msg.sender) {
+    )
+        external
+        override
+        updateReward(msg.sender)
+        updateBoost(msg.sender)
+        returns (uint256 outputQuantity)
+    {
         require(_amount > 0, "Cannot withdraw 0");
 
         // Reduce raw balance (but do not transfer `stakingToken`)
         _reduceRaw(_amount);
 
         // Unwrap `stakingToken` into `output` and send to `beneficiary`
-        ISavingsContractV3(address(stakingToken)).redeemAndUnwrap(
+        (, , outputQuantity) = ISavingsContractV3(address(stakingToken)).redeemAndUnwrap(
             _amount,
             true,
             _minAmountOut,
@@ -294,7 +301,7 @@ contract BoostedVault is
     }
 
     /**
-     * @dev Claims only the tokens that have been immediately unlocked, not including
+     * @notice Claims only the tokens that have been immediately unlocked, not including
      * those that are in the lockers.
      */
     function claimReward() external override updateReward(msg.sender) updateBoost(msg.sender) {
@@ -308,7 +315,7 @@ contract BoostedVault is
     }
 
     /**
-     * @dev Claims all unlocked rewards for sender.
+     * @notice Claims all unlocked rewards for sender.
      * Note, this function is costly - the args for _claimRewards
      * should be determined off chain and then passed to other fn
      */
@@ -319,7 +326,7 @@ contract BoostedVault is
     }
 
     /**
-     * @dev Claims all unlocked rewards for sender. Both immediately unlocked
+     * @notice Claims all unlocked rewards for sender. Both immediately unlocked
      * rewards and also locked rewards past their time lock.
      * @param _first    Index of the first array element to claim
      * @param _last     Index of the last array element to claim
@@ -334,7 +341,7 @@ contract BoostedVault is
     }
 
     /**
-     * @dev Pokes a given account to reset the boost
+     * @notice Pokes a given account to reset the boost
      */
     function pokeBoost(address _account)
         external
@@ -400,21 +407,21 @@ contract BoostedVault is
     ****************************************/
 
     /**
-     * @dev Gets the RewardsToken
+     * @notice Gets the RewardsToken
      */
     function getRewardToken() external view override returns (IERC20) {
         return rewardsToken;
     }
 
     /**
-     * @dev Gets the last applicable timestamp for this reward period
+     * @notice Gets the last applicable timestamp for this reward period
      */
     function lastTimeRewardApplicable() public view override returns (uint256) {
         return StableMath.min(block.timestamp, periodFinish);
     }
 
     /**
-     * @dev Calculates the amount of unclaimed rewards per token since last update,
+     * @notice Calculates the amount of unclaimed rewards per token since last update,
      * and sums with stored to give the new cumulative reward per token
      * @return 'Reward' per staked token
      */
@@ -449,7 +456,7 @@ contract BoostedVault is
     }
 
     /**
-     * @dev Returned the units of IMMEDIATELY claimable rewards a user has to receive. Note - this
+     * @notice Returned the units of IMMEDIATELY claimable rewards a user has to receive. Note - this
      * does NOT include the majority of rewards which will be locked up.
      * @param _account User address
      * @return Total reward amount earned
@@ -465,7 +472,7 @@ contract BoostedVault is
     }
 
     /**
-     * @dev Calculates all unclaimed reward data, finding both immediately unlocked rewards
+     * @notice Calculates all unclaimed reward data, finding both immediately unlocked rewards
      * and those that have passed their time lock.
      * @param _account User address
      * @return amount Total units of unclaimed rewards
@@ -619,7 +626,7 @@ contract BoostedVault is
     ****************************************/
 
     /**
-     * @dev Notifies the contract that new rewards have been added.
+     * @notice Notifies the contract that new rewards have been added.
      * Calculates an updated rewardRate based on the rewards in period.
      * @param _reward Units of RewardToken that have been added to the pool
      */

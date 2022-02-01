@@ -4,6 +4,7 @@ pragma solidity 0.8.6;
 // Internal
 import { StakingTokenWrapper } from "./StakingTokenWrapper.sol";
 import { InitializableRewardsDistributionRecipient } from "../InitializableRewardsDistributionRecipient.sol";
+import { ISavingsContractV3 } from "../../interfaces/ISavingsContract.sol";
 import { StableMath } from "../../shared/StableMath.sol";
 
 // Libs
@@ -168,6 +169,50 @@ contract StakingRewards is
     function withdraw(uint256 _amount) public updateReward(msg.sender) {
         require(_amount > 0, "Cannot withdraw 0");
         _withdraw(_amount);
+        emit Withdrawn(msg.sender, _amount);
+    }
+
+    /**
+     * @notice Redeems staked interest-bearing asset tokens for either bAsset or fAsset tokens.
+     * Withdraws a given staked amount of interest-bearing assets from the vault,
+     * redeems the interest-bearing asset for the underlying mAsset and either
+     * 1. Redeems the underlying mAsset tokens for bAsset tokens.
+     * 2. Swaps the underlying mAsset tokens for fAsset tokens in a Feeder Pool.
+     * @param _amount        Units of the staked interest-bearing asset tokens to withdraw. eg imUSD or imBTC.
+     * @param _minAmountOut  Minimum units of `output` tokens to be received by the beneficiary. This is to the same decimal places as the `output` token.
+     * @param _output        Asset to receive in exchange for the redeemed mAssets. This can be a bAsset or a fAsset. For example:
+        - bAssets (USDC, DAI, sUSD or USDT) or fAssets (GUSD, BUSD, alUSD, FEI or RAI) for mainnet imUSD Vault.
+        - bAssets (USDC, DAI or USDT) or fAsset FRAX for Polygon imUSD Vault.
+        - bAssets (WBTC, sBTC or renBTC) or fAssets (HBTC or TBTCV2) for mainnet imBTC Vault.
+     * @param _beneficiary   Address to send `output` tokens to.
+     * @param _router        mAsset address if the `output` is a bAsset. Feeder Pool address if the `output` is a fAsset.
+     * @param _isBassetOut   `true` if `output` is a bAsset. `false` if `output` is a fAsset.
+     * @return outputQuantity Units of `output` tokens sent to the beneficiary. This is to the same decimal places as the `output` token.
+     */
+    function withdrawAndUnwrap(
+        uint256 _amount,
+        uint256 _minAmountOut,
+        address _output,
+        address _beneficiary,
+        address _router,
+        bool _isBassetOut
+    ) external updateReward(msg.sender) returns (uint256 outputQuantity) {
+        require(_amount > 0, "Cannot withdraw 0");
+
+        // Reduce raw balance (but do not transfer `stakingToken`)
+        _reduceRaw(_amount);
+
+        // Unwrap `stakingToken` into `output` and send to `beneficiary`
+        (, , outputQuantity) = ISavingsContractV3(address(stakingToken)).redeemAndUnwrap(
+            _amount,
+            true,
+            _minAmountOut,
+            _output,
+            _beneficiary,
+            _router,
+            _isBassetOut
+        );
+
         emit Withdrawn(msg.sender, _amount);
     }
 
