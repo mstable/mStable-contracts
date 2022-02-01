@@ -1198,12 +1198,6 @@ contract SavingsContract_imusd_mainnet_21 is
         exchangeRate = startingRate;
     }
 
-    function upgradeV3(address _unwrapper) external {
-        // TODO - REMOVE BEFORE DEPLOYMENT
-        require(_unwrapper != address(0), "Invalid unwrapper address");
-        unwrapper = _unwrapper;
-    }
-
     /** @dev Only the savings managaer (pulled from Nexus) can execute this */
     modifier onlySavingsManager() {
         require(msg.sender == _savingsManager(), "Only savings manager can execute");
