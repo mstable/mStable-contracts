@@ -44,8 +44,8 @@ task("collect-interest", "Collects and streams interest from platforms")
         const lastBatchDate = new Date(lastBatchCollected.mul(1000).toNumber())
         console.log(`The last interest collection was ${lastBatchDate.toUTCString()}, epoch ${lastBatchCollected} seconds`)
 
-        const currentEpoch= new Date().getTime() / 1000
-        if (currentEpoch- lastBatchCollected.toNumber() < 60 * 60 * 6) {
+        const currentEpoch = new Date().getTime() / 1000
+        if (currentEpoch - lastBatchCollected.toNumber() < 60 * 60 * 6) {
             console.error(`Can not run again as the last run was less then 6 hours ago`)
             process.exit(3)
         }
@@ -142,6 +142,50 @@ task("proxy-upgrades", "Proxy implementation changes")
         logs.forEach((log: any) => {
             console.log(`Upgraded at block ${log.blockNumber} to ${log.args.implementation} in tx in ${log.blockHash}`)
         })
+    })
+
+task("proxy-admin", "Get the admin address of a proxy contract")
+    .addParam(
+        "proxy",
+        "Token symbol, contract name or address of the proxy contract. eg mUSD, EmissionsController",
+        undefined,
+        types.string,
+        false,
+    )
+    .addOptionalParam("type", "'address' or 'feederPool'", "address", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const proxyAddress = resolveAddress(taskArgs.proxy, chain, taskArgs.type)
+
+        const adminSlot = "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103"
+
+        const adminAddress = await signer.provider.getStorageAt(proxyAddress, adminSlot)
+        console.log(`Admin: ${adminAddress}`)
+    })
+
+task("proxy-admin-change", "Change the admin of a proxy contract")
+    .addParam(
+        "proxy",
+        "Token symbol, contract name or address of the proxy contract. eg mUSD, EmissionsController",
+        undefined,
+        types.string,
+        false,
+    )
+    .addOptionalParam("type", "'address' or 'feederPool'", "address", types.string)
+    .addOptionalParam("admin", "Contract name or address of the new admin. eg DelayedProxyAdmin", "DelayedProxyAdmin", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const proxyAddress = resolveAddress(taskArgs.proxy, chain, taskArgs.type)
+        const proxy = AssetProxy__factory.connect(proxyAddress, signer)
+
+        const newAdminAddress = resolveAddress(taskArgs.admin, chain)
+
+        const tx = await proxy.changeAdmin(newAdminAddress)
+        await logTxDetails(tx, "change admin")
     })
 
 task("quest-add", "Adds a quest to the staked token")
