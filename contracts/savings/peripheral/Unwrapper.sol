@@ -25,11 +25,11 @@ contract Unwrapper is IUnwrapper, ImmutableModule {
     constructor(address _nexus) ImmutableModule(_nexus) {}
 
     /**
-     * @dev Query whether output address is a bAsset for given mAsset
-     * @param _input          input asset (either mAsset or imAsset)
-     * @param _inputIsCredit  true if imAsset, false if mAsset
-     * @param _output         output asset
-     * @return isBassetOut    boolean status of output asset
+     * @notice Query whether output address is a bAsset for given interest-bearing mAsset or mAsset. eg DAI is a bAsset of imUSD.
+     * @param _input          Address of either interest-bearing mAsset or mAsset. eg imUSD or mUSD.
+     * @param _inputIsCredit  `true` if `input` is an interest-bearing mAsset, eg imUSD. `false` if `input` is an mAsset, eg mUSD.
+     * @param _output         Address to test if a bAsset token of the `input`.
+     * @return isBassetOut    `true` if `output` is a bAsset. `false` if `output` is not a bAsset.
      */
     function getIsBassetOut(
         address _input,
@@ -46,16 +46,16 @@ contract Unwrapper is IUnwrapper, ImmutableModule {
 
     /**
      * @notice Estimate units of bAssets or fAssets in exchange for interest-bearing mAssets or mAssets.
-     * @param _isBassetOut    true if output is a bAsset. false if output is a fAsset.
-     * @param _router         mAsset address if the output is a bAsset. Feeder Pool address if the output is a fAsset.
+     * @param _isBassetOut    `true` if `output` is a bAsset. `false` if `output` is a fAsset.
+     * @param _router         mAsset address if the `output` is a bAsset. Feeder Pool address if the `output` is a fAsset.
      * @param _input          Token address of either mAsset or interest-bearing mAsset. eg mUSD, imUSD, mBTC or imBTC.
      * @param _inputIsCredit  `true` if interest-beaing mAsset like imUSD or imBTC. `false` if mAsset like mUSD or mBTC.
      * @param _output         Asset to receive in exchange for the `input` token. This can be a bAsset or a fAsset. For example:
         - bAssets (USDC, DAI, sUSD or USDT) or fAssets (GUSD, BUSD, alUSD, FEI or RAI) for mUSD.
         - bAssets (USDC, DAI or USDT) or fAsset FRAX for Polygon mUSD.
         - bAssets (WBTC, sBTC or renBTC) or fAssets (HBTC or TBTCV2) for mainnet mBTC.
-     * @param _amount         Units of input token.
-     * @return output         Units of bAssets or fAssets received in exchange for inputs. This is to the same decimal places as the `output` token.
+     * @param _amount         Units of `input` token.
+     * @return outputQuantity Units of bAssets or fAssets received in exchange for inputs. This is to the same decimal places as the `output` token.
      */
     function getUnwrapOutput(
         bool _isBassetOut,
@@ -64,17 +64,17 @@ contract Unwrapper is IUnwrapper, ImmutableModule {
         bool _inputIsCredit,
         address _output,
         uint256 _amount
-    ) external view override returns (uint256 output) {
+    ) external view override returns (uint256 outputQuantity) {
         uint256 amt = _inputIsCredit
             ? ISavingsContractV3(_input).creditsToUnderlying(_amount)
             : _amount;
         if (_isBassetOut) {
-            output = IMasset(_router).getRedeemOutput(_output, amt);
+            outputQuantity = IMasset(_router).getRedeemOutput(_output, amt);
         } else {
             address input = _inputIsCredit
                 ? address(ISavingsContractV3(_input).underlying())
                 : _input;
-            output = IFeederPool(_router).getSwapOutput(input, _output, amt);
+            outputQuantity = IFeederPool(_router).getSwapOutput(input, _output, amt);
         }
     }
 
@@ -83,8 +83,8 @@ contract Unwrapper is IUnwrapper, ImmutableModule {
      * Transfers mAssets to this Unwrapper contract and then either
      * 1. redeems mAsset tokens for bAsset tokens.
      * 2. Swaps mAsset tokens for fAsset tokens using a Feeder Pool.
-     * @param _isBassetOut    true if output is a bAsset. false if output is a fAsset.
-     * @param _router         mAsset address if the output is a bAsset. Feeder Pool address if the output is a fAsset.
+     * @param _isBassetOut    `true` if `output` is a bAsset. `false` if `output` is a fAsset.
+     * @param _router         mAsset address if the `output` is a bAsset. Feeder Pool address if the `output` is a fAsset.
      * @param _input          mAsset address
      * @param _output         Asset to receive in exchange for the redeemed mAssets. This can be a bAsset or a fAsset. For example:
         - bAssets (USDC, DAI, sUSD or USDT) or fAssets (GUSD, BUSD, alUSD, FEI or RAI) for mUSD.

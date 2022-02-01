@@ -86,7 +86,13 @@ interface ISavingsContractV3 {
         address _beneficiary,
         address _router,
         bool _isBassetOut
-    ) external returns (uint256 creditsBurned, uint256 massetReturned);
+    )
+        external
+        returns (
+            uint256 creditsBurned,
+            uint256 massetRedeemed,
+            uint256 outputQuantity
+        );
 
     function depositSavings(
         uint256 _underlying,
