@@ -2,7 +2,7 @@ import { impersonate } from "@utils/fork"
 import { Signer, ContractFactory } from "ethers"
 import { expect } from "chai"
 import { network } from "hardhat"
-import { deployContract, upgradeContract } from "tasks/utils/deploy-utils"
+import { deployContract } from "tasks/utils/deploy-utils"
 // Polygon imUSD Contract
 import { SavingsContractImusdPolygon21__factory } from "types/generated/factories/SavingsContractImusdPolygon21__factory"
 import { SavingsContractImusdPolygon21 } from "types/generated/SavingsContractImusdPolygon21"
@@ -22,6 +22,7 @@ import {
 import { assertBNClosePercent, Chain, DEAD_ADDRESS, simpleToExactAmount } from "index"
 import { BigNumber } from "@ethersproject/bignumber"
 import { getChainAddress, resolveAddress } from "tasks/utils/networkAddressFactory"
+import { upgradeContract } from "@utils/deploy"
 
 const chain = Chain.polygon
 const delayedProxyAdminAddress = getChainAddress("DelayedProxyAdmin", chain)

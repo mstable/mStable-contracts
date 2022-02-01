@@ -120,18 +120,18 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     ****************************************/
 
     /**
-     * @dev Returns the underlying balance of a given user
+     * @notice Returns the underlying balance of a given user
      * @param _user     Address of the user to check
-     * @return balance  Units of underlying owned by the user
+     * @return balance  Units of underlying owned by the user. eg mUSD or mBTC
      */
     function balanceOfUnderlying(address _user) external view override returns (uint256 balance) {
         (balance, ) = _creditsToUnderlying(balanceOf(_user));
     }
 
     /**
-     * @dev Converts a given underlying amount into credits
-     * @param _underlying  Units of underlying
-     * @return credits     Credit units (a.k.a imUSD)
+     * @notice Converts a given underlying amount into credits. eg mUSD to imUSD.
+     * @param _underlying  Units of underlying. eg mUSD or mBTC.
+     * @return credits     Units of crefit. eg imUSD or imBTC
      */
     function underlyingToCredits(uint256 _underlying)
         external
@@ -143,9 +143,9 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     }
 
     /**
-     * @dev Converts a given credit amount into underlying
-     * @param _credits  Units of credits
-     * @return amount   Corresponding underlying amount
+     * @notice Converts a given credit amount into underlying. eg imUSD to mUSD
+     * @param _credits  Units of credits. eg imUSD or imBTC
+     * @return amount   Units of underlying. eg mUSD or mBTC.
      */
     function creditsToUnderlying(uint256 _credits) external view override returns (uint256 amount) {
         (amount, ) = _creditsToUnderlying(_credits);
@@ -163,7 +163,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     ****************************************/
 
     /**
-     * @dev Deposit interest (add to savings) and update exchange rate of contract.
+     * @notice Deposit interest (add to savings) and update exchange rate of contract.
      *      Exchange rate is calculated as the ratio between new savings q and credits:
      *                    exchange rate = savings / credits
      *
@@ -189,7 +189,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         }
     }
 
-    /** @dev Enable or disable the automation of fee collection during deposit process */
+    /** @notice Enable or disable the automation of fee collection during deposit process */
     function automateInterestCollectionFlag(bool _enabled) external onlyGovernor {
         automateInterestCollection = _enabled;
         emit AutomaticInterestCollectionSwitched(_enabled);
@@ -200,7 +200,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     ****************************************/
 
     /**
-     * @dev During a migration period, allow savers to deposit underlying here before the interest has been redirected
+     * @notice During a migration period, allow savers to deposit underlying here before the interest has been redirected
      * @param _underlying      Units of underlying to deposit into savings vault
      * @param _beneficiary     Immediately transfer the imUSD token to this beneficiary address
      * @return creditsIssued   Units of credits (imUSD) issued
@@ -214,25 +214,25 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     }
 
     /**
-     * @dev Deposit the senders savings to the vault, and credit them internally with "credits".
+     * @notice Deposit the senders savings to the vault, and credit them internally with "credits".
      *      Credit amount is calculated as a ratio of deposit amount and exchange rate:
      *                    credits = underlying / exchangeRate
      *      We will first update the internal exchange rate by collecting any interest generated on the underlying.
-     * @param _underlying      Units of underlying to deposit into savings vault
-     * @return creditsIssued   Units of credits (imUSD) issued
+     * @param _underlying      Units of underlying to deposit into savings vault. eg mUSD or mBTC
+     * @return creditsIssued   Units of credits issued. eg imUSD or imBTC
      */
     function depositSavings(uint256 _underlying) external override returns (uint256 creditsIssued) {
         return _deposit(_underlying, msg.sender, true);
     }
 
     /**
-     * @dev Deposit the senders savings to the vault, and credit them internally with "credits".
+     * @notice Deposit the senders savings to the vault, and credit them internally with "credits".
      *      Credit amount is calculated as a ratio of deposit amount and exchange rate:
      *                    credits = underlying / exchangeRate
      *      We will first update the internal exchange rate by collecting any interest generated on the underlying.
-     * @param _underlying      Units of underlying to deposit into savings vault
-     * @param _beneficiary     Immediately transfer the imUSD token to this beneficiary address
-     * @return creditsIssued   Units of credits (imUSD) issued
+     * @param _underlying      Units of underlying to deposit into savings vault. eg mUSD or mBTC
+     * @param _beneficiary     Address to the new credits will be issued to.
+     * @return creditsIssued   Units of credits issued. eg imUSD or imBTC
      */
     function depositSavings(uint256 _underlying, address _beneficiary)
         external
@@ -243,11 +243,11 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     }
 
     /**
-     * @dev Overloaded `depositSavings` method with an optional referrer address.
-     * @param _underlying      Units of underlying to deposit into savings vault
-     * @param _beneficiary     Immediately transfer the imUSD token to this beneficiary address
-     * @param _referrer        Referrer address for this deposit
-     * @return creditsIssued   Units of credits (imUSD) issued
+     * @notice Overloaded `depositSavings` method with an optional referrer address.
+     * @param _underlying      Units of underlying to deposit into savings vault. eg mUSD or mBTC
+     * @param _beneficiary     Address to the new credits will be issued to.
+     * @param _referrer        Referrer address for this deposit.
+     * @return creditsIssued   Units of credits issued. eg imUSD or imBTC
      */
     function depositSavings(
         uint256 _underlying,
@@ -291,9 +291,10 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
                     REDEEM
     ****************************************/
 
-    // Deprecated in favour of redeemCredits
-    // Maintaining backwards compatibility, this fn minimics the old redeem fn, in which
-    // credits are redeemed but the interest from the underlying is not collected.
+    /** @dev Deprecated in favour of redeemCredits.
+     * Maintaining backwards compatibility, this fn minimics the old redeem fn, in which
+     * credits are redeemed but the interest from the underlying is not collected.
+     */
     function redeem(uint256 _credits) external override returns (uint256 massetReturned) {
         require(_credits > 0, "Must withdraw something");
 
@@ -308,7 +309,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     }
 
     /**
-     * @dev Redeem specific number of the senders "credits" in exchange for underlying.
+     * @notice Redeem specific number of the senders "credits" in exchange for underlying.
      *      Payout amount is calculated as a ratio of credits and exchange rate:
      *                    payout = credits * exchangeRate
      * @param _credits         Amount of credits to redeem
@@ -328,7 +329,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     }
 
     /**
-     * @dev Redeem credits into a specific amount of underlying.
+     * @notice Redeem credits into a specific amount of underlying.
      *      Credits needed to burn is calculated using:
      *                    credits = underlying / exchangeRate
      * @param _underlying     Amount of underlying to redeem
@@ -354,18 +355,23 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     }
 
     /**
-     * @dev Redeem credits into a specific amount of underlying, unwrap
+     * @notice Redeem credits into a specific amount of underlying, unwrap
      *      into a selected output asset, and send to a beneficiary
      *      Credits needed to burn is calculated using:
      *                    credits = underlying / exchangeRate
-     * @param _amount             Units to redeem (either underlying or credit amount)
-     * @param _isCreditAmt        Bool signalling if the `_amount` is credits (true) or underlying (false)
-     * @param _minAmountOut       Minimum amount of `output` to unwrap for
-     * @param _output             Asset to unwrap from underlying
-     * @param _beneficiary        Address to send `asset` to
-     * @param _router             Router address = mAsset || feederPool
-     * @param _isBassetOut        Route action of redeem/swap
-     * @return creditsBurned      Units of credits burned from sender
+     * @param _amount         Units to redeem (either underlying or credit amount).
+     * @param _isCreditAmt    `true` if `amount` is in credits. eg imUSD. `false` if `amount` is in underlying. eg mUSD.
+     * @param _minAmountOut   Minimum amount of `output` tokens to unwrap for. This is to the same decimal places as the `output` token.
+     * @param _output         Asset to receive in exchange for the redeemed mAssets. This can be a bAsset or a fAsset. For example:
+        - bAssets (USDC, DAI, sUSD or USDT) or fAssets (GUSD, BUSD, alUSD, FEI or RAI) for mainnet imUSD Vault.
+        - bAssets (USDC, DAI or USDT) or fAsset FRAX for Polygon imUSD Vault.
+        - bAssets (WBTC, sBTC or renBTC) or fAssets (HBTC or TBTCV2) for mainnet imBTC Vault.
+     * @param _beneficiary    Address to send `output` tokens to.
+     * @param _router         mAsset address if the output is a bAsset. Feeder Pool address if the output is a fAsset.
+     * @param _isBassetOut    `true` if `output` is a bAsset. `false` if `output` is a fAsset.
+     * @return creditsBurned  Units of credits burned from sender. eg imUSD or imBTC.
+     * @return massetReturned Units of the underlying mAssets that were redeemed or swapped for the output tokens. eg mUSD or mBTC.
+     * @return outputQuantity Units of `output` tokens sent to the beneficiary.
      */
     function redeemAndUnwrap(
         uint256 _amount,
@@ -375,7 +381,15 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         address _beneficiary,
         address _router,
         bool _isBassetOut
-    ) external override returns (uint256 creditsBurned, uint256 massetReturned) {
+    )
+        external
+        override
+        returns (
+            uint256 creditsBurned,
+            uint256 massetReturned,
+            uint256 outputQuantity
+        )
+    {
         require(_amount > 0, "Must withdraw something");
         require(_output != address(0), "Output address is zero");
         require(_beneficiary != address(0), "Beneficiary address is zero");
@@ -397,7 +411,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         underlying.approve(unwrapper, massetReturned);
 
         // Unwrap the underlying into `output` and transfer to `beneficiary`
-        IUnwrapper(unwrapper).unwrapAndSend(
+        outputQuantity = IUnwrapper(unwrapper).unwrapAndSend(
             _isBassetOut,
             _router,
             address(underlying),
@@ -493,7 +507,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     }
 
     /**
-     * @dev External poke function allows for the redistribution of collateral between here and the
+     * @notice External poke function allows for the redistribution of collateral between here and the
      * current connector, setting the ratio back to the defined optimal.
      */
     function poke() external onlyPoker {
@@ -502,7 +516,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     }
 
     /**
-     * @dev Governance action to set the address of a new poker
+     * @notice Governance action to set the address of a new poker
      * @param _newPoker     Address of the new poker
      */
     function setPoker(address _newPoker) external onlyGovernor {
@@ -514,7 +528,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     }
 
     /**
-     * @dev Governance action to set the percentage of assets that should be held
+     * @notice Governance action to set the percentage of assets that should be held
      * in the connector.
      * @param _fraction     Percentage of assets that should be held there (where 20% == 2e17)
      */
@@ -530,7 +544,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     }
 
     /**
-     * @dev Governance action to set the address of a new connector, and move funds (if any) across.
+     * @notice Governance action to set the address of a new connector, and move funds (if any) across.
      * @param _newConnector     Address of the new connector
      */
     function setConnector(address _newConnector) external onlyGovernor {
@@ -548,7 +562,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     }
 
     /**
-     * @dev Governance action to perform an emergency withdraw of the assets in the connector,
+     * @notice Governance action to perform an emergency withdraw of the assets in the connector,
      * should it be the case that some or all of the liquidity is trapped in. This causes the total
      * collateral in the system to go down, causing a hard refresh.
      */
