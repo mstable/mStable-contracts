@@ -3,7 +3,7 @@ import "tsconfig-paths/register"
 import { DEAD_ADDRESS } from "@utils/constants"
 import { Contract, Signer } from "ethers"
 import { task, types } from "hardhat/config"
-import { Unwrapper__factory, DelayedProxyAdmin__factory } from "types/generated"
+import { Unwrapper__factory, DelayedProxyAdmin__factory, AssetProxy__factory } from "types/generated"
 // Polygon imUSD Contract
 import { SavingsContractImusdPolygon21 } from "types/generated/SavingsContractImusdPolygon21"
 import { SavingsContractImusdPolygon21__factory } from "types/generated/factories/SavingsContractImusdPolygon21__factory"
@@ -69,12 +69,13 @@ const approveUnwrapperTokens = async (chain: Chain, unwrapper: Contract, governo
     await unwrapper.connect(governor).approve(routers, tokens)
 }
 
-task("deploy-unwrapper", "Deploy Unwrapper multi-chain")
+task("deploy-unwrapper-single", "Deploy Unwrapper without a proxy")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)
         const chain = getChain(hre)
         const nexus = resolveAddress("Nexus", chain)
+
         const constructorArguments = [nexus]
         // Deploy step 1 - Deploy Unwrapper
         const unwrapper = await deployContract(new Unwrapper__factory(signer), "Unwrapper", constructorArguments)
@@ -84,6 +85,38 @@ task("deploy-unwrapper", "Deploy Unwrapper multi-chain")
             contract: "contracts/savings/peripheral/Unwrapper.sol:Unwrapper",
             constructorArguments,
         })
+
+        // Deploy step 2 - Approve tokens
+        // approveUnwrapperTokens(chain, unwrapper, signer)
+    })
+
+task("deploy-unwrapper-proxy", "Deploy Unwrapper as a proxy on mainnet")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+        const nexus = resolveAddress("Nexus", chain)
+        const proxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)
+
+        const constructorArguments = [nexus]
+        // Deploy step 1 - Deploy Unwrapper
+        const unwrapperImpl = await deployContract(new Unwrapper__factory(signer), "Unwrapper", constructorArguments)
+
+        const initializeData = []
+        const proxy = await deployContract(new AssetProxy__factory(signer), "AssetProxy", [
+            unwrapperImpl.address,
+            proxyAdminAddress,
+            initializeData,
+        ])
+        const unwrapper = new Unwrapper__factory(signer).attach(proxy.address)
+
+        await verifyEtherscan(hre, {
+            address: unwrapperImpl.address,
+            contract: "contracts/savings/peripheral/Unwrapper.sol:Unwrapper",
+            constructorArguments,
+        })
+
+        console.log(`Set Unwrapper in the networkAddressFactory to ${unwrapper.address}`)
 
         // Deploy step 2 - Approve tokens
         // approveUnwrapperTokens(chain, unwrapper, signer)
