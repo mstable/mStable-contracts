@@ -24,7 +24,6 @@ import {
     BoostDirector,
     MockBoostedVault,
     MockBoostedVault__factory,
-    ExposedMasset,
     FeederPool,
     MockSavingsContract__factory,
 } from "types/generated"
@@ -79,7 +78,7 @@ interface ConfigRedeemAndUnwrap {
     isBassetOut: boolean
     beneficiary: Account
     output: MockERC20 // Asset to unwrap from underlying
-    router: ExposedMasset | FeederPool | MockERC20 // Router address = mAsset || feederPool
+    router: FeederPool | MockERC20 // Router address = mAsset || feederPool
 }
 
 async function getUserReward(savingsVault: BoostedVault, beneficiary: Account, i: number) {
