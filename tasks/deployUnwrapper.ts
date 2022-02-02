@@ -52,8 +52,18 @@ const approveUnwrapperTokens = async (chain: Chain, unwrapper: Contract, governo
         const tbtcv2FeederPool = resolveAddress("tBTCv2", chain, "feederPool")
         const mbtcAddress = resolveAddress("mBTC", chain)
 
-        routers = [alusdFeederPool, gusdFeederPool, busdFeederPool, raiFeederPool, feiFeederPool, hbtcFeederPool, tbtcv2FeederPool]
-        tokens = [musdAddress, musdAddress, musdAddress, musdAddress, musdAddress, mbtcAddress, mbtcAddress, mbtcAddress]
+        routers = [
+            musdAddress,
+            alusdFeederPool,
+            gusdFeederPool,
+            busdFeederPool,
+            raiFeederPool,
+            feiFeederPool,
+            mbtcAddress,
+            hbtcFeederPool,
+            tbtcv2FeederPool,
+        ]
+        tokens = [musdAddress, musdAddress, musdAddress, musdAddress, musdAddress, musdAddress, mbtcAddress, mbtcAddress, mbtcAddress]
     }
     // approve tokens for router
     await unwrapper.connect(governor).approve(routers, tokens)
