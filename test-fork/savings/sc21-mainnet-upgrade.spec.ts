@@ -227,8 +227,18 @@ context("Unwrapper and Vault upgrades", () => {
                     [],
                 )
 
-                // TODO - REMOVE BEFORE DEPLOYMENT
-                const upgradeData = musdSaveImpl.interface.encodeFunctionData("upgradeV3", [unwrapper.address])
+                // const upgradeData = musdSaveImpl.interface.encodeFunctionData("upgradeV3", [unwrapper.address])
+                // Method upgradeV3 is for test purposes only
+                /**
+                 solidity code
+                function upgradeV3(address _unwrapper) external {
+                    // TODO - REMOVE BEFORE DEPLOYMENT
+                    require(_unwrapper != address(0), "Invalid unwrapper address");
+                    unwrapper = _unwrapper;
+                }
+                 */
+
+                const upgradeData = []
 
                 const saveContractProxy = await upgradeContract<SavingsContractImusdMainnet21>(
                     SavingsContractImusdMainnet21__factory as unknown as ContractFactory,

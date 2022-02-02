@@ -60,6 +60,7 @@ export const contractNames = [
     "ENSRegistrarController",
     "ENSResolver",
     "FraxVault",
+    "Unwrapper",
     "VisorRouter",
     "VotiumBribe",
     "VotiumForwarder",
@@ -181,6 +182,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x283Af0B28c62C092C9727F1Ee09c02CA627EB7F5"
             case "ENSResolver":
                 return "0x4976fb03c32e5b8cfe2b6ccb31c09ba78ebaba41"
+            case "Unwrapper":
+                return DEAD_ADDRESS // TODO - this is a placeholder
             case "VisorRouter":
                 return "0xF3f4F4e17cC65BDC36A36fDa5283F8D8020Ad0a4"
             case "VotiumBribe":
@@ -236,6 +239,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x4845A90664311F9f0c8cDb5D9B95Bb0937863380"
             case "PolygonChildChainManager":
                 return "0xA6FA4fB5f76172d178d61B04b0ecd319C5d1C0aa"
+            case "Unwrapper":
+                return "0xD1ABf1422e623814F10eAc13148a0A68B054E0e4"
             default:
         }
     } else if (chain === Chain.mumbai) {
