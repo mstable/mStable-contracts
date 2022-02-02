@@ -6,7 +6,7 @@ import { utils } from "ethers"
 import { simpleToExactAmount, BN } from "@utils/math"
 import { assertBNClose, assertBNClosePercent, assertBNSlightlyGT } from "@utils/assertions"
 import { StandardAccounts, MassetMachine } from "@utils/machines"
-import { fullScale, ZERO_ADDRESS, ONE_DAY, FIVE_DAYS, ONE_WEEK, DEAD_ADDRESS } from "@utils/constants"
+import { fullScale, ZERO_ADDRESS, ZERO, ONE_DAY, FIVE_DAYS, ONE_WEEK, DEAD_ADDRESS } from "@utils/constants"
 import { getTimestamp, increaseTime } from "@utils/time"
 import {
     MockERC20,
@@ -22,6 +22,8 @@ import {
     AssetProxy__factory,
     BoostDirector__factory,
     BoostDirector,
+    FeederPool,
+    MockSavingsContract__factory,
 } from "types/generated"
 import { Account } from "types"
 import {
@@ -79,7 +81,14 @@ interface StakingData {
     userRewards: Reward[]
     contractData: ContractData
 }
-
+interface ConfigRedeemAndUnwrap {
+    amount: BN
+    minAmountOut: BN
+    isBassetOut: boolean
+    beneficiary: Account
+    output: MockERC20 // Asset to unwrap from underlying
+    router: FeederPool | MockERC20 // Router address = mAsset || feederPool
+}
 async function getUserReward(boostedDualVault: BoostedDualVault, beneficiary: Account, i: number) {
     const [start, finish, rate] = await boostedDualVault.userRewards(beneficiary.address, i)
     return { start, finish, rate }
@@ -131,7 +140,15 @@ describe("BoostedDualVault", async () => {
         nexus = await new MockNexus__factory(sa.default.signer).deploy(sa.governor.address, DEAD_ADDRESS, DEAD_ADDRESS)
         rewardToken = await new MockERC20__factory(sa.default.signer).deploy("Reward", "RWD", 18, rewardsDistributor.address, 10000000)
         platformToken = await new MockERC20__factory(sa.default.signer).deploy("PLAT4M", "PLAT", 18, rewardsDistributor.address, 1000000)
-        imAsset = await new MockERC20__factory(sa.default.signer).deploy("Interest bearing mUSD", "imUSD", 18, sa.default.address, 1000000)
+        const mAsset = await new MockERC20__factory(sa.default.signer).deploy("mUSD", "mUSD", 18, sa.default.address, 1000000)
+        imAsset = await new MockSavingsContract__factory(sa.default.signer).deploy(
+            "Interest bearing mUSD",
+            "imUSD",
+            18,
+            sa.default.address,
+            1000000,
+            mAsset.address,
+        )
         stakingContract = await new MockStakingContract__factory(sa.default.signer).deploy()
 
         boostDirector = await new BoostDirector__factory(sa.default.signer).deploy(nexus.address, stakingContract.address)
@@ -465,6 +482,49 @@ describe("BoostedDualVault", async () => {
         )
     }
 
+    /**
+     * @dev Makes a withdrawal adn unwrap from the contract, and ensures that resulting state is correct
+     * and the rewards have been unwrapped
+     * @param withdrawAmount Exact amount to withdraw
+     * @param sender User to execute the tx
+     */
+    const expectStakingWithdrawalAndUnwrap = async (config: ConfigRedeemAndUnwrap): Promise<void> => {
+        // 1. Get data from the contract
+        const sender = config.beneficiary || sa.default
+        const beforeData = await snapshotStakingData(sender)
+        const isExistingStaker = beforeData.boostBalance.raw.gt(BN.from(0))
+        const withdrawAmount = config.amount
+        expect(isExistingStaker).eq(true)
+        expect(withdrawAmount).to.be.gte(beforeData.boostBalance.raw)
+
+        // 2. Send withdrawal tx
+        const tx = boostedDualVault
+            .connect(sender.signer)
+            .withdrawAndUnwrap(
+                config.amount,
+                config.minAmountOut,
+                config.output.address,
+                config.beneficiary.address,
+                config.router.address,
+                config.isBassetOut,
+            )
+        await expect(tx).to.emit(boostedDualVault, "Withdrawn").withArgs(sender.address, withdrawAmount)
+
+        // 3. Expect Rewards to accrue to the beneficiary
+        //    StakingToken balance of sender
+        const afterData = await snapshotStakingData(sender)
+        await assertRewardsAssigned(beforeData, afterData, isExistingStaker)
+
+        // 4. Expect token transfer
+        //    StakingToken balance of sender is reduced, as the staked token is unwrapped to a bAsset or fAsset
+        expect(beforeData.tokenBalance.sender).to.be.eq(afterData.tokenBalance.sender)
+        //    Withdraws from the actual rewards wrapper token
+        expect(beforeData.boostBalance.raw.sub(withdrawAmount)).to.be.eq(afterData.boostBalance.raw)
+        //    Updates total supply
+        expect(beforeData.boostBalance.totalSupply.sub(beforeData.boostBalance.balance).add(afterData.boostBalance.balance)).to.be.eq(
+            afterData.boostBalance.totalSupply,
+        )
+    }
     context("initialising and staking in a new pool", () => {
         describe("notifying the pool of reward", () => {
             it("should begin a new period through", async () => {
@@ -1547,7 +1607,77 @@ describe("BoostedDualVault", async () => {
             })
         })
     })
+    context("withdrawing and unwrapping", () => {
+        context("withdrawing a stake amount", () => {
+            let config: ConfigRedeemAndUnwrap
+            const fundAmount = simpleToExactAmount(100, 21)
+            const stakeAmount = simpleToExactAmount(100, 18)
 
+            before(async () => {
+                boostedDualVault = await redeployRewards()
+                await expectSuccessfulFunding(fundAmount)
+                await expectSuccessfulStake(stakeAmount)
+                await increaseTime(10)
+                config = {
+                    amount: stakeAmount,
+                    minAmountOut: stakeAmount.mul(98).div(100),
+                    isBassetOut: true,
+                    beneficiary: sa.default,
+                    output: imAsset, // bAsset,
+                    router: imAsset, // mAsset,
+                }
+            })
+            it("should revert for a non-staker", async () => {
+                await expect(
+                    boostedDualVault
+                        .connect(sa.dummy1.signer)
+                        .withdrawAndUnwrap(1, ZERO, ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS, config.isBassetOut),
+                ).to.be.revertedWith("VM Exception")
+            })
+            it("should revert if insufficient balance", async () => {
+                await expect(
+                    boostedDualVault
+                        .connect(sa.default.signer)
+                        .withdrawAndUnwrap(stakeAmount.add(1), ZERO, ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS, config.isBassetOut),
+                ).to.be.revertedWith("VM Exception")
+            })
+            it("should fail if trying to withdraw 0", async () => {
+                await expect(
+                    boostedDualVault
+                        .connect(sa.default.signer)
+                        .withdrawAndUnwrap(ZERO, ZERO, ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS, config.isBassetOut),
+                ).to.be.revertedWith("Cannot withdraw 0")
+            })
+            it("should withdraw the stake and update the existing reward accrual", async () => {
+                // Check that the user has earned something
+                const [earnedBefore] = await boostedDualVault.earned(sa.default.address)
+                expect(earnedBefore).to.be.gt(BN.from(0))
+                const dataBefore = await snapshotStakingData()
+                expect(dataBefore.userData.rewards).to.be.eq(BN.from(0))
+
+                // Execute the withdrawal
+                await expectStakingWithdrawalAndUnwrap(config)
+
+                // Ensure that the new awards are added + assigned to user
+                const [earnedAfter] = await boostedDualVault.earned(sa.default.address)
+                expect(earnedAfter).to.be.gte(earnedBefore)
+                const dataAfter = await snapshotStakingData()
+                expect(dataAfter.userData.rewards).to.be.eq(earnedAfter)
+
+                // Zoom forward now
+                await increaseTime(10)
+
+                // Check that the user does not earn anything else
+                const [earnedEnd] = await boostedDualVault.earned(sa.default.address)
+                expect(earnedEnd).to.be.eq(earnedAfter)
+                const dataEnd = await snapshotStakingData()
+                expect(dataEnd.userData.rewards).to.be.eq(dataAfter.userData.rewards)
+
+                // Cannot withdraw anything else
+                await expect(boostedDualVault.connect(sa.default.signer).withdraw(stakeAmount.add(1))).to.be.revertedWith("VM Exception")
+            })
+        })
+    })
     context("notifying new reward amount", () => {
         context("from someone other than the distributor", () => {
             before(async () => {
