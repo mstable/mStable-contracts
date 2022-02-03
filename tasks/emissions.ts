@@ -9,6 +9,7 @@ import {
     L2EmissionsController__factory,
     RevenueBuyBack__factory,
     RevenueForwarder__factory,
+    VotiumBribeForwarder__factory,
     SavingsManager__factory,
 } from "types/generated"
 import { ONE_HOUR } from "@utils/constants"
@@ -179,9 +180,50 @@ task("revenue-donate-rewards").setAction(async (_, __, runSuper) => {
     await runSuper()
 })
 
+subtask("votium-forward", "Forwards votium bribe. from votium dial")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
+    .addOptionalParam("proposal", "Convex finance proposal for Weekly Gauge Weight", undefined, types.string)
+    .setAction(async (taskArgs, hre) => {
+        // For example on the URL  https://vote.convexfinance.com/#/proposal/QmZpsJAvbKEY9YKFCZBUzzSMC5Y9vfy6QPA4HoXGsiLUyg
+        // the proposal is QmZpsJAvbKEY9YKFCZBUzzSMC5Y9vfy6QPA4HoXGsiLUyg
+
+        const hashFn = (str: string) => hre.ethers.utils.keccak256(hre.ethers.utils.toUtf8Bytes(str))
+        const MIN_BRIBE_AMOUNT = 1
+
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const votiumBribeForwarderAddress = resolveAddress("VotiumForwarder", chain)
+        const mtaAddress = resolveAddress("MTA", chain)
+
+        const votiumBribeForwarder = VotiumBribeForwarder__factory.connect(votiumBribeForwarderAddress, signer)
+        const choiceIndex = await votiumBribeForwarder.choiceIndex()
+
+        const mtaToken = IERC20__factory.connect(mtaAddress, signer)
+
+        const mtaBalance = await mtaToken.balanceOf(votiumBribeForwarderAddress)
+
+        if (mtaBalance.lte(MIN_BRIBE_AMOUNT)) {
+            throw new Error("MTA balance to low")
+        }
+        if (taskArgs.proposal === undefined) {
+            throw new Error("Proposal not specified")
+        }
+        const proposal = hashFn(taskArgs.proposal)
+        console.log(`MTA ${mtaBalance.toString()} to deposit into proposal ${proposal} with choiceIndex ${choiceIndex}`)
+
+        //  Deposit mta bribe
+        const tx = await votiumBribeForwarder.depositBribe(mtaBalance, proposal)
+        await logTxDetails(tx, "depositBribe(mtaBalance, proposal)")
+    })
+task("votium-forward").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})
+
 task("emissions-process", "Weekly mainnet emissions process")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
-    .setAction(async ({ speed }, hre) => {
+    .addOptionalParam("proposal", "Convex finance proposal for Weekly Gauge Weight", undefined, types.string)
+    .setAction(async ({ speed, proposal }, hre) => {
         // Dump the expected dial distribution amounts
         await hre.run("dials-snap", { speed })
 
@@ -211,6 +253,7 @@ task("emissions-process", "Weekly mainnet emissions process")
         // await hre.run("emission-dist", { speed, dialIds: "2,3,4,5,6,7,8,9,10" })
 
         // Dial 15 (Votium) is skipped for now
+        await hre.run("votium-forward", { speed, proposal })
 
         // Distributes to dial 16
         await hre.run("emission-dist", { speed, dialIds: "16" })
