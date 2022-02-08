@@ -21,6 +21,8 @@ import {
     DudPlatform__factory,
     ICERC20,
     ICERC20__factory,
+    InterestValidator,
+    InterestValidator__factory,
 } from "types/generated"
 
 const chain = Chain.mainnet
@@ -35,7 +37,6 @@ const mUSDWhaleAddress = "0x503828976d22510aad0201ac7ec88293211d23da" // Coinbas
 context("Migrate from integration (Iron Bank) to integration (Dud)", async () => {
     let deployer: Signer
     let governor: Signer
-    let interestValidator: Signer
     let mUSDWhale: Signer
 
     let musdToken: IERC20
@@ -43,6 +44,10 @@ context("Migrate from integration (Iron Bank) to integration (Dud)", async () =>
 
     let gusdFeederPool: FeederPool
     let busdFeederPool: FeederPool
+    let interestValidator: InterestValidator
+
+    let dudIntegration: DudIntegration
+    let dudPlatform: DudPlatform
 
     const setup = async (blockNumber: number) => {
         await network.provider.request({
@@ -59,7 +64,6 @@ context("Migrate from integration (Iron Bank) to integration (Dud)", async () =>
 
         deployer = await impersonate(deployerAddress)
         governor = await impersonate(governorAddress)
-        interestValidator = await impersonate(validatorAddress)
         mUSDWhale = await impersonate(mUSDWhaleAddress)
 
         musdToken = IERC20__factory.connect(mUSD.address, deployer)
@@ -67,14 +71,16 @@ context("Migrate from integration (Iron Bank) to integration (Dud)", async () =>
 
         gusdFeederPool = FeederPool__factory.connect(GUSD.feederPool, governor)
         busdFeederPool = FeederPool__factory.connect(BUSD.feederPool, governor)
+        interestValidator = InterestValidator__factory.connect(validatorAddress, deployer)
+
+        dudIntegration = DudIntegration__factory.connect("0x30A19c99579cbF7883213C1BdcE0CAF687E4Dd28", deployer)
+        dudPlatform = DudPlatform__factory.connect("0x26826c1c3097a4d3b73dCf4eBa22913cb6e5EcA6", deployer)
     }
 
     before("init setup", async () => {
-        await setup(13981990)
+        await setup(14032362)
     })
-    describe("1. FeederPool: mUSD/GUSD", async () => {
-        let dudIntegration: DudIntegration
-        let dudPlatform: DudPlatform
+    describe.skip("1. FeederPool: mUSD/GUSD", async () => {
         it("should deploy dudPlatform", async () => {
             dudPlatform = await new DudPlatform__factory(deployer).deploy(nexusAddress, mUSD.address)
 
@@ -84,7 +90,6 @@ context("Migrate from integration (Iron Bank) to integration (Dud)", async () =>
             expect(await dudPlatform.bAsset()).to.equal(mUSD.address)
             expect(await dudPlatform.integration()).to.equal(ZERO_ADDRESS)
         })
-
         it("should deploy Integration Contract", async () => {
             dudIntegration = await new DudIntegration__factory(deployer).deploy(
                 nexusAddress,
@@ -111,8 +116,8 @@ context("Migrate from integration (Iron Bank) to integration (Dud)", async () =>
         })
         it("should migrate mUSD from the GUSD Feeder Pool", async () => {
             // Collect interest just before to reduce dust
-            await gusdFeederPool.connect(interestValidator).collectPlatformInterest()
-            await gusdFeederPool.connect(interestValidator).collectPendingFees()
+            await interestValidator.collectAndValidateInterest([GUSD.feederPool])
+            await interestValidator.connect(governor).collectGovFees([GUSD.feederPool])
 
             const rawBalBefore = (await gusdFeederPool.getBasset(mUSD.address))[1][1]
             const ironBankBalanceBefore = await musdToken.balanceOf(cyMUSD.address)
@@ -146,8 +151,8 @@ context("Migrate from integration (Iron Bank) to integration (Dud)", async () =>
             expect(rawBalAfter).eq(rawBalBefore)
             expect(rawBalAfter).eq(platformBalance.add(integrationBalance))
 
-            // some dust will be left ~ 160146996313 = 0.000000160146996313
-            assertBNClose(await cymusdToken.balanceOf(ironBankIntegration), simpleToExactAmount(0), simpleToExactAmount(1, 12))
+            // some dust will be left ~ 1045074996909 = 0.000001045074996909
+            assertBNClose(await cymusdToken.balanceOf(ironBankIntegration), simpleToExactAmount(0), simpleToExactAmount(1, 13))
         })
         it("should clear the integration to shortcircuit deposits", async () => {
             const balPoolBefore = (await gusdFeederPool.getBasset(musdToken.address))[1][1]
@@ -211,10 +216,8 @@ context("Migrate from integration (Iron Bank) to integration (Dud)", async () =>
     // This doesn't work because
     //      1. Iron Bank has still borrowed amounts
     //      2. Minting is paused on the Iron Bank, liquidity cannot be freed up from third party
-    describe.skip("2. FeederPool: mUSD/BUSD", async () => {
-        let dudIntegration: DudIntegration
-        let dudPlatform: DudPlatform
-        it("should deploy dudPlatform", async () => {
+    describe("2. FeederPool: mUSD/BUSD", async () => {
+        it.skip("should deploy dudPlatform", async () => {
             dudPlatform = await new DudPlatform__factory(deployer).deploy(nexusAddress, mUSD.address)
 
             // eslint-disable-next-line
@@ -223,8 +226,7 @@ context("Migrate from integration (Iron Bank) to integration (Dud)", async () =>
             expect(await dudPlatform.bAsset()).to.equal(mUSD.address)
             expect(await dudPlatform.integration()).to.equal(ZERO_ADDRESS)
         })
-
-        it("should deploy Integration Contract", async () => {
+        it.skip("should deploy Integration Contract", async () => {
             dudIntegration = await new DudIntegration__factory(deployer).deploy(
                 nexusAddress,
                 BUSD.feederPool,
@@ -243,22 +245,23 @@ context("Migrate from integration (Iron Bank) to integration (Dud)", async () =>
 
             expect(await musdToken.allowance(dudIntegration.address, dudPlatform.address)).eq(MAX_UINT256)
         })
-        it("should attach the dudPlatform", async () => {
+        it.skip("should attach the dudPlatform", async () => {
             expect(await dudPlatform.integration()).eq(ZERO_ADDRESS)
             await dudPlatform.initialize(dudIntegration.address)
             expect(await dudPlatform.integration()).eq(dudIntegration.address)
         })
-        it("Should deposit more into the Iron Bank, otherwise redeem migration will fail", async () => {
+        it.skip("Should deposit more into the Iron Bank, otherwise redeem migration will fail", async () => {
             const mintAmount = simpleToExactAmount(10000)
 
             await musdToken.connect(mUSDWhale).approve(cymusdToken.address, mintAmount)
             await cymusdToken.connect(mUSDWhale).mint(mintAmount)
         })
-        it("should migrate mUSD from the BUSD Feeder Pool", async () => {
+        it.skip("collect interest and gov fees", async () => {
             // Collect interest just before to reduce dust
-            await busdFeederPool.connect(interestValidator).collectPlatformInterest()
-            await busdFeederPool.connect(interestValidator).collectPendingFees()
-
+            await interestValidator.collectAndValidateInterest([BUSD.feederPool])
+            await interestValidator.connect(governor).collectGovFees([BUSD.feederPool])
+        })
+        it("should migrate mUSD from the BUSD Feeder Pool", async () => {
             const rawBalBefore = (await busdFeederPool.getBasset(mUSD.address))[1][1]
             const ironBankBalanceBefore = await musdToken.balanceOf(cyMUSD.address)
 
@@ -272,43 +275,43 @@ context("Migrate from integration (Iron Bank) to integration (Dud)", async () =>
 
             const dudIntegrationBalanceBefore = await musdToken.balanceOf(dudIntegration.address)
             const dudPlatformBalanceBefore = await musdToken.balanceOf(dudPlatform.address)
-            expect(dudIntegrationBalanceBefore).eq(0)
-            expect(dudPlatformBalanceBefore).eq(0)
+            expect(dudIntegrationBalanceBefore, "integration bal before").eq(0)
+            expect(dudPlatformBalanceBefore, "platform bal before").eq(0)
 
             const tx = await busdFeederPool.migrateBassets([mUSD.address], dudIntegration.address)
 
-            const platformBalance = await musdToken.balanceOf(dudPlatform.address)
-            const integrationBalance = await musdToken.balanceOf(dudIntegration.address)
+            const platformBalanceAfter = await musdToken.balanceOf(dudPlatform.address)
+            const integrationBalanceAfter = await musdToken.balanceOf(dudIntegration.address)
 
             await expect(tx).to.emit(busdFeederPool, "BassetsMigrated").withArgs([musdToken.address], dudIntegration.address)
-            await expect(tx).to.emit(dudPlatform, "PlatformDeposited").withArgs(dudIntegration.address, platformBalance)
+            await expect(tx).to.emit(dudPlatform, "PlatformDeposited").withArgs(dudIntegration.address, platformBalanceAfter)
 
-            expect(platformBalance).gt(0)
-            expect(integrationBalance).gt(0)
+            expect(platformBalanceAfter, "platform bal after").gt(0)
+            expect(integrationBalanceAfter, "integration bal after").gt(0)
 
             const rawBalAfter = (await busdFeederPool.getBasset(mUSD.address))[1][1]
-
             expect(rawBalAfter).eq(rawBalBefore)
-            expect(rawBalAfter).eq(platformBalance.add(integrationBalance))
+            expect(rawBalAfter).eq(platformBalanceAfter.add(integrationBalanceAfter))
 
             // some dust will be left ~ 160146996313 = 0.000000160146996313
-            assertBNClose(await cymusdToken.balanceOf(ironBankIntegration), simpleToExactAmount(0), simpleToExactAmount(1, 12))
+            assertBNClose(await cymusdToken.balanceOf(ironBankIntegration), simpleToExactAmount(0), simpleToExactAmount(1, 13))
         })
         it("should clear the integration to shortcircuit deposits", async () => {
             const balPoolBefore = (await busdFeederPool.getBasset(musdToken.address))[1][1]
             const balDudPlatformBefore = await musdToken.balanceOf(dudPlatform.address)
             const balIntegrationBefore = await musdToken.balanceOf(dudIntegration.address)
 
-            expect(await dudIntegration.cleared()).eq(false)
-            expect(balDudPlatformBefore, "Balance in Dud Platform").gt(0)
+            const clearedBefore = await dudIntegration.cleared()
+            expect(clearedBefore).eq(false)
+            expect(balDudPlatformBefore, "platform bal before").gt(0)
 
             const tx = await dudIntegration.connect(governor)["clear()"]()
             await expect(tx).to.emit(dudIntegration, "PlatformCleared").withArgs(dudPlatform.address, balDudPlatformBefore)
 
             expect(await dudIntegration.cleared()).eq(true)
-            expect(await musdToken.balanceOf(dudPlatform.address), "Balance in Dud Platform").eq(0)
+            expect(await musdToken.balanceOf(dudPlatform.address), "platform bal after").eq(0)
 
-            expect(await musdToken.balanceOf(dudIntegration.address), "Balance in Integration").eq(
+            expect(await musdToken.balanceOf(dudIntegration.address), "integration bal after").eq(
                 balIntegrationBefore.add(balDudPlatformBefore),
             )
 

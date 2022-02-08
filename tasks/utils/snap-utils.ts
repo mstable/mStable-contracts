@@ -25,7 +25,7 @@ import { AaveStakedTokenV2__factory } from "types/generated/factories/AaveStaked
 import { Comptroller__factory } from "types/generated/factories/Comptroller__factory"
 import { MusdLegacy } from "types/generated/MusdLegacy"
 import { QuantityFormatter, usdFormatter } from "./quantity-formatters"
-import { AAVE, ALCX, alUSD, BUSD, Chain, COMP, DAI, GUSD, RAI, stkAAVE, sUSD, Token, USDC, USDT, WBTC } from "./tokens"
+import { AAVE, ALCX, alUSD, BUSD, Chain, COMP, DAI, FEI, GUSD, RAI, stkAAVE, sUSD, Token, USDC, USDT, WBTC } from "./tokens"
 import { getChainAddress, resolveAddress } from "./networkAddressFactory"
 
 const comptrollerAddress = "0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B"
@@ -57,6 +57,11 @@ export interface SwapRate {
     mOutputRaw: BN
     curveOutputRaw: BN
     curveInverseOutputRaw: BN
+}
+
+export interface SwapQuote {
+    outAmount: BN
+    exchangeRate: BN
 }
 
 // Only the FeederPool has the redeemProportionately function
@@ -98,11 +103,7 @@ export const getBlockRange = async (ethers, fromBlockNumber: number, _toBlockNum
     // const endTime = new Date(toBlock.timestamp * 1000)
     const toBlock = await getBlock(ethers, _toBlockNumber)
     const fromBlock = await getBlock(ethers, fromBlockNumber)
-    console.log(
-        `Between blocks ${
-            fromBlock.blockNumber
-        } and ${toBlockNumber}. ${fromBlock.blockTime.toUTCString()} and ${toBlock.blockTime.toUTCString()}`,
-    )
+    console.log(`Between blocks ${fromBlock.blockNumber} and ${toBlockNumber}. ${fromBlock.blockTime} and ${toBlock.blockTime}`)
 
     return {
         fromBlock,
@@ -127,7 +128,7 @@ export const snapConfig = async (asset: Masset | MusdEth | MusdLegacy | FeederPo
     const endDate = new Date(ampData.rampEndTime.toNumber() * 1000)
     if (startDate.valueOf() !== endDate.valueOf()) {
         console.log(`Ramp A: initial ${formatUnits(ampData.initialA, 2)}; target ${formatUnits(ampData.targetA, 2)}`)
-        console.log(`Ramp A: start ${startDate.toUTCString()}; end ${endDate.toUTCString()}`)
+        console.log(`Ramp A: start ${startDate}; end ${endDate}`)
     }
     console.log(`Weights: min ${formatUnits(conf.limits.min, 16)}% max ${formatUnits(conf.limits.max, 16)}%`)
 }
@@ -498,12 +499,12 @@ export const outputFees = (
 ): void => {
     const totalFees = redeems.fees.add(multiRedeems.fees).add(swaps.fees)
     if (totalFees.eq(0)) {
-        console.log(`\nNo fees since ${startTime.toUTCString()}`)
+        console.log(`\nNo fees since ${startTime}`)
         return
     }
     const totalTransactions = mints.total.add(multiMints.total).add(redeems.total).add(multiRedeems.total).add(swaps.total)
     const totalFeeTransactions = redeems.total.add(multiRedeems.total).add(swaps.total)
-    console.log(`\nFees since ${startTime.toUTCString()}`)
+    console.log(`\nFees since ${startTime}`)
     console.log("              #          Volume      Fees    %")
     console.log(
         `Mints         ${mints.count.toString().padEnd(2)} ${quantityFormatter(mints.total)} ${quantityFormatter(
@@ -587,7 +588,7 @@ export const getCollectedInterest = async (
     const filter = mAsset.filters.MintedMulti(mAsset.address, null, null, null, null)
     const logs = await mAsset.queryFilter(filter, fromBlock.blockNumber, toBlock.blockNumber)
 
-    console.log(`\nCollected Interest between ${fromBlock.blockTime.toUTCString()} and ${toBlock.blockTime.toUTCString()}`)
+    console.log(`\nCollected Interest between ${fromBlock.blockTime} and ${toBlock.blockTime}`)
     console.log("Block#\t Tx hash\t\t\t\t\t\t\t\t  Quantity")
     let total = BN.from(0)
     let tradingFees = BN.from(0)
@@ -705,10 +706,7 @@ export const quoteSwap = async (
     toBlock: BlockInfo,
     path?: string[],
     fees = [3000, 3000],
-): Promise<{
-    outAmount: BN
-    exchangeRate: BN
-}> => {
+): Promise<SwapQuote> => {
     // Get USDC value from Uniswap
     const uniswapPath = path || [from.address, uniswapEthToken, to.address]
     let outAmount: BN
@@ -756,7 +754,9 @@ export const getCompTokens = async (
     totalComp = totalComp.add(compLiquidatorBal)
     console.log(`Liquidator  ${quantityFormatter(compLiquidatorBal)}`)
 
-    const compUsdc = await quoteSwap(signer, COMP, USDC, totalComp, toBlock)
+    const compUsdc: SwapQuote = totalComp.gt(0)
+        ? await quoteSwap(signer, COMP, USDC, totalComp, toBlock)
+        : { outAmount: BN.from(0), exchangeRate: BN.from(0) }
     console.log(`Total       ${quantityFormatter(totalComp)} ${quantityFormatter(compUsdc.outAmount, USDC.decimals)} USDC`)
     console.log(`COMP/USDC exchange rate: ${compUsdc.exchangeRate}`)
 
@@ -791,7 +791,7 @@ export const getAaveTokens = async (
     // Get accrued stkAave for each integration contract that is still to be claimed from the  controller
     console.log(`\nstkAAVE accrued and unclaimed`)
     let totalUnclaimed = BN.from(0)
-    const integrationTokens = [[DAI, USDT, sUSD], [GUSD], [BUSD], [RAI], [WBTC]]
+    const integrationTokens = [[DAI, USDT, sUSD], [GUSD], [BUSD], [RAI], [FEI], [WBTC]]
     for (const bAssets of integrationTokens) {
         const bAssetSymbols = bAssets.reduce((symbols, token) => `${symbols}${token.symbol} `, "")
         const aTokens = bAssets.map((t) => t.liquidityProvider)
@@ -825,10 +825,7 @@ export const getAaveTokens = async (
     totalStkAaveAndAave = totalStkAaveAndAave.add(liquidatorStkAaveBal)
     totalStkAaveAndAave = totalStkAaveAndAave.add(liquidatorAaveBal)
 
-    let aaveUsdc: {
-        outAmount: BN
-        exchangeRate: BN
-    }
+    let aaveUsdc: SwapQuote
     if (liquidatorStkAaveBal.gt(0)) {
         aaveUsdc = await quoteSwap(signer, AAVE, USDC, liquidatorStkAaveBal, toBlock)
         console.log(`\nLiquidator ${quantityFormatter(liquidatorStkAaveBal)} ${quantityFormatter(aaveUsdc.outAmount, USDC.decimals)} USDC`)
@@ -843,14 +840,22 @@ export const getAaveTokens = async (
     console.log(`AAVE/USDC exchange rate: ${aaveUsdc.exchangeRate}`)
 
     // Get AAVE/USDC exchange rate
-    const liqData = await liquidator.liquidations(USDT.integrator, { blockTag: toBlock.blockNumber })
-    console.log(`Min AAVE/USDC rate ${formatUnits(liqData.minReturn, USDC.decimals)}`)
+    const musdLiqData = await liquidator.liquidations(USDT.integrator, { blockTag: toBlock.blockNumber })
+    console.log(`Min AAVE/USDC rate ${formatUnits(musdLiqData.minReturn, USDC.decimals)}`)
+
+    // Get AAVE/GUSD exchange rate
+    const gusdLiqData = await liquidator.liquidations(GUSD.integrator, { blockTag: toBlock.blockNumber })
+    console.log(`Min AAVE/GUSD rate ${formatUnits(gusdLiqData.minReturn, GUSD.decimals)}`)
+
+    // Get AAVE/BTC exchange rate
+    const btcLiqData = await liquidator.liquidations(WBTC.integrator, { blockTag: toBlock.blockNumber })
+    console.log(`Min AAVE/WBTC rate ${formatUnits(btcLiqData.minReturn, WBTC.decimals)}`)
 
     // Get next unlock window
     const cooldownStart = await stkAaveToken.stakersCooldowns(liquidatorAddress, { blockTag: toBlock.blockNumber })
     const cooldownEnd = cooldownStart.add(ONE_DAY.mul(10))
     const colldownEndDate = new Date(cooldownEnd.toNumber() * 1000)
-    console.log(`next stkAAVE unlock ${colldownEndDate.toUTCString()} (${cooldownEnd})`)
+    console.log(`next stkAAVE unlock ${colldownEndDate} (${cooldownEnd})`)
 
     // Get unclaimed rewards
     const integrations = [

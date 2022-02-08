@@ -42,7 +42,7 @@ task("collect-interest", "Collects and streams interest from platforms")
 
         const lastBatchCollected = await savingsManager.lastBatchCollected(asset.address)
         const lastBatchDate = new Date(lastBatchCollected.mul(1000).toNumber())
-        console.log(`The last interest collection was ${lastBatchDate.toUTCString()}, epoch ${lastBatchCollected} seconds`)
+        console.log(`The last interest collection was ${lastBatchDate}, epoch ${lastBatchCollected} seconds`)
 
         const currentEpoch = new Date().getTime() / 1000
         if (currentEpoch - lastBatchCollected.toNumber() < 60 * 60 * 6) {
@@ -216,9 +216,10 @@ task("quest-add", "Adds a quest to the staked token")
     })
 
 task("quest-complete-queue", "Completes all user quests in the quests queue")
-    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .addParam("signerKey", "Signer API key", undefined, types.string, false)
     .addParam("signerSecret", "Signer API secret", undefined, types.string, false)
+    .addOptionalParam("qid", "Queue identified", 2, types.int)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const opsSigner = await getSigner(hre, taskArgs.speed)
         const chain = getChain(hre)
@@ -226,8 +227,8 @@ task("quest-complete-queue", "Completes all user quests in the quests queue")
         const questManager = QuestManager__factory.connect(questManagerAddress, opsSigner)
 
         // get users who have completed quests from the queue
-        const migrationQuestId = 0
-        const queuedUsers = await getQueuedUsersForQuest(migrationQuestId)
+        const questId = taskArgs.qid
+        const queuedUsers = await getQueuedUsersForQuest(questId)
         if (queuedUsers.length === 0) {
             console.error(`No user completed quests`)
             process.exit(0)
@@ -235,14 +236,15 @@ task("quest-complete-queue", "Completes all user quests in the quests queue")
         console.log(`${queuedUsers.length} users in the completion queue.`)
 
         // Need to filter out any users that completed the quest themselves
-        const hasCompletedPromises = queuedUsers.map((user) => questManager.hasCompleted(user, migrationQuestId))
+        const hasCompletedPromises = queuedUsers.map((user) => questManager.hasCompleted(user, questId))
         const hasCompleted = await Promise.all(hasCompletedPromises)
         const usersUnclaimed = queuedUsers.filter((user, i) => hasCompleted[i] === false)
 
         console.log(`${usersUnclaimed.length} users have not claimed the quest on-chain: ${usersUnclaimed}`)
 
         // Filter out any user that have not completed the migration but in somehow in the queue
-        const usersCheckedPromises = usersUnclaimed.map((user) => hasUserCompletedQuest(user, "theGreatMigration"))
+        const questNames = ["theGreatMigration", "theGreatMigration", "metanautSpaceProgram"]
+        const usersCheckedPromises = usersUnclaimed.map((user) => hasUserCompletedQuest(user, questNames[questId]))
         const usersChecked = await Promise.all(usersCheckedPromises)
         const usersUnclaimedChecked = usersUnclaimed.filter((user, i) => usersChecked[i] === true)
 
@@ -257,9 +259,9 @@ task("quest-complete-queue", "Completes all user quests in the quests queue")
         const questSigner = new DefenderRelaySigner(credentials, provider, { speed: taskArgs.speed })
 
         // Quest Signer signs the users as having completed the migration quest
-        const sig = await signQuestUsers(0, usersUnclaimedChecked, questSigner)
+        const sig = await signQuestUsers(questId, usersUnclaimedChecked, questSigner)
 
         // Complete the quests in the Quest Manager contract
-        const tx = await questManager.completeQuestUsers(0, usersUnclaimedChecked, sig)
+        const tx = await questManager.completeQuestUsers(questId, usersUnclaimedChecked, sig)
         await logTxDetails(tx, "complete quest users")
     })

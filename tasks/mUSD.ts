@@ -183,7 +183,7 @@ task("mUSD-rates", "mUSD rate comparison to Curve")
         const block = await getBlock(hre.ethers, taskArgs.block)
         const mAsset = await getMasset(signer, hre.network.name, block.blockNumber)
 
-        console.log(`\nGetting rates for mUSD at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
+        console.log(`\nGetting rates for mUSD at block ${block.blockNumber}, ${block.blockTime}`)
 
         const bAssets = chain === Chain.polygon ? mUsdPolygonBassets : mUsdBassets
 

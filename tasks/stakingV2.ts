@@ -7,10 +7,12 @@ import { getSigner } from "./utils/signerFactory"
 import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
 import { usdFormatter } from "./utils/quantity-formatters"
+import { getBlock } from "./utils/snap-utils"
 
 subtask("staked-snap", "Dumps a user's staking token details.")
     .addOptionalParam("asset", "Symbol of staking token. MTA or mBPT", "MTA", types.string)
     .addParam("user", "Address or contract name of user", undefined, types.string)
+    .addOptionalParam("block", "Block number to compare rates at. (default: current block)", 0, types.int)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre)
         const chain = getChain(hre)
@@ -20,21 +22,28 @@ subtask("staked-snap", "Dumps a user's staking token details.")
         const stakingTokenAddress = resolveAddress(taskArgs.asset, chain, "vault")
         const stakingToken = StakedTokenBPT__factory.connect(stakingTokenAddress, signer)
 
-        const [rawBalance, cooldownBalance] = await stakingToken.rawBalanceOf(userAddress)
-        const boostedBalance = await stakingToken.balanceOf(userAddress)
-        const votes = await stakingToken.getVotes(userAddress)
+        const block = await getBlock(hre.ethers, taskArgs.block)
+        const callOverride = {
+            blockTag: block.blockNumber,
+        }
+
+        const [rawBalance, cooldownBalance] = await stakingToken.rawBalanceOf(userAddress, callOverride)
+        const boostedBalance = await stakingToken.balanceOf(userAddress, callOverride)
+        const votes = await stakingToken.getVotes(userAddress, callOverride)
         const delegatedVotes = votes.sub(boostedBalance)
         const effectiveMultiplier = rawBalance.gt(0) ? boostedBalance.mul(10000).div(rawBalance) : BN.from(0)
-        const delegatee = await stakingToken.delegates(userAddress)
+        const delegatee = await stakingToken.delegates(userAddress, callOverride)
         const priceCoeff = taskArgs.asset === "MTA" ? BN.from(10000) : await stakingToken.priceCoefficient()
+        const earnedRewards = await stakingToken.earned(userAddress, callOverride)
 
         console.log(`Raw balance          ${usdFormatter(rawBalance)}`)
         console.log(`Boosted balance      ${usdFormatter(boostedBalance)}`)
         console.log(`Delegated votes      ${usdFormatter(delegatedVotes)}`)
         console.log(`Cooldown balance     ${usdFormatter(cooldownBalance)}`)
         console.log(`Voting power         ${usdFormatter(votes)}`)
+        console.log(`Earned Rewards       ${usdFormatter(earnedRewards)}`)
 
-        const balanceData = await stakingToken.balanceData(userAddress)
+        const balanceData = await stakingToken.balanceData(userAddress, callOverride)
 
         // Multipliers
         console.log("\nMultipliers")

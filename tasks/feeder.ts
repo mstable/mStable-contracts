@@ -191,7 +191,7 @@ task("feeder-rates", "Feeder rate comparison to Curve")
             console.error(`Failed to find feeder pool asset with token symbol ${taskArgs.fasset}`)
             process.exit(1)
         }
-        console.log(`\nGetting rates for feeder pool ${fAsset.symbol} at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
+        console.log(`\nGetting rates for feeder pool ${fAsset.symbol} at block ${block.blockNumber}, ${block.blockTime}`)
         const feederPool = getFeederPool(signer, fAsset.feederPool)
 
         const mAsset = tokens.find((t) => t.symbol === fAsset.parent)
@@ -285,6 +285,7 @@ task("FeederWrapper-approve", "Sets approvals for a single token/spender")
 task("feeder-mint", "Mint some Feeder Pool tokens")
     .addOptionalParam("amount", "Amount of the mAsset and fAsset to deposit", undefined, types.float)
     .addParam("fasset", "Token symbol of the feeder pool asset. eg HBTC, GUSD, PFRAX or alUSD", undefined, types.string)
+    .addOptionalParam("single", "Only mint using fasset. If false, does a multi mint using fasset and masset", false, types.boolean)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)
@@ -306,12 +307,18 @@ task("feeder-mint", "Mint some Feeder Pool tokens")
 
         const mintAmount = simpleToExactAmount(taskArgs.amount)
 
-        // mint Feeder Pool tokens
-        const tx = await fp.mintMulti([mAssetToken.address, feederPoolToken.address], [mintAmount, mintAmount], 0, signerAddress)
-        await logTxDetails(
-            tx,
-            `Mint ${fpSymbol} from ${formatUnits(mintAmount)} ${mAssetSymbol} and ${formatUnits(mintAmount)} ${fAssetSymbol}`,
-        )
+        if (taskArgs.single) {
+            // mint Feeder Pool tokens
+            const tx = await fp.mint(feederPoolToken.address, mintAmount, 0, signerAddress)
+            await logTxDetails(tx, `Mint ${fpSymbol} from ${formatUnits(mintAmount)} ${fAssetSymbol}`)
+        } else {
+            // multi mint Feeder Pool tokens
+            const tx = await fp.mintMulti([mAssetToken.address, feederPoolToken.address], [mintAmount, mintAmount], 0, signerAddress)
+            await logTxDetails(
+                tx,
+                `Multi mint ${fpSymbol} from ${formatUnits(mintAmount)} ${mAssetSymbol} and ${formatUnits(mintAmount)} ${fAssetSymbol}`,
+            )
+        }
     })
 
 task("feeder-redeem", "Redeem some Feeder Pool tokens")
@@ -376,20 +383,32 @@ task("feeder-swap", "Swap some Feeder Pool tokens")
     })
 
 task("feeder-collect-interest", "Collects interest from feeder pools")
-    .addParam("fasset", "Token symbol of feeder pool. eg HBTC, alUSD or PFRAX", undefined, types.string, false)
+    .addOptionalParam("fasset", "Token symbol of feeder pool. eg HBTC, alUSD or PFRAX", undefined, types.string)
+    .addOptionalParam(
+        "fassets",
+        "Comma separated token symbols of feeder pools . eg HBTC,alUSD or PFRAX",
+        "GUSD,BUSD,alUSD,RAI,FEI",
+        types.string,
+    )
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
     .setAction(async (taskArgs, hre) => {
         const chain = getChain(hre)
         const signer = await getSigner(hre, taskArgs.speed)
 
-        const fpAddress = resolveAddress(taskArgs.fasset, chain, "feederPool")
+        let fassetAddresses: string[]
+        if (taskArgs.fasset) {
+            fassetAddresses = [resolveAddress(taskArgs.fasset, chain, "feederPool")]
+        } else if (taskArgs.fassets) {
+            const fassetSymbols = taskArgs.fassets.split(",")
+            fassetAddresses = fassetSymbols.map((symbol) => resolveAddress(symbol, chain, "feederPool"))
+        } else throw Error(`Missing fasset or fassets command line option`)
 
         const interestValidatorAddress = resolveAddress("FeederInterestValidator", chain)
         const validator = InterestValidator__factory.connect(interestValidatorAddress, signer)
 
-        const lastBatchCollected = await validator.lastBatchCollected(fpAddress)
+        const lastBatchCollected = await validator.lastBatchCollected(fassetAddresses[0])
         const lastBatchDate = new Date(lastBatchCollected.mul(1000).toNumber())
-        console.log(`The last interest collection was ${lastBatchDate.toUTCString()}, epoch ${lastBatchCollected} seconds`)
+        console.log(`The last interest collection was ${lastBatchDate}, epoch ${lastBatchCollected} seconds`)
 
         const currentEpoch = new Date().getTime() / 1000
         if (currentEpoch - lastBatchCollected.toNumber() < 60 * 60 * 12) {
@@ -397,8 +416,8 @@ task("feeder-collect-interest", "Collects interest from feeder pools")
             process.exit(3)
         }
 
-        const tx = await validator.collectAndValidateInterest([fpAddress])
-        await logTxDetails(tx, `collect interest from ${taskArgs.fasset} FP`)
+        const tx = await validator.collectAndValidateInterest(fassetAddresses)
+        await logTxDetails(tx, `collect interest from ${fassetAddresses} Feeder Pools`)
     })
 
 task("feeder-collect-fees", "Collects governance fees from feeder pools")

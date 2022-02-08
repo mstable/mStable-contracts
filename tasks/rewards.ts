@@ -35,7 +35,7 @@ subtask("rewards", "Get Compound and Aave platform reward tokens")
 
         const block = await getBlock(hre.ethers, taskArgs.block)
 
-        console.log(`\nGetting platform tokens at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
+        console.log(`\nGetting platform tokens at block ${block.blockNumber}, ${block.blockTime}`)
 
         await getCompTokens(signer, block)
         await getAaveTokens(signer, block)
@@ -76,7 +76,7 @@ task("liq-claim-comp").setAction(async (taskArgs, hre, runSuper) => {
 
     let block = await getBlock(hre.ethers, "latest")
 
-    console.log(`\nGetting platform tokens at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
+    console.log(`\nGetting platform tokens at block ${block.blockNumber}, ${block.blockTime}`)
 
     await getCompTokens(signer, block)
 
@@ -84,7 +84,7 @@ task("liq-claim-comp").setAction(async (taskArgs, hre, runSuper) => {
 
     block = await getBlock(hre.ethers, "latest")
 
-    console.log(`\nGetting platform tokens at block ${block.blockNumber}, ${block.blockTime.toUTCString()}`)
+    console.log(`\nGetting platform tokens at block ${block.blockNumber}, ${block.blockTime}`)
 
     await getCompTokens(signer, block)
 })
