@@ -10,10 +10,10 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 /**
  * @title   Unliquidator
  * @author  mStable
- * @notice  The Liquidator allows rewards to be swapped for another token
- *          and returned to a calling contract
- * @dev     VERSION: 1.3
- *          DATE:    2021-05-28
+ * @notice  Replacement Contract for the Liquidator.
+ *          Does not liquidate the tokens but sends them to the treasury or a set address
+ * @dev     VERSION: 1
+ *          DATE:    2022-02-10
  */
 contract Unliquidator is ImmutableModule {
     using SafeERC20 for IERC20;
@@ -35,6 +35,7 @@ contract Unliquidator is ImmutableModule {
 
     /**
      * @notice Sets a new receive address for the tokens
+     * @param  _receiver  Address to which the tokens will be send at the end
      */
 
     function setReceiver(address _receiver) external onlyGovernance {
@@ -50,7 +51,9 @@ contract Unliquidator is ImmutableModule {
     ****************************************/
 
     /**
-     * @notice Triggers to claim rewards for all integration contracts
+     * @notice Claims the rewards and sends them to the receiverSafe, e.g. claims and sends stkAave
+     * @param  _integration  Integration address, this contract should have permissions to spend the token
+     * @param  _token  Address of the token that are claimed and send
      */
     function triggerClaimAndDistribute(address _integration, address _token) external {
         //
@@ -64,6 +67,11 @@ contract Unliquidator is ImmutableModule {
         _sendRewards(_integration, _token);
     }
 
+    /**
+     * @notice Sends rewards them to the receiverSafe, without claiming them e.g. COMP can be claimed by anyone
+     * @param  _integration  Integration address, this contract should have permissions to spend the token
+     * @param  _token  Address of the token that are claimed and send
+     */
     function triggerDistribute(address _integration, address _token) external {
         require(_integration != address(0), "Invalid integration address");
         require(_token != address(0), "Invalid token address");
