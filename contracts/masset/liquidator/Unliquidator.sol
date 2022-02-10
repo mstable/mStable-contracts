@@ -70,7 +70,7 @@ contract Unliquidator is ImmutableModule {
     /**
      * @notice Sends rewards them to the receiverSafe, without claiming them e.g. COMP can be claimed by anyone
      * @param  _integration  Integration address, this contract should have permissions to spend the token
-     * @param  _token  Address of the token that are claimed and send
+     * @param  _token  Address of the token that are transferred
      */
     function triggerDistribute(address _integration, address _token) external {
         require(_integration != address(0), "Invalid integration address");
