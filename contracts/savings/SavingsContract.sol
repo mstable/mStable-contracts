@@ -14,7 +14,6 @@ import { Initializable } from "../shared/@openzeppelin-2.5/Initializable.sol";
 
 // Libs
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { StableMath } from "../shared/StableMath.sol";
 import { YieldValidator } from "../shared/YieldValidator.sol";
@@ -457,7 +456,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
 
         // Optionally, transfer tokens from here to sender
         if (_transferUnderlying) {
-            require(underlying.safeTransfer(receiver, underlying_), "Must send tokens");
+            underlying.safeTransfer(receiver, underlying_);
             emit Withdraw(receiver, owner, underlying_, credits_);
         }
 
