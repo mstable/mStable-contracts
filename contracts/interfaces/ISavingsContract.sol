@@ -47,7 +47,7 @@ interface ISavingsContractV2 {
     function underlying() external view returns (IERC20 underlyingMasset); // V2
 }
 
-interface ISavingsContractV3 is IERC4626Vault  {
+interface ISavingsContractV3 is IERC4626Vault {
     // DEPRECATED but still backwards compatible
     function redeem(uint256 _amount) external returns (uint256 massetReturned); // V1  (use IERC4626Vault.redeem)
 
@@ -55,7 +55,7 @@ interface ISavingsContractV3 is IERC4626Vault  {
 
     /*///////////////////////////////////////////////////////////////
                 DEPRECATED for  IERC4626Vault
-    //////////////////////////////////////////////////////////////*/ 
+    //////////////////////////////////////////////////////////////*/
     /** @dev Deprecated in favour of  IERC4626Vault.deposit(uint256 assets, address receiver)*/
     function depositSavings(uint256 _amount) external returns (uint256 creditsIssued); // V1 & V2
 
@@ -73,12 +73,16 @@ interface ISavingsContractV3 is IERC4626Vault  {
 
     /** @dev Deprecated in favour of  IERC4626Vault.redeem(uint256 shares,address receiver,address owner)(uint256 assets);*/
     function redeemCredits(uint256 _amount) external returns (uint256 underlyingReturned); // V2
-    /** @dev Deprecated in favour of  IERC4626Vault. withdraw(uint256 assets,address receiver,address owner)(uint256 assets, address receiver)*/
+
+    /** @dev Deprecated in favour of  IERC4626Vault.withdraw(uint256 assets,address receiver,address owner)(uint256 assets, address receiver)*/
     function redeemUnderlying(uint256 _amount) external returns (uint256 creditsBurned); // V2
+
     /** @dev Deprecated in favour of  IERC4626Vault.assetsPerShare() external view returns (uint256 assetsPerUnitShare);*/
     function exchangeRate() external view returns (uint256); // V1 & V2
+
     /** @dev Deprecated in favour of  IERC4626Vault.assetsOf(addresss depositor) view returns (uint256 assets)*/
     function balanceOfUnderlying(address _user) external view returns (uint256 underlying); // V2
+
     /** @dev Deprecated in favour of  IERC4626Vault.asset()(address assetTokenAddress);*/
     function underlying() external view returns (IERC20 underlyingMasset); // V2
 
@@ -90,7 +94,11 @@ interface ISavingsContractV3 is IERC4626Vault  {
     function creditsToUnderlying(uint256 _credits) external view returns (uint256 underlying); // V2
 
     // --------------------------------------------
-    function deposit(uint256 assets, address receiver, address referrer) external returns (uint256 creditsIssued); // V3    
+    function deposit(
+        uint256 assets,
+        address receiver,
+        address referrer
+    ) external returns (uint256 creditsIssued); // V3
 
     function redeemAndUnwrap(
         uint256 _amount,

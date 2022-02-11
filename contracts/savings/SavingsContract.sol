@@ -14,6 +14,8 @@ import { Initializable } from "../shared/@openzeppelin-2.5/Initializable.sol";
 
 // Libs
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { StableMath } from "../shared/StableMath.sol";
 import { YieldValidator } from "../shared/YieldValidator.sol";
 
@@ -23,11 +25,12 @@ import { YieldValidator } from "../shared/YieldValidator.sol";
  * @notice  Savings contract uses the ever increasing "exchangeRate" to increase
  *          the value of the Savers "credits" (ERC20) relative to the amount of additional
  *          underlying collateral that has been deposited into this contract ("interest")
- * @dev     VERSION: 2.1
- *          DATE:    2021-11-25
+ * @dev     VERSION: 2.2
+ *          DATE:    2021-02-08
  */
 contract SavingsContract is ISavingsContractV3, Initializable, InitializableToken, ImmutableModule {
     using StableMath for uint256;
+    using SafeERC20 for IERC20;
 
     // Core events for depositing and withdrawing
     event ExchangeRateUpdated(uint256 newExchangeRate, uint256 interestCollected);
@@ -81,6 +84,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     // Max APY generated on the capital in the connector
     uint256 private constant MAX_APY = 4e18;
     uint256 private constant SECONDS_IN_YEAR = 365 days;
+    uint256 private constant MAX_INT = 2**256 - 1;
     // Proxy contract for easy redemption
     address public immutable unwrapper;
 
@@ -122,6 +126,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     ****************************************/
 
     /**
+     * @dev  Deprecated in favour of  IERC4626Vault.assetsOf(addresss depositor)
      * @notice Returns the underlying balance of a given user
      * @param _user     Address of the user to check
      * @return balance  Units of underlying owned by the user. eg mUSD or mBTC
@@ -153,9 +158,11 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         (amount, ) = _creditsToUnderlying(_credits);
     }
 
-    // Deprecated in favour of `balanceOf(address)`
-    // Maintained for backwards compatibility
-    // Returns the credit balance of a given user
+    /**
+     * @dev Deprecated in favour of `balanceOf(address)`
+     *  Maintained for backwards compatibility
+     *  Returns the credit balance of a given user
+     **/
     function creditBalances(address _user) external view override returns (uint256) {
         return balanceOf(_user);
     }
@@ -172,23 +179,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
      * @param _amount   Units of underlying to add to the savings vault
      */
     function depositInterest(uint256 _amount) external override onlySavingsManager {
-        require(_amount > 0, "Must deposit something");
-
-        // Transfer the interest from sender to here
-        require(underlying.transferFrom(msg.sender, address(this), _amount), "Must receive tokens");
-
-        // Calc new exchange rate, protect against initialisation case
-        uint256 totalCredits = totalSupply();
-        if (totalCredits > 0) {
-            // new exchange rate is relationship between _totalCredits & totalSavings
-            // _totalCredits * exchangeRate = totalSavings
-            // exchangeRate = totalSavings/_totalCredits
-            (uint256 totalCollat, ) = _creditsToUnderlying(totalCredits);
-            uint256 newExchangeRate = _calcExchangeRate(totalCollat + _amount, totalCredits);
-            exchangeRate = newExchangeRate;
-
-            emit ExchangeRateUpdated(newExchangeRate, _amount);
-        }
+        _mint(_amount, msg.sender, false);
     }
 
     /** @notice Enable or disable the automation of fee collection during deposit process */
@@ -216,7 +207,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     }
 
     /**
-     * @dev  Deprecated in favour of  IERC4626Vault.deposit(uint256 assets, address receiver) 
+     * @dev  Deprecated in favour of  IERC4626Vault.deposit(uint256 assets, address receiver)
      *
      * @notice Deposit the senders savings to the vault, and credit them internally with "credits".
      *      Credit amount is calculated as a ratio of deposit amount and exchange rate:
@@ -230,7 +221,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     }
 
     /**
-     * @dev  Deprecated in favour of  IERC4626Vault.deposit(uint256 assets, address receiver) 
+     * @dev  Deprecated in favour of  IERC4626Vault.deposit(uint256 assets, address receiver)
      *
      * @notice Deposit the senders savings to the vault, and credit them internally with "credits".
      *      Credit amount is calculated as a ratio of deposit amount and exchange rate:
@@ -249,7 +240,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     }
 
     /**
-     * @dev  Deprecated in favour of  IERC4626Vault.deposit(uint256 assets, address receiver, address _referrer) 
+     * @dev  Deprecated in favour of  IERC4626Vault.deposit(uint256 assets, address receiver, address _referrer)
      *
      * @notice Overloaded `depositSavings` method with an optional referrer address.
      * @param _underlying      Units of underlying to deposit into savings vault. eg mUSD or mBTC
@@ -294,7 +285,6 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
 
         emit SavingsDeposited(_beneficiary, _underlying, creditsIssued);
         emit Deposit(msg.sender, _beneficiary, _underlying);
-
     }
 
     /***************************************
@@ -329,10 +319,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     function redeemCredits(uint256 _credits) external override returns (uint256 massetReturned) {
         require(_credits > 0, "Must withdraw something");
 
-        // Collect recent interest generated by basket and update exchange rate
-        if (automateInterestCollection) {
-            ISavingsManager(_savingsManager()).collectAndDistributeInterest(address(underlying));
-        }
+        _beforeRedeem();
 
         (, uint256 payout) = _redeem(_credits, true, true);
 
@@ -352,18 +339,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         override
         returns (uint256 creditsBurned)
     {
-        require(_underlying > 0, "Must withdraw something");
-
-        // Collect recent interest generated by basket and update exchange rate
-        if (automateInterestCollection) {
-            ISavingsManager(_savingsManager()).collectAndDistributeInterest(address(underlying));
-        }
-
-        // Ensure that the payout was sufficient
-        (uint256 credits, uint256 massetReturned) = _redeem(_underlying, false, true);
-        require(massetReturned == _underlying, "Invalid output");
-
-        return credits;
+        return _withdraw(_underlying, msg.sender, msg.sender);
     }
 
     /**
@@ -407,10 +383,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         require(_beneficiary != address(0), "Beneficiary address is zero");
         require(_router != address(0), "Router address is zero");
 
-        // Collect recent interest generated by basket and update exchange rate
-        if (automateInterestCollection) {
-            ISavingsManager(_savingsManager()).collectAndDistributeInterest(address(underlying));
-        }
+        _beforeRedeem();
 
         // Ensure that the payout was sufficient
         (creditsBurned, massetReturned) = _redeem(_amount, _isCreditAmt, false);
@@ -435,6 +408,15 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     }
 
     /**
+     * @dev Internally call before redeeming credits. It collects recent interest generated by basket and update exchange rate.
+     */
+    function _beforeRedeem() internal {
+        if (automateInterestCollection) {
+            ISavingsManager(_savingsManager()).collectAndDistributeInterest(address(underlying));
+        }
+    }
+
+    /**
      * @dev Internally burn the credits and optionally send the underlying to msg.sender
      */
     function _redeem(
@@ -442,27 +424,19 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         bool _isCreditAmt,
         bool _transferUnderlying
     ) internal returns (uint256 creditsBurned, uint256 massetReturned) {
-        return  _redeem(
-         _amt,
-         msg.sender,
-         msg.sender,
-         _isCreditAmt,
-         _transferUnderlying
-    );
-
+        return _redeem(_amt, msg.sender, msg.sender, _isCreditAmt, _transferUnderlying);
     }
 
     /**
      * @dev Internally burn the credits and optionally send the underlying to msg.sender
      */
-     function _redeem(
+    function _redeem(
         uint256 _amt,
         address receiver,
         address owner,
         bool _isCreditAmt,
         bool _transferUnderlying
     ) internal returns (uint256 creditsBurned, uint256 massetReturned) {
-
         // Centralise credit <> underlying calcs and minimise SLOAD count
         uint256 credits_;
         uint256 underlying_;
@@ -483,7 +457,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
 
         // Optionally, transfer tokens from here to sender
         if (_transferUnderlying) {
-            require(underlying.transfer(receiver, underlying_), "Must send tokens");
+            require(underlying.safeTransfer(receiver, underlying_), "Must send tokens");
             emit Withdraw(receiver, owner, underlying_, credits_);
         }
 
@@ -743,6 +717,8 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         view
         returns (uint256 credits, uint256 exchangeRate_)
     {
+        // TODO - change _underlying to assets?
+        // TODO - change _underlyingToCredits to _calculateShares?
         // e.g. (1e20 * 1e18) / 1e18 = 1e20
         // e.g. (1e20 * 1e18) / 14e17 = 7.1429e19
         // e.g. 1 * 1e18 / 1e17 + 1 = 11 => 11 * 1e17 / 1e18 = 1.1e18 / 1e18 = 1
@@ -771,68 +747,74 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         view
         returns (uint256 underlyingAmount, uint256 exchangeRate_)
     {
+        // TODO - change _creditsToUnderlying to _calculateAssets?
+        // TODO - change _credits to shares?
         // e.g. (1e20 * 1e18) / 1e18 = 1e20
         // e.g. (1e20 * 14e17) / 1e18 = 1.4e20
         exchangeRate_ = exchangeRate;
         underlyingAmount = _credits.mulTruncate(exchangeRate_);
     }
+
     /*///////////////////////////////////////////////////////////////
                                 IERC4626Vault
     //////////////////////////////////////////////////////////////*/
- 
+
     /**
-     * @dev Must be an ERC-20 token contract. Must not revert.
+     * @notice it must be an ERC-20 token contract. Must not revert.
      *
-     * Returns the address of the underlying token used for the Vault uses for accounting, depositing, and withdrawing
+     * Returns the address of the underlying token used for the Vault uses for accounting, depositing, and withdrawing.
      */
-    function asset() external view override returns (address assetTokenAddress){
-        revert("TODO - implement");
+    function asset() external view override returns (address assetTokenAddress) {
+        return address(underlying);
     }
 
     /**
-     * @dev It should include any compounding that occurs from yield. It must be inclusive of any fees that are charged against assets in the Vault. It must not revert.
+     * @notice It should include any compounding that occurs from yield. It must be inclusive of any fees that are charged against assets in the Vault. It must not revert.
      *
      * Returns the total amount of the underlying asset that is “managed” by Vault.
      */
-    function totalAssets() external view override returns (uint256 totalManagedAssets){
-        revert("TODO - implement");
+    function totalAssets() external view override returns (uint256 totalManagedAssets) {
+        return underlying.balanceOf(address(this));
     }
 
     /**
-     * @dev It must be inclusive of any fees that are charged against assets in the Vault.
+     * @notice It must be inclusive of any fees that are charged against assets in the Vault.
      *
      * Returns the current exchange rate of shares to assets, quoted per unit share (share unit is 10 ** Vault.decimals()).
      */
-    function assetsPerShare() external view override returns (uint256 assetsPerUnitShare){
-        revert("TODO - implement");
+    function assetsPerShare() external view override returns (uint256 assetsPerUnitShare) {
+        return exchangeRate;
     }
 
     /**
-     * @dev It MAY be more accurate than using assetsPerShare or totalAssets / Vault.totalSupply for certain types of fee calculations.
-     *
+     * @notice Returns the underlying assets balance of a given depositor
+     * @param depositor     Address of the user to check
+     * @return assets  Units of underlying assets owned by the depositor. eg mUSD or mBTC
+
      * Returns the total number of underlying assets that depositor’s shares represent.
      */
-    function assetsOf(address depositor) external view override returns (uint256 assets){
-        revert("TODO - implement");
+    function assetsOf(address depositor) external view override returns (uint256 assets) {
+        (assets, ) = _creditsToUnderlying(balanceOf(depositor));
     }
 
     /**
-     * @dev It must return a limited value if caller is subject to some deposit limit. must return 2 ** 256 - 1 if there is no limit on the maximum amount of assets that may be deposited.
+     * @notice It must return a limited value if caller is subject to some deposit limit. must return 2 ** 256 - 1 if there is no limit on the maximum amount of assets that may be deposited.
      *
      * Returns the total number of underlying assets that caller can be deposit.
      */
-    function maxDeposit(address caller) external view override returns (uint256 maxAssets){
-        revert("TODO - implement");
+    function maxDeposit(address caller) external pure override returns (uint256 maxAssets) {
+        return MAX_INT;
     }
 
     /**
-     * @dev It must return the exact amount of Vault shares that would be minted if the caller were to deposit a given exact amount of underlying assets using the deposit method.
+     * @notice It must return the exact amount of Vault shares that would be minted if the caller were to deposit a given exact amount of underlying assets using the deposit method.
      *
      * It simulate the effects of their deposit at the current block, given current on-chain conditions.
      * Returns the amount of shares.
      */
-    function previewDeposit(uint256 assets) external view override returns (uint256 shares){
-        revert("TODO - implement");
+    function previewDeposit(uint256 assets) external view override returns (uint256 shares) {
+        // TODO - change _underlyingToCredits to _calculateShares?
+        (shares, ) = _underlyingToCredits(assets);
     }
 
     /**
@@ -844,8 +826,8 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
      * @param assets      Units of underlying to deposit into savings vault. eg mUSD or mBTC
      * @param receiver    The address to receive the Vault shares.
      * @return shares   Units of credits issued. eg imUSD or imBTC
-     */     
-    function deposit(uint256 assets, address receiver) external override returns (uint256 shares){
+     */
+    function deposit(uint256 assets, address receiver) external override returns (uint256 shares) {
         return _deposit(assets, receiver, true);
     }
 
@@ -865,22 +847,29 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         emit Referral(referrer, receiver, assets);
         return _deposit(assets, receiver, true);
     }
+
     /**
-     * @dev must return a limited value if caller is subject to some deposit limit. must return 2 ** 256 - 1 if there is no limit on the maximum amount of shares that may be minted
+     * @notice must return a limited value if caller is subject to some deposit limit. must return 2 ** 256 - 1 if there is no limit on the maximum amount of shares that may be minted
      *
      *  Returns Total number of underlying shares that caller can be mint.
      */
-    function maxMint(address caller) external view override returns (uint256 maxShares){
-        revert("TODO - implement");
+    function maxMint(address caller) external view override returns (uint256 maxShares) {
+        maxShares = balanceOf(caller);
+        return maxShares;
     }
 
     /**
-     * @dev Allows an on-chain or off-chain user to simulate the effects of their mint at the current block, given current on-chain conditions.
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their mint at the current block, given current on-chain conditions.
      *
      *  Returns Total number of underlying shares to be minted.
      */
-    function previewMint(uint256 shares) external view override returns (uint256 assets){
-        revert("TODO - implement");
+    function previewMint(uint256 shares) external view override returns (uint256 assets) {
+        (assets, ) = _creditsToUnderlying(shares);
+        // TODO - review when Nothing deposit yet
+        // if( assets == 0  && balanceOf(address(this)) == 0 ) {
+        //     return shares * exchangeRate_;
+        // }
+        return assets;
     }
 
     /**
@@ -889,29 +878,66 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
      * Returns Total number of underlying shares that caller mint.
      * Emits a {Deposit} event.
      */
-    function mint(uint256 shares, address receiver) external override returns (uint256 assets){
-        revert("TODO - implement");
+    function mint(uint256 shares, address receiver) external override returns (uint256 assets) {
+        assets = _mint(shares, receiver, true);
+        return assets;
+    }
+
+    function _mint(
+        uint256 _amount,
+        address receiver,
+        bool _isCreditAmt
+    ) internal returns (uint256 assets) {
+        require(_amount > 0, "Must deposit something");
+
+        if (_isCreditAmt) {
+            (assets, ) = _creditsToUnderlying(_amount);
+        } else {
+            assets = _amount;
+        }
+        // Transfer the interest from sender to here
+        require(underlying.transferFrom(msg.sender, address(this), assets), "Must receive tokens");
+
+        if (_isCreditAmt) {
+            _mint(receiver, assets);
+            emit Deposit(msg.sender, receiver, assets);
+        }
+        // Calc new exchange rate, protect against initialisation case
+        uint256 totalCredits = totalSupply();
+        if (totalCredits > 0) {
+            // new exchange rate is relationship between _totalCredits & totalSavings
+            // _totalCredits * exchangeRate = totalSavings
+            // exchangeRate = totalSavings/_totalCredits
+            (uint256 totalCollat, ) = _creditsToUnderlying(totalCredits);
+            uint256 newExchangeRate = _calcExchangeRate(totalCollat + assets, totalCredits);
+            exchangeRate = newExchangeRate;
+
+            emit ExchangeRateUpdated(newExchangeRate, assets);
+        }
+
+        return (assets);
     }
 
     /**
      *
      *  Returns Total number of underlying assets that caller can withdraw.
      */
-    function maxWithdraw(address caller) external view override returns (uint256 maxAssets){
-        revert("TODO - implement");
+    function maxWithdraw(address caller) external view override returns (uint256 maxAssets) {
+        (maxAssets, ) = _creditsToUnderlying(balanceOf(caller));
+        return maxAssets;
     }
 
     /**
-     * @dev Allows an on-chain or off-chain user to simulate the effects of their withdrawal at the current block, given current on-chain conditions.
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their withdrawal at the current block, given current on-chain conditions.
      *
      *  Return the exact amount of Vault shares that would be redeemed by the caller if withdrawing a given exact amount of underlying assets using the withdraw method.
      */
-    function previewWithdraw(uint256 assets) external view override returns (uint256 shares){
-        revert("TODO - implement");
+    function previewWithdraw(uint256 assets) external view override returns (uint256 shares) {
+        (shares, ) = _underlyingToCredits(assets);
+        return shares;
     }
 
     /**
-     * @dev Allows an on-chain or off-chain user to simulate the effects of their mint at the current block, given current on-chain conditions.
      *  Redeems shares from owner and sends assets of underlying tokens to receiver.
      *  Returns Total number of underlying shares redeemed.
      * Emits a {Withdraw} event.
@@ -920,29 +946,30 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         uint256 assets,
         address receiver,
         address owner
-    ) external override returns (uint256 shares){
-        revert("TODO - implement");
+    ) external override returns (uint256 shares) {
+        return _withdraw(assets, receiver, owner);
     }
 
     /**
-     * @dev it must return a limited value if caller is subject to some withdrawal limit or timelock. must return balanceOf(caller) if caller is not subject to any withdrawal limit or timelock. MAY be used in the previewRedeem or redeem methods for shares input parameter. must NOT revert.
+     * @notice it must return a limited value if caller is subject to some withdrawal limit or timelock. must return balanceOf(caller) if caller is not subject to any withdrawal limit or timelock. MAY be used in the previewRedeem or redeem methods for shares input parameter. must NOT revert.
      *
      *  Returns Total number of underlying shares that caller can redeem.
      */
-    function maxRedeem(address caller) external view override returns (uint256){
-        revert("TODO - implement");
+    function maxRedeem(address caller) external view override returns (uint256 maxShares) {
+        maxShares = balanceOf(caller);
+        return maxShares;
     }
 
     /**
-     * @dev Allows an on-chain or off-chain user to simulate the effects of their redeemption at the current block, given current on-chain conditions.
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their redeemption at the current block, given current on-chain conditions.
      *
      *  Returns the exact amount of underlying assets that would be withdrawn by the caller if redeeming a given exact amount of Vault shares using the redeem method
      */
-    function previewRedeem(uint256 shares) external view override returns (uint256 assets){
-        revert("TODO - implement");
+    function previewRedeem(uint256 shares) external view override returns (uint256 assets) {
+        (assets, ) = _creditsToUnderlying(shares);
+        return assets;
     }
 
-  
     /**
      * Redeems shares from owner and sends assets of underlying tokens to receiver.
      *
@@ -953,17 +980,29 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         uint256 shares,
         address receiver,
         address owner
-    ) external override returns (uint256 assets){
+    ) external override returns (uint256 assets) {
         require(shares > 0, "Must withdraw something");
 
-        // Collect recent interest generated by basket and update exchange rate
-        if (automateInterestCollection) {
-            ISavingsManager(_savingsManager()).collectAndDistributeInterest(address(underlying));
-        }
+        _beforeRedeem();
 
-        (,  assets) = _redeem(shares, receiver, owner, true, true);
+        (, assets) = _redeem(shares, receiver, owner, true, true);
 
-        return assets;    
-        }
- 
+        return assets;
+    }
+
+    function _withdraw(
+        uint256 assets,
+        address receiver,
+        address owner
+    ) internal returns (uint256 shares) {
+        require(assets > 0, "Must withdraw something");
+
+        _beforeRedeem();
+
+        // Ensure that the payout was sufficient
+        (uint256 credits, uint256 massetReturned) = _redeem(assets, receiver, owner, false, true);
+        require(massetReturned == assets, "Invalid output");
+
+        return credits;
+    }
 }

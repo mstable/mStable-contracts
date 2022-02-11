@@ -89,12 +89,14 @@ contract MockSavingsContract is ERC20 {
         address _beneficiary,
         address _router,
         bool _isBassetOut
-    ) external
+    )
+        external
         returns (
             uint256 creditsBurned,
             uint256 massetRedeemed,
             uint256 outputQuantity
-        ) {
+        )
+    {
         require(_amount > 0, "Must withdraw something");
         require(_minAmountOut >= 0, "Must withdraw something");
         require(_output != address(0), "Output address is zero");

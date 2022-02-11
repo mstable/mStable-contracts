@@ -91,7 +91,6 @@ interface IERC4626Vault {
     function previewWithdraw(uint256 assets) external view returns (uint256 shares);
 
     /**
-     * @dev Allows an on-chain or off-chain user to simulate the effects of their mint at the current block, given current on-chain conditions.
      *  Redeems shares from owner and sends assets of underlying tokens to receiver.
      *  Returns Total number of underlying shares redeemed.
      * Emits a {Withdraw} event.
