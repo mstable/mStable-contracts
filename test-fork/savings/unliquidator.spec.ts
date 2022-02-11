@@ -132,9 +132,9 @@ context("Unliquidator forked network tests", async () => {
             console.log(`Treasury balance before ${toEther(treasuryBalBefore)}`)
 
             // Claim
-            expect(await unliquidator.triggerClaimAndDistribute(aaveMusdIntegrationAddress, stkAAVE.address)).to.emit(
+            expect(await unliquidator.claimAndDistributeRewards(aaveMusdIntegrationAddress, stkAAVE.address)).to.emit(
                 unliquidator,
-                "ClaimedAndSendRewards",
+                "DistributedRewards",
             )
 
             console.log(`Treasury balance after ${toEther(await stkAaveToken.balanceOf(treasuryAddress))}`)
@@ -151,9 +151,9 @@ context("Unliquidator forked network tests", async () => {
             console.log(`Treasury balance before ${toEther(treasuryBalBefore)}`)
 
             // Claim
-            expect(await unliquidator.triggerClaimAndDistribute(aaveMbtcIntegrationAddress, stkAAVE.address)).to.emit(
+            expect(await unliquidator.claimAndDistributeRewards(aaveMbtcIntegrationAddress, stkAAVE.address)).to.emit(
                 unliquidator,
-                "ClaimedAndSendRewards",
+                "DistributedRewards",
             )
 
             console.log(`Treasury balance after ${toEther(await stkAaveToken.balanceOf(treasuryAddress))}`)
@@ -175,9 +175,9 @@ context("Unliquidator forked network tests", async () => {
             console.log(`Treasury balance before ${toEther(treasuryBalBefore)}`)
 
             // Claim
-            expect(await unliquidator.triggerDistribute(compoundIntegrationAddress, COMP.address)).to.emit(
+            expect(await unliquidator.distributeRewards(compoundIntegrationAddress, COMP.address)).to.emit(
                 unliquidator,
-                "ClaimedAndSendRewards",
+                "DistributedRewards",
             )
 
             console.log(`Treasury balance after ${toEther(await compToken.balanceOf(treasuryAddress))}`)
@@ -189,7 +189,7 @@ context("Unliquidator forked network tests", async () => {
         it("Should set new Receiver", async () => {
             expect(await unliquidator.receiverSafe()).to.eq(treasuryAddress)
             expect(await unliquidator.connect(governor.signer).setReceiver(governor.address))
-                .to.emit(unliquidator, "NewReceiver")
+                .to.emit(unliquidator, "ReceiverUpdated")
                 .withArgs(governor.address)
             expect(await unliquidator.receiverSafe()).to.eq(governor.address)
         })
@@ -223,22 +223,22 @@ context("Unliquidator forked network tests", async () => {
             expect(unliquidator.connect(ops.signer).setReceiver(ops.address)).to.be.revertedWith("Only governance can execute")
         })
         it("Should fail to triggerClaimAndDistribute with address 0", async () => {
-            expect(unliquidator.connect(governor.signer).triggerClaimAndDistribute(ZERO_ADDRESS, stkAAVE.address)).to.be.revertedWith(
+            expect(unliquidator.connect(governor.signer).claimAndDistributeRewards(ZERO_ADDRESS, stkAAVE.address)).to.be.revertedWith(
                 "Invalid integration address",
             )
             expect(
-                unliquidator.connect(governor.signer).triggerClaimAndDistribute(aaveMusdIntegrationAddress, ZERO_ADDRESS),
+                unliquidator.connect(governor.signer).claimAndDistributeRewards(aaveMusdIntegrationAddress, ZERO_ADDRESS),
             ).to.be.revertedWith("Invalid token address")
         })
         it("Should failt to triggerClaimAndDistribute with wrong contract", async () => {
             // eslint-disable-next-line
-            expect(unliquidator.connect(governor.signer).triggerClaimAndDistribute(DEAD_ADDRESS, stkAAVE.address)).to.be.reverted
+            expect(unliquidator.connect(governor.signer).claimAndDistributeRewards(DEAD_ADDRESS, stkAAVE.address)).to.be.reverted
         })
         it("Should fail to triggerDistribute with address 0", async () => {
-            expect(unliquidator.connect(governor.signer).triggerDistribute(ZERO_ADDRESS, stkAAVE.address)).to.be.revertedWith(
+            expect(unliquidator.connect(governor.signer).distributeRewards(ZERO_ADDRESS, stkAAVE.address)).to.be.revertedWith(
                 "Invalid integration address",
             )
-            expect(unliquidator.connect(governor.signer).triggerDistribute(aaveMusdIntegrationAddress, ZERO_ADDRESS)).to.be.revertedWith(
+            expect(unliquidator.connect(governor.signer).distributeRewards(aaveMusdIntegrationAddress, ZERO_ADDRESS)).to.be.revertedWith(
                 "Invalid token address",
             )
         })
