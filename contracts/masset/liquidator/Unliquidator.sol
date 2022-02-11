@@ -18,8 +18,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract Unliquidator is ImmutableModule {
     using SafeERC20 for IERC20;
 
-    event ClaimedAndSendRewards(address from, address token, uint256 amount, address to);
-    event NewReceiver(address receiver);
+    event DistributedRewards(address from, address token, uint256 amount, address to);
+    event ReceiverUpdated(address receiver);
 
     /// @notice Address to which the tokens will be send at the end
     address public receiverSafe;
@@ -35,15 +35,15 @@ contract Unliquidator is ImmutableModule {
 
     /**
      * @notice Sets a new receive address for the tokens
-     * @param  _receiver  Address to which the tokens will be send at the end
+     * @param  _receiverSafe  Address to which the tokens will be send at the end
      */
 
-    function setReceiver(address _receiver) external onlyGovernance {
+    function setReceiver(address _receiverSafe) external onlyGovernance {
         //
-        require(_receiver != address(0), "Invalid receiver address");
-        receiverSafe = _receiver;
+        require(_receiverSafe != address(0), "Invalid receiver address");
+        receiverSafe = _receiverSafe;
 
-        emit NewReceiver(_receiver);
+        emit ReceiverUpdated(_receiverSafe);
     }
 
     /***************************************
@@ -55,7 +55,7 @@ contract Unliquidator is ImmutableModule {
      * @param  _integration  Integration address, this contract should have permissions to spend the token
      * @param  _token  Address of the token that are claimed and send
      */
-    function triggerClaimAndDistribute(address _integration, address _token) external {
+    function claimAndDistributeRewards(address _integration, address _token) external {
         //
         require(_integration != address(0), "Invalid integration address");
         require(_token != address(0), "Invalid token address");
@@ -63,7 +63,7 @@ contract Unliquidator is ImmutableModule {
         // 1. Claim rewards for the integration contract
         IClaimRewards(_integration).claimRewards();
 
-        // 2. Send aave rewards to receiverSafe
+        // 2. Send token rewards to receiverSafe
         _sendRewards(_integration, _token);
     }
 
@@ -72,7 +72,7 @@ contract Unliquidator is ImmutableModule {
      * @param  _integration  Integration address, this contract should have permissions to spend the token
      * @param  _token  Address of the token that are transferred
      */
-    function triggerDistribute(address _integration, address _token) external {
+    function distributeRewards(address _integration, address _token) external {
         require(_integration != address(0), "Invalid integration address");
         require(_token != address(0), "Invalid token address");
 
@@ -81,14 +81,16 @@ contract Unliquidator is ImmutableModule {
 
     function _sendRewards(address _from, address _token) internal {
         //
+        IERC20 token = IERC20(_token);
+
         // 1. Get balances of the token
-        uint256 amount = IERC20(_token).balanceOf(_from);
+        uint256 amount = token.balanceOf(_from);
         require(amount > 0, "No rewards to send");
 
         // 2. Send the tokens to the receiverSafe
-        IERC20(_token).transferFrom(_from, receiverSafe, amount);
+        SafeERC20.safeTransferFrom(token, _from, receiverSafe, amount);
 
         // 3. Emit the event
-        emit ClaimedAndSendRewards(_from, _token, amount, receiverSafe);
+        emit DistributedRewards(_from, _token, amount, receiverSafe);
     }
 }
