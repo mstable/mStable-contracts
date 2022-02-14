@@ -18,7 +18,6 @@ import {
 import { Account } from "types"
 import { Chain, COMP, USDC, USDT, WBTC } from "tasks/utils/tokens"
 import { resolveAddress } from "../../tasks/utils/networkAddressFactory"
-import { deployContract } from "../../tasks/utils/deploy-utils"
 
 const musdWhaleAddress = "0x136d841d4bece3fc0e4debb94356d8b6b4b93209"
 const governorAddress = resolveAddress("Governor")
