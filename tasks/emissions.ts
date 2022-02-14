@@ -250,8 +250,9 @@ task("emissions-process", "Weekly mainnet emissions process")
         // await hre.run("emission-dist", { speed, dialIds: "2,3,4,5,6,7,8,9,10" })
 
         // Dial 15 (Votium) is skipped for now
-        await hre.run("votium-forward", { speed, proposal })
-
+        if (proposal === undefined) {
+            await hre.run("votium-forward", { speed, proposal })
+        }        
         // Distributes to dial 16
         await hre.run("emission-dist", { speed, dialIds: "16" })
 
