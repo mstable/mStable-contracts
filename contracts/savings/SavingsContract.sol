@@ -27,7 +27,7 @@ import { YieldValidator } from "../shared/YieldValidator.sol";
  * @dev     VERSION: 2.2
  *          DATE:    2021-02-08
  */
-contract SavingsContract is ISavingsContractV3, Initializable, InitializableToken, ImmutableModule {
+contract SavingsContract is ISavingsContractV3, Initializable, InitializableToken, ImmutablexModule {
     using StableMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -627,9 +627,9 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
             uint256 ideal = sum.mulTruncate(_data.fraction);
             //     If there is not enough mAsset in the connector, then deposit
             if (ideal > connectorBalance) {
-                uint256 deposit = ideal - connectorBalance;
-                underlying.approve(address(connector_), deposit);
-                connector_.deposit(deposit);
+                uint256 deposit_ = ideal - connectorBalance;
+                underlying.approve(address(connector_), deposit_);
+                connector_.deposit(deposit_);
             }
             //     Else withdraw, if there is too much mAsset in the connector
             else if (connectorBalance > ideal) {
@@ -713,8 +713,6 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         view
         returns (uint256 credits, uint256 exchangeRate_)
     {
-        // TODO - change _underlying to assets?
-        // TODO - change _underlyingToCredits to _calculateShares?
         // e.g. (1e20 * 1e18) / 1e18 = 1e20
         // e.g. (1e20 * 1e18) / 14e17 = 7.1429e19
         // e.g. 1 * 1e18 / 1e17 + 1 = 11 => 11 * 1e17 / 1e18 = 1.1e18 / 1e18 = 1
@@ -743,8 +741,6 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         view
         returns (uint256 underlyingAmount, uint256 exchangeRate_)
     {
-        // TODO - change _creditsToUnderlying to _calculateAssets?
-        // TODO - change _credits to shares?
         // e.g. (1e20 * 1e18) / 1e18 = 1e20
         // e.g. (1e20 * 14e17) / 1e18 = 1.4e20
         exchangeRate_ = exchangeRate;
@@ -798,7 +794,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
      *
      * Returns the total number of underlying assets that caller can be deposit.
      */
-    function maxDeposit(address caller) external pure override returns (uint256 maxAssets) {
+    function maxDeposit(address) external pure override returns (uint256 maxAssets) {
         return MAX_INT;
     }
 
@@ -809,7 +805,6 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
      * Returns the amount of shares.
      */
     function previewDeposit(uint256 assets) external view override returns (uint256 shares) {
-        // TODO - change _underlyingToCredits to _calculateShares?
         (shares, ) = _underlyingToCredits(assets);
     }
 
@@ -862,9 +857,6 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
     function previewMint(uint256 shares) external view override returns (uint256 assets) {
         (assets, ) = _creditsToUnderlying(shares);
         // TODO - review when Nothing deposit yet
-        // if( assets == 0  && balanceOf(address(this)) == 0 ) {
-        //     return shares * exchangeRate_;
-        // }
         return assets;
     }
 
@@ -878,42 +870,6 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         assets = _mint(shares, receiver, true);
         return assets;
     }
-
-    function _mint(
-        uint256 _amount,
-        address receiver,
-        bool _isCreditAmt
-    ) internal returns (uint256 assets) {
-        require(_amount > 0, "Must deposit something");
-
-        if (_isCreditAmt) {
-            (assets, ) = _creditsToUnderlying(_amount);
-        } else {
-            assets = _amount;
-        }
-        // Transfer the interest from sender to here
-        require(underlying.transferFrom(msg.sender, address(this), assets), "Must receive tokens");
-
-        if (_isCreditAmt) {
-            _mint(receiver, assets);
-            emit Deposit(msg.sender, receiver, assets);
-        }
-        // Calc new exchange rate, protect against initialisation case
-        uint256 totalCredits = totalSupply();
-        if (totalCredits > 0) {
-            // new exchange rate is relationship between _totalCredits & totalSavings
-            // _totalCredits * exchangeRate = totalSavings
-            // exchangeRate = totalSavings/_totalCredits
-            (uint256 totalCollat, ) = _creditsToUnderlying(totalCredits);
-            uint256 newExchangeRate = _calcExchangeRate(totalCollat + assets, totalCredits);
-            exchangeRate = newExchangeRate;
-
-            emit ExchangeRateUpdated(newExchangeRate, assets);
-        }
-
-        return (assets);
-    }
-
     /**
      *
      *  Returns Total number of underlying assets that caller can withdraw.
@@ -985,6 +941,40 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
 
         return assets;
     }
+    function _mint(
+        uint256 _amount,
+        address receiver,
+        bool _isCreditAmt
+    ) internal returns (uint256 assets) {
+        require(_amount > 0, "Must deposit something");
+
+        if (_isCreditAmt) {
+            (assets, ) = _creditsToUnderlying(_amount);
+        } else {
+            assets = _amount;
+        }
+        // Transfer the interest from sender to here
+        require(underlying.transferFrom(msg.sender, address(this), assets), "Must receive tokens");
+
+        if (_isCreditAmt) {
+            _mint(receiver, assets);
+            emit Deposit(msg.sender, receiver, assets);
+        }
+        // Calc new exchange rate, protect against initialisation case
+        uint256 totalCredits = totalSupply();
+        if (totalCredits > 0) {
+            // new exchange rate is relationship between _totalCredits & totalSavings
+            // _totalCredits * exchangeRate = totalSavings
+            // exchangeRate = totalSavings/_totalCredits
+            (uint256 totalCollat, ) = _creditsToUnderlying(totalCredits);
+            uint256 newExchangeRate = _calcExchangeRate(totalCollat + assets, totalCredits);
+            exchangeRate = newExchangeRate;
+
+            emit ExchangeRateUpdated(newExchangeRate, assets);
+        }
+
+        return (assets);
+    }
 
     function _withdraw(
         uint256 assets,
@@ -994,6 +984,7 @@ contract SavingsContract is ISavingsContractV3, Initializable, InitializableToke
         require(assets > 0, "Must withdraw something");
 
         _beforeRedeem();
+        // if (msg.sender != owner && allowed != type(uint256).max) allowance[owner][msg.sender] = allowed - shares;
 
         // Ensure that the payout was sufficient
         (uint256 credits, uint256 massetReturned) = _redeem(assets, receiver, owner, false, true);
