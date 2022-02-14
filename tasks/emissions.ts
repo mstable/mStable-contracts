@@ -181,8 +181,8 @@ task("revenue-donate-rewards").setAction(async (_, __, runSuper) => {
 })
 
 subtask("votium-forward", "Forwards votium bribe. from votium dial")
+    .addParam("proposal", "Convex finance proposal for Weekly Gauge Weight", undefined, types.string)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
-    .addOptionalParam("proposal", "Convex finance proposal for Weekly Gauge Weight", undefined, types.string)
     .setAction(async (taskArgs, hre) => {
         // For example on the URL  https://vote.convexfinance.com/#/proposal/QmZpsJAvbKEY9YKFCZBUzzSMC5Y9vfy6QPA4HoXGsiLUyg
         // the proposal is QmZpsJAvbKEY9YKFCZBUzzSMC5Y9vfy6QPA4HoXGsiLUyg
@@ -205,9 +205,6 @@ subtask("votium-forward", "Forwards votium bribe. from votium dial")
 
         if (mtaBalance.lte(MIN_BRIBE_AMOUNT)) {
             throw new Error("MTA balance to low")
-        }
-        if (taskArgs.proposal === undefined) {
-            throw new Error("Proposal not specified")
         }
         const proposal = hashFn(taskArgs.proposal)
         console.log(`MTA ${mtaBalance.toString()} to deposit into proposal ${proposal} with choiceIndex ${choiceIndex}`)
