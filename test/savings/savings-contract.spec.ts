@@ -560,13 +560,13 @@ describe("SavingsContract", async () => {
             await createNewSavingsContract()
         })
         it("should fail when input is zero", async () => {
-            await expect(savingsContract["redeem(uint256)"](ZERO)).to.be.revertedWith("Must withdraw something")
+            await expect(savingsContract.redeem(ZERO)).to.be.revertedWith("Must withdraw something")
             await expect(savingsContract.redeemCredits(ZERO)).to.be.revertedWith("Must withdraw something")
             await expect(savingsContract.redeemUnderlying(ZERO)).to.be.revertedWith("Must withdraw something")
         })
         it("should fail when user doesn't have credits", async () => {
             const amt = BN.from(10)
-            await expect(savingsContract.connect(sa.other.signer)["redeem(uint256)"](amt)).to.be.revertedWith("VM Exception")
+            await expect(savingsContract.connect(sa.other.signer).redeem(amt)).to.be.revertedWith("VM Exception")
             await expect(savingsContract.connect(sa.other.signer).redeemCredits(amt)).to.be.revertedWith("VM Exception")
             await expect(savingsContract.connect(sa.other.signer).redeemUnderlying(amt)).to.be.revertedWith("VM Exception")
         })
@@ -745,7 +745,7 @@ describe("SavingsContract", async () => {
                 const redemptionAmount = simpleToExactAmount(5, 18)
                 const balancesBefore = await getData(savingsContract, sa.default)
 
-                const tx = savingsContract["redeem(uint256)"](redemptionAmount)
+                const tx = savingsContract.redeem(redemptionAmount)
                 const exchangeRate = initialExchangeRate
                 const underlying = creditsToUnderlying(redemptionAmount, exchangeRate)
                 await expect(tx).to.emit(savingsContract, "CreditsRedeemed").withArgs(sa.default.address, redemptionAmount, underlying)
@@ -759,7 +759,7 @@ describe("SavingsContract", async () => {
                 const creditsBefore = await savingsContract.creditBalances(sa.default.address)
                 const mUSDBefore = await masset.balanceOf(sa.default.address)
                 // Redeem all the credits
-                await savingsContract["redeem(uint256)"](creditsBefore)
+                await savingsContract.redeem(creditsBefore)
 
                 const creditsAfter = await savingsContract.creditBalances(sa.default.address)
                 const mUSDAfter = await masset.balanceOf(sa.default.address)
@@ -1316,8 +1316,7 @@ describe("SavingsContract", async () => {
             await savingsContract.connect(saver3.signer)["depositSavings(uint256)"](saver3deposit)
             const state3 = await getData(savingsContract, saver3)
             // 4.0 user 1 withdraws all her credits
-
-            await savingsContract.connect(saver1.signer)["redeem(uint256)"](state1.balances.userCredits)
+            await savingsContract.connect(saver1.signer).redeem(state1.balances.userCredits)
             const state4 = await getData(savingsContract, saver1)
             expect(state4.balances.userCredits).eq(BN.from(0))
             expect(state4.balances.totalCredits).eq(state3.balances.totalCredits.sub(state1.balances.userCredits))

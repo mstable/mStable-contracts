@@ -38,7 +38,7 @@ subtask("save-redeem", "Redeems a number of Save credits from a savings contract
 
         const amount = simpleToExactAmount(taskArgs.amount)
 
-        const tx = await save["redeem(uint256)"](amount)
+        const tx = await save.redeem(amount)
         await logTxDetails(tx, `redeem ${taskArgs.amount} ${taskArgs.masset} in Save`)
     })
 task("save-redeem").setAction(async (_, __, runSuper) => {
