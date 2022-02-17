@@ -10,10 +10,9 @@ module.exports = {
         "peripheral",
         "savings/peripheral",
         "upgradability",
-        "legacy",
     ],
     mocha: {
         grep: "@skip-on-coverage", // Find everything with this tag
-        invert: true               // Run the grep's inverse set.
-      }
+        invert: true, // Run the grep's inverse set.
+    },
 }
