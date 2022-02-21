@@ -7,6 +7,7 @@ module.exports = {
         "integrations",
         "masset/peripheral",
         "masset/versions",
+        "masset/liquidator/Unliquidator.sol",
         "peripheral",
         "savings/peripheral",
         "upgradability",
