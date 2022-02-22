@@ -223,7 +223,7 @@ const deploySave = async (
         console.log(`Deployed Vault Proxy to ${vProxy.address}. gas used ${receiptVaultProxy.gasUsed}`)
 
         // SaveWrapper
-        const wrapper = await new SaveWrapper__factory(sender).deploy()
+        const wrapper = await new SaveWrapper__factory(sender).deploy(addresses.nexus)
         const receiptSavingWrapper = await wrapper.deployTransaction.wait()
         console.log(`Deployed Save Wrapper to address ${wrapper.address}. gas used ${receiptSavingWrapper.gasUsed}`)
 
@@ -241,7 +241,7 @@ const deploySave = async (
     }
     // SaveWrapper
     console.log(`Deploying Wrapper...`)
-    const wrapper = await new SaveWrapper__factory(sender).deploy()
+    const wrapper = await new SaveWrapper__factory(sender).deploy(addresses.nexus)
     const receiptSavingWrapper = await wrapper.deployTransaction.wait()
     console.log(`Deployed Save Wrapper to address ${wrapper.address}. gas used ${receiptSavingWrapper.gasUsed}`)
 
