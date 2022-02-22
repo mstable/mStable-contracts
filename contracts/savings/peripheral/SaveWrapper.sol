@@ -1,25 +1,26 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.6;
 
-import { ISavingsContractV3 } from "../../interfaces/ISavingsContract.sol";
-import { IMasset } from "../../interfaces/IMasset.sol";
-import { IFeederPool } from "../../interfaces/IFeederPool.sol";
-import { IBoostedVaultWithLockup } from "../../interfaces/IBoostedVaultWithLockup.sol";
-
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
+import { IBoostedVaultWithLockup } from "../../interfaces/IBoostedVaultWithLockup.sol";
+import { IFeederPool } from "../../interfaces/IFeederPool.sol";
+import { IMasset } from "../../interfaces/IMasset.sol";
+import { ISavingsContractV3 } from "../../interfaces/ISavingsContract.sol";
 import { IUniswapV2Router02 } from "../../peripheral/Uniswap/IUniswapV2Router02.sol";
 import { IBasicToken } from "../../shared/IBasicToken.sol";
+import { ImmutableModule } from "../../shared/ImmutableModule.sol";
 
 // FLOWS
 // 0 - mAsset -> Savings Vault
 // 1 - bAsset -> Save/Savings Vault via Mint
 // 2 - fAsset -> Save/Savings Vault via Feeder Pool
 // 3 - ETH    -> Save/Savings Vault via Uniswap
-contract SaveWrapper is Ownable {
+contract SaveWrapper is ImmutableModule {
     using SafeERC20 for IERC20;
+
+    constructor(address _nexus) ImmutableModule(_nexus) {}
 
     /**
      * @dev 0. Simply saves an mAsset and then into the vault
@@ -468,7 +469,7 @@ contract SaveWrapper is Ownable {
         address[] calldata _fAssets,
         address _save,
         address _vault
-    ) external onlyOwner {
+    ) external onlyKeeperOrGovernor {
         _approve(_mAsset, _save);
         _approve(_save, _vault);
         _approve(_bAssets, _mAsset);
@@ -482,14 +483,14 @@ contract SaveWrapper is Ownable {
     /**
      * @dev Approve one token/spender
      */
-    function approve(address _token, address _spender) external onlyOwner {
+    function approve(address _token, address _spender) external onlyKeeperOrGovernor {
         _approve(_token, _spender);
     }
 
     /**
      * @dev Approve multiple tokens/one spender
      */
-    function approve(address[] calldata _tokens, address _spender) external onlyOwner {
+    function approve(address[] calldata _tokens, address _spender) external onlyKeeperOrGovernor {
         _approve(_tokens, _spender);
     }
 
