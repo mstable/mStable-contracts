@@ -119,8 +119,7 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "Poker":
                 return "0x8E1Fd7F5ea7f7760a83222d3d470dFBf8493A03F"
             case "SaveWrapper":
-                // TODO - update after the migration
-                return "0x0CA7A25181FC991e3cC62BaC511E62973991f325"
+                return "0x1f2d51eadf24BfcC6Eeb8318D0408dFD9Fbd05d9"
             case "RevenueRecipient":
                 return "0xA7824292efDee1177a1C1BED0649cfdD6114fed5"
             case "RevenueBuyBack":
@@ -211,8 +210,7 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "RewardsDistributor":
                 return "0x3e9d19ee1893B07e22165C54c205702C90C70847"
             case "SaveWrapper":
-                // TODO - update after the migration
-                return "0x299081f52738A4204C3D58264ff44f6F333C6c88"
+                return "0xfd8932F4887E39D8EeD05dc407924124026bD902"
             case "FeederManager":
                 return "0xa0adbAcBc179EF9b1a9436376a590b72d1d7bfbf"
             case "FeederLogic":

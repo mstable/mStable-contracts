@@ -14,5 +14,6 @@ import "./tasks/token"
 import "./tasks/ops"
 import "./tasks/rewards"
 import "./tasks/save"
+import "./tasks/SaveWrapper"
 
 export default config

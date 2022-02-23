@@ -6,6 +6,7 @@ import { SaveWrapper__factory } from "../types/generated"
 import { getSigner } from "./utils/signerFactory"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getChain, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
+import { verifyEtherscan } from "./utils/etherscan"
 
 task("SaveWrapper.deploy", "Deploy a new SaveWrapper")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
@@ -15,7 +16,14 @@ task("SaveWrapper.deploy", "Deploy a new SaveWrapper")
 
         const nexusAddress = resolveAddress("Nexus", chain)
 
-        await deployContract(new SaveWrapper__factory(signer), "SaveWrapper", [nexusAddress])
+        const constructorArguments = [nexusAddress]
+        const wrapper = await deployContract(new SaveWrapper__factory(signer), "SaveWrapper", constructorArguments)
+
+        await verifyEtherscan(hre, {
+            address: wrapper.address,
+            contract: "contracts/savings/peripheral/SaveWrapper.sol:SaveWrapper",
+            constructorArguments,
+        })
     })
 
 task("SaveWrapper.approveMasset", "Sets approvals for a new mAsset")
@@ -36,10 +44,10 @@ task("SaveWrapper.approveMasset", "Sets approvals for a new mAsset")
         const bAssetAddresses = bAssetSymbols.map((symbol) => resolveAddress(symbol, chain))
 
         const fAssetSymbols = taskArgs.fassets.split(",")
-        const fAssetAddresses = fAssetSymbols.map((symbol) => resolveAddress(symbol, chain))
+        const fAssetAddresses = fAssetSymbols.map((symbol) => resolveAddress(symbol, chain, "address"))
         const feederPoolAddresses = fAssetSymbols.map((symbol) => resolveAddress(symbol, chain, "feederPool"))
 
-        const tx = await wrapper["address,address[],address[],address[],address,address"](
+        const tx = await wrapper["approve(address,address[],address[],address[],address,address)"](
             mAssetToken.address,
             bAssetAddresses,
             feederPoolAddresses,
@@ -47,7 +55,10 @@ task("SaveWrapper.approveMasset", "Sets approvals for a new mAsset")
             mAssetToken.savings,
             mAssetToken.vault,
         )
-        await logTxDetails(tx, "Approve mAsset")
+        await logTxDetails(
+            tx,
+            `SaveWrapper approve mAsset ${taskArgs.masset}, bAssets ${taskArgs.bassets} and feeder pools ${taskArgs.fassets}`,
+        )
     })
 
 task("SaveWrapper.approveMulti", "Sets approvals for multiple tokens/a single spender")
