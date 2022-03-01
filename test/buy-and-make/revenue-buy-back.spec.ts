@@ -21,6 +21,8 @@ import {
 } from "types/generated"
 import { EncodedPaths, encodeUniswapPath } from "@utils/peripheral/uniswap"
 import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
+import { BigNumber, Signer } from "ethers"
+import { keccak256, toUtf8Bytes } from "ethers/lib/utils"
 
 describe("RevenueBuyBack", () => {
     let sa: StandardAccounts
@@ -39,11 +41,14 @@ describe("RevenueBuyBack", () => {
     let uniswapMusdBasset1Paths: EncodedPaths
     let uniswapMbtcBasset2Paths: EncodedPaths
 
+    const protocolFee = simpleToExactAmount(0.5)
+    const treasury: Signer = ethers.Wallet.createRandom()
+
     /*
         Test Data
         mAssets: mUSD and mBTC with 18 decimals
      */
-    const setupRevenueBuyBack = async (): Promise<void> => {
+    const setupRevenueBuyBack = async (_protocolFee: BigNumber): Promise<void> => {
         mUSD = await new MockMasset__factory(sa.default.signer).deploy(
             "meta USD",
             "mUSD",
@@ -71,6 +76,7 @@ describe("RevenueBuyBack", () => {
             sa.mockInterestValidator.address,
         )
         await nexus.setKeeper(sa.keeper.address)
+        await nexus.setModule(keccak256(toUtf8Bytes("Treasury")), await treasury.getAddress())
 
         // Mocked Uniswap V3
         uniswap = await new MockUniswapV3__factory(sa.default.signer).deploy()
@@ -110,6 +116,7 @@ describe("RevenueBuyBack", () => {
             rewardsToken.address,
             uniswap.address,
             emissionController.address,
+            _protocolFee,
         )
         // reverse the order to make sure dial id != staking contract id for testing purposes
         await revenueBuyBack.initialize([1, 0])
@@ -139,12 +146,12 @@ describe("RevenueBuyBack", () => {
         mAssetMachine = await new MassetMachine().initAccounts(accounts)
         sa = mAssetMachine.sa
 
-        await setupRevenueBuyBack()
+        await setupRevenueBuyBack(protocolFee)
     })
 
     describe("creating new instance", () => {
         before(async () => {
-            await setupRevenueBuyBack()
+            await setupRevenueBuyBack(protocolFee)
         })
         it("should have immutable variables set", async () => {
             expect(await revenueBuyBack.nexus(), "Nexus").eq(nexus.address)
@@ -153,18 +160,42 @@ describe("RevenueBuyBack", () => {
             expect(await revenueBuyBack.EMISSIONS_CONTROLLER(), "Emissions Controller").eq(emissionController.address)
         })
         it("should have storage variables set", async () => {
+            expect(await revenueBuyBack.protocolFee(), "Protocol Fee").eq(protocolFee)
             expect(await revenueBuyBack.stakingDialIds(0), "Staking Contract 1 dial id").eq(1)
             expect(await revenueBuyBack.stakingDialIds(1), "Staking Contract 2 dial id").eq(0)
             expect((await emissionController.dials(0)).recipient, "first dial is first staking contract").to.eq(staking1.address)
             expect((await emissionController.dials(1)).recipient, "second dial is second staking contract").to.eq(staking2.address)
         })
-        describe("it should fail if zero", () => {
+        it("should have treasury set via nexus module", async () => {
+            expect(await nexus.getModule(keccak256(toUtf8Bytes("Treasury"))), "Treasury module").eq(await treasury.getAddress())
+        })
+        describe("when setting new protocol fee", async () => {
+            it("should update protocol fee", async () => {
+                expect(await revenueBuyBack.protocolFee(), "Protocol Fee").eq(protocolFee)
+                const newProtocolFee = simpleToExactAmount(0.6)
+                const tx = revenueBuyBack.connect(sa.governor.signer).setProtocolFee(newProtocolFee)
+                await expect(tx).to.emit(revenueBuyBack, "ProtocolFeeChanged").withArgs(newProtocolFee)
+                expect(await revenueBuyBack.protocolFee(), "Protocol Fee").eq(newProtocolFee)
+            })
+            it("should not update if not governor", async () => {
+                const newProtocolFee = simpleToExactAmount(0.6)
+                const tx = revenueBuyBack.connect(sa.default.signer).setProtocolFee(newProtocolFee)
+                await expect(tx).to.be.revertedWith("Only governor can execute")
+            })
+            it("should not update if invalid amount", async () => {
+                const newProtocolFee = simpleToExactAmount(1.6)
+                const tx = revenueBuyBack.connect(sa.governor.signer).setProtocolFee(newProtocolFee)
+                await expect(tx).to.be.revertedWith("Invalid protocol fee")
+            })
+        })
+        describe("it should fail if invalid", () => {
             it("nexus", async () => {
                 const tx = new RevenueBuyBack__factory(sa.default.signer).deploy(
                     ZERO_ADDRESS,
                     rewardsToken.address,
                     uniswap.address,
                     emissionController.address,
+                    protocolFee,
                 )
                 await expect(tx).to.revertedWith("Nexus address is zero")
             })
@@ -174,6 +205,7 @@ describe("RevenueBuyBack", () => {
                     ZERO_ADDRESS,
                     uniswap.address,
                     emissionController.address,
+                    protocolFee,
                 )
                 await expect(tx).to.revertedWith("Rewards token is zero")
             })
@@ -183,23 +215,25 @@ describe("RevenueBuyBack", () => {
                     rewardsToken.address,
                     ZERO_ADDRESS,
                     emissionController.address,
+                    protocolFee,
                 )
                 await expect(tx).to.revertedWith("Uniswap Router is zero")
             })
-            it("Emissions controller", async () => {
+            it("Invalid protocol fee", async () => {
                 const tx = new RevenueBuyBack__factory(sa.default.signer).deploy(
                     nexus.address,
                     rewardsToken.address,
                     uniswap.address,
-                    ZERO_ADDRESS,
+                    emissionController.address,
+                    simpleToExactAmount(1.1),
                 )
-                await expect(tx).to.revertedWith("Emissions controller is zero")
+                await expect(tx).to.revertedWith("Invalid protocol fee")
             })
         })
     })
     describe("notification of revenue", () => {
         before(async () => {
-            await setupRevenueBuyBack()
+            await setupRevenueBuyBack(protocolFee)
         })
         it("should simply transfer from the sender", async () => {
             const senderBalBefore = await mUSD.balanceOf(sa.default.address)
@@ -227,7 +261,7 @@ describe("RevenueBuyBack", () => {
             })
             it("approval is not given from sender", async () => {
                 await expect(revenueBuyBack.notifyRedistributionAmount(mUSD.address, simpleToExactAmount(100, 18))).to.be.revertedWith(
-                    "ERC20: transfer amount exceeds allowance",
+                    "ERC20: insufficient allowance",
                 )
             })
             it("sender has insufficient balance", async () => {
@@ -243,7 +277,7 @@ describe("RevenueBuyBack", () => {
         const musdRevenue = simpleToExactAmount(20000)
         const mbtcRevenue = simpleToExactAmount(2)
         beforeEach(async () => {
-            await setupRevenueBuyBack()
+            await setupRevenueBuyBack(protocolFee)
 
             // Put some bAssets to the mAssets
             await bAsset1.transfer(mUSD.address, musdRevenue)
@@ -255,52 +289,73 @@ describe("RevenueBuyBack", () => {
             await revenueBuyBack.notifyRedistributionAmount(mUSD.address, musdRevenue)
             await revenueBuyBack.notifyRedistributionAmount(mBTC.address, mbtcRevenue)
         })
-        it("should sell mUSD for MTA", async () => {
+        it("should sell mUSD for MTA and send protocol fee to treasury", async () => {
             expect(await mUSD.balanceOf(revenueBuyBack.address), "revenueBuyBack's mUSD Bal before").to.eq(musdRevenue)
             expect(await bAsset1.balanceOf(mUSD.address), "mAsset's bAsset Bal before").to.eq(musdRevenue)
+            expect(await mUSD.balanceOf(await treasury.getAddress()), "treasury's mUSD Bal before").to.eq(0)
 
             const tx = revenueBuyBack.connect(sa.keeper.signer).buyBackRewards([mUSD.address])
+            const fee = await revenueBuyBack.protocolFee()
 
-            const bAsset1Amount = musdRevenue.mul(98).div(100)
+            const bAsset1Amount = musdRevenue.mul(simpleToExactAmount(1).sub(fee)).div(simpleToExactAmount(1)).mul(98).div(100)
             // Exchange rate = 0.80 MTA/USD = 8 / 18
             // Swap fee is 0.3% = 997 / 1000
             const rewardsAmount = bAsset1Amount.mul(8).div(10).mul(997).div(1000)
-            await expect(tx).to.emit(revenueBuyBack, "BuyBackRewards").withArgs(mUSD.address, musdRevenue, bAsset1Amount, rewardsAmount)
+            const treasuryBal = musdRevenue.mul(fee).div(simpleToExactAmount(1))
+            await expect(tx)
+                .to.emit(revenueBuyBack, "BuyBackRewards")
+                .withArgs(mUSD.address, musdRevenue, treasuryBal, bAsset1Amount, rewardsAmount)
 
             expect(await mUSD.balanceOf(revenueBuyBack.address), "revenueBuyBack's mUSD Bal after").to.eq(0)
+            expect(await mUSD.balanceOf(await treasury.getAddress()), "treasury's mUSD Bal after").to.gt(0)
         })
-        it("should sell mBTC for MTA", async () => {
+        it("should sell mBTC for MTA and send protocol fee to treasury", async () => {
             expect(await mBTC.balanceOf(revenueBuyBack.address), "revenueBuyBack's mBTC Bal before").to.eq(mbtcRevenue)
             expect(await bAsset2.balanceOf(mBTC.address), "mAsset's bAsset Bal before").to.eq(mbtcRevenue.div(1e12))
+            expect(await mUSD.balanceOf(await treasury.getAddress()), "treasury's mUSD Bal before").to.eq(0)
 
             const tx = revenueBuyBack.connect(sa.keeper.signer).buyBackRewards([mBTC.address])
+            const fee = await revenueBuyBack.protocolFee()
 
-            const bAsset2Amount = mbtcRevenue.mul(98).div(100).div(1e12)
+            const bAsset2Amount = mbtcRevenue.mul(simpleToExactAmount(1).sub(fee)).div(simpleToExactAmount(1)).mul(98).div(100).div(1e12)
             // Exchange rate = 50,000 MTA/BTC
             // Swap fee is 0.3% = 997 / 1000
             const rewardsAmount = bAsset2Amount.mul(50000).mul(997).div(1000).mul(1e12)
-            await expect(tx).to.emit(revenueBuyBack, "BuyBackRewards").withArgs(mBTC.address, mbtcRevenue, bAsset2Amount, rewardsAmount)
+            const treasuryBal = mbtcRevenue.mul(fee).div(simpleToExactAmount(1))
+            await expect(tx)
+                .to.emit(revenueBuyBack, "BuyBackRewards")
+                .withArgs(mBTC.address, mbtcRevenue, treasuryBal, bAsset2Amount, rewardsAmount)
 
             expect(await mBTC.balanceOf(revenueBuyBack.address), "revenueBuyBack's mBTC Bal after").to.eq(0)
+            expect(await mBTC.balanceOf(await treasury.getAddress()), "treasury's mUSD Bal after").to.gt(0)
         })
-        it("should sell mUSD and mBTC for MTA", async () => {
+        it("should sell mUSD and mBTC for MTA and send protocol fee to treasury", async () => {
             const tx = revenueBuyBack.connect(sa.keeper.signer).buyBackRewards([mUSD.address, mBTC.address])
+            const fee = await revenueBuyBack.protocolFee()
 
             //
-            const bAsset1Amount = musdRevenue.mul(98).div(100)
+            const bAsset1Amount = musdRevenue.mul(simpleToExactAmount(1).sub(fee)).div(simpleToExactAmount(1)).mul(98).div(100)
             // Exchange rate = 0.80 MTA/USD = 8 / 18
             // Swap fee is 0.3% = 997 / 1000
             const musdRewardsAmount = bAsset1Amount.mul(8).div(10).mul(997).div(1000)
-            await expect(tx).to.emit(revenueBuyBack, "BuyBackRewards").withArgs(mUSD.address, musdRevenue, bAsset1Amount, musdRewardsAmount)
+            const musdTreasuryBal = musdRevenue.mul(fee).div(simpleToExactAmount(1))
+            await expect(tx)
+                .to.emit(revenueBuyBack, "BuyBackRewards")
+                .withArgs(mUSD.address, musdRevenue, musdTreasuryBal, bAsset1Amount, musdRewardsAmount)
 
-            const bAsset2Amount = mbtcRevenue.mul(98).div(100).div(1e12)
+            const bAsset2Amount = mbtcRevenue.mul(simpleToExactAmount(1).sub(fee)).div(simpleToExactAmount(1)).mul(98).div(100).div(1e12)
             // Exchange rate = 50,000 MTA/BTC
             // Swap fee is 0.3% = 997 / 1000
             const mbtcRewardsAmount = bAsset2Amount.mul(50000).mul(997).div(1000).mul(1e12)
-            await expect(tx).to.emit(revenueBuyBack, "BuyBackRewards").withArgs(mBTC.address, mbtcRevenue, bAsset2Amount, mbtcRewardsAmount)
+            const mbtcTreasuryBal = mbtcRevenue.mul(fee).div(simpleToExactAmount(1))
+            await expect(tx)
+                .to.emit(revenueBuyBack, "BuyBackRewards")
+                .withArgs(mBTC.address, mbtcRevenue, mbtcTreasuryBal, bAsset2Amount, mbtcRewardsAmount)
 
             expect(await mUSD.balanceOf(revenueBuyBack.address), "revenueBuyBack's mUSD Bal after").to.eq(0)
             expect(await mBTC.balanceOf(revenueBuyBack.address), "revenueBuyBack's mUSD Bal after").to.eq(0)
+            expect(await mUSD.balanceOf(await treasury.getAddress()), "treasury's mUSD Bal after").to.gt(0)
+            expect(await mBTC.balanceOf(await treasury.getAddress()), "treasury's mBTC Bal after").to.gt(0)
         })
         describe("should fail when", () => {
             it("No mAssets", async () => {
@@ -320,7 +375,7 @@ describe("RevenueBuyBack", () => {
     describe("donate rewards to Emissions Controller", () => {
         const totalRewards = simpleToExactAmount(40000)
         beforeEach(async () => {
-            await setupRevenueBuyBack()
+            await setupRevenueBuyBack(protocolFee)
         })
         it("should donate rewards", async () => {
             // Put some reward tokens in the RevenueBuyBack contract for donation to the Emissions Controller
@@ -395,7 +450,7 @@ describe("RevenueBuyBack", () => {
         })
         context("should fail when", () => {
             before(async () => {
-                await setupRevenueBuyBack()
+                await setupRevenueBuyBack(protocolFee)
             })
             it("not governor", async () => {
                 const tx = revenueBuyBack.setMassetConfig(
@@ -495,7 +550,7 @@ describe("RevenueBuyBack", () => {
     })
     describe("addStakingContract", () => {
         before(async () => {
-            await setupRevenueBuyBack()
+            await setupRevenueBuyBack(protocolFee)
         })
         context("should fail when", () => {
             it("duplicate", async () => {
