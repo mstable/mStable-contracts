@@ -25,8 +25,8 @@ struct RevenueBuyBackConfig {
 /**
  * @title   RevenueBuyBack
  * @author  mStable
- * @notice  Uses protocol revenue to buy MTA rewards for stakers.
- * @dev     VERSION: 1.0
+ * @notice  Uses protocol revenue to buy MTA rewards for stakers. Updated Version to set and send protocol fee to treasury.
+ * @dev     VERSION: 2.0
  *          DATE:    2021-11-09
  */
 contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
@@ -36,6 +36,7 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
     event BuyBackRewards(
         address indexed mAsset,
         uint256 mAssetAmount,
+        uint256 mAssetToTreasury,
         uint256 bAssetAmount,
         uint256 rewardsAmount
     );
@@ -48,6 +49,7 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
         bytes uniswapPath
     );
     event AddedStakingContract(uint16 stakingDialId);
+    event ProtocolFeeChanged(uint256 protocolFee);
 
     /// @notice scale of the `minMasset2BassetPrice` and `minBasset2RewardsPrice` configuration properties.
     uint256 public constant CONFIG_SCALE = 1e18;
@@ -64,6 +66,9 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
     /// @notice Emissions Controller dial ids for all staking contracts that will receive reward tokens.
     uint256[] public stakingDialIds;
 
+    /// @notice ProtocolFee, how much does go back to the Treasury? 100% = 1e18
+    uint256 public protocolFee;
+
     /**
      * @param _nexus mStable system Nexus address
      * @param _rewardsToken Rewards token address that are purchased. eg MTA
@@ -74,7 +79,8 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
         address _nexus,
         address _rewardsToken,
         address _uniswapRouter,
-        address _emissionsController
+        address _emissionsController,
+        uint256 _protocolFee
     ) ImmutableModule(_nexus) {
         require(_rewardsToken != address(0), "Rewards token is zero");
         REWARDS_TOKEN = IERC20(_rewardsToken);
@@ -84,6 +90,9 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
 
         require(_emissionsController != address(0), "Emissions controller is zero");
         EMISSIONS_CONTROLLER = IEmissionsController(_emissionsController);
+
+        require(_protocolFee <= 1e18, "Invalid protocol fee");
+        protocolFee = _protocolFee;
     }
 
     /**
@@ -124,24 +133,36 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
         uint256 len = _mAssets.length;
         require(len > 0, "Invalid args");
 
+        address treasury = nexus.getModule(keccak256("Treasury"));
+
         // for each mAsset
         for (uint256 i = 0; i < len; i++) {
             // Get config for mAsset
             RevenueBuyBackConfig memory config = massetConfig[_mAssets[i]];
             require(config.bAsset != address(0), "Invalid mAsset");
 
-            // STEP 1 - Redeem mAssets for bAssets
-            IMasset mAsset = IMasset(_mAssets[i]);
+            // Get mAsset revenue
             uint256 mAssetBal = IERC20(_mAssets[i]).balanceOf(address(this));
-            uint256 minBassetOutput = (mAssetBal * config.minMasset2BassetPrice) / CONFIG_SCALE;
+
+            if (protocolFee > 0) {
+                // STEP 1: Send mAsset to treasury
+                uint256 mAssetToTreasury = (IERC20(_mAssets[i]).balanceOf(address(this)) *
+                    protocolFee) / 1e18;
+                IERC20(_mAssets[i]).safeTransfer(treasury, mAssetToTreasury);
+            }
+            // STEP 2 - Redeem mAssets for bAssets
+            IMasset mAsset = IMasset(_mAssets[i]);
+            uint256 mAssetBalAfterFee = IERC20(_mAssets[i]).balanceOf(address(this));
+            uint256 minBassetOutput = (mAssetBalAfterFee * config.minMasset2BassetPrice) /
+                CONFIG_SCALE;
             uint256 bAssetAmount = mAsset.redeem(
                 config.bAsset,
-                mAssetBal,
+                mAssetBalAfterFee,
                 minBassetOutput,
                 address(this)
             );
 
-            // STEP 2 - Swap bAssets for rewards using Uniswap V3
+            // STEP 3 - Swap bAssets for rewards using Uniswap V3
             IERC20(config.bAsset).safeApprove(address(UNISWAP_ROUTER), bAssetAmount);
             uint256 minRewardsAmount = (bAssetAmount * config.minBasset2RewardsPrice) /
                 CONFIG_SCALE;
@@ -155,7 +176,13 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
             );
             uint256 rewardsAmount = UNISWAP_ROUTER.exactInput(param);
 
-            emit BuyBackRewards(_mAssets[i], mAssetBal, bAssetAmount, rewardsAmount);
+            emit BuyBackRewards(
+                _mAssets[i],
+                mAssetBal,
+                mAssetToTreasury,
+                bAssetAmount,
+                rewardsAmount
+            );
         }
     }
 
@@ -250,6 +277,17 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
             _minBasset2RewardsPrice,
             _uniswapPath
         );
+    }
+
+    /**
+     * @notice Sets the protocol fee. Protocol fees are paid to the Treasury
+     * @param _protocolFee The protocol fee in 100% = 1e18.
+     */
+
+    function setProtocolFee(uint128 _protocolFee) external onlyGovernor {
+        require(_protocolFee <= 1e18, "Invalid protocol fee");
+        protocolFee = _protocolFee;
+        emit ProtocolFeeChanged(protocolFee);
     }
 
     /**
