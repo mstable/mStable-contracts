@@ -24,6 +24,10 @@ contract MockNexus is ModuleKeys {
         return _initialized;
     }
 
+    function setModule(bytes32 _key, address _module) external {
+        modules[_key] = _module;
+    }
+
     function getModule(bytes32 _key) external view returns (address) {
         return modules[_key];
     }
