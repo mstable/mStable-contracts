@@ -261,7 +261,7 @@ describe("RevenueBuyBack", () => {
             })
             it("approval is not given from sender", async () => {
                 await expect(revenueBuyBack.notifyRedistributionAmount(mUSD.address, simpleToExactAmount(100, 18))).to.be.revertedWith(
-                    "ERC20: insufficient allowance",
+                    "ERC20: transfer amount exceeds allowance",
                 )
             })
             it("sender has insufficient balance", async () => {
