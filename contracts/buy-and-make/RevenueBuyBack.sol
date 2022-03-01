@@ -143,11 +143,13 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
 
             // Get mAsset revenue
             uint256 mAssetBal = IERC20(_mAssets[i]).balanceOf(address(this));
+            uint256 mAssetToTreasury = 0;
 
             if (protocolFee > 0) {
                 // STEP 1: Send mAsset to treasury
-                uint256 mAssetToTreasury = (IERC20(_mAssets[i]).balanceOf(address(this)) *
-                    protocolFee) / 1e18;
+                mAssetToTreasury =
+                    (IERC20(_mAssets[i]).balanceOf(address(this)) * protocolFee) /
+                    1e18;
                 IERC20(_mAssets[i]).safeTransfer(treasury, mAssetToTreasury);
             }
             // STEP 2 - Redeem mAssets for bAssets
