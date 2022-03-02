@@ -61,6 +61,7 @@ export const contractNames = [
     "ENSResolver",
     "FraxVault",
     "Unwrapper",
+    "VesperForwarder",
     "VisorRouter",
     "VotiumBribe",
     "VotiumForwarder",
@@ -184,6 +185,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x4976fb03c32e5b8cfe2b6ccb31c09ba78ebaba41"
             case "Unwrapper":
                 return "0xc1443Cb9ce81915fB914C270d74B0D57D1c87be0"
+            case "VesperForwarder":
+                return "0x849b0586cb4aC9873E095939D5A076719F354968"
             case "VisorRouter":
                 return "0xF3f4F4e17cC65BDC36A36fDa5283F8D8020Ad0a4"
             case "VotiumBribe":
