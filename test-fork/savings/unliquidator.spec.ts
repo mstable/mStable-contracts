@@ -1,7 +1,7 @@
 import { impersonateAccount } from "@utils/fork"
 import { ethers, network } from "hardhat"
 import { Account } from "types"
-import { stkAAVE, USDC, COMP } from "tasks/utils/tokens"
+import { stkAAVE, USDC, COMP, USDT, WBTC, GUSD, BUSD, FEI, RAI } from "tasks/utils/tokens"
 import {
     Unliquidator,
     Unliquidator__factory,
@@ -21,7 +21,7 @@ import { BN, simpleToExactAmount } from "@utils/math"
 import { increaseTime } from "@utils/time"
 import { ONE_HOUR, ONE_WEEK, ZERO_ADDRESS, MAX_UINT256, DEAD_ADDRESS } from "@utils/constants"
 
-import { resolveAddress } from "tasks/utils/networkAddressFactory"
+import { resolveAddress, resolveToken } from "tasks/utils/networkAddressFactory"
 
 import { keccak256, toUtf8Bytes } from "ethers/lib/utils"
 
@@ -31,11 +31,6 @@ const treasuryAddress = resolveAddress("mStableDAO")
 
 const ethWhaleAddress = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 
-const aaveMusdIntegrationAddress = "0xA2a3CAe63476891AB2d640d9a5A800755Ee79d6E"
-const aaveMbtcIntegrationAddress = "0xC9451a4483d1752a3E9A3f5D6b1C7A6c34621fC6"
-const compoundIntegrationAddress = "0xD55684f4369040C12262949Ff78299f2BC9dB735"
-const nexusAddress = "0xAFcE80b19A8cE13DEc0739a1aaB7A028d6845Eb3"
-
 const toEther = (amount: BN) => ethers.utils.formatEther(amount)
 
 context("Unliquidator forked network tests", async () => {
@@ -44,9 +39,14 @@ context("Unliquidator forked network tests", async () => {
     let ethWhale: Account
     let stkAaveToken: ERC20
     let compToken: ERC20
+    let nexusAddress: string
     let nexus: Nexus
     let aaveMusdIntegration: PAaveIntegration
     let aaveMbtcIntegration: PAaveIntegration
+    let aaveGusdIntegration: PAaveIntegration
+    let aaveBusdIntegration: PAaveIntegration
+    let aaveFeiIntegration: PAaveIntegration
+    let aaveRaiIntegration: PAaveIntegration
     let compoundIntegration: CompoundIntegration
 
     const runSetup = async (blockNumber: number) => {
@@ -71,13 +71,18 @@ context("Unliquidator forked network tests", async () => {
             value: simpleToExactAmount(5),
         })
 
+        nexusAddress = resolveAddress("Nexus")
         nexus = Nexus__factory.connect(nexusAddress, governor.signer)
         stkAaveToken = ERC20__factory.connect(stkAAVE.address, ops.signer)
         compToken = ERC20__factory.connect(COMP.address, ops.signer)
 
-        aaveMusdIntegration = PAaveIntegration__factory.connect(aaveMusdIntegrationAddress, governor.signer)
-        aaveMbtcIntegration = PAaveIntegration__factory.connect(aaveMbtcIntegrationAddress, governor.signer)
-        compoundIntegration = CompoundIntegration__factory.connect(compoundIntegrationAddress, governor.signer)
+        aaveMusdIntegration = PAaveIntegration__factory.connect(USDT.integrator, governor.signer)
+        aaveMbtcIntegration = PAaveIntegration__factory.connect(WBTC.integrator, governor.signer)
+        aaveGusdIntegration = PAaveIntegration__factory.connect(GUSD.integrator, governor.signer)
+        aaveBusdIntegration = PAaveIntegration__factory.connect(BUSD.integrator, governor.signer)
+        aaveFeiIntegration = PAaveIntegration__factory.connect(FEI.integrator, governor.signer)
+        aaveRaiIntegration = PAaveIntegration__factory.connect(RAI.integrator, governor.signer)
+        compoundIntegration = CompoundIntegration__factory.connect(USDC.integrator, governor.signer)
     }
 
     it("Test connectivity", async () => {
@@ -109,58 +114,71 @@ context("Unliquidator forked network tests", async () => {
         })
         it("Should reapprove permissions to new Unliquidator", async () => {
             // Before no permissions
-            expect(await stkAaveToken.allowance(aaveMbtcIntegrationAddress, unliquidator.address)).to.eq(0)
-            expect(await stkAaveToken.allowance(aaveMusdIntegrationAddress, unliquidator.address)).to.eq(0)
-            expect(await compToken.allowance(compoundIntegrationAddress, unliquidator.address)).to.eq(0)
+            expect(await stkAaveToken.allowance(USDT.integrator, unliquidator.address)).to.eq(0)
+            expect(await stkAaveToken.allowance(WBTC.integrator, unliquidator.address)).to.eq(0)
+            expect(await stkAaveToken.allowance(GUSD.integrator, unliquidator.address)).to.eq(0)
+            expect(await stkAaveToken.allowance(BUSD.integrator, unliquidator.address)).to.eq(0)
+            expect(await stkAaveToken.allowance(FEI.integrator, unliquidator.address)).to.eq(0)
+            expect(await stkAaveToken.allowance(RAI.integrator, unliquidator.address)).to.eq(0)
+            expect(await compToken.allowance(USDC.integrator, unliquidator.address)).to.eq(0)
 
             // Approve tx
-            await aaveMbtcIntegration.approveRewardToken()
             await aaveMusdIntegration.approveRewardToken()
+            await aaveMbtcIntegration.approveRewardToken()
+            await aaveGusdIntegration.approveRewardToken()
+            await aaveBusdIntegration.approveRewardToken()
+            await aaveFeiIntegration.approveRewardToken()
+            await aaveRaiIntegration.approveRewardToken()
             await compoundIntegration.approveRewardToken()
 
             // After permissions
-            expect(await stkAaveToken.allowance(aaveMbtcIntegrationAddress, unliquidator.address)).to.eq(MAX_UINT256)
-            expect(await stkAaveToken.allowance(aaveMusdIntegrationAddress, unliquidator.address)).to.eq(MAX_UINT256)
+            expect(await stkAaveToken.allowance(USDT.integrator, unliquidator.address)).to.eq(MAX_UINT256)
+            expect(await stkAaveToken.allowance(WBTC.integrator, unliquidator.address)).to.eq(MAX_UINT256)
+            expect(await stkAaveToken.allowance(GUSD.integrator, unliquidator.address)).to.eq(MAX_UINT256)
+            expect(await stkAaveToken.allowance(BUSD.integrator, unliquidator.address)).to.eq(MAX_UINT256)
+            expect(await stkAaveToken.allowance(FEI.integrator, unliquidator.address)).to.eq(MAX_UINT256)
+            expect(await stkAaveToken.allowance(RAI.integrator, unliquidator.address)).to.eq(MAX_UINT256)
             // For some reason the approval is only for 79228162514264337593543950335
-            expect(await compToken.allowance(compoundIntegrationAddress, unliquidator.address)).to.gt(0)
+            expect(await compToken.allowance(USDC.integrator, unliquidator.address)).to.gt(0)
         })
-        it("Should claim stkAave from mUSD and transfer to Treasury", async () => {
-            // Before
-            const treasuryBalBefore = await stkAaveToken.balanceOf(treasuryAddress)
-            expect(await stkAaveToken.balanceOf(unliquidator.address)).to.eq(0)
+        describe("Should claim stkAAVE and transfer to Treasury", () => {
+            // const tests = ["USDT", "WBTC", "GUSD", "BUSD", "FEI", "RAI"]
+            const tests = ["USDT", "WBTC", "BUSD", "RAI"]
+            // { testSymbol: "USDC", rewardSymbol: "COMP" },
+            tests.forEach((testSymbol) => {
+                it(`from ${testSymbol} integration`, async () => {
+                    const testToken = resolveToken(testSymbol)
+                    const integration = PAaveIntegration__factory.connect(testToken.integrator, ops.signer)
 
-            console.log(`Treasury balance before ${toEther(treasuryBalBefore)}`)
+                    // Before
+                    const treasuryBalBefore = await stkAaveToken.balanceOf(treasuryAddress)
+                    expect(await stkAaveToken.balanceOf(unliquidator.address), "rewards unliquidator bal before").to.eq(0)
 
-            // Claim
-            expect(await unliquidator.claimAndDistributeRewards(aaveMusdIntegrationAddress, stkAAVE.address)).to.emit(
-                unliquidator,
-                "DistributedRewards",
-            )
+                    console.log(`Treasury balance before ${toEther(treasuryBalBefore)}`)
 
-            console.log(`Treasury balance after ${toEther(await stkAaveToken.balanceOf(treasuryAddress))}`)
+                    // Claim
+                    const tx = await unliquidator.claimAndDistributeRewards(testToken.integrator, stkAaveToken.address)
+                    // const receipt = await tx.wait()
 
-            // After
-            expect(await stkAaveToken.balanceOf(unliquidator.address)).to.eq(0)
-            expect(await stkAaveToken.balanceOf(treasuryAddress)).to.gt(treasuryBalBefore)
-        })
-        it("Should claim stkAave from mBTC and transfer to Treasury", async () => {
-            // Before
-            const treasuryBalBefore = await stkAaveToken.balanceOf(treasuryAddress)
-            expect(await stkAaveToken.balanceOf(unliquidator.address)).to.eq(0)
+                    // Check events
+                    expect(tx).to.emit(unliquidator, "DistributedRewards")
+                    expect(tx).to.emit(stkAaveToken, "Transfer")
+                    expect(tx).to.emit(integration, "RewardsClaimed")
 
-            console.log(`Treasury balance before ${toEther(treasuryBalBefore)}`)
+                    console.log(`Treasury balance after ${toEther(await stkAaveToken.balanceOf(treasuryAddress))}`)
 
-            // Claim
-            expect(await unliquidator.claimAndDistributeRewards(aaveMbtcIntegrationAddress, stkAAVE.address)).to.emit(
-                unliquidator,
-                "DistributedRewards",
-            )
-
-            console.log(`Treasury balance after ${toEther(await stkAaveToken.balanceOf(treasuryAddress))}`)
-
-            // After
-            expect(await stkAaveToken.balanceOf(unliquidator.address)).to.eq(0)
-            expect(await stkAaveToken.balanceOf(treasuryAddress)).to.gt(treasuryBalBefore)
+                    // After
+                    expect(await stkAaveToken.balanceOf(unliquidator.address), "rewards unliquidator bal after").to.eq(0)
+                    expect(await stkAaveToken.balanceOf(treasuryAddress), "rewards treasury bal after").to.gt(treasuryBalBefore)
+                })
+            })
+            it("Should set new Receiver", async () => {
+                expect(await unliquidator.receiverSafe()).to.eq(treasuryAddress)
+                expect(await unliquidator.connect(governor.signer).setReceiver(governor.address))
+                    .to.emit(unliquidator, "ReceiverUpdated")
+                    .withArgs(governor.address)
+                expect(await unliquidator.receiverSafe()).to.eq(governor.address)
+            })
         })
         it("Should transfer COMP from integration to Treasury", async () => {
             // Claim on behalf first
@@ -175,23 +193,13 @@ context("Unliquidator forked network tests", async () => {
             console.log(`Treasury balance before ${toEther(treasuryBalBefore)}`)
 
             // Claim
-            expect(await unliquidator.distributeRewards(compoundIntegrationAddress, COMP.address)).to.emit(
-                unliquidator,
-                "DistributedRewards",
-            )
+            expect(await unliquidator.distributeRewards(USDC.integrator, COMP.address)).to.emit(unliquidator, "DistributedRewards")
 
             console.log(`Treasury balance after ${toEther(await compToken.balanceOf(treasuryAddress))}`)
 
             // After
             expect(await compToken.balanceOf(unliquidator.address)).to.eq(0)
             expect(await compToken.balanceOf(treasuryAddress)).to.gt(treasuryBalBefore)
-        })
-        it("Should set new Receiver", async () => {
-            expect(await unliquidator.receiverSafe()).to.eq(treasuryAddress)
-            expect(await unliquidator.connect(governor.signer).setReceiver(governor.address))
-                .to.emit(unliquidator, "ReceiverUpdated")
-                .withArgs(governor.address)
-            expect(await unliquidator.receiverSafe()).to.eq(governor.address)
         })
     })
     describe("Unliquidator should fail to deploy in the following cases", async () => {
@@ -226,9 +234,9 @@ context("Unliquidator forked network tests", async () => {
             expect(unliquidator.connect(governor.signer).claimAndDistributeRewards(ZERO_ADDRESS, stkAAVE.address)).to.be.revertedWith(
                 "Invalid integration address",
             )
-            expect(
-                unliquidator.connect(governor.signer).claimAndDistributeRewards(aaveMusdIntegrationAddress, ZERO_ADDRESS),
-            ).to.be.revertedWith("Invalid token address")
+            expect(unliquidator.connect(governor.signer).claimAndDistributeRewards(USDT.integrator, ZERO_ADDRESS)).to.be.revertedWith(
+                "Invalid token address",
+            )
         })
         it("Should failt to triggerClaimAndDistribute with wrong contract", async () => {
             // eslint-disable-next-line
@@ -238,7 +246,7 @@ context("Unliquidator forked network tests", async () => {
             expect(unliquidator.connect(governor.signer).distributeRewards(ZERO_ADDRESS, stkAAVE.address)).to.be.revertedWith(
                 "Invalid integration address",
             )
-            expect(unliquidator.connect(governor.signer).distributeRewards(aaveMusdIntegrationAddress, ZERO_ADDRESS)).to.be.revertedWith(
+            expect(unliquidator.connect(governor.signer).distributeRewards(USDT.integrator, ZERO_ADDRESS)).to.be.revertedWith(
                 "Invalid token address",
             )
         })
