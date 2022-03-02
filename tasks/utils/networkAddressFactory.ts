@@ -13,6 +13,7 @@ export const contractNames = [
     "BadgerSafe",
     "SavingsManager",
     "Liquidator",
+    "Unliquidator",
     // Will become the EmissionsController
     "RewardsDistributor",
     "EmissionsController",
@@ -102,6 +103,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xBC3B550E0349D74bF5148D86114A48C3B4Aa856F"
             case "Liquidator":
                 return "0xe595D67181D701A5356e010D9a58EB9A341f1DbD"
+            case "Unliquidator":
+                return "0xC643B9D66C68d06EA844251a441A0a1211E60656"
             case "RewardsDistributor":
             case "EmissionsController":
                 return "0xBa69e6FC7Df49a3b75b565068Fb91ff2d9d91780"
