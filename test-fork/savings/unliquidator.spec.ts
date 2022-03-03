@@ -92,6 +92,7 @@ context("Unliquidator forked network tests", async () => {
 
     describe("Unliquidator", async () => {
         let unliquidator: Unliquidator
+        const liquidatorModuleKey = keccak256(toUtf8Bytes("Liquidator"))
 
         before("reset block number", async () => {
             await runSetup(14179191)
@@ -103,14 +104,15 @@ context("Unliquidator forked network tests", async () => {
             expect(await unliquidator.receiverSafe()).to.eq(treasuryAddress)
         })
         it("Should propose Module in Nexus", async () => {
-            expect(await nexus.getModule(keccak256(toUtf8Bytes("Liquidator")))).to.eq(liquidatorAddress)
-            await nexus.proposeModule(keccak256(toUtf8Bytes("Liquidator")), unliquidator.address)
-            expect(await nexus.getModule(keccak256(toUtf8Bytes("Liquidator")))).to.not.eq(unliquidator.address)
+            expect(await nexus.getModule(liquidatorModuleKey)).to.eq(liquidatorAddress)
+            console.log(`Liquidator key ${liquidatorModuleKey}`)
+            await nexus.proposeModule(liquidatorModuleKey, unliquidator.address)
+            expect(await nexus.getModule(liquidatorModuleKey)).to.not.eq(unliquidator.address)
         })
         it("Should accept Module in Nexus", async () => {
             increaseTime(ONE_WEEK.add(ONE_HOUR))
-            await nexus.acceptProposedModule(keccak256(toUtf8Bytes("Liquidator")))
-            expect(await nexus.getModule(keccak256(toUtf8Bytes("Liquidator")))).to.eq(unliquidator.address)
+            await nexus.acceptProposedModule(liquidatorModuleKey)
+            expect(await nexus.getModule(liquidatorModuleKey)).to.eq(unliquidator.address)
         })
         it("Should reapprove permissions to new Unliquidator", async () => {
             // Before no permissions
