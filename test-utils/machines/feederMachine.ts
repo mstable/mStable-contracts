@@ -7,6 +7,7 @@ import {
     FeederPool__factory,
     FeederManager__factory,
     MockERC20,
+    MockUsdPlusToken,
     MockPlatformIntegration__factory,
     IPlatformIntegration,
     FeederManager,
@@ -17,6 +18,7 @@ import {
     Masset,
     MockERC20__factory,
     NonPeggedFeederPool__factory,
+    RebasedFeederPool__factory,
     RedemptionPriceSnapMock,
     RedemptionPriceSnapMock__factory,
 } from "types/generated"
@@ -33,7 +35,7 @@ export interface FeederDetails {
     manager?: FeederManager
     interestValidator?: InterestValidator
     mAsset?: MockERC20 & Masset
-    fAsset?: MockERC20
+    fAsset?: MockERC20 | MockUsdPlusToken
     // [0] = mAsset
     // [1] = fAsset
     bAssets?: MockERC20[]
@@ -64,12 +66,16 @@ export class FeederMachine {
         useInterestValidator = false,
         use2dp = false,
         useRedemptionPrice = false,
+        useRebasedFeederPool = false,
     ): Promise<FeederDetails> {
-        const mAssetDetails = await this.mAssetMachine.deployMasset(useLendingMarkets, false)
+        const mAssetDetails = await this.mAssetMachine.deployMasset(useLendingMarkets, false, 100, useRebasedFeederPool)
         // Mints 10k mAsset to begin with
         await this.mAssetMachine.seedWithWeightings(mAssetDetails, mAssetWeights)
 
-        const fAsset = await this.mAssetMachine.loadBassetProxy("Binance BTC", "bBTC", use2dp ? 2 : 18)
+        const fAsset = useRebasedFeederPool
+            ? await this.mAssetMachine.loadBassetProxyUsdPlus("USD+", "USD+", 6)
+            : await this.mAssetMachine.loadBassetProxy("Binance BTC", "bBTC", use2dp ? 2 : 18)
+
         const bAssets = [mAssetDetails.mAsset as MockERC20, fAsset]
         const feederLogic = await new FeederLogic__factory(this.sa.default.signer).deploy()
         const feederManager = await new FeederManager__factory(this.sa.default.signer).deploy()
@@ -123,17 +129,33 @@ export class FeederMachine {
                 mAssetDetails.mAsset.address,
                 redemptionPriceSnapAddress,
             )
-        }
-        else {
+        } else if (useRebasedFeederPool) {
+            feederPoolFactory = RebasedFeederPool__factory;
+            impl = await new feederPoolFactory(linkedAddress, this.sa.default.signer).deploy(
+                mAssetDetails.nexus.address,
+                mAssetDetails.mAsset.address
+            )
+        } else {
             feederPoolFactory = FeederPool__factory;
             impl = await new feederPoolFactory(linkedAddress, this.sa.default.signer).deploy(
                 mAssetDetails.nexus.address,
                 mAssetDetails.mAsset.address,
             )
         }
+
+        let name
+        let symbol
+        if (useRebasedFeederPool) {
+            name = "mStable mUSD/USD+ Feeder"
+            symbol = "USD+ fPool"
+        } else {
+            name = "mStable mBTC/bBTC Feeder"
+            symbol = "bBTC fPool"
+        }
+
         const data = impl.interface.encodeFunctionData("initialize", [
-            "mStable mBTC/bBTC Feeder",
-            "bBTC fPool",
+            name,
+            symbol,
             {
                 addr: mAssetDetails.mAsset.address,
                 integrator: useLendingMarkets ? mAssetDetails.integrationAddress : ZERO_ADDRESS,

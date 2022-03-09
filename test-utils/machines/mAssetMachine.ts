@@ -22,6 +22,8 @@ import {
     MassetLogic__factory,
     MassetManager__factory,
     MockERC20__factory,
+    MockUsdPlusToken,
+    MockUsdPlusToken__factory,
 } from "types/generated"
 import { BN, minimum, simpleToExactAmount } from "@utils/math"
 import { fullScale, ratioScale, ZERO_ADDRESS, DEAD_ADDRESS } from "@utils/constants"
@@ -102,9 +104,11 @@ export class MassetMachine {
         }
     }
 
-    public async deployMasset(useLendingMarkets = false, useTransferFees = false, a = 100): Promise<MassetDetails> {
+    public async deployMasset(useLendingMarkets = false, useTransferFees = false, a = 100, useRebasedFeederPool = false): Promise<MassetDetails> {
         // 1. Bassets
-        const bAssets = await this.loadBassetsLocal(useLendingMarkets, useTransferFees)
+        const bAssets = useRebasedFeederPool
+            ? await this.loadBassetsLocalMUsd(useLendingMarkets, useTransferFees)
+            : await this.loadBassetsLocal(useLendingMarkets, useTransferFees)
 
         // 2. Invariant Validator
         const logicLib = await new MassetLogic__factory(this.sa.default.signer).deploy()
@@ -137,9 +141,19 @@ export class MassetMachine {
         const MassetFactory = new ExposedMasset__factory(mAssetFactoryLibs, this.sa.default.signer)
         const impl = (await MassetFactory.deploy(nexus.address, simpleToExactAmount(5, 13))) as Masset
 
+        let name
+        let symbol
+        if (useRebasedFeederPool) {
+            name = "mStable USD"
+            symbol = "mUSD"
+        } else {
+            name = "mStable BTC"
+            symbol = "mBTC"
+        }
+
         const data = impl.interface.encodeFunctionData("initialize", [
-            "mStable BTC",
-            "mBTC",
+            name,
+            symbol,
             bAssets.bAssets.map((b, i) => ({
                 addr: b.address,
                 integrator: integrationAddress,
@@ -442,6 +456,27 @@ export class MassetMachine {
         return mAsset
     }
 
+    public async loadBassetProxyUsdPlus(
+        name: string,
+        sym: string,
+        dec: number,
+        recipient: string = this.sa.default.address,
+        init = 10000000000,
+    ): Promise<MockUsdPlusToken> {
+        // Factories
+        const tokenFactory = await new MockUsdPlusToken__factory(this.sa.default.signer)
+        const AssetProxyFactory = await new AssetProxy__factory(this.sa.default.signer)
+
+        // Impl
+        const mockUsdPlusToken = (await tokenFactory.deploy()) as MockUsdPlusToken
+
+        // Proxy
+        const data = await mockUsdPlusToken.interface.encodeFunctionData("initialize", [name, sym, dec, recipient, init])
+        const mAssetProxy = await AssetProxyFactory.deploy(mockUsdPlusToken.address, this.sa.governor.address, data)
+        const mAsset = MockUsdPlusToken__factory.connect(mAssetProxy.address, this.sa.default.signer)
+        return mAsset
+    }
+
     public async loadBassetsLocal(
         useLendingMarkets = false,
         useTransferFees = false,
@@ -455,6 +490,31 @@ export class MassetMachine {
         const bAssets = [mockBasset1, mockBasset2, mockBasset3, mockBasset4]
         // bAssets at index 2 and 3 only have transfer fees if useTransferFees is true
         const bAssetTxFees = bAssets.map((_, i) => useTransferFees && (i === 2 || i === 3))
+
+        // Only deploy Aave mock and A tokens if lending markets are required
+        const lendingProperties = useLendingMarkets ? await this.loadATokens(bAssets) : {}
+
+        return {
+            aavePlatformAddress: ZERO_ADDRESS,
+            aTokens: [],
+            ...lendingProperties,
+            bAssets,
+            bAssetTxFees,
+        }
+    }
+
+    public async loadBassetsLocalMUsd(
+        useLendingMarkets = false,
+        useTransferFees = false,
+        recipient = this.sa.default.address,
+    ): Promise<BassetIntegrationDetails> {
+        //  - Mock bAssets
+        const mockBasset1 = await this.loadBassetProxy("USDC", "USDC", 6, recipient)
+        const mockBasset2 = await this.loadBassetProxy("USDT", "USDT", 6, recipient)
+        const mockBasset3 = await this.loadBassetProxy("DAI", "DAI", 18, recipient)
+        const bAssets = [mockBasset1, mockBasset2, mockBasset3]
+        // bAssets transfer fees if useTransferFees is true
+        const bAssetTxFees = bAssets.map((_, i) => useTransferFees)
 
         // Only deploy Aave mock and A tokens if lending markets are required
         const lendingProperties = useLendingMarkets ? await this.loadATokens(bAssets) : {}
