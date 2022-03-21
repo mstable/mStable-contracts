@@ -26,7 +26,6 @@ contract RevenueSplitBuyBack is IRevenueRecipient, Initializable, ImmutableModul
         address indexed mAsset,
         uint256 mAssetsToTreasury,
         uint256 mAssetsSold,
-        uint256 bAssetAmount,
         uint256 rewardsAmount
     );
     event DonatedRewards(uint256 totalRewards);
@@ -149,7 +148,15 @@ contract RevenueSplitBuyBack is IRevenueRecipient, Initializable, ImmutableModul
         uint256[] memory minBassetsAmounts,
         uint256[] memory minRewardsAmounts,
         bytes[] calldata uniswapPaths
-    ) external onlyKeeperOrGovernor {
+    )
+        external
+        onlyKeeperOrGovernor
+        returns (
+            uint256 mAssetToTreasury,
+            uint256 mAssetsSellAmount,
+            uint256 rewardsAmount
+        )
+    {
         uint256 len = mAssets.length;
         require(len > 0, "Invalid mAssets");
         require(minBassetsAmounts.length == len, "Invalid minBassetsAmounts");
@@ -169,42 +176,40 @@ contract RevenueSplitBuyBack is IRevenueRecipient, Initializable, ImmutableModul
 
             // Get mAsset revenue
             uint256 mAssetBal = IERC20(mAssets[i]).balanceOf(address(this));
-            uint256 mAssetToTreasury;
 
+            // If a portion of the revenue is being sent to treasury
             if (protocolFee > 0) {
                 // STEP 1: Send mAsset to treasury
                 mAssetToTreasury = (mAssetBal * protocolFee) / CONFIG_SCALE;
                 IERC20(mAssets[i]).safeTransfer(treasury, mAssetToTreasury);
             }
-            uint256 mAssetsSellAmount = mAssetBal - mAssetToTreasury;
 
-            // STEP 2 - Redeem mAssets for bAssets
-            uint256 bAssetAmount = IMasset(mAssets[i]).redeem(
-                bAsset,
-                mAssetsSellAmount,
-                minBassetsAmounts[i],
-                address(this)
-            );
+            // If some portion of the revenue is used to buy back rewards tokens
+            if (protocolFee < CONFIG_SCALE) {
+                mAssetsSellAmount = mAssetBal - mAssetToTreasury;
 
-            // STEP 3 - Swap bAssets for rewards using Uniswap V3
-            IERC20(bAsset).safeApprove(address(UNISWAP_ROUTER), bAssetAmount);
-            IUniswapV3SwapRouter.ExactInputParams memory param = IUniswapV3SwapRouter
-            .ExactInputParams(
-                uniswapPaths[i],
-                address(this),
-                block.timestamp,
-                bAssetAmount,
-                minRewardsAmounts[i]
-            );
-            uint256 rewardsAmount = UNISWAP_ROUTER.exactInput(param);
+                // STEP 2 - Redeem mAssets for bAssets
+                uint256 bAssetAmount = IMasset(mAssets[i]).redeem(
+                    bAsset,
+                    mAssetsSellAmount,
+                    minBassetsAmounts[i],
+                    address(this)
+                );
 
-            emit BuyBackRewards(
-                mAssets[i],
-                mAssetToTreasury,
-                mAssetsSellAmount,
-                bAssetAmount,
-                rewardsAmount
-            );
+                // STEP 3 - Swap bAssets for rewards using Uniswap V3
+                IERC20(bAsset).safeApprove(address(UNISWAP_ROUTER), bAssetAmount);
+                IUniswapV3SwapRouter.ExactInputParams memory param = IUniswapV3SwapRouter
+                .ExactInputParams(
+                    uniswapPaths[i],
+                    address(this),
+                    block.timestamp,
+                    bAssetAmount,
+                    minRewardsAmounts[i]
+                );
+                rewardsAmount = UNISWAP_ROUTER.exactInput(param);
+            }
+
+            emit BuyBackRewards(mAssets[i], mAssetToTreasury, mAssetsSellAmount, rewardsAmount);
         }
     }
 
@@ -273,7 +278,7 @@ contract RevenueSplitBuyBack is IRevenueRecipient, Initializable, ImmutableModul
     }
 
     function _setProtocolFee(uint256 _protocolFee) internal {
-        require(1e15 <= _protocolFee && _protocolFee <= CONFIG_SCALE, "Invalid protocol fee");
+        require(_protocolFee <= CONFIG_SCALE, "Invalid protocol fee");
 
         protocolFee = _protocolFee;
 
