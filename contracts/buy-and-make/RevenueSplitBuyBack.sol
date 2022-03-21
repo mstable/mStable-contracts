@@ -83,7 +83,11 @@ contract RevenueSplitBuyBack is IRevenueRecipient, Initializable, ImmutableModul
      * @param _treasury Address the treasury fees are transferred to.
      * @param _protocolFee percentage of governence fee to be sent to treasury where 100% = 1e18.
      */
-    function initialize(uint16[] memory _stakingDialIds, address _treasury, uint256 _protocolFee) external initializer {
+    function initialize(
+        uint16[] memory _stakingDialIds,
+        address _treasury,
+        uint256 _protocolFee
+    ) external initializer {
         for (uint256 i = 0; i < _stakingDialIds.length; i++) {
             _addStakingContract(_stakingDialIds[i]);
         }
@@ -169,7 +173,7 @@ contract RevenueSplitBuyBack is IRevenueRecipient, Initializable, ImmutableModul
 
             if (protocolFee > 0) {
                 // STEP 1: Send mAsset to treasury
-                mAssetToTreasury = mAssetBal * protocolFee / CONFIG_SCALE;
+                mAssetToTreasury = (mAssetBal * protocolFee) / CONFIG_SCALE;
                 IERC20(mAssets[i]).safeTransfer(treasury, mAssetToTreasury);
             }
             uint256 mAssetsSellAmount = mAssetBal - mAssetToTreasury;
@@ -184,7 +188,8 @@ contract RevenueSplitBuyBack is IRevenueRecipient, Initializable, ImmutableModul
 
             // STEP 3 - Swap bAssets for rewards using Uniswap V3
             IERC20(bAsset).safeApprove(address(UNISWAP_ROUTER), bAssetAmount);
-            IUniswapV3SwapRouter.ExactInputParams memory param = IUniswapV3SwapRouter.ExactInputParams(
+            IUniswapV3SwapRouter.ExactInputParams memory param = IUniswapV3SwapRouter
+            .ExactInputParams(
                 uniswapPaths[i],
                 address(this),
                 block.timestamp,
@@ -269,7 +274,7 @@ contract RevenueSplitBuyBack is IRevenueRecipient, Initializable, ImmutableModul
 
     function _setProtocolFee(uint256 _protocolFee) internal {
         require(1e15 <= _protocolFee && _protocolFee <= CONFIG_SCALE, "Invalid protocol fee");
-        
+
         protocolFee = _protocolFee;
 
         emit ProtocolFeeChanged(protocolFee);
