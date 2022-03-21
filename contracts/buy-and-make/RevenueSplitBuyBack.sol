@@ -14,7 +14,7 @@ import { IUniswapV3SwapRouter } from "../peripheral/Uniswap/IUniswapV3SwapRouter
 /**
  * @title   RevenueSplitBuyBack
  * @author  mStable
- * @notice  Uses protocol revenue to buy MTA rewards for stakers. Updated Version sends some protocol fees to treasury.
+ * @notice  Uses governance fees to buy MTA rewards for stakers. Updated Version sends some governance fees to treasury.
  * @dev     VERSION: 2.0
  *          DATE:    2022-04-17
  */
@@ -31,7 +31,7 @@ contract RevenueSplitBuyBack is IRevenueRecipient, Initializable, ImmutableModul
     event DonatedRewards(uint256 totalRewards);
     event MappedBasset(address indexed mAsset, address indexed bAsset);
     event AddedStakingContract(uint16 stakingDialId);
-    event ProtocolFeeChanged(uint256 protocolFee);
+    event TreasuryFeeChanged(uint256 treasuryFee);
     event TreasuryChanged(address treasury);
 
     /// @notice scale of the `minMasset2BassetPrice` and `minBasset2RewardsPrice` configuration properties.
@@ -49,8 +49,8 @@ contract RevenueSplitBuyBack is IRevenueRecipient, Initializable, ImmutableModul
     /// @notice Emissions Controller dial ids for all staking contracts that will receive reward tokens.
     uint256[] public stakingDialIds;
 
-    /// @notice ProtocolFee, how much does go back to the Treasury? 100% = 1e18
-    uint256 public protocolFee;
+    /// @notice percentage of governance fees that is sent to the Treasury where 100% = 1e18
+    uint256 public treasuryFee;
 
     /// @notice address the Treasury fees are transferred to.
     address public treasury;
@@ -80,12 +80,12 @@ contract RevenueSplitBuyBack is IRevenueRecipient, Initializable, ImmutableModul
     /**
      * @param _stakingDialIds Emissions Controller dial ids for all staking contracts that will receive reward tokens.
      * @param _treasury Address the treasury fees are transferred to.
-     * @param _protocolFee percentage of governence fee to be sent to treasury where 100% = 1e18.
+     * @param _treasuryFee percentage of governence fees to be sent to treasury where 100% = 1e18.
      */
     function initialize(
         uint16[] memory _stakingDialIds,
         address _treasury,
-        uint256 _protocolFee
+        uint256 _treasuryFee
     ) external initializer {
         for (uint256 i = 0; i < _stakingDialIds.length; i++) {
             _addStakingContract(_stakingDialIds[i]);
@@ -97,7 +97,7 @@ contract RevenueSplitBuyBack is IRevenueRecipient, Initializable, ImmutableModul
         require(_treasury != address(0), "Treasury is zero");
         treasury = _treasury;
 
-        _setProtocolFee(_protocolFee);
+        _setTreasuryFee(_treasuryFee);
     }
 
     /***************************************
@@ -119,7 +119,7 @@ contract RevenueSplitBuyBack is IRevenueRecipient, Initializable, ImmutableModul
     }
 
     /**
-     * @notice Buys reward tokens, eg MTA, using mAssets like mUSD or mBTC from protocol revenue.
+     * @notice Buys reward tokens, eg MTA, using mAssets like mUSD or mBTC from protocol governance fees.
      * @param mAssets Addresses of mAssets that are to be sold for rewards. eg mUSD and mBTC.
      * @param minBassetsAmounts Minimum amount of bAsset tokens to receive for each redeem of mAssets.
      * The amount uses the decimal places of the bAsset.
@@ -178,14 +178,14 @@ contract RevenueSplitBuyBack is IRevenueRecipient, Initializable, ImmutableModul
             uint256 mAssetBal = IERC20(mAssets[i]).balanceOf(address(this));
 
             // If a portion of the revenue is being sent to treasury
-            if (protocolFee > 0) {
+            if (treasuryFee > 0) {
                 // STEP 1: Send mAsset to treasury
-                mAssetToTreasury = (mAssetBal * protocolFee) / CONFIG_SCALE;
+                mAssetToTreasury = (mAssetBal * treasuryFee) / CONFIG_SCALE;
                 IERC20(mAssets[i]).safeTransfer(treasury, mAssetToTreasury);
             }
 
             // If some portion of the revenue is used to buy back rewards tokens
-            if (protocolFee < CONFIG_SCALE) {
+            if (treasuryFee < CONFIG_SCALE) {
                 mAssetsSellAmount = mAssetBal - mAssetToTreasury;
 
                 // STEP 2 - Redeem mAssets for bAssets
@@ -257,7 +257,7 @@ contract RevenueSplitBuyBack is IRevenueRecipient, Initializable, ImmutableModul
 
     /**
      * @notice Maps a mAsset to bAsset.
-     * @param _mAsset Address of the meta asset that is received as protocol revenue.
+     * @param _mAsset Address of the meta asset that is received as governance fees.
      * @param _bAsset Address of the base asset that is redeemed from the mAsset.
      */
     function mapBasset(address _mAsset, address _bAsset) external onlyGovernor {
@@ -270,19 +270,19 @@ contract RevenueSplitBuyBack is IRevenueRecipient, Initializable, ImmutableModul
     }
 
     /**
-     * @notice Sets the protocol fee. Protocol fees are paid to the Treasury
-     * @param _protocolFee The protocol fee in 100% = 1e18.
+     * @notice Sets the percentage of governence fees to be sent to treasury.
+     * @param _treasuryFee percentage of governence fees to be sent to treasury where 100% = 1e18.
      */
-    function setProtocolFee(uint256 _protocolFee) external onlyGovernor {
-        _setProtocolFee(_protocolFee);
+    function setTreasuryFee(uint256 _treasuryFee) external onlyGovernor {
+        _setTreasuryFee(_treasuryFee);
     }
 
-    function _setProtocolFee(uint256 _protocolFee) internal {
-        require(_protocolFee <= CONFIG_SCALE, "Invalid protocol fee");
+    function _setTreasuryFee(uint256 _treasuryFee) internal {
+        require(_treasuryFee <= CONFIG_SCALE, "Invalid treasury fee");
 
-        protocolFee = _protocolFee;
+        treasuryFee = _treasuryFee;
 
-        emit ProtocolFeeChanged(protocolFee);
+        emit TreasuryFeeChanged(treasuryFee);
     }
 
     /**

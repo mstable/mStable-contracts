@@ -1,4 +1,5 @@
 import { Signer } from "@ethersproject/abstract-signer"
+import { BN } from "@utils/math"
 import { HardhatRuntimeEnvironment } from "hardhat/types"
 import {
     AssetProxy__factory,
@@ -18,6 +19,8 @@ import {
     L2EmissionsController__factory,
     RevenueBuyBack,
     RevenueBuyBack__factory,
+    RevenueSplitBuyBack__factory,
+    RevenueSplitBuyBack,
 } from "types/generated"
 import { deployContract, logTxDetails } from "./deploy-utils"
 import { verifyEtherscan } from "./etherscan"
@@ -308,6 +311,43 @@ export const deployRevenueBuyBack = async (
         address: revenueBuyBack.address,
         constructorArguments,
         contract: "contracts/buy-and-make/RevenueBuyBack.sol:RevenueBuyBack",
+    })
+
+    return revenueBuyBack
+}
+
+export const deploySplitRevenueBuyBack = async (
+    signer: Signer,
+    hre: HardhatRuntimeEnvironment,
+    protocolFee: BN,
+): Promise<RevenueSplitBuyBack> => {
+    const chain = getChain(hre)
+
+    const nexusAddress = resolveAddress("Nexus", chain)
+    const mtaAddress = resolveAddress("MTA", chain)
+    const uniswapRouterAddress = resolveAddress("UniswapRouterV3", chain)
+    const emissionsControllerAddress = resolveAddress("EmissionsController", chain)
+    const treasuryAddress = resolveAddress("mStableDAO", chain)
+
+    // Deploy RevenueBuyBack
+    const constructorArguments: [string, string, string, string] = [
+        nexusAddress,
+        mtaAddress,
+        uniswapRouterAddress,
+        emissionsControllerAddress,
+    ]
+    const revenueBuyBack = await deployContract<RevenueSplitBuyBack>(
+        new RevenueSplitBuyBack__factory(signer),
+        "RevenueSplitBuyBack",
+        constructorArguments,
+    )
+    const tx = await revenueBuyBack.initialize([0, 1], treasuryAddress, protocolFee)
+    await logTxDetails(tx, "RevenueSplitBuyBack.initialize")
+
+    await verifyEtherscan(hre, {
+        address: revenueBuyBack.address,
+        constructorArguments,
+        contract: "contracts/buy-and-make/RevenueSplitBuyBack.sol:RevenueSplitBuyBack",
     })
 
     return revenueBuyBack

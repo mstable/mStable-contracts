@@ -3,6 +3,7 @@ import "tsconfig-paths/register"
 
 import { task, types } from "hardhat/config"
 import { MockRootChainManager__factory } from "types/generated"
+import { simpleToExactAmount } from "@utils/math"
 import { getSigner } from "./utils/signerFactory"
 import {
     deployBasicForwarder,
@@ -13,6 +14,7 @@ import {
     deployL2BridgeRecipients,
     deployL2EmissionsController,
     deployRevenueBuyBack,
+    deploySplitRevenueBuyBack,
 } from "./utils/emissions-utils"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
 import { deployContract } from "./utils/deploy-utils"
@@ -89,6 +91,20 @@ task("deploy-revenue-buy-back")
 
         console.log(`Governor call SavingsManager.setRevenueRecipient to ${revenueRecipient.address} for mUSD and mBTC`)
         console.log(`Governor call setMassetConfig for mUSD and mBTC`)
+    })
+
+task("deploy-split-revenue-buy-back")
+    .addOptionalParam("fee", "Portion of revenue to be sent to treasury as a percentage.", 50, types.int)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+
+        const treasuryFee = simpleToExactAmount(taskArgs.fee, 1e16)
+
+        const revenueRecipient = await deploySplitRevenueBuyBack(signer, hre, treasuryFee)
+
+        console.log(`Governor call SavingsManager.setRevenueRecipient to ${revenueRecipient.address} for mUSD and mBTC`)
+        console.log(`Governor call mapBasset for mUSD and mBTC`)
     })
 
 task("deploy-mock-root-chain-manager", "Deploys a mocked Polygon PoS Bridge")
