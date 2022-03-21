@@ -11,43 +11,29 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IUniswapV3SwapRouter } from "../peripheral/Uniswap/IUniswapV3SwapRouter.sol";
 
-struct RevenueBuyBackConfig {
-    // Minimum price of bAssets compared to mAssets scaled to 1e18 (CONFIG_SCALE).
-    uint128 minMasset2BassetPrice;
-    // Minimum price of rewards token compared to bAssets scaled to 1e18 (CONFIG_SCALE).
-    uint128 minBasset2RewardsPrice;
-    // base asset of the mAsset that is being redeemed and then sold for reward tokens.
-    address bAsset;
-    // Uniswap V3 path
-    bytes uniswapPath;
-}
-
 /**
- * @title   RevenueBuyBack
+ * @title   RevenueSplitBuyBack
  * @author  mStable
- * @notice  Uses protocol revenue to buy MTA rewards for stakers.
- * @dev     VERSION: 1.0
- *          DATE:    2021-11-09
+ * @notice  Uses protocol revenue to buy MTA rewards for stakers. Updated Version sends some protocol fees to treasury.
+ * @dev     VERSION: 2.0
+ *          DATE:    2022-04-17
  */
-contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
+contract RevenueSplitBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
     using SafeERC20 for IERC20;
 
     event RevenueReceived(address indexed mAsset, uint256 amountIn);
     event BuyBackRewards(
         address indexed mAsset,
-        uint256 mAssetAmount,
+        uint256 mAssetsToTreasury,
+        uint256 mAssetsSold,
         uint256 bAssetAmount,
         uint256 rewardsAmount
     );
     event DonatedRewards(uint256 totalRewards);
-    event AddedMassetConfig(
-        address indexed mAsset,
-        address indexed bAsset,
-        uint128 minMasset2BassetPrice,
-        uint128 minBasset2RewardsPrice,
-        bytes uniswapPath
-    );
+    event MappedBasset(address indexed mAsset, address indexed bAsset);
     event AddedStakingContract(uint16 stakingDialId);
+    event ProtocolFeeChanged(uint256 protocolFee);
+    event TreasuryChanged(address treasury);
 
     /// @notice scale of the `minMasset2BassetPrice` and `minBasset2RewardsPrice` configuration properties.
     uint256 public constant CONFIG_SCALE = 1e18;
@@ -59,10 +45,16 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
     /// @notice Uniswap V3 Router address
     IUniswapV3SwapRouter public immutable UNISWAP_ROUTER;
 
-    /// @notice Mapping of mAssets to RevenueBuyBack config
-    mapping(address => RevenueBuyBackConfig) public massetConfig;
+    /// @notice Mapping of mAssets to bAssets
+    mapping(address => address) public bassets;
     /// @notice Emissions Controller dial ids for all staking contracts that will receive reward tokens.
     uint256[] public stakingDialIds;
+
+    /// @notice ProtocolFee, how much does go back to the Treasury? 100% = 1e18
+    uint256 public protocolFee;
+
+    /// @notice address the Treasury fees are transferred to.
+    address public treasury;
 
     /**
      * @param _nexus mStable system Nexus address
@@ -88,14 +80,21 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
 
     /**
      * @param _stakingDialIds Emissions Controller dial ids for all staking contracts that will receive reward tokens.
+     * @param _treasury Address the treasury fees are transferred to.
+     * @param _protocolFee percentage of governence fee to be sent to treasury where 100% = 1e18.
      */
-    function initialize(uint16[] memory _stakingDialIds) external initializer {
+    function initialize(uint16[] memory _stakingDialIds, address _treasury, uint256 _protocolFee) external initializer {
         for (uint256 i = 0; i < _stakingDialIds.length; i++) {
             _addStakingContract(_stakingDialIds[i]);
         }
 
         // RevenueBuyBack approves the Emissions Controller to transfer rewards. eg MTA
         REWARDS_TOKEN.safeApprove(address(EMISSIONS_CONTROLLER), type(uint256).max);
+
+        require(_treasury != address(0), "Treasury is zero");
+        treasury = _treasury;
+
+        _setProtocolFee(_protocolFee);
     }
 
     /***************************************
@@ -108,7 +107,7 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
      * @param _amount Units of mAsset collected
      */
     function notifyRedistributionAmount(address _mAsset, uint256 _amount) external override {
-        require(massetConfig[_mAsset].bAsset != address(0), "Invalid mAsset");
+        require(bassets[_mAsset] != address(0), "Invalid mAsset");
 
         // Transfer from sender to here
         IERC20(_mAsset).safeTransferFrom(msg.sender, address(this), _amount);
@@ -118,44 +117,89 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
 
     /**
      * @notice Buys reward tokens, eg MTA, using mAssets like mUSD or mBTC from protocol revenue.
-     * @param _mAssets Addresses of mAssets that are to be sold for rewards. eg mUSD and mBTC.
+     * @param mAssets Addresses of mAssets that are to be sold for rewards. eg mUSD and mBTC.
+     * @param minBassetsAmounts Minimum amount of bAsset tokens to receive for each redeem of mAssets.
+     * The amount uses the decimal places of the bAsset.
+     * Example 1: Redeeming 10,000 mUSD with a min 2% slippage to USDC which has 6 decimal places
+     * minBassetsAmounts = 10,000 mAssets * slippage 0.98 * USDC decimals 1e6 =
+     * 1e4 * 0.98 * 1e6 = 1e10 * 0.98 = 98e8
+     *
+     * Example 2: Redeeming 1 mBTC with a min 5% slippage to WBTC which has 8 decimal places
+     * minBassetsAmounts = 1 mAsset * slippage 0.95 * WBTC decimals 1e8 =
+     * 0.95 * 1e8 = 95e6
+     *
+     * @param minRewardsAmounts Minimum amount of reward tokens received from the sale of bAssets.
+     * The amount uses the decimal places of the rewards token.
+     * Example 1: Swapping 10,000 USDC with a min 1% slippage to MTA which has 18 decimal places
+     * minRewardsAmounts = 10,000 USDC * slippage 0.99 * MTA decimals 1e18 * MTA/USD rate 1.2
+     * = 1e4 * 0.99 * 1e18 * 1.2 = 1e22 * 0.99 = 99e20
+     *
+     * Example 1: Swapping 1 WBTC with a min 3% slippage to MTA which has 18 decimal places
+     * minRewardsAmounts = 1 WBTC * slippage 0.97 * MTA decimals 1e18 * MTA/BTC rate 0.00001
+     * = 1 * 0.97 * 1e18 * 0.00001 = 0.97 * 1e13 = 97e11
+     *
+     * @param uniswapPaths The Uniswap V3 bytes encoded paths.
      */
-    function buyBackRewards(address[] calldata _mAssets) external onlyKeeperOrGovernor {
-        uint256 len = _mAssets.length;
-        require(len > 0, "Invalid args");
+    function buyBackRewards(
+        address[] calldata mAssets,
+        uint256[] memory minBassetsAmounts,
+        uint256[] memory minRewardsAmounts,
+        bytes[] calldata uniswapPaths
+    ) external onlyKeeperOrGovernor {
+        uint256 len = mAssets.length;
+        require(len > 0, "Invalid mAssets");
+        require(minBassetsAmounts.length == len, "Invalid minBassetsAmounts");
+        require(minRewardsAmounts.length == len, "Invalid minRewardsAmounts");
+        require(uniswapPaths.length == len, "Invalid uniswapPaths");
 
         // for each mAsset
         for (uint256 i = 0; i < len; i++) {
-            // Get config for mAsset
-            RevenueBuyBackConfig memory config = massetConfig[_mAssets[i]];
-            require(config.bAsset != address(0), "Invalid mAsset");
+            // Get bAsset for mAsset
+            address bAsset = bassets[mAssets[i]];
+            require(bAsset != address(0), "Invalid mAsset");
+            // Validate Uniswap path
+            require(
+                _validUniswapPath(bAsset, address(REWARDS_TOKEN), uniswapPaths[i]),
+                "Invalid uniswap path"
+            );
 
-            // STEP 1 - Redeem mAssets for bAssets
-            IMasset mAsset = IMasset(_mAssets[i]);
-            uint256 mAssetBal = IERC20(_mAssets[i]).balanceOf(address(this));
-            uint256 minBassetOutput = (mAssetBal * config.minMasset2BassetPrice) / CONFIG_SCALE;
-            uint256 bAssetAmount = mAsset.redeem(
-                config.bAsset,
-                mAssetBal,
-                minBassetOutput,
+            // Get mAsset revenue
+            uint256 mAssetBal = IERC20(mAssets[i]).balanceOf(address(this));
+            uint256 mAssetToTreasury;
+
+            if (protocolFee > 0) {
+                // STEP 1: Send mAsset to treasury
+                mAssetToTreasury = mAssetBal * protocolFee / CONFIG_SCALE;
+                IERC20(mAssets[i]).safeTransfer(treasury, mAssetToTreasury);
+            }
+            uint256 mAssetsSellAmount = mAssetBal - mAssetToTreasury;
+
+            // STEP 2 - Redeem mAssets for bAssets
+            uint256 bAssetAmount = IMasset(mAssets[i]).redeem(
+                bAsset,
+                mAssetsSellAmount,
+                minBassetsAmounts[i],
                 address(this)
             );
 
-            // STEP 2 - Swap bAssets for rewards using Uniswap V3
-            IERC20(config.bAsset).safeApprove(address(UNISWAP_ROUTER), bAssetAmount);
-            uint256 minRewardsAmount = (bAssetAmount * config.minBasset2RewardsPrice) /
-                CONFIG_SCALE;
-            IUniswapV3SwapRouter.ExactInputParams memory param = IUniswapV3SwapRouter
-            .ExactInputParams(
-                config.uniswapPath,
+            // STEP 3 - Swap bAssets for rewards using Uniswap V3
+            IERC20(bAsset).safeApprove(address(UNISWAP_ROUTER), bAssetAmount);
+            IUniswapV3SwapRouter.ExactInputParams memory param = IUniswapV3SwapRouter.ExactInputParams(
+                uniswapPaths[i],
                 address(this),
                 block.timestamp,
                 bAssetAmount,
-                minRewardsAmount
+                minRewardsAmounts[i]
             );
             uint256 rewardsAmount = UNISWAP_ROUTER.exactInput(param);
 
-            emit BuyBackRewards(_mAssets[i], mAssetBal, bAssetAmount, rewardsAmount);
+            emit BuyBackRewards(
+                mAssets[i],
+                mAssetToTreasury,
+                mAssetsSellAmount,
+                bAssetAmount,
+                rewardsAmount
+            );
         }
     }
 
@@ -202,54 +246,44 @@ contract RevenueBuyBack is IRevenueRecipient, Initializable, ImmutableModule {
     ****************************************/
 
     /**
-     * @notice Adds or updates rewards buyback config for a mAsset.
+     * @notice Maps a mAsset to bAsset.
      * @param _mAsset Address of the meta asset that is received as protocol revenue.
      * @param _bAsset Address of the base asset that is redeemed from the mAsset.
-     * @param _minMasset2BassetPrice Minimum price of bAssets compared to mAssets scaled to 1e18 (CONFIG_SCALE).
-     * eg USDC/mUSD and wBTC/mBTC exchange rates.
-     * USDC has 6 decimal places so `minMasset2BassetPrice` with no slippage is 1e6.
-     * If a 2% slippage is allowed, the `minMasset2BassetPrice` is 98e4.
-     * WBTC has 8 decimal places so `minMasset2BassetPrice` with no slippage is 1e8.
-     * If a 5% slippage is allowed, the `minMasset2BassetPrice` is 95e6.
-     * @param _minBasset2RewardsPrice Minimum price of rewards token compared to bAssets scaled to 1e18 (CONFIG_SCALE).
-     * eg USDC/MTA and wBTC/MTA exchange rates scaled to 1e18.
-     * USDC only has 6 decimal places
-     * 2 MTA/USDC = 0.5 USDC/MTA * (1e18 / 1e6) * 1e18 = 0.5e30 = 5e29
-     * wBTC only has 8 decimal places
-     * 0.000033 MTA/wBTC = 30,000 WBTC/MTA * (1e18 / 1e8) * 1e18 = 3e4 * 1e28 = 3e32
-     * @param _uniswapPath The Uniswap V3 bytes encoded path.
      */
-    function setMassetConfig(
-        address _mAsset,
-        address _bAsset,
-        uint128 _minMasset2BassetPrice,
-        uint128 _minBasset2RewardsPrice,
-        bytes calldata _uniswapPath
-    ) external onlyGovernor {
+    function mapBasset(address _mAsset, address _bAsset) external onlyGovernor {
         require(_mAsset != address(0), "mAsset token is zero");
         require(_bAsset != address(0), "bAsset token is zero");
-        // bAsset slippage must be plus or minus 10%
-        require(_minMasset2BassetPrice > 0, "Invalid min bAsset price");
-        require(_minBasset2RewardsPrice > 0, "Invalid min reward price");
-        require(
-            _validUniswapPath(_bAsset, address(REWARDS_TOKEN), _uniswapPath),
-            "Invalid uniswap path"
-        );
 
-        massetConfig[_mAsset] = RevenueBuyBackConfig({
-            bAsset: _bAsset,
-            minMasset2BassetPrice: _minMasset2BassetPrice,
-            minBasset2RewardsPrice: _minBasset2RewardsPrice,
-            uniswapPath: _uniswapPath
-        });
+        bassets[_mAsset] = _bAsset;
 
-        emit AddedMassetConfig(
-            _mAsset,
-            _bAsset,
-            _minMasset2BassetPrice,
-            _minBasset2RewardsPrice,
-            _uniswapPath
-        );
+        emit MappedBasset(_mAsset, _bAsset);
+    }
+
+    /**
+     * @notice Sets the protocol fee. Protocol fees are paid to the Treasury
+     * @param _protocolFee The protocol fee in 100% = 1e18.
+     */
+    function setProtocolFee(uint256 _protocolFee) external onlyGovernor {
+        _setProtocolFee(_protocolFee);
+    }
+
+    function _setProtocolFee(uint256 _protocolFee) internal {
+        require(1e15 <= _protocolFee && _protocolFee <= CONFIG_SCALE, "Invalid protocol fee");
+        
+        protocolFee = _protocolFee;
+
+        emit ProtocolFeeChanged(protocolFee);
+    }
+
+    /**
+     * @notice Sets the address the treasury fees are transerred to.
+     * @param _treasury Address the treasury fees are transferred to.
+     */
+    function setTreasury(address _treasury) external onlyGovernor {
+        require(_treasury != address(0), "Treasury is zero");
+        treasury = _treasury;
+
+        emit TreasuryChanged(_treasury);
     }
 
     /**
