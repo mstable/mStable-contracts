@@ -94,15 +94,6 @@ task("polly-daily", "Runs the daily jobs against the contracts on Polygon mainne
         const signer = await getSigner(hre, taskArgs.speed)
         const chain = getChain(hre)
 
-        const aave = PAaveIntegration__factory.connect(PUSDC.integrator, signer)
-        const aaveTx = await aave.claimRewards({ gasLimit: 200000 })
-        await logTxDetails(aaveTx, "claimRewards")
-
-        const liquidatorAddress = getChainAddress("Liquidator", chain)
-        const liquidator = PLiquidator__factory.connect(liquidatorAddress, signer)
-        const liquidatorTx = await liquidator.triggerLiquidation(PUSDC.integrator, { gasLimit: 2000000 })
-        await logTxDetails(liquidatorTx, "triggerLiquidation")
-
         const savingsManagerAddress = getChainAddress("SavingsManager", chain)
         const savingsManager = SavingsManager__factory.connect(savingsManagerAddress, signer)
         const savingsManagerTx = await savingsManager.collectAndStreamInterest(PmUSD.address, {
