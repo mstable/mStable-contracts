@@ -127,8 +127,6 @@ describe("RevenueSplitBuyBack", () => {
         const accounts = await ethers.getSigners()
         mAssetMachine = await new MassetMachine().initAccounts(accounts)
         sa = mAssetMachine.sa
-
-        await setupRevenueBuyBack(treasuryFee)
     })
 
     describe("creating new instance", () => {

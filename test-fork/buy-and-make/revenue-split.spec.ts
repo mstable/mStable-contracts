@@ -19,11 +19,6 @@ import {
 } from "types/generated"
 import { Account } from "types/common"
 import { encodeUniswapPath } from "@utils/peripheral/uniswap"
-import { keccak256 } from "@ethersproject/keccak256"
-import { toUtf8Bytes } from "ethers/lib/utils"
-
-const keeperKey = keccak256(toUtf8Bytes("Keeper"))
-console.log(`Keeper ${keeperKey}`)
 
 const mtaUsdPrice = 42
 const btcUsdPrice = 42300
