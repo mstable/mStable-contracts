@@ -12,6 +12,8 @@ import {
     Masset__factory,
     PAaveIntegration,
     PAaveIntegration__factory,
+    Unliquidator,
+    Unliquidator__factory,
 } from "types/generated"
 import { simpleToExactAmount } from "@utils/math"
 import { encodeUniswapPath } from "@utils/peripheral/uniswap"
@@ -218,6 +220,28 @@ subtask("liquidator-create", "Creates a liquidation of a platform reward")
     })
 
 task("liquidator-create").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})
+
+subtask("unliquidator-deploy", "Deploys new Unliquidator contract")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const chain = getChain(hre)
+        const signer = await getSigner(hre, taskArgs.speed)
+
+        const nexusAddress = getChainAddress("Nexus", chain)
+        const treasuryAddress = getChainAddress("mStableDAO", chain)
+        const constructorArguments = [nexusAddress, treasuryAddress]
+
+        const unliquidator = await deployContract<Unliquidator>(new Unliquidator__factory(signer), "Unliquidator", constructorArguments)
+
+        await verifyEtherscan(hre, {
+            address: unliquidator.address,
+            constructorArguments,
+        })
+    })
+
+task("unliquidator-deploy").setAction(async (_, __, runSuper) => {
     await runSuper()
 })
 

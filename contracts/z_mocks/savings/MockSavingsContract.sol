@@ -88,7 +88,7 @@ contract MockSavingsContract is ERC20 {
         address _output,
         address _beneficiary,
         address _router,
-        bool _isBassetOut
+        bool /* _isBassetOut */
     )
         external
         returns (

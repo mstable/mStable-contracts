@@ -36,7 +36,7 @@ import { getSwapRates } from "./utils/rates-utils"
 import { getSigner } from "./utils/signerFactory"
 import { logTxDetails } from "./utils"
 import { getChain, getChainAddress, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
-import { params } from "./taskUtils"
+import { params } from "./utils/params"
 
 const getBalances = async (
     feederPool: Masset | FeederPool,

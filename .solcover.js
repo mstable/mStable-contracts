@@ -7,13 +7,13 @@ module.exports = {
         "integrations",
         "masset/peripheral",
         "masset/versions",
+        "masset/liquidator/Unliquidator.sol",
         "peripheral",
         "savings/peripheral",
         "upgradability",
-        "legacy",
     ],
     mocha: {
         grep: "@skip-on-coverage", // Find everything with this tag
-        invert: true               // Run the grep's inverse set.
-      }
+        invert: true, // Run the grep's inverse set.
+    },
 }

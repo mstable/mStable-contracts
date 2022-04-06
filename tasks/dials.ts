@@ -107,18 +107,16 @@ const dialNames = [
     "Treasury DAO",
     "Votium",
     "Visor Finance",
+    "Vesper Finance",
 ]
 
 const dialsDetailsToString = (dialsDetails: Array<DialDetails>) =>
     dialsDetails
         .map(
             (dd, i) =>
-                `  ${dd.dialId.toString().padStart(2)}\t${dialNames[i].padStart(21)}\t${usdFormatter(
-                    dd.voteWeight,
-                    18,
-                    5,
-                    2,
-                )}\t${usdFormatter(dd.distributed)}\t${usdFormatter(dd.donated)}\t ${usdFormatter(dd.rewards)}`,
+                `${dialNames[i].padStart(21)}\t${usdFormatter(dd.voteWeight, 18, 5, 2)}\t${usdFormatter(dd.distributed)}\t${usdFormatter(
+                    dd.donated,
+                )}\t ${usdFormatter(dd.rewards)}`,
         )
         .join("\n")
 
@@ -138,10 +136,10 @@ const dialsDetailsToCsv = (dialsDetails: Array<DialDetails>) =>
 const outputDialsSnap = (dialsSnap: DialsSnap) => {
     if (!dialsSnap.csv) {
         console.log(`\nEmissions Controller Dials Snap at epoch ${dialsSnap.nextEpoch}`)
-        console.log(`  ID\t\t\tName\tPercent\t   Distributed\t\tDonated\t\t Total`)
+        console.log(`\t\t Name\tPercent\t   Distributed\t\tDonated\t\t  Total`)
         console.log(dialsDetailsToString(dialsSnap.dialsDetails))
         console.log(
-            `Totals\t\t\t\t\t${usdFormatter(dialsSnap.totalDistributed)}\t${usdFormatter(dialsSnap.totalDonated)}\t ${usdFormatter(
+            `Totals\t\t\t\t${usdFormatter(dialsSnap.totalDistributed)}\t${usdFormatter(dialsSnap.totalDonated)}\t ${usdFormatter(
                 dialsSnap.totalRewards,
             )}`,
         )

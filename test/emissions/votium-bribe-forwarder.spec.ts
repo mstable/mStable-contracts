@@ -2,7 +2,6 @@ import { MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
 import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { simpleToExactAmount } from "@utils/math"
 import { expect } from "chai"
-import { formatBytes32String } from "ethers/lib/utils"
 import { ethers } from "hardhat"
 import { Account } from "types/common"
 import {
@@ -15,7 +14,8 @@ import {
     VotiumBribeForwarder__factory,
 } from "types/generated"
 
-const PROPOSAL = formatBytes32String("PROPOSAL")
+export const hashFn = (str: string): string => ethers.utils.keccak256(ethers.utils.toUtf8Bytes(str))
+const PROPOSAL = hashFn("QmZpsJAvbKEY9YKFCZBUzzSMC5Y9vfy6QPA4HoXGsiLUyg")
 
 describe("VotiumBribeForwarder", () => {
     let sa: StandardAccounts

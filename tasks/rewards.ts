@@ -1,16 +1,13 @@
 /* eslint-disable no-restricted-syntax */
 import { BN, simpleToExactAmount } from "@utils/math"
 import { subtask, task, types } from "hardhat/config"
-import { formatUnits } from "ethers/lib/utils"
-import { TransactionResponse } from "@ethersproject/providers"
-import { Collector__factory, Liquidator__factory } from "types/generated"
+import { Collector__factory, Unliquidator__factory } from "types/generated"
 import { Comptroller__factory } from "types/generated/factories/Comptroller__factory"
 import rewardsFiles from "./balancer-mta-rewards/20210817.json"
-import { logTxDetails, mBTC, mUSD, USDC, usdFormatter } from "./utils"
+import { COMP, logTxDetails, mBTC, mUSD, stkAAVE, USDC, usdFormatter, USDT } from "./utils"
 import { getAaveTokens, getAlcxTokens, getBlock, getCompTokens } from "./utils/snap-utils"
 import { getSigner } from "./utils/signerFactory"
 import { getChain, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
-import { sendPrivateTransaction } from "./utils/flashbots"
 
 task("sum-rewards", "Totals the rewards in a disperse json file")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
@@ -58,7 +55,7 @@ task("collect-interest-dist").setAction(async (_, __, runSuper) => {
     await runSuper()
 })
 
-subtask("liq-claim-comp", "Claimed COMP to the integration contract")
+task("claim-comp", "Claimed COMP from USDC deposits to Treasury")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)
@@ -66,87 +63,39 @@ subtask("liq-claim-comp", "Claimed COMP to the integration contract")
 
         const compControllerAddress = resolveAddress("CompController", chain)
         const compController = Comptroller__factory.connect(compControllerAddress, signer)
-        const tx = await compController["claimComp(address,address[])"](USDC.integrator, [USDC.liquidityProvider])
-        const receipt = await logTxDetails(tx, "claim COMP")
-        const event = receipt.events.find((e) => e.event === "DistributedSupplierComp")
-        console.log(`Claimed ${formatUnits(event.args[2])} COMP`)
+        const tx1 = await compController["claimComp(address,address[])"](USDC.integrator, [USDC.liquidityProvider])
+        const receipt = await logTxDetails(tx1, "claim COMP")
+        // Transfer topic
+        const event = receipt.events.find((e) => e.topics[0] === "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")
+        console.log(`Claimed ${usdFormatter(BN.from(event.data))} COMP`)
+
+        const unliquidatorAddress = resolveAddress("Unliquidator")
+        const unliquidator = Unliquidator__factory.connect(unliquidatorAddress, signer)
+        const tx2 = await unliquidator.distributeRewards(USDC.integrator, COMP.address)
+        await logTxDetails(tx2, "claimed COMP to treasury")
     })
-task("liq-claim-comp").setAction(async (taskArgs, hre, runSuper) => {
-    const signer = await getSigner(hre, taskArgs.speed)
-
-    let block = await getBlock(hre.ethers, "latest")
-
-    console.log(`\nGetting platform tokens at block ${block.blockNumber}, ${block.blockTime}`)
-
-    await getCompTokens(signer, block)
-
+task("claim-comp").setAction(async (_, __, runSuper) => {
     await runSuper()
-
-    block = await getBlock(hre.ethers, "latest")
-
-    console.log(`\nGetting platform tokens at block ${block.blockNumber}, ${block.blockTime}`)
-
-    await getCompTokens(signer, block)
 })
 
-subtask("liq-trig", "Triggers a liquidation of a integration contract")
-    .addOptionalParam("basset", "Token symbol of bAsset that is integrated to a platform. eg USDC, WBTC, GUSD, alUSD", "USDC", types.string)
+task("claim-aave", "Call liquidator to claim stkAAVE")
+    .addOptionalParam("basset", "Symbol of bAsset in AAVE. eg USDT, WBTC, BUSD or RAI", "USDT", types.string)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)
         const chain = getChain(hre)
 
-        const bAsset = await resolveToken(taskArgs.basset, chain, "integrator")
+        const basset = resolveToken(taskArgs.basset, chain)
 
-        const liquidatorAddress = await resolveAddress("Liquidator", chain)
-        const liquidator = Liquidator__factory.connect(liquidatorAddress, signer)
-        let tx: TransactionResponse
-        if (hre.network.name === "hardhat") {
-            tx = await liquidator.triggerLiquidation(bAsset.integrator)
-        } else {
-            // Send via Flashbots
-            const populatedTx = await liquidator.populateTransaction.triggerLiquidation(bAsset.integrator)
-            tx = await sendPrivateTransaction(populatedTx, signer)
-        }
-        await logTxDetails(tx, `trigger liquidation for ${taskArgs.basset}`)
+        const liquidatorAddress = await resolveAddress("Unliquidator", chain)
+        const unliquidator = Unliquidator__factory.connect(liquidatorAddress, signer)
+        const tx = await unliquidator.claimAndDistributeRewards(basset.integrator, stkAAVE.address)
+        const receipt = await logTxDetails(tx, `claim stkAAVE from ${taskArgs.basset} integration`)
+
+        // Transfer topic
+        const event = receipt.events.find((e) => e.topics[0] === "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")
+        console.log(`Claimed ${usdFormatter(BN.from(event.data))} stkAAVE from ${basset.integrator} integration`)
     })
-task("liq-trig").setAction(async (_, hre, runSuper) => {
-    await runSuper()
-})
-
-subtask("liq-trig-aave", "Triggers a liquidation of stkAAVE")
-    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
-    .setAction(async (taskArgs, hre) => {
-        const signer = await getSigner(hre, taskArgs.speed)
-        const chain = getChain(hre)
-
-        const liquidatorAddress = await resolveAddress("Liquidator", chain)
-        const liquidator = Liquidator__factory.connect(liquidatorAddress, signer)
-        let tx: TransactionResponse
-        if (hre.network.name === "hardhat") {
-            tx = await liquidator.triggerLiquidationAave()
-        } else {
-            // Send via Flashbots
-            const populatedTx = await liquidator.populateTransaction.triggerLiquidationAave()
-            tx = await sendPrivateTransaction(populatedTx, signer)
-        }
-        await logTxDetails(tx, `trigger liquidation for Aave`)
-    })
-task("liq-trig-aave").setAction(async (_, __, runSuper) => {
-    await runSuper()
-})
-
-subtask("liq-claim-aave", "Call liquidator to claim stkAAVE")
-    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
-    .setAction(async (taskArgs, hre) => {
-        const signer = await getSigner(hre, taskArgs.speed)
-        const chain = getChain(hre)
-
-        const liquidatorAddress = await resolveAddress("Liquidator", chain)
-        const liquidator = Liquidator__factory.connect(liquidatorAddress, signer)
-        const tx = await liquidator.claimStakedAave()
-        await logTxDetails(tx, "claim Aave")
-    })
-task("liq-claim-aave").setAction(async (_, __, runSuper) => {
+task("claim-aave").setAction(async (_, __, runSuper) => {
     await runSuper()
 })
