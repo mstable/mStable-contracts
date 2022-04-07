@@ -32,6 +32,7 @@ import {
 } from "types/generated"
 import { getTimestamp } from "@utils/time"
 import { IModuleBehaviourContext, shouldBehaveLikeModule } from "../shared/Module.behaviour"
+// import { IERC4626BehaviourContext, shouldBehaveLikeERC4626 } from "../shared/ERC4626.behaviour"
 
 interface Balances {
     totalCredits: BN
@@ -72,6 +73,61 @@ interface ConfigRedeemAndUnwrap {
     output: MockERC20 // Asset to unwrap from underlying
     router: ExposedMasset | FeederPool | MockERC20 // Router address = mAsset || feederPool
 }
+
+enum ContractFns {
+    // deposits 
+    DEPOSIT_SAVINGS,
+    DEPOSIT,
+    // mints
+    MINT,
+    // redeems
+    REDEEM_CREDITS,
+    REDEEM,
+    // withdraws
+    REDEEM_UNDERLYING,
+    WITHDRAW
+
+}
+interface ContractFnType {
+    type: ContractFns
+    name: string
+    fn: string
+    fnReceiver?: string
+    fnReferrer?: string
+    event: string
+}
+
+const depositSavingsFn: ContractFnType = {
+    type: ContractFns.DEPOSIT_SAVINGS,
+    name: "depositSavings",
+    fn: "depositSavings(uint256)",
+    fnReceiver: "depositSavings(uint256,address)",
+    fnReferrer: "depositSavings(uint256,address,address)",
+    event: "SavingsDeposited",
+}
+
+const deposit4626Fn: ContractFnType = {
+    type: ContractFns.DEPOSIT,
+    name: "deposit 4626",
+    fn: "deposit(uint256,address)",
+    fnReceiver: "deposit(uint256,address)",
+    fnReferrer: "deposit(uint256,address,address)",
+    event: "Deposit",
+}
+
+const redeemCreditsFn: ContractFnType = {
+    type: ContractFns.REDEEM_CREDITS,
+    name: "redeemCredits",
+    fn: "redeemCredits(uint256)",
+    event: "CreditsRedeemed",
+}
+const redeem4626Fn: ContractFnType = {
+    type: ContractFns.REDEEM,
+    name: "redeem 4626",
+    fn: "redeem(uint256,address,address)",
+    event: "Withdraw",
+}
+
 // MockERC20 & Masset
 const underlyingToCredits = (amount: BN | number, exchangeRate: BN): BN => BN.from(amount).mul(fullScale).div(exchangeRate).add(1)
 
@@ -146,6 +202,7 @@ describe("SavingsContract", async () => {
     let bob: Account
     let charlie: Account
     const ctx: Partial<IModuleBehaviourContext> = {}
+    // const ctxVault: Partial<IERC4626BehaviourContext> = {}
     const initialExchangeRate = simpleToExactAmount(1, 17)
 
     let mAssetMachine: MassetMachine
@@ -199,6 +256,15 @@ describe("SavingsContract", async () => {
             })
             shouldBehaveLikeModule(ctx as IModuleBehaviourContext)
         })
+        // describe("behave like a Vault ERC4626", async () => {
+        //     beforeEach(async () => {
+        //         await createNewSavingsContract()
+        //         ctxVault.vault = savingsContract
+        //         ctxVault.token = masset
+        //         ctx.sa = sa
+        //     })
+        //     shouldBehaveLikeERC4626(ctx as IERC4626BehaviourContext)
+        // })
     })
 
     describe("constructor", async () => {
@@ -348,143 +414,170 @@ describe("SavingsContract", async () => {
             })
         })
 
-        context("using depositSavings", async () => {
-            before(async () => {
-                await createNewSavingsContract()
-            })
-            afterEach(async () => {
-                const data = await getData(savingsContract, alice)
-                expect(exchangeRateHolds(data), "Exchange rate must hold")
-            })
-            it("should fail when amount is zero", async () => {
-                await expect(savingsContract["depositSavings(uint256)"](ZERO)).to.be.revertedWith("Must deposit something")
-            })
-            it("should fail when beneficiary is 0", async () => {
-                await expect(savingsContract["depositSavings(uint256,address)"](1, ZERO_ADDRESS)).to.be.revertedWith(
-                    "Invalid beneficiary address",
-                )
-            })
-            it("should fail if the user has no balance", async () => {
-                // Approve first
-                await masset.connect(sa.dummy1.signer).approve(savingsContract.address, simpleToExactAmount(1, 18))
-
-                // Deposit
-                await expect(
-                    savingsContract.connect(sa.dummy1.signer)["depositSavings(uint256)"](simpleToExactAmount(1, 18)),
-                ).to.be.revertedWith("VM Exception")
-            })
-            it("should deposit the mUSD and assign credits to the saver", async () => {
-                const dataBefore = await getData(savingsContract, sa.default)
-                const depositAmount = simpleToExactAmount(1, 18)
-
-                // 1. Approve the savings contract to spend mUSD
-                await masset.approve(savingsContract.address, depositAmount)
-                // 2. Deposit the mUSD
-                const tx = savingsContract["depositSavings(uint256)"](depositAmount)
-                const expectedCredits = underlyingToCredits(depositAmount, initialExchangeRate)
-                await expect(tx).to.emit(savingsContract, "SavingsDeposited").withArgs(sa.default.address, depositAmount, expectedCredits)
-
-                const dataAfter = await getData(savingsContract, sa.default)
-                expect(dataAfter.balances.userCredits).eq(expectedCredits, "Must receive some savings credits")
-                expect(dataAfter.balances.totalCredits).eq(expectedCredits)
-                expect(dataAfter.balances.user).eq(dataBefore.balances.user.sub(depositAmount))
-                expect(dataAfter.balances.contract).eq(simpleToExactAmount(1, 18))
-            })
-            it("allows alice to deposit to beneficiary (bob.address)", async () => {
-                const dataBefore = await getData(savingsContract, bob)
-                const depositAmount = simpleToExactAmount(1, 18)
-
-                await masset.approve(savingsContract.address, depositAmount)
-
-                const tx = savingsContract.connect(alice.signer)["depositSavings(uint256,address)"](depositAmount, bob.address)
-                const expectedCredits = underlyingToCredits(depositAmount, initialExchangeRate)
-                await expect(tx).to.emit(savingsContract, "SavingsDeposited").withArgs(bob.address, depositAmount, expectedCredits)
-                const dataAfter = await getData(savingsContract, bob)
-                expect(dataAfter.balances.userCredits).eq(expectedCredits, "Must receive some savings credits")
-                expect(dataAfter.balances.totalCredits).eq(expectedCredits.mul(2))
-                expect(dataAfter.balances.user).eq(dataBefore.balances.user)
-                expect(dataAfter.balances.contract).eq(dataBefore.balances.contract.add(simpleToExactAmount(1, 18)))
-            })
-            it("allows alice to deposit to beneficiary (bob.address) with a referral (charlie.address)", async () => {
-                const dataBefore = await getData(savingsContract, bob)
-                const depositAmount = simpleToExactAmount(1, 18)
-
-                await masset.approve(savingsContract.address, depositAmount)
-
-                const tx = savingsContract
-                    .connect(alice.signer)
-                    ["depositSavings(uint256,address,address)"](depositAmount, bob.address, charlie.address)
-                await expect(tx).to.emit(savingsContract, "Referral").withArgs(charlie.address, bob.address, depositAmount)
-
-                const expectedCredits = underlyingToCredits(depositAmount, initialExchangeRate)
-                await expect(tx).to.emit(savingsContract, "SavingsDeposited").withArgs(bob.address, depositAmount, expectedCredits)
-                const dataAfter = await getData(savingsContract, bob)
-                expect(dataAfter.balances.userCredits, "Must receive some savings credits").eq(
-                    dataBefore.balances.userCredits.add(expectedCredits),
-                )
-                expect(dataAfter.balances.totalCredits, "Total credits").eq(dataBefore.balances.totalCredits.add(expectedCredits))
-                expect(dataAfter.balances.user).eq(dataBefore.balances.user)
-                expect(dataAfter.balances.contract, "Contract balance").eq(dataBefore.balances.contract.add(simpleToExactAmount(1, 18)))
-            })
-            context("when there is some interest to collect from the manager", async () => {
-                const deposit = simpleToExactAmount(10, 18)
-                const interest = simpleToExactAmount(10, 18)
+        async function validateDeposits(depositFN: ContractFnType) {
+            const depositToSender =
+                (contract: SavingsContract) =>
+                (...args) => {
+                    if (depositFN.type === ContractFns.DEPOSIT_SAVINGS) {
+                        return contract[depositFN.fn](...args)
+                    }
+                    return contract[depositFN.fn](...args, contract.signer.getAddress())
+                }
+            async function expectToEmitDepositEvent(tx, sender: string, receiver: string, depositAmount: BN, expectedCredits: BN) {
+                switch (depositFN.type) {
+                    case ContractFns.DEPOSIT:
+                        await expect(tx)
+                            .to.emit(savingsContract, depositFN.event)
+                            .withArgs(sender, receiver, depositAmount, expectedCredits)
+                        break
+                    case ContractFns.DEPOSIT_SAVINGS:
+                    default:
+                        await expect(tx).to.emit(savingsContract, depositFN.event).withArgs(receiver, depositAmount, expectedCredits)
+                        break
+                }
+            }
+            context(`using ${depositFN.name}`, async () => {
                 before(async () => {
                     await createNewSavingsContract()
-                    await masset.approve(savingsContract.address, deposit)
                 })
                 afterEach(async () => {
                     const data = await getData(savingsContract, alice)
                     expect(exchangeRateHolds(data), "Exchange rate must hold")
                 })
-                it("should collect the interest and update the exchange rate before issuance", async () => {
-                    // Get the total balances
-                    const stateBefore = await getData(savingsContract, alice)
-                    expect(stateBefore.exchangeRate).to.equal(initialExchangeRate)
+                it("should fail when amount is zero", async () => {
+                    await expect(depositToSender(savingsContract)(ZERO)).to.be.revertedWith("Must deposit something")
+                })
+                it("should fail when beneficiary is 0", async () => {
+                    await expect(savingsContract[depositFN.fnReceiver](1, ZERO_ADDRESS)).to.be.revertedWith("Invalid beneficiary address")
+                })
+                it("should fail if the user has no balance", async () => {
+                    // Approve first
+                    await masset.connect(sa.dummy1.signer).approve(savingsContract.address, simpleToExactAmount(1, 18))
 
-                    // Deposit first to get some savings in the basket
-                    await savingsContract["depositSavings(uint256)"](deposit)
+                    // Deposit
+                    await expect(depositToSender(savingsContract.connect(sa.dummy1.signer))(simpleToExactAmount(1, 18))).to.be.revertedWith(
+                        "VM Exception",
+                    )
+                })
+                it("should deposit the mUSD and assign credits to the saver", async () => {
+                    const dataBefore = await getData(savingsContract, sa.default)
+                    const depositAmount = simpleToExactAmount(1, 18)
 
-                    const stateMiddle = await getData(savingsContract, alice)
-                    expect(stateMiddle.exchangeRate).to.equal(initialExchangeRate)
-                    expect(stateMiddle.balances.contract).to.equal(deposit)
-                    expect(stateMiddle.balances.totalCredits).to.equal(underlyingToCredits(deposit, initialExchangeRate))
+                    // 1. Approve the savings contract to spend mUSD
+                    await masset.approve(savingsContract.address, depositAmount)
+                    // 2. Deposit the mUSD
+                    const tx = depositToSender(savingsContract)(depositAmount)
+                    const expectedCredits = underlyingToCredits(depositAmount, initialExchangeRate)
 
-                    // Set up the mAsset with some interest
-                    await masset.setAmountForCollectInterest(interest)
+                    await expectToEmitDepositEvent(tx, sa.default.address, sa.default.address, depositAmount, expectedCredits)
+                    const dataAfter = await getData(savingsContract, sa.default)
+                    expect(dataAfter.balances.userCredits).eq(expectedCredits, "Must receive some savings credits")
+                    expect(dataAfter.balances.totalCredits).eq(expectedCredits)
+                    expect(dataAfter.balances.user).eq(dataBefore.balances.user.sub(depositAmount))
+                    expect(dataAfter.balances.contract).eq(simpleToExactAmount(1, 18))
+                })
+                it("allows alice to deposit to beneficiary (bob.address)", async () => {
+                    const dataBefore = await getData(savingsContract, bob)
+                    const depositAmount = simpleToExactAmount(1, 18)
 
-                    await ethers.provider.send("evm_increaseTime", [ONE_DAY.toNumber()])
-                    await ethers.provider.send("evm_mine", [])
+                    await masset.approve(savingsContract.address, depositAmount)
 
-                    // Bob deposits into the contract
-                    await masset.transfer(bob.address, deposit)
-                    await masset.connect(bob.signer).approve(savingsContract.address, deposit)
-                    const tx = savingsContract.connect(bob.signer)["depositSavings(uint256)"](deposit)
-                    // Bob collects interest, to the benefit of Alice
-                    // Expected rate = 1e17 + 1e17-1
-                    const expectedExchangeRate = simpleToExactAmount(2, 17)
-                    await expect(tx).to.emit(savingsContract, "ExchangeRateUpdated").withArgs(expectedExchangeRate, interest)
+                    const tx = savingsContract.connect(alice.signer)[depositFN.fnReceiver](depositAmount, bob.address)
+                    const expectedCredits = underlyingToCredits(depositAmount, initialExchangeRate)
+                    await expectToEmitDepositEvent(tx, alice.address, bob.address, depositAmount, expectedCredits)
+                    const dataAfter = await getData(savingsContract, bob)
+                    expect(dataAfter.balances.userCredits).eq(expectedCredits, "Must receive some savings credits")
+                    expect(dataAfter.balances.totalCredits).eq(expectedCredits.mul(2))
+                    expect(dataAfter.balances.user).eq(dataBefore.balances.user)
+                    expect(dataAfter.balances.contract).eq(dataBefore.balances.contract.add(simpleToExactAmount(1, 18)))
+                })
+                it("allows alice to deposit to beneficiary (bob.address) with a referral (charlie.address)", async () => {
+                    const dataBefore = await getData(savingsContract, bob)
+                    const depositAmount = simpleToExactAmount(1, 18)
 
-                    // Alice gets the benefit of the new exchange rate
-                    const stateEnd = await getData(savingsContract, alice)
-                    expect(stateEnd.exchangeRate).eq(expectedExchangeRate)
-                    expect(stateEnd.balances.contract).eq(deposit.mul(3))
-                    const aliceBalance = await savingsContract.balanceOfUnderlying(alice.address)
-                    expect(simpleToExactAmount(20, 18)).eq(aliceBalance)
+                    await masset.approve(savingsContract.address, depositAmount)
 
-                    // Bob gets credits at the NEW exchange rate
-                    const bobData = await getData(savingsContract, bob)
-                    expect(bobData.balances.userCredits).eq(underlyingToCredits(deposit, stateEnd.exchangeRate))
-                    expect(stateEnd.balances.totalCredits).eq(bobData.balances.userCredits.add(stateEnd.balances.userCredits))
-                    const bobBalance = await savingsContract.balanceOfUnderlying(bob.address)
-                    expect(bobBalance).eq(deposit)
-                    expect(bobBalance.add(aliceBalance)).eq(deposit.mul(3), "Individual balances cannot exceed total")
+                    const tx = savingsContract.connect(alice.signer)[depositFN.fnReferrer](depositAmount, bob.address, charlie.address)
+                    await expect(tx).to.emit(savingsContract, "Referral").withArgs(charlie.address, bob.address, depositAmount)
 
-                    expect(exchangeRateHolds(stateEnd), "Exchange rate must hold")
+                    const expectedCredits = underlyingToCredits(depositAmount, initialExchangeRate)
+                    await expectToEmitDepositEvent(tx, alice.address, bob.address, depositAmount, expectedCredits)
+                    const dataAfter = await getData(savingsContract, bob)
+                    expect(dataAfter.balances.userCredits, "Must receive some savings credits").eq(
+                        dataBefore.balances.userCredits.add(expectedCredits),
+                    )
+                    expect(dataAfter.balances.totalCredits, "Total credits").eq(dataBefore.balances.totalCredits.add(expectedCredits))
+                    expect(dataAfter.balances.user).eq(dataBefore.balances.user)
+                    expect(dataAfter.balances.contract, "Contract balance").eq(dataBefore.balances.contract.add(simpleToExactAmount(1, 18)))
+                })
+                context("when there is some interest to collect from the manager", async () => {
+                    const deposit = simpleToExactAmount(10, 18)
+                    const interest = simpleToExactAmount(10, 18)
+                    before(async () => {
+                        await createNewSavingsContract()
+                        await masset.approve(savingsContract.address, deposit)
+                    })
+                    afterEach(async () => {
+                        const data = await getData(savingsContract, alice)
+                        expect(exchangeRateHolds(data), "Exchange rate must hold")
+                    })
+                    it("should collect the interest and update the exchange rate before issuance", async () => {
+                        // Get the total balances
+                        const stateBefore = await getData(savingsContract, alice)
+                        expect(stateBefore.exchangeRate).to.equal(initialExchangeRate)
+
+                        // Deposit first to get some savings in the basket
+                        await depositToSender(savingsContract)(deposit)
+
+                        const stateMiddle = await getData(savingsContract, alice)
+                        expect(stateMiddle.exchangeRate).to.equal(initialExchangeRate)
+                        expect(stateMiddle.balances.contract).to.equal(deposit)
+                        expect(stateMiddle.balances.totalCredits).to.equal(underlyingToCredits(deposit, initialExchangeRate))
+
+                        // Set up the mAsset with some interest
+                        await masset.setAmountForCollectInterest(interest)
+
+                        await ethers.provider.send("evm_increaseTime", [ONE_DAY.toNumber()])
+                        await ethers.provider.send("evm_mine", [])
+
+                        // Bob deposits into the contract
+                        await masset.transfer(bob.address, deposit)
+                        await masset.connect(bob.signer).approve(savingsContract.address, deposit)
+                        const tx = depositToSender(savingsContract.connect(bob.signer))(deposit)
+                        // Bob collects interest, to the benefit of Alice
+                        // Expected rate = 1e17 + 1e17-1
+                        const expectedExchangeRate = simpleToExactAmount(2, 17)
+                        await expect(tx).to.emit(savingsContract, "ExchangeRateUpdated").withArgs(expectedExchangeRate, interest)
+
+                        // Alice gets the benefit of the new exchange rate
+                        const stateEnd = await getData(savingsContract, alice)
+                        expect(stateEnd.exchangeRate).eq(expectedExchangeRate)
+                        expect(stateEnd.balances.contract).eq(deposit.mul(3))
+                        const aliceBalance = await savingsContract.balanceOfUnderlying(alice.address)
+                        expect(simpleToExactAmount(20, 18)).eq(aliceBalance)
+
+                        // Bob gets credits at the NEW exchange rate
+                        const bobData = await getData(savingsContract, bob)
+                        expect(bobData.balances.userCredits).eq(underlyingToCredits(deposit, stateEnd.exchangeRate))
+                        expect(stateEnd.balances.totalCredits).eq(bobData.balances.userCredits.add(stateEnd.balances.userCredits))
+                        const bobBalance = await savingsContract.balanceOfUnderlying(bob.address)
+                        expect(bobBalance).eq(deposit)
+                        expect(bobBalance.add(aliceBalance)).eq(deposit.mul(3), "Individual balances cannot exceed total")
+
+                        expect(exchangeRateHolds(stateEnd), "Exchange rate must hold")
+                    })
                 })
             })
+        }
+
+        context("deposits", async () => {
+            // V1,V2,V3
+            await validateDeposits(depositSavingsFn)
+            // ERC4626
+            await validateDeposits(deposit4626Fn)
         })
     })
+
     describe("checking the view methods", () => {
         const aliceCredits = simpleToExactAmount(100, 18).add(1)
         const aliceUnderlying = simpleToExactAmount(20, 18)
@@ -554,83 +647,201 @@ describe("SavingsContract", async () => {
             expect(await savingsContract.creditsToUnderlying(uToC4)).eq(BN.from(12986123876))
         })
     })
-
     describe("redeeming", async () => {
+        async function validateRedeems(contractFn:ContractFnType){
+            const redeemToSender =
+                (contract: SavingsContract) =>
+                (...args) => {
+                    if (contractFn.type === ContractFns.REDEEM_CREDITS) {
+                        return contract[contractFn.fn](...args)
+                    }
+                    return contract[contractFn.fn](...args, contract.signer.getAddress(),contract.signer.getAddress())
+                }
+                async function expectToEmitRedeemEvent(tx, sender: string, receiver: string, assets: BN, shares: BN) {
+                    switch (contractFn.type) {
+                        case ContractFns.REDEEM:
+                            await expect(tx)
+                                .to.emit(savingsContract, contractFn.event)
+                                .withArgs(sender, receiver,receiver, assets, shares)
+                            break
+                        case ContractFns.REDEEM_CREDITS:
+                        default:
+                            await expect(tx).to.emit(savingsContract, contractFn.event).withArgs(sender, shares, assets)
+                            break
+                    }
+                }  
+            context(`scenario ${contractFn.name}`, async () => {
+                before(async () => {
+                    await createNewSavingsContract()
+                })
+                it("should fail when input is zero", async () => {
+                    await expect(redeemToSender(savingsContract)(ZERO)).to.be.revertedWith("Must withdraw something")
+                })
+                it("should fail when user doesn't have credits", async () => {
+                    const amt = BN.from(10)
+                    await expect(redeemToSender(savingsContract.connect(sa.other.signer))(amt)).to.be.revertedWith("VM Exception")
+                })
+                context(`using ${contractFn.name}`, async () => {
+                    const deposit = simpleToExactAmount(10, 18)
+                    const credits = underlyingToCredits(deposit, initialExchangeRate)
+                    const interest = simpleToExactAmount(10, 18)
+                    beforeEach(async () => {
+                        await createNewSavingsContract()
+                        await masset.approve(savingsContract.address, simpleToExactAmount(1, 21))
+                        await savingsContract.preDeposit(deposit, alice.address)
+                    })
+                    afterEach(async () => {
+                        const data = await getData(savingsContract, alice)
+                        expect(exchangeRateHolds(data), "Exchange rate must hold")
+                    })
+                    // test the balance calcs here.. credit to masset, and public calcs
+                    it("should redeem a specific amount of credits", async () => {
+                        // calculates underlying/credits
+                        const creditsToWithdraw = simpleToExactAmount(5, 18)
+                        const expectedWithdrawal = creditsToUnderlying(creditsToWithdraw, initialExchangeRate)
+                        const dataBefore = await getData(savingsContract, alice)
+                        const tx = redeemToSender(savingsContract)(creditsToWithdraw)
+                        await expectToEmitRedeemEvent(tx, alice.address, alice.address, expectedWithdrawal, creditsToWithdraw)
+                        // await tx.wait()
+                        const dataAfter = await getData(savingsContract, alice)
+                        // burns credits from sender
+                        expect(dataAfter.balances.userCredits).eq(dataBefore.balances.userCredits.sub(creditsToWithdraw))
+                        expect(dataAfter.balances.totalCredits).eq(dataBefore.balances.totalCredits.sub(creditsToWithdraw))
+                        // transfers tokens to sender
+                        expect(dataAfter.balances.user).eq(dataBefore.balances.user.add(expectedWithdrawal))
+                        expect(dataAfter.balances.contract).eq(dataBefore.balances.contract.sub(expectedWithdrawal))
+                    })
+                    it("should redeem a specific amount of credits and collect interest", async () => {
+                        // calculates underlying/credits automateInterestCollection
+                        const creditsToWithdraw = simpleToExactAmount(5, 18)
+                        const expectedWithdrawal = creditsToUnderlying(creditsToWithdraw, initialExchangeRate)
+                        const dataBefore = await getData(savingsContract, alice)
+                        // Enable automateInterestCollection
+                        await savingsContract.connect(sa.governor.signer).automateInterestCollectionFlag(true)
+        
+                        const tx = redeemToSender(savingsContract)(creditsToWithdraw)
+                        await expectToEmitRedeemEvent(tx, alice.address, alice.address, expectedWithdrawal, creditsToWithdraw)                        
+                        // await tx.wait()
+                        const dataAfter = await getData(savingsContract, alice)
+                        // burns credits from sender
+                        expect(dataAfter.balances.userCredits).eq(dataBefore.balances.userCredits.sub(creditsToWithdraw))
+                        expect(dataAfter.balances.totalCredits).eq(dataBefore.balances.totalCredits.sub(creditsToWithdraw))
+                        // transfers tokens to sender
+                        expect(dataAfter.balances.user).eq(dataBefore.balances.user.add(expectedWithdrawal))
+                        expect(dataAfter.balances.contract).eq(dataBefore.balances.contract.sub(expectedWithdrawal))
+                    })
+                    it("collects interest and credits to saver before redemption", async () => {
+                        const expectedExchangeRate = simpleToExactAmount(2, 17)
+                        await masset.setAmountForCollectInterest(interest)
+                        const dataBefore = await getData(savingsContract, alice)
+                        await redeemToSender(savingsContract)(credits)
+                        const dataAfter = await getData(savingsContract, alice)
+                        expect(dataAfter.balances.totalCredits).eq(BN.from(0))
+                        // User receives their deposit back + interest
+                        assertBNClose(dataAfter.balances.user, dataBefore.balances.user.add(deposit).add(interest), 100)
+                        // Exchange rate updates
+                        expect(dataAfter.exchangeRate).eq(expectedExchangeRate)
+                    })
+                })
+                context("with a connector that surpasses limit", async () => {
+                    const deposit = simpleToExactAmount(100, 18)
+                    const redemption = underlyingToCredits(simpleToExactAmount(51, 18), initialExchangeRate)
+                    before(async () => {
+                        await createNewSavingsContract()
+                        const connector = await (
+                            await new MockConnector__factory(sa.default.signer)
+                        ).deploy(savingsContract.address, masset.address)
+        
+                        await masset.approve(savingsContract.address, simpleToExactAmount(1, 21))
+                        await savingsContract.preDeposit(deposit, alice.address)
+        
+                        await savingsContract.connect(sa.governor.signer).setConnector(connector.address)
+        
+                        await ethers.provider.send("evm_increaseTime", [ONE_HOUR.mul(4).add(1).toNumber()])
+                        await ethers.provider.send("evm_mine", [])
+        
+                        const data = await getData(savingsContract, alice)
+                        expect(data.connector.balance).eq(deposit.mul(data.connector.fraction).div(fullScale))
+                        expect(data.balances.contract).eq(deposit.sub(data.connector.balance))
+                        expect(data.exchangeRate).eq(initialExchangeRate)
+                    })
+                    afterEach(async () => {
+                        const data = await getData(savingsContract, alice)
+                        expect(exchangeRateHolds(data), "Exchange rate must hold")
+                    })
+                    it("triggers poke and deposits to connector if the threshold is hit", async () => {
+                        // in order to reach 40%, must redeem > 51
+                        const dataBefore = await getData(savingsContract, alice)
+                        const poke = await getExpectedPoke(dataBefore, redemption)
+        
+                        const tx = redeemToSender(savingsContract)(redemption)
+                        await expectToEmitRedeemEvent(tx, alice.address, alice.address, simpleToExactAmount(51, 18), redemption)                        
+                        // Remaining balance is 49, with 20 in the connector
+                        await expect(tx).to.emit(savingsContract, "Poked").withArgs(dataBefore.connector.balance, poke.ideal, BN.from(0))
+        
+                        const dataAfter = await getData(savingsContract, alice)
+                        expect(dataAfter.balances.contract).eq(simpleToExactAmount("39.2", 18))
+                    })
+                    it("errors if triggered again within 4h", async () => {})
+                })
+            })
+        }
+        context("using redeem(uint256) (deprecated)", async () => {
+            beforeEach(async () => {
+                await createNewSavingsContract()
+                await masset.approve(savingsContract.address, simpleToExactAmount(10, 18))
+                await savingsContract["depositSavings(uint256)"](simpleToExactAmount(1, 18))
+            })
+            it("should fail when input is zero", async () => {
+                await expect(savingsContract["redeem(uint256)"](ZERO)).to.be.revertedWith("Must withdraw something")
+            })
+            it("should fail when user doesn't have credits", async () => {
+                const amt = BN.from(10)
+                await expect(savingsContract.connect(sa.other.signer)["redeem(uint256)"](amt)).to.be.revertedWith("VM Exception")
+            })            
+            it("should redeem when user has balance", async () => {
+                const redemptionAmount = simpleToExactAmount(5, 18)
+                const balancesBefore = await getData(savingsContract, sa.default)
+
+                const tx = savingsContract["redeem(uint256)"](redemptionAmount)
+                const exchangeRate = initialExchangeRate
+                const underlying = creditsToUnderlying(redemptionAmount, exchangeRate)
+                await expect(tx).to.emit(savingsContract, "CreditsRedeemed").withArgs(sa.default.address, redemptionAmount, underlying)
+                const dataAfter = await getData(savingsContract, sa.default)
+                expect(balancesBefore.balances.contract.sub(underlying)).to.equal(dataAfter.balances.contract)
+
+                expect(balancesBefore.balances.user.add(underlying)).to.equal(dataAfter.balances.user)
+            })
+            it("should withdraw the mUSD and burn the credits", async () => {
+                const redemptionAmount = simpleToExactAmount(1, 18)
+                const creditsBefore = await savingsContract.creditBalances(sa.default.address)
+                const mUSDBefore = await masset.balanceOf(sa.default.address)
+                // Redeem all the credits
+                await savingsContract["redeem(uint256)"](creditsBefore)
+
+                const creditsAfter = await savingsContract.creditBalances(sa.default.address)
+                const mUSDAfter = await masset.balanceOf(sa.default.address)
+                expect(creditsAfter, "Must burn all the credits").eq(BN.from(0))
+                expect(mUSDAfter, "Must receive back mUSD").eq(mUSDBefore.add(redemptionAmount))
+            })
+        })        
+        describe("redeems", async () => {
+            // V1,V2,V3
+            await validateRedeems(redeemCreditsFn);
+            // ERC4626
+            await validateRedeems(redeem4626Fn);
+        })        
+    })
+    describe("withdrawing", async () => {
         before(async () => {
             await createNewSavingsContract()
         })
         it("should fail when input is zero", async () => {
-            await expect(savingsContract["redeem(uint256)"](ZERO)).to.be.revertedWith("Must withdraw something")
-            await expect(savingsContract.redeemCredits(ZERO)).to.be.revertedWith("Must withdraw something")
             await expect(savingsContract.redeemUnderlying(ZERO)).to.be.revertedWith("Must withdraw something")
         })
         it("should fail when user doesn't have credits", async () => {
             const amt = BN.from(10)
-            await expect(savingsContract.connect(sa.other.signer)["redeem(uint256)"](amt)).to.be.revertedWith("VM Exception")
-            await expect(savingsContract.connect(sa.other.signer).redeemCredits(amt)).to.be.revertedWith("VM Exception")
             await expect(savingsContract.connect(sa.other.signer).redeemUnderlying(amt)).to.be.revertedWith("VM Exception")
-        })
-        context("using redeemCredits", async () => {
-            const deposit = simpleToExactAmount(10, 18)
-            const credits = underlyingToCredits(deposit, initialExchangeRate)
-            const interest = simpleToExactAmount(10, 18)
-            beforeEach(async () => {
-                await createNewSavingsContract()
-                await masset.approve(savingsContract.address, simpleToExactAmount(1, 21))
-                await savingsContract.preDeposit(deposit, alice.address)
-            })
-            afterEach(async () => {
-                const data = await getData(savingsContract, alice)
-                expect(exchangeRateHolds(data), "Exchange rate must hold")
-            })
-            // test the balance calcs here.. credit to masset, and public calcs
-            it("should redeem a specific amount of credits", async () => {
-                // calculates underlying/credits
-                const creditsToWithdraw = simpleToExactAmount(5, 18)
-                const expectedWithdrawal = creditsToUnderlying(creditsToWithdraw, initialExchangeRate)
-                const dataBefore = await getData(savingsContract, alice)
-                const tx = savingsContract.redeemCredits(creditsToWithdraw)
-                await expect(tx).to.emit(savingsContract, "CreditsRedeemed").withArgs(alice.address, creditsToWithdraw, expectedWithdrawal)
-                // await tx.wait()
-                const dataAfter = await getData(savingsContract, alice)
-                // burns credits from sender
-                expect(dataAfter.balances.userCredits).eq(dataBefore.balances.userCredits.sub(creditsToWithdraw))
-                expect(dataAfter.balances.totalCredits).eq(dataBefore.balances.totalCredits.sub(creditsToWithdraw))
-                // transfers tokens to sender
-                expect(dataAfter.balances.user).eq(dataBefore.balances.user.add(expectedWithdrawal))
-                expect(dataAfter.balances.contract).eq(dataBefore.balances.contract.sub(expectedWithdrawal))
-            })
-            it("should redeem a specific amount of credits and collect interest", async () => {
-                // calculates underlying/credits automateInterestCollection
-                const creditsToWithdraw = simpleToExactAmount(5, 18)
-                const expectedWithdrawal = creditsToUnderlying(creditsToWithdraw, initialExchangeRate)
-                const dataBefore = await getData(savingsContract, alice)
-                // Enable automateInterestCollection
-                await savingsContract.connect(sa.governor.signer).automateInterestCollectionFlag(true)
-
-                const tx = savingsContract.redeemCredits(creditsToWithdraw)
-                await expect(tx).to.emit(savingsContract, "CreditsRedeemed").withArgs(alice.address, creditsToWithdraw, expectedWithdrawal)
-                // await tx.wait()
-                const dataAfter = await getData(savingsContract, alice)
-                // burns credits from sender
-                expect(dataAfter.balances.userCredits).eq(dataBefore.balances.userCredits.sub(creditsToWithdraw))
-                expect(dataAfter.balances.totalCredits).eq(dataBefore.balances.totalCredits.sub(creditsToWithdraw))
-                // transfers tokens to sender
-                expect(dataAfter.balances.user).eq(dataBefore.balances.user.add(expectedWithdrawal))
-                expect(dataAfter.balances.contract).eq(dataBefore.balances.contract.sub(expectedWithdrawal))
-            })
-            it("collects interest and credits to saver before redemption", async () => {
-                const expectedExchangeRate = simpleToExactAmount(2, 17)
-                await masset.setAmountForCollectInterest(interest)
-                const dataBefore = await getData(savingsContract, alice)
-                await savingsContract.redeemCredits(credits)
-                const dataAfter = await getData(savingsContract, alice)
-                expect(dataAfter.balances.totalCredits).eq(BN.from(0))
-                // User receives their deposit back + interest
-                assertBNClose(dataAfter.balances.user, dataBefore.balances.user.add(deposit).add(interest), 100)
-                // Exchange rate updates
-                expect(dataAfter.exchangeRate).eq(expectedExchangeRate)
-            })
         })
         context("using redeemUnderlying", async () => {
             const deposit = simpleToExactAmount(10, 18)
@@ -689,82 +900,6 @@ describe("SavingsContract", async () => {
                 expect(dataAfter.balances.user).eq(dataBefore.balances.user.add(deposit))
                 expect(dataAfter.balances.userCredits).eq(BN.from(0))
                 expect(dataAfter.exchangeRate).eq(dataBefore.exchangeRate)
-            })
-        })
-        context("with a connector that surpasses limit", async () => {
-            const deposit = simpleToExactAmount(100, 18)
-            const redemption = underlyingToCredits(simpleToExactAmount(51, 18), initialExchangeRate)
-            before(async () => {
-                await createNewSavingsContract()
-                const connector = await (
-                    await new MockConnector__factory(sa.default.signer)
-                ).deploy(savingsContract.address, masset.address)
-
-                await masset.approve(savingsContract.address, simpleToExactAmount(1, 21))
-                await savingsContract.preDeposit(deposit, alice.address)
-
-                await savingsContract.connect(sa.governor.signer).setConnector(connector.address)
-
-                await ethers.provider.send("evm_increaseTime", [ONE_HOUR.mul(4).add(1).toNumber()])
-                await ethers.provider.send("evm_mine", [])
-
-                const data = await getData(savingsContract, alice)
-                expect(data.connector.balance).eq(deposit.mul(data.connector.fraction).div(fullScale))
-                expect(data.balances.contract).eq(deposit.sub(data.connector.balance))
-                expect(data.exchangeRate).eq(initialExchangeRate)
-            })
-            afterEach(async () => {
-                const data = await getData(savingsContract, alice)
-                expect(exchangeRateHolds(data), "Exchange rate must hold")
-            })
-            it("triggers poke and deposits to connector if the threshold is hit", async () => {
-                // in order to reach 40%, must redeem > 51
-                const dataBefore = await getData(savingsContract, alice)
-                const poke = await getExpectedPoke(dataBefore, redemption)
-
-                const tx = savingsContract.redeemCredits(redemption)
-                await expect(tx)
-                    .to.emit(savingsContract, "CreditsRedeemed")
-                    .withArgs(alice.address, redemption, simpleToExactAmount(51, 18))
-                // Remaining balance is 49, with 20 in the connector
-                await expect(tx).to.emit(savingsContract, "Poked").withArgs(dataBefore.connector.balance, poke.ideal, BN.from(0))
-
-                const dataAfter = await getData(savingsContract, alice)
-                expect(dataAfter.balances.contract).eq(simpleToExactAmount("39.2", 18))
-            })
-            it("errors if triggered again within 4h", async () => {})
-        })
-
-        context("using redeem (depcrecated)", async () => {
-            beforeEach(async () => {
-                await createNewSavingsContract()
-                await masset.approve(savingsContract.address, simpleToExactAmount(10, 18))
-                await savingsContract["depositSavings(uint256)"](simpleToExactAmount(1, 18))
-            })
-            it("should redeem when user has balance", async () => {
-                const redemptionAmount = simpleToExactAmount(5, 18)
-                const balancesBefore = await getData(savingsContract, sa.default)
-
-                const tx = savingsContract["redeem(uint256)"](redemptionAmount)
-                const exchangeRate = initialExchangeRate
-                const underlying = creditsToUnderlying(redemptionAmount, exchangeRate)
-                await expect(tx).to.emit(savingsContract, "CreditsRedeemed").withArgs(sa.default.address, redemptionAmount, underlying)
-                const dataAfter = await getData(savingsContract, sa.default)
-                expect(balancesBefore.balances.contract.sub(underlying)).to.equal(dataAfter.balances.contract)
-
-                expect(balancesBefore.balances.user.add(underlying)).to.equal(dataAfter.balances.user)
-            })
-            it("should withdraw the mUSD and burn the credits", async () => {
-                const redemptionAmount = simpleToExactAmount(1, 18)
-                const creditsBefore = await savingsContract.creditBalances(sa.default.address)
-                const mUSDBefore = await masset.balanceOf(sa.default.address)
-                // Redeem all the credits
-                await savingsContract["redeem(uint256)"](creditsBefore)
-
-                const creditsAfter = await savingsContract.creditBalances(sa.default.address)
-                const mUSDAfter = await masset.balanceOf(sa.default.address)
-                expect(creditsAfter, "Must burn all the credits").eq(BN.from(0))
-                expect(mUSDAfter, "Must receive back mUSD").eq(mUSDBefore.add(redemptionAmount))
             })
         })
     })
