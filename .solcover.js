@@ -11,6 +11,8 @@ module.exports = {
         "peripheral",
         "savings/peripheral",
         "upgradability",
+        "legacy",
+        "legacy-upgraded",
     ],
     mocha: {
         grep: "@skip-on-coverage", // Find everything with this tag
