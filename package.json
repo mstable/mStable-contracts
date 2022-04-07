@@ -75,9 +75,9 @@
         "pretty-quick": "^3.1.0",
         "sol-merger": "^3.0.1",
         "solc": "0.8.6",
-        "solhint": "^3.3.6",
+        "solhint": "^3.3.7",
         "ts-generator": "^0.1.1",
-        "typescript": "^4.3.5"
+        "typescript": "^4.6.3"
     },
     "_moduleAliases": {
         "@utils": "dist/test-utils"

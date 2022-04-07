@@ -1,99 +1,100 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.6;
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-/// @title Yield Bearing Vault
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+/**
+ * @title   Tokenized Vault Standard (ERC-4626) Interface
+ * @author  mStable
+ * @notice  See the following for the full ERC-4626 specification https://eips.ethereum.org/EIPS/eip-4626.
+ * @dev     VERSION: 1.0
+ *          DATE:    2022-02-10
+ */
 interface IERC4626Vault {
-    /**
-     * @dev Must be an ERC-20 token contract. Must not revert.
-     *
-     * Returns the address of the underlying token used for the Vault uses for accounting, depositing, and withdrawing
-     */
+    /// @notice The address of the underlying token used for the Vault uses for accounting, depositing, and withdrawing
     function asset() external view returns (address assetTokenAddress);
 
-    /**
-     * @dev It should include any compounding that occurs from yield. It must be inclusive of any fees that are charged against assets in the Vault. It must not revert.
-     *
-     * Returns the total amount of the underlying asset that is “managed” by Vault.
-     */
+    /// @notice Total amount of the underlying asset that is “managed” by Vault
     function totalAssets() external view returns (uint256 totalManagedAssets);
 
     /**
-     * @dev It must be inclusive of any fees that are charged against assets in the Vault.
-     *
-     * Returns the current exchange rate of shares to assets, quoted per unit share (share unit is 10 ** Vault.decimals()).
+     * @notice The amount of shares that the Vault would exchange for the amount of assets provided, in an ideal scenario where all the conditions are met.
+     * @param assets The amount of underlying assets to be convert to vault shares.
+     * @return shares The amount of vault shares converted from the underlying assets.
      */
-    function assetsPerShare() external view returns (uint256 assetsPerUnitShare);
+    function convertToShares(uint256 assets) external view returns (uint256 shares);
 
     /**
-     * @dev It MAY be more accurate than using assetsPerShare or totalAssets / Vault.totalSupply for certain types of fee calculations.
-     *
-     * Returns the total number of underlying assets that depositor’s shares represent.
+     * @notice The amount of assets that the Vault would exchange for the amount of shares provided, in an ideal scenario where all the conditions are met.
+     * @param shares The amount of vault shares to be converted to the underlying assets.
+     * @return assets The amount of underlying assets converted from the vault shares.
      */
-    function assetsOf(address depositor) external view returns (uint256 assets);
+    function convertToAssets(uint256 shares) external view returns (uint256 assets);
 
     /**
-     * @dev It must return a limited value if caller is subject to some deposit limit. must return 2 ** 256 - 1 if there is no limit on the maximum amount of assets that may be deposited.
-     *
-     * Returns the total number of underlying assets that caller can be deposit.
+     * @notice The maximum number of underlying assets that caller can deposit.
+     * @param caller Account that the assets will be transferred from.
+     * @return maxAssets The maximum amount of underlying assets the caller can deposit.
      */
     function maxDeposit(address caller) external view returns (uint256 maxAssets);
 
     /**
-     * @dev It must return the exact amount of Vault shares that would be minted if the caller were to deposit a given exact amount of underlying assets using the deposit method.
-     *
-     * It simulate the effects of their deposit at the current block, given current on-chain conditions.
-     * Returns the amount of shares.
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their deposit at the current block, given current on-chain conditions.
+     * @param assets The amount of underlying assets to be transferred.
+     * @return shares The amount of vault shares that will be minted.
      */
     function previewDeposit(uint256 assets) external view returns (uint256 shares);
 
     /**
-     *
-     *  Mints shares Vault shares to receiver by depositing exactly amount of underlying tokens.
-     *  Returns the amount of shares minted.
-     * Emits a {Deposit} event.
+     * @notice Mint vault shares to receiver by transferring exact amount of underlying asset tokens from the caller.
+     * @param assets The amount of underlying assets to be transferred to the vault.
+     * @param receiver The account that the vault shares will be minted to.
+     * @return shares The amount of vault shares that were minted.
      */
     function deposit(uint256 assets, address receiver) external returns (uint256 shares);
 
     /**
-     * @dev must return a limited value if caller is subject to some deposit limit. must return 2 ** 256 - 1 if there is no limit on the maximum amount of shares that may be minted
-     *
-     *  Returns Total number of underlying shares that caller can be mint.
+     * @notice The maximum number of vault shares that caller can mint.
+     * @param caller Account that the underlying assets will be transferred from.
+     * @return maxShares The maximum amount of vault shares the caller can mint.
      */
     function maxMint(address caller) external view returns (uint256 maxShares);
 
     /**
-     * @dev Allows an on-chain or off-chain user to simulate the effects of their mint at the current block, given current on-chain conditions.
-     *
-     *  Returns Total number of underlying shares to be minted.
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their mint at the current block, given current on-chain conditions.
+     * @param shares The amount of vault shares to be minted.
+     * @return assets The amount of underlying assests that will be transferred from the caller.
      */
     function previewMint(uint256 shares) external view returns (uint256 assets);
 
     /**
-     * Mints exactly shares Vault shares to receiver by depositing amount of underlying tokens.
-     *
-     * Returns Total number of underlying shares that caller mint.
-     * Emits a {Deposit} event.
+     * @notice Mint exact amount of vault shares to the receiver by transferring enough underlying asset tokens from the caller.
+     * @param shares The amount of vault shares to be minted.
+     * @param receiver The account the vault shares will be minted to.
+     * @return assets The amount of underlying assets that were transferred from the caller.
      */
     function mint(uint256 shares, address receiver) external returns (uint256 assets);
 
     /**
-     *
-     *  Returns Total number of underlying assets that caller can withdraw.
+     * @notice The maximum number of underlying assets that owner can withdraw.
+     * @param owner Account that owns the vault shares.
+     * @return maxAssets The maximum amount of underlying assets the owner can withdraw.
      */
-    function maxWithdraw(address caller) external view returns (uint256 maxAssets);
+    function maxWithdraw(address owner) external view returns (uint256 maxAssets);
 
     /**
-     * @dev Allows an on-chain or off-chain user to simulate the effects of their withdrawal at the current block, given current on-chain conditions.
-     *
-     *  Return the exact amount of Vault shares that would be redeemed by the caller if withdrawing a given exact amount of underlying assets using the withdraw method.
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their withdrawal at the current block, given current on-chain conditions.
+     * @param assets The amount of underlying assets to be withdrawn.
+     * @return shares The amount of vault shares that will be burnt.
      */
     function previewWithdraw(uint256 assets) external view returns (uint256 shares);
 
     /**
-     *  Redeems shares from owner and sends assets of underlying tokens to receiver.
-     *  Returns Total number of underlying shares redeemed.
-     * Emits a {Withdraw} event.
+     * @notice Burns enough vault shares from owner and transfers the exact amount of underlying asset tokens to the receiver.
+     * @param assets The amount of underlying assets to be withdrawn from the vault.
+     * @param receiver The account that the underlying assets will be transferred to.
+     * @param owner Account that owns the vault shares to be burnt.
+     * @return shares The amount of vault shares that were burnt.
      */
     function withdraw(
         uint256 assets,
@@ -102,24 +103,25 @@ interface IERC4626Vault {
     ) external returns (uint256 shares);
 
     /**
-     * @dev it must return a limited value if caller is subject to some withdrawal limit or timelock. must return balanceOf(caller) if caller is not subject to any withdrawal limit or timelock. MAY be used in the previewRedeem or redeem methods for shares input parameter. must NOT revert.
-     *
-     *  Returns Total number of underlying shares that caller can redeem.
+     * @notice The maximum number of shares an owner can redeem for underlying assets.
+     * @param owner Account that owns the vault shares.
+     * @return maxShares The maximum amount of shares the owner can redeem.
      */
-    function maxRedeem(address caller) external view returns (uint256);
+    function maxRedeem(address owner) external view returns (uint256 maxShares);
 
     /**
-     * @dev Allows an on-chain or off-chain user to simulate the effects of their redeemption at the current block, given current on-chain conditions.
-     *
-     *  Returns the exact amount of underlying assets that would be withdrawn by the caller if redeeming a given exact amount of Vault shares using the redeem method
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their redeemption at the current block, given current on-chain conditions.
+     * @param shares The amount of vault shares to be burnt.
+     * @return assets The amount of underlying assests that will transferred to the receiver.
      */
     function previewRedeem(uint256 shares) external view returns (uint256 assets);
 
     /**
-     * Redeems shares from owner and sends assets of underlying tokens to receiver.
-     *
-     *  Returns Total number of underlying assets of underlying redeemed.
-     * Emits a {Withdraw} event.
+     * @notice Burns exact amount of vault shares from owner and transfers the underlying asset tokens to the receiver.
+     * @param shares The amount of vault shares to be burnt.
+     * @param receiver The account the underlying assets will be transferred to.
+     * @param owner The account that owns the vault shares to be burnt.
+     * @return assets The amount of underlying assets that were transferred to the receiver.
      */
     function redeem(
         uint256 shares,
@@ -132,12 +134,12 @@ interface IERC4626Vault {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Emitted when sender has exchanged assets for shares, and transferred those shares to receiver.
+     * @dev Emitted when caller has exchanged assets for shares, and transferred those shares to owner.
      *
      * Note It must be emitted when tokens are deposited into the Vault in ERC4626.mint or ERC4626.deposit methods.
      *
      */
-    event Deposit(address indexed sender, address indexed receiver, uint256 assets);
+    event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
     /**
      * @dev Emitted when sender has exchanged shares for assets, and transferred those assets to receiver.
      *
@@ -145,8 +147,9 @@ interface IERC4626Vault {
      *
      */
     event Withdraw(
-        address indexed sender,
+        address indexed caller,
         address indexed receiver,
+        address indexed owner,
         uint256 assets,
         uint256 shares
     );

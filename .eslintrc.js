@@ -12,6 +12,8 @@ module.exports = {
         "import/resolver": {
             alias: {
                 map: [
+                    ["@task", "./task"],
+                    ["@forks", "./test-forks"],
                     ["@utils", "./test-utils"],
                     ["types/generated", "./types/generated/index", "types/contracts"],
                 ],
