@@ -99,12 +99,12 @@ task("deploy-split-revenue-buy-back")
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)
 
-        const treasuryFee = simpleToExactAmount(taskArgs.fee, 1e16)
+        const treasuryFee = simpleToExactAmount(taskArgs.fee, 16)
 
         const revenueRecipient = await deploySplitRevenueBuyBack(signer, hre, treasuryFee)
 
+        console.log(`Governor call RevenueSplitBuyBack.mapBasset for mUSD and mBTC`)
         console.log(`Governor call SavingsManager.setRevenueRecipient to ${revenueRecipient.address} for mUSD and mBTC`)
-        console.log(`Governor call mapBasset for mUSD and mBTC`)
     })
 
 task("deploy-mock-root-chain-manager", "Deploys a mocked Polygon PoS Bridge")
