@@ -777,12 +777,11 @@ contract SavingsContract is
 
     /**
      * @notice The maximum number of underlying assets that caller can deposit.
-     * @param caller Account that the assets will be transferred from.
+     * caller Account that the assets will be transferred from.
      * @return maxAssets The maximum amount of underlying assets the caller can deposit.
      */
-    function maxDeposit(address caller) external view override returns (uint256 maxAssets) {
-        // TODO - ASK NICK WHAT he thinks about this.
-        maxAssets = IERC20(underlying).balanceOf(caller);
+    function maxDeposit(address /** caller **/) external pure override returns (uint256 maxAssets) {
+        maxAssets = type(uint256).max;
     }
 
     /**
@@ -896,7 +895,7 @@ contract SavingsContract is
         }
         (shares, _exchangeRate) = _underlyingToCredits(assets);
 
-        _burnTransfer(assets, shares, receiver, owner, _exchangeRate, true); //transferAssets=true
+        _burnTransfer(assets, shares, receiver, owner, _exchangeRate, true);
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
@@ -931,7 +930,7 @@ contract SavingsContract is
         address receiver,
         address owner
     ) external override returns (uint256 assets) {
-        require(assets > 0, "Must withdraw something");
+        require(shares > 0, "Must withdraw something");
         uint256 _exchangeRate;
         if (automateInterestCollection) {
             ISavingsManager(_savingsManager()).collectAndDistributeInterest(address(underlying));
@@ -983,20 +982,17 @@ contract SavingsContract is
     ) internal {
         // If caller is not the owner of the shares
         uint256 allowed = allowance(owner, msg.sender);
-        // TODO - RISK ask nick about , just compare allowance instead of approving.
         if (msg.sender != owner && allowed != type(uint256).max) {
-            // _approve(owner, msg.sender, allowed - shares);
-            require(assets <= allowed, "!allowance");
+            require(shares <= allowed, "amount exceeds allowance");
+            _approve(owner, msg.sender, allowed - shares);
         }
-        // _beforeWithdrawHook(assets, shares, owner);
 
         // Burn required shares from the sender FIRST
         _burn(owner, shares);
 
         // Optionally, transfer tokens from here to sender
         if (transferAssets) {
-            // underlying.safeTransfer(receiver, assets);
-            require(underlying.transfer(msg.sender, assets), "Must send tokens");
+            require(underlying.transfer(receiver, assets), "Must send tokens");
         }
 
         // If this withdrawal pushes the portion of stored collateral in the `connector` over a certain
