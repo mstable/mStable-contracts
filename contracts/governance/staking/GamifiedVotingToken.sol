@@ -6,7 +6,6 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ECDSAUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 import { GamifiedToken } from "./GamifiedToken.sol";
 import { IGovernanceHook } from "./interfaces/IGovernanceHook.sol";
-import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * @title GamifiedVotingToken
@@ -22,7 +21,7 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
  *   - Move totalSupply checkpoints to `afterTokenTransfer`
  *   - Add _governanceHook hook
  */
-abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
+abstract contract GamifiedVotingToken is GamifiedToken {
     struct Checkpoint {
         uint32 fromBlock;
         uint224 votes;
@@ -60,8 +59,6 @@ abstract contract GamifiedVotingToken is Initializable, GamifiedToken {
         address _questManager,
         bool _hasPriceCoeff
     ) GamifiedToken(_nexus, _rewardsToken, _questManager, _hasPriceCoeff) {}
-
-    function __GamifiedVotingToken_init() internal initializer {}
 
     /**
      * @dev

@@ -1853,7 +1853,7 @@ describe("Staked Token", () => {
             await expect(tx2).to.emit(stakedToken, "WrapperBlacklisted").withArgs(stakedTokenWrapper.address)
             expect(await stakedToken.whitelistedWrappers(stakedTokenWrapper.address), "wrapper not whitelisted").to.equal(false)
 
-            await expect(stakedTokenWrapper["stake(uint256)"](stakedAmount)).to.revertedWith("Not a whitelisted contract")
+            await expect(stakedTokenWrapper["stake(uint256)"](stakedAmount)).to.revertedWith("Not whitelisted")
         })
         it("Votes can be delegated to a smart contract", async () => {
             await rewardToken.connect(sa.default.signer).approve(stakedToken.address, stakedAmount)
@@ -1864,7 +1864,7 @@ describe("Staked Token", () => {
         })
         context("should not", () => {
             it("be possible to stake when not whitelisted", async () => {
-                await expect(stakedTokenWrapper["stake(uint256)"](stakedAmount)).to.revertedWith("Not a whitelisted contract")
+                await expect(stakedTokenWrapper["stake(uint256)"](stakedAmount)).to.revertedWith("Not whitelisted")
             })
             it("be possible to withdraw when not whitelisted", async () => {
                 await stakedToken.connect(sa.governor.signer).whitelistWrapper(stakedTokenWrapper.address)
@@ -1872,7 +1872,7 @@ describe("Staked Token", () => {
                 await stakedToken.connect(sa.governor.signer).blackListWrapper(stakedTokenWrapper.address)
                 const tx = stakedTokenWrapper.withdraw(stakedAmount, sa.default.address, true, true)
 
-                await expect(tx).to.revertedWith("Not a whitelisted contract")
+                await expect(tx).to.revertedWith("Not whitelisted")
             })
             it("allow non governor to whitelist a contract", async () => {
                 const tx = stakedToken.whitelistWrapper(stakedTokenWrapper.address)
@@ -1966,11 +1966,11 @@ describe("Staked Token", () => {
                 await stakedToken.connect(sa.mockRecollateraliser.signer).emergencyRecollateralisation()
 
                 const tx = stakedToken.connect(sa.governor.signer).changeSlashingPercentage(slashingPercentage)
-                await expect(tx).to.revertedWith("Only while fully collateralised")
+                await expect(tx).to.revertedWith("Only while collateralised")
             })
             it("slash percentage > 50%", async () => {
                 const tx = stakedToken.connect(sa.governor.signer).changeSlashingPercentage(simpleToExactAmount(51, 16))
-                await expect(tx).to.revertedWith("Cannot exceed 50%")
+                await expect(tx).to.revertedWith("> 50%")
             })
             it("non governor to change slash percentage", async () => {
                 const tx = stakedToken.changeSlashingPercentage(slashingPercentage)
@@ -1979,19 +1979,19 @@ describe("Staked Token", () => {
             it("non recollateralisation module to recollateralisation", async () => {
                 await stakedToken.connect(sa.governor.signer).changeSlashingPercentage(slashingPercentage)
                 const tx = stakedToken.connect(sa.default.signer).emergencyRecollateralisation()
-                await expect(tx).to.revertedWith("Only Recollateralisation Module")
+                await expect(tx).to.revertedWith("Only Recollateralisation")
             })
             it("governor to recollateralisation", async () => {
                 await stakedToken.connect(sa.governor.signer).changeSlashingPercentage(slashingPercentage)
                 const tx = stakedToken.connect(sa.governor.signer).emergencyRecollateralisation()
-                await expect(tx).to.revertedWith("Only Recollateralisation Module")
+                await expect(tx).to.revertedWith("Only Recollateralisation")
             })
             it("a second recollateralisation", async () => {
                 await stakedToken.connect(sa.governor.signer).changeSlashingPercentage(slashingPercentage)
                 await stakedToken.connect(sa.mockRecollateraliser.signer).emergencyRecollateralisation()
 
                 const tx = stakedToken.connect(sa.mockRecollateraliser.signer).emergencyRecollateralisation()
-                await expect(tx).to.revertedWith("Only while fully collateralised")
+                await expect(tx).to.revertedWith("Only while collateralised")
             })
         })
     })

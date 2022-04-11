@@ -27,8 +27,6 @@ export interface UserStakingData {
     balData?: BalConfig
 }
 export interface BalConfig {
-    balRecipient: string
-    keeper: string
     pendingBPTFees: BN
     priceCoefficient: BN
     lastPriceUpdateTime: BN

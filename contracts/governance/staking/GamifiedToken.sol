@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.6;
 
-import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import { SafeCastExtended } from "../../shared/SafeCastExtended.sol";
 import { ILockedERC20 } from "./interfaces/ILockedERC20.sol";
 import { HeadlessStakingRewards } from "../../rewards/staking/HeadlessStakingRewards.sol";
@@ -25,8 +23,6 @@ import "./deps/GamifiedTokenStructs.sol";
  **/
 abstract contract GamifiedToken is
     ILockedERC20,
-    Initializable,
-    ContextUpgradeable,
     HeadlessStakingRewards
 {
     /// @notice name of this token (ERC20)
@@ -74,8 +70,7 @@ abstract contract GamifiedToken is
         bytes32 _nameArg,
         bytes32 _symbolArg,
         address _rewardsDistributorArg
-    ) internal initializer {
-        __Context_init_unchained();
+    ) internal {
         _name = _nameArg;
         _symbol = _symbolArg;
         HeadlessStakingRewards._initialize(_rewardsDistributorArg);

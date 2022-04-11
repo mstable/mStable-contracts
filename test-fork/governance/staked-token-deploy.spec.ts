@@ -121,14 +121,14 @@ context("StakedToken deployments and vault upgrades", () => {
     }
 
     const snapBalData = async (stakedTokenBpt: StakedTokenBPT): Promise<BalConfig> => {
-        const balRecipient = await stakedTokenBpt.balRecipient()
-        const keeper = await stakedTokenBpt.keeper()
+        // const balRecipient = await stakedTokenBpt.balRecipient()
+        // const keeper = await stakedTokenBpt.keeper()
         const pendingBPTFees = await stakedTokenBpt.pendingBPTFees()
         const priceCoefficient = await stakedTokenBpt.priceCoefficient()
         const lastPriceUpdateTime = await stakedTokenBpt.lastPriceUpdateTime()
         return {
-            balRecipient,
-            keeper,
+            // balRecipient,
+            // keeper,
             pendingBPTFees,
             priceCoefficient,
             lastPriceUpdateTime,
@@ -316,8 +316,8 @@ context("StakedToken deployments and vault upgrades", () => {
             expect(await deployedContracts.stakedTokenBPT.BAL(), "BAL token symbol").eq(resolveAddress("BAL"))
             expect(await deployedContracts.stakedTokenBPT.balancerVault(), "BAL Vault").eq(resolveAddress("BalancerVault"))
             expect(await deployedContracts.stakedTokenBPT.poolId(), "BAL pool ID").eq(resolveAddress("BalancerStakingPoolId"))
-            expect(data.balRecipient).eq(resolveAddress("FundManager"))
-            expect(data.keeper, "keep").eq(ZERO_ADDRESS)
+            // expect(data.balRecipient).eq(resolveAddress("FundManager"))
+            // expect(data.keeper, "keep").eq(ZERO_ADDRESS)
             expect(data.pendingBPTFees, "pendingBPTFees").eq(0)
             expect(data.priceCoefficient, "priceCoefficient").eq(42550)
             expect(data.lastPriceUpdateTime, "lastPriceUpdateTime").eq(0)
