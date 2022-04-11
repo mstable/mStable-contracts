@@ -2,7 +2,7 @@
 pragma solidity 0.8.6;
 
 interface ITokenLocker {
-    function lock(uint256 _amount) external;
+    function lock(uint256 _amount) external returns (uint256);
 
     function withdraw(uint256 _lockerId) external returns (uint256 payout);
 

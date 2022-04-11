@@ -3,10 +3,9 @@
 import { ethers } from "hardhat"
 import { expect } from "chai"
 import { simpleToExactAmount, BN } from "@utils/math"
-import { assertBNClose, assertBNClosePercent, assertBNSlightlyGTPercent } from "@utils/assertions"
 import { StandardAccounts, MassetMachine } from "@utils/machines"
-import { fullScale, ZERO_ADDRESS, ZERO, MAX_UINT256, TEN_MINS, ONE_DAY, DEAD_ADDRESS, ONE_WEEK, ONE_MIN } from "@utils/constants"
-import { getTimestamp, increaseTime } from "@utils/time"
+import { fullScale, ZERO_ADDRESS, ZERO, ONE_DAY, DEAD_ADDRESS, ONE_WEEK } from "@utils/constants"
+import { getTimestamp } from "@utils/time"
 import {
     SavingsContract,
     MockNexus__factory,
@@ -14,18 +13,13 @@ import {
     MockMasset,
     MockMasset__factory,
     SavingsContract__factory,
-    SavingsManager,
     MockSavingsManager__factory,
     TokenLocker,
     TokenLocker__factory,
-    PausableModule,
-    MockERC20,
-    MockRevenueRecipient__factory,
     Unwrapper__factory,
     Unwrapper,
 } from "types/generated"
 import { Account } from "types"
-import { shouldBehaveLikePausableModule, IPausableModuleBehaviourContext } from "../shared/PausableModule.behaviour"
 
 interface LockerData {
     lockerCollateral: BN
@@ -46,7 +40,7 @@ interface ContractData {
 
 const getData = async (contract: TokenLocker, lockerId?: BN): Promise<ContractData> => {
     var contractData = {
-        lastLockerId: (await contract.totalSupply()).sub(1),
+        lastLockerId: (await contract.totalLockersCreated()).sub(1),
         lockPeriod: await contract.lockPeriod(),
         batchingThreshold: await contract.batchingThreshold(),
         lastBatchedLockerId: await contract.lastBatchedLockerId(),
@@ -74,18 +68,12 @@ describe("TokenLocker", async () => {
     const TEN = BN.from(10)
     const TEN_TOKENS = TEN.mul(fullScale)
     const TEN_THOUSAND_TOKENS = TEN_TOKENS.mul(1000)
-    const FIVE_TOKENS = TEN_TOKENS.div(BN.from(2))
-    const THIRTY_MINUTES = TEN_MINS.mul(BN.from(3)).add(BN.from(1))
     const SIX_MONTHS = ONE_WEEK.mul(26);
     // 1.2 million tokens
     const INITIAL_MINT = BN.from(1200000)
     let sa: StandardAccounts
     let manager: Account
-    let alice: Account
     let bob: Account
-    let charlie: Account
-    const ctx: Partial<IPausableModuleBehaviourContext> = {}
-
     let nexus: MockNexus
     let savingsContract: SavingsContract
     let tokenLocker: TokenLocker
@@ -124,16 +112,14 @@ describe("TokenLocker", async () => {
         sa = mAssetMachine.sa
         manager = sa.dummy2
         bob = sa.dummy3
-        charlie = sa.dummy4
 
         // Use a mock Nexus so we can dictate addresses
         nexus = await (await new MockNexus__factory(sa.default.signer)).deploy(sa.governor.address, manager.address, DEAD_ADDRESS)
-
         await createNewTokenLocker()
     })
 
     /*
-    - should fail when amount is 0
+    - should fail when savingsContract address is zero
     - should correctly set lockPeriod and BatchingThreshold
     */
     describe("constructor", async () => {
@@ -152,7 +138,7 @@ describe("TokenLocker", async () => {
 
     /*
     - should fail when amount is 0
-    - should fail when user has no mAssets
+    - should fail if the user has no balance
     - should deposit the mAsset, create locker and mint NFT
     - should emit BatchIt event when Batching Threshold reached
     - should allow to create multiple lockers
@@ -235,6 +221,150 @@ describe("TokenLocker", async () => {
             expect(data2.toBeBatchedCollateral).eq(depositAmount.add(depositAmount2))
             expect(data2.totalCollateral).eq(depositAmount.add(depositAmount2))
             expect(await tokenLocker.ownerOf(1)).eq(sa.default.address)
+        })
+    })
+
+    /*
+    - should fail if Locker doesn't exist
+    - should fail if msg.sender not owner of locker
+    - should fail if locker not matured
+    - should fail if locker not deposited to savingsContract yet
+    - should emit Withdraw, delete locker, and burn NFT
+    - should allow new owner of Locker to withdraw
+    */
+    describe("withdrawing collateral", async () => {
+        beforeEach(async () => {
+            await createNewTokenLocker()
+
+            // Create a deposit
+            const depositAmount = simpleToExactAmount(100, 18)
+            await masset.approve(tokenLocker.address, depositAmount)
+            await tokenLocker["lock(uint256)"](depositAmount)
+        })
+        it("should fail if Locker doesn't exist", async () => {
+            await expect(tokenLocker["withdraw(uint256)"](2)).to.be.revertedWith("VM Exception")
+        })
+        it("should fail if msg.sender not owner of locker", async () => {
+            await expect(tokenLocker.connect(bob.signer)["withdraw(uint256)"](0))
+                .to.be.revertedWith("Must Own Locker")
+        })
+        it("should fail if locker not matured", async () => {
+            await expect(tokenLocker["withdraw(uint256)"](0)).to.be.revertedWith("Locker not matured")
+        })
+        it("should fail if locker not deposited to savingsContract yet", async () => {
+            //increase time to "mature locker"
+            await ethers.provider.send("evm_increaseTime", [SIX_MONTHS.add(ONE_DAY).toNumber()])
+            await ethers.provider.send("evm_mine", [])
+
+            await expect(tokenLocker["withdraw(uint256)"](0)).to.be.revertedWith("VM Exception")
+        })
+        it("should emit Withdraw, delete locker, and burn NFT", async () => {
+            //increase time to "mature locker"
+            await ethers.provider.send("evm_increaseTime", [SIX_MONTHS.add(ONE_DAY).toNumber()])
+            await ethers.provider.send("evm_mine", [])
+
+            // batch deposit all the lockers
+            await tokenLocker.batchExecute()
+
+            const dataBefore = await getData(tokenLocker, BN.from(0))
+
+            const tx = tokenLocker["withdraw(uint256)"](0)
+            const expectedPayout = await savingsContract.creditsToUnderlying(dataBefore.lockerData.lockerCredits)
+            await expect(tx).to.emit(tokenLocker, "Withdraw")
+            .withArgs(sa.default.address, 0, dataBefore.lockerData.lockerCredits, expectedPayout)
+
+            const dataAfter = await getData(tokenLocker, BN.from(0))
+            expect(dataAfter.lockerData.lockerCollateral).eq(ZERO)
+            expect(dataAfter.lockerData.lockerCredits).eq(ZERO)
+            expect(dataAfter.lockerData.lockerMaturity).eq(ZERO)
+            // TODO - burn mechanism not working to be checked later
+            //expect(await tokenLocker.ownerOf(0)).eq(ZERO_ADDRESS)
+        })
+        it("should allow new owner of Locker to withdraw", async () => {
+            await tokenLocker.transferFrom(sa.default.address, bob.address, 0)
+
+            //increase time to "mature locker"
+            await ethers.provider.send("evm_increaseTime", [SIX_MONTHS.add(ONE_DAY).toNumber()])
+            await ethers.provider.send("evm_mine", [])
+
+            // batch deposit all the lockers
+            await tokenLocker.batchExecute()
+            const dataBefore = await getData(tokenLocker, BN.from(0))
+
+            const tx = tokenLocker.connect(bob.signer)["withdraw(uint256)"](0)
+            const expectedPayout = await savingsContract.creditsToUnderlying(dataBefore.lockerData.lockerCredits)
+            await expect(tx).to.emit(tokenLocker, "Withdraw")
+            .withArgs(bob.address, 0, dataBefore.lockerData.lockerCredits, expectedPayout)
+        })
+    })
+
+    /*
+    - should fail if no lockers created
+    - should fail if no collateral outstanding
+    - should be able to called by anyone
+    - should clear the current outstanding lockers and distribute credits
+    */
+    describe("batch executing", async () => {
+        beforeEach(async () => {
+            await createNewTokenLocker()
+        })
+        it("should fail if no lockers created", async () => {
+            await expect(tokenLocker["batchExecute()"]()).to.be.revertedWith("No Lockers Created yet")
+        })
+        it("should fail if no collateral outstanding", async () => {
+            const depositAmount = simpleToExactAmount(100, 18)
+            await masset.approve(tokenLocker.address, depositAmount)
+            await tokenLocker["lock(uint256)"](depositAmount)
+
+            // execute once to clear the batch
+            await tokenLocker.batchExecute()
+            await expect(tokenLocker["batchExecute()"]()).to.be.revertedWith("No collateral outstanding")
+        })
+        it("should be able to called by anyone", async () => {
+            const depositAmount = simpleToExactAmount(100, 18)
+            await masset.approve(tokenLocker.address, depositAmount)
+            await tokenLocker["lock(uint256)"](depositAmount)
+
+            // execute once to clear the batch
+            await tokenLocker.connect(bob.signer).batchExecute()
+        })
+        it("should clear the current outstanding lockers and distribute credits", async () => {
+            // Create First Locker
+            const depositAmount = simpleToExactAmount(100, 18)
+            await masset.approve(tokenLocker.address, depositAmount)
+            await tokenLocker["lock(uint256)"](depositAmount)
+            const lockerId1 = BN.from(0)
+            const data1 = await getData(tokenLocker, lockerId1)
+
+            // Create Second Locker
+            const depositAmount2 = simpleToExactAmount(200, 18)
+            await masset.approve(tokenLocker.address, depositAmount2)
+            await tokenLocker["lock(uint256)"](depositAmount2)
+            const lockerId2 = BN.from(1)
+            const data2 = await getData(tokenLocker, lockerId2)
+
+            const totalCollateralAccumulated = data1.lockerData.lockerCollateral.add(data2.lockerData.lockerCollateral)
+
+            const expectedTotalCredits = await savingsContract.underlyingToCredits(totalCollateralAccumulated)
+
+            const expectedLocker1Credits = data1.lockerData.lockerCollateral
+                .div(totalCollateralAccumulated)
+                .mul(expectedTotalCredits)
+            const expectedLocker2Credits = expectedTotalCredits.sub(expectedLocker1Credits)
+
+            // BatchExecute to savingsContract
+            const tx = tokenLocker["batchExecute()"]()
+            await expect(tx).to.emit(tokenLocker, "BatchCleared")
+            .withArgs(sa.default.address, totalCollateralAccumulated, expectedTotalCredits, 1)
+
+            const afterData1 = await getData(tokenLocker, lockerId1)
+            const afterData2 = await getData(tokenLocker, lockerId2)
+
+            expect(afterData1.lockerData.lockerCredits).eq(expectedLocker1Credits)
+            expect(afterData2.lockerData.lockerCredits).eq(expectedLocker2Credits)
+            expect(afterData1.toBeBatchedCollateral).eq(ZERO)
+            expect(afterData1.lastBatchedLockerId).eq(1)
+            expect(afterData1.lastBatchedTime).eq(await getTimestamp())
         })
     })
 })

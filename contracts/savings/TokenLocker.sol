@@ -5,8 +5,6 @@ import { ISavingsContractV3 } from "../interfaces/ISavingsContract.sol";
 import "../interfaces/ITokenLocker.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -18,8 +16,6 @@ import { StableMath } from "../shared/StableMath.sol";
 contract TokenLocker is
     ITokenLocker,
     ERC721,
-    ERC721Enumerable,
-    ERC721Burnable,
     Ownable,
     ReentrancyGuard
 {
@@ -32,7 +28,8 @@ contract TokenLocker is
     event BatchCleared(
         address indexed clearer,
         uint256 collateralDeposited,
-        uint256 creditsReceived
+        uint256 creditsReceived,
+        uint256 lastBatchedLockerId
     );
     // Fire this event when Batch volume is reached
     event BatchIt(uint256 toBeBatchedCollateral);
@@ -95,11 +92,11 @@ contract TokenLocker is
     /// @notice lock mAsset amount and mint interest bearing NFT
     /// @dev tracking tobeBatchedCollateral in here to emit actionalble events
     /// @param _amount Amount of mAsset to lock
-    function lock(uint256 _amount) external override {
+    function lock(uint256 _amount) external override returns (uint256) {
         require(_amount > 0, "Must deposit something");
         // Transfer the mAssest to this contract
         require(
-            getMAsset().transferFrom(msg.sender, address(this), _amount),
+            _getMAsset().transferFrom(msg.sender, address(this), _amount),
             "Must deposit tokens"
         );
 
@@ -115,7 +112,7 @@ contract TokenLocker is
         totalCollateral += _amount;
 
         // Mint the locker as an NFT to the owner
-        safeMint(msg.sender);
+        _mintLocker(msg.sender);
 
         emit Deposit(msg.sender, lockerId, _amount);
 
@@ -124,6 +121,8 @@ contract TokenLocker is
             // Emit event to automate batching
             emit BatchIt(toBeBatchedCollateral);
         }
+
+        return lockerId;
     }
 
     /// @notice Close the locker and collect the payout once its matured
@@ -142,7 +141,7 @@ contract TokenLocker is
         uint256 totalPayout = savingsContract.redeemCredits(lockerCredits[_lockerId]);
 
         // Transfer Payout to locker Owner
-        require(getMAsset().transfer(ownerOf(_lockerId), totalPayout), "Payout transfer to owner failed");
+        require(_getMAsset().transfer(ownerOf(_lockerId), totalPayout), "Payout transfer to owner failed");
 
         emit Withdraw(msg.sender, _lockerId, lockerCredits[_lockerId], totalPayout);
 
@@ -152,72 +151,74 @@ contract TokenLocker is
         delete lockerMaturity[_lockerId];
 
         // Burn Locker NFT
-        burn(_lockerId);
+        // TODO- not working to be checked later - send to savingsContract
+        //_burn(_lockerId);
+        transferFrom(msg.sender, address(savingsContract), _lockerId);
 
         return totalPayout;
     }
 
     /// @notice Batch Deposit all the toBeBatchedCollateral to Savings Contract and distribute credits
-    /// @dev little extra credits to the last depositor this batch due to round offs
+    /// @dev little extra credits to the last depositor this batch due to round offs. 
+    /// Intentionally leaving toBeBatchedCollateral > batchingThreshold check
     function batchExecute() external override {
-        require(toBeBatchedCollateral > 0, "No collateral outstanding");
+        // memory variables to save gas on storage reads
+        uint256 currentLockerId = totalLockersCreated();
+        uint256 accumulatedCollateral = toBeBatchedCollateral;
+
+        require(currentLockerId > 0, "No Lockers Created yet");
+        require(accumulatedCollateral > 0, "No collateral outstanding");
+        
+
+        // Refresh allowance if below accumulatedCollateral
+        if (_getMAsset().allowance(address(this), address(savingsContract)) <  accumulatedCollateral) {
+            _getMAsset().approve(address(savingsContract), ~uint256(0));
+        }
 
         // deposit the last gathered Collateral to Savings Contract and mint credits to this Contract
         uint256 creditsReceived = savingsContract.depositSavings(
-            toBeBatchedCollateral,
+            accumulatedCollateral,
             address(this)
         );
 
-        uint256 currentLockerId = _lockerIdCounter.current();
+        uint256 lastCreatedLockerId = currentLockerId - 1;
         uint256 allotedCredits = 0;
 
         // distribute credits to lockers of this batch
-        for (uint256 i = lastBatchedLockerId + 1; i < currentLockerId; i++) {
+        // lockerCredits = lockerCollateral / totalCollateral * totalCredits
+        for (uint256 i = lastBatchedLockerId + 1; i < lastCreatedLockerId; i++) {
             // Ratio of this locker's collateral to outstanding collateral
-            uint256 collateralRatio = lockerCollateral[i].divPrecisely(toBeBatchedCollateral);
+            uint256 collateralRatio = lockerCollateral[i].divPrecisely(accumulatedCollateral);
             // Set credits based on collateralRatio
             lockerCredits[i] = collateralRatio.mulTruncate(creditsReceived);
             allotedCredits += lockerCredits[i];
         }
         // last one get a little extra because of truncation delta
-        lockerCredits[currentLockerId] = creditsReceived - allotedCredits;
+        lockerCredits[lastCreatedLockerId] = creditsReceived - allotedCredits;
 
-        emit BatchCleared(msg.sender, toBeBatchedCollateral, creditsReceived);
+        emit BatchCleared(msg.sender, accumulatedCollateral, creditsReceived, lastCreatedLockerId);
 
         // Reset accumulated collateral
         toBeBatchedCollateral = 0;
         // Set Last batched Locker Id to current
-        lastBatchedLockerId = currentLockerId;
+        lastBatchedLockerId = lastCreatedLockerId;
         // Update Batched Time
         lastBatchedTime = block.timestamp;
     }
 
     /// @dev Get the underlying mAsset of the savings contract
     /// @return mAsset Underlying asset contract
-    function getMAsset() internal view returns (IERC20 mAsset) {
+    function _getMAsset() internal view returns (IERC20 mAsset) {
         return savingsContract.underlying();
     }
 
-    function safeMint(address to) public onlyOwner {
+    function _mintLocker(address to) internal {
         uint256 lockerId = _lockerIdCounter.current();
         _lockerIdCounter.increment();
-        _safeMint(to, lockerId);
+        _mint(to, lockerId);
     }
 
-    // The following functions are overrides required by Solidity.
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 tokenId
-    ) internal override(ERC721, ERC721Enumerable) {
-        super._beforeTokenTransfer(from, to, tokenId);
-    }
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        override(ERC721, ERC721Enumerable)
-        returns (bool)
-    {
-        return super.supportsInterface(interfaceId);
+    function totalLockersCreated() public view returns (uint256) {
+        return _lockerIdCounter.current();
     }
 }
