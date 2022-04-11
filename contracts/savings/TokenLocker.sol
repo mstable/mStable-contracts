@@ -44,7 +44,7 @@ contract TokenLocker is
     // Savings Contract for the Locker
     ISavingsContractV3 public immutable savingsContract;
     // Lock period
-    uint256 private immutable lockPeriod;
+    uint256 public immutable lockPeriod;
     // Batching Threshold
     uint256 public immutable batchingThreshold;
 
@@ -74,6 +74,7 @@ contract TokenLocker is
         uint256 _lockPeriod,
         uint256 _batchingThreshold
     ) ERC721(_name, _symbol) {
+        require(_savingsContract != address(0), "SavingsContract Address is Zero");
         savingsContract = ISavingsContractV3(_savingsContract);
         lockPeriod = _lockPeriod;
         batchingThreshold = _batchingThreshold;
@@ -95,10 +96,11 @@ contract TokenLocker is
     /// @dev tracking tobeBatchedCollateral in here to emit actionalble events
     /// @param _amount Amount of mAsset to lock
     function lock(uint256 _amount) external override {
+        require(_amount > 0, "Must deposit something");
         // Transfer the mAssest to this contract
         require(
             getMAsset().transferFrom(msg.sender, address(this), _amount),
-            "Must receive tokens"
+            "Must deposit tokens"
         );
 
         // Create new Locker
