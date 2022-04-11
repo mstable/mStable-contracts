@@ -28,6 +28,7 @@ export const contractNames = [
     "SaveWrapper",
     "RevenueRecipient",
     "RevenueBuyBack",
+    "RevenueSplitBuyBack",
     "MassetManager",
     "FeederManager",
     "FeederLogic",
@@ -128,6 +129,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xA7824292efDee1177a1C1BED0649cfdD6114fed5"
             case "RevenueBuyBack":
                 return "0xE301087C087cB9b86068352F0F75073C4c6aA74F"
+            case "RevenueSplitBuyBack":
+                return "0x0E423505A4EB417a75b21f7A35E84ae378e665b9"
             case "MassetManager":
                 return "0x1E91F826fa8aA4fa4D3F595898AF3A64dd188848"
             case "FeederManager":
