@@ -96,7 +96,7 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
         bytes32 _nameArg,
         bytes32 _symbolArg,
         address _rewardsDistributorArg
-    ) public initializer {
+    ) public {
         __GamifiedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg);
         _initializeReentrancyGuard();
         safetyData = SafetyData({ collateralisationRatio: 1e18, slashingPercentage: 0 });
@@ -106,7 +106,7 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
      * @dev Only the recollateralisation module, as specified in the mStable Nexus, can execute this
      */
     modifier onlyRecollateralisationModule() {
-        require(_msgSender() == _recollateraliser(), "Only Recollateralisation Module");
+        require(_msgSender() == _recollateraliser(), "Only Recollateralisation");
         _;
     }
 
@@ -119,7 +119,7 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
     }
 
     function _onlyBeforeRecollateralisation() internal view {
-        require(safetyData.collateralisationRatio == 1e18, "Only while fully collateralised");
+        require(safetyData.collateralisationRatio == 1e18, "Only while collateralised");
     }
 
     /**
@@ -133,7 +133,7 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
 
     function _assertNotContract() internal view {
         if (_msgSender() != tx.origin) {
-            require(whitelistedWrappers[_msgSender()], "Not a whitelisted contract");
+            require(whitelistedWrappers[_msgSender()], "Not whitelisted");
         }
     }
 
@@ -172,15 +172,25 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
     }
 
     /**
-     * @dev Transfers tokens from sender before calling `_settleStake`
+     * @dev Transfers an `_amount` of staked tokens from sender to this staking contract
+     * before calling `_settleStake`.
+     * Can be overridden if the tokens are held elsewhere. eg in the Balancer Pool Gauge.
      */
     function _transferAndStake(
         uint256 _amount,
         address _delegatee,
         bool _exitCooldown
-    ) internal {
+    ) internal virtual {
         STAKED_TOKEN.safeTransferFrom(_msgSender(), address(this), _amount);
         _settleStake(_amount, _delegatee, _exitCooldown);
+    }
+
+    /**
+     * @dev Gets the total number of staked tokens in this staking contract. eg MTA or mBPT.
+     * Can be overridden if the tokens are held elsewhere. eg in the Balancer Pool Gauge.
+     */
+    function _balanceOfStakedTokens() internal virtual view returns (uint256 stakedTokens) {
+        stakedTokens = STAKED_TOKEN.balanceOf(address(this));
     }
 
     /**
@@ -260,10 +270,7 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
             // 1. If recollateralisation has occured, the contract is finished and we can skip all checks
             _burnRaw(_msgSender(), _amount, false, true);
             // 2. Return a proportionate amount of tokens, based on the collateralisation ratio
-            STAKED_TOKEN.safeTransfer(
-                _recipient,
-                (_amount * safetyData.collateralisationRatio) / 1e18
-            );
+            _transferStakedTokens(_recipient, (_amount * safetyData.collateralisationRatio) / 1e18);
             emit Withdraw(_msgSender(), _recipient, _amount);
         } else {
             // 1. If no recollateralisation has occured, the user must be within their UNSTAKE_WINDOW period in order to withdraw
@@ -303,11 +310,22 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
             _burnRaw(_msgSender(), totalWithdraw, exitCooldown, false);
             //      Log any redemption fee to the rewards contract
             _notifyAdditionalReward(totalWithdraw - userWithdrawal);
-            //      Finally transfer tokens back to recipient
-            STAKED_TOKEN.safeTransfer(_recipient, userWithdrawal);
+            //      Finally transfer staked tokens back to recipient
+            _transferStakedTokens(_recipient, userWithdrawal);
 
             emit Withdraw(_msgSender(), _recipient, _amount);
         }
+    }
+
+    /**
+     * @dev Transfers an `amount` of staked tokens to the `recipient`. eg MTA or mBPT.
+     * Can be overridden if the tokens are held elsewhere. eg in the Balancer Pool Gauge.
+     */
+    function _transferStakedTokens(
+        address _recipient,
+        uint256 amount
+    ) internal virtual {
+        STAKED_TOKEN.safeTransfer(_recipient, amount);
     }
 
     /**
@@ -365,11 +383,8 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
         // 1. Change collateralisation rate
         safetyData.collateralisationRatio = 1e18 - safetyData.slashingPercentage;
         // 2. Take slashing percentage
-        uint256 balance = STAKED_TOKEN.balanceOf(address(this));
-        STAKED_TOKEN.safeTransfer(
-            _recollateraliser(),
-            (balance * safetyData.slashingPercentage) / 1e18
-        );
+        uint256 balance = _balanceOfStakedTokens();
+        _transferStakedTokens(_recollateraliser(), (balance * safetyData.slashingPercentage) / 1e18);
         // 3. No functions should work anymore because the colRatio has changed
         emit Recollateralised();
     }
@@ -384,7 +399,7 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
         onlyGovernor
         onlyBeforeRecollateralisation
     {
-        require(_newRate <= 5e17, "Cannot exceed 50%");
+        require(_newRate <= 5e17, "> 50%");
 
         safetyData.slashingPercentage = SafeCast.toUint128(_newRate);
 

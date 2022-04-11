@@ -3,9 +3,9 @@ pragma solidity 0.8.6;
 
 // Internal
 import { InitializableRewardsDistributionRecipient } from "../InitializableRewardsDistributionRecipient.sol";
+import { Context } from "../../shared/@openzeppelin-2.5/Context.sol";
 import { StableMath } from "../../shared/StableMath.sol";
 import { PlatformTokenVendorFactory } from "./PlatformTokenVendorFactory.sol";
-import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 
 // Libs
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -24,7 +24,7 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
  *            and balances are read from there through the abstract functions
  */
 abstract contract HeadlessStakingRewards is
-    ContextUpgradeable,
+    Context,
     InitializableRewardsDistributionRecipient
 {
     using SafeERC20 for IERC20;

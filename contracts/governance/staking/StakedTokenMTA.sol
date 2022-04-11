@@ -5,13 +5,14 @@ pragma abicoder v2;
 import { StakedToken } from "./StakedToken.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 /**
  * @title StakedTokenMTA
  * @dev Derives from StakedToken, and simply adds the functionality specific to the $MTA staking token,
  * for example compounding rewards.
  **/
-contract StakedTokenMTA is StakedToken {
+contract StakedTokenMTA is StakedToken, Initializable {
     using SafeERC20 for IERC20;
 
     /**

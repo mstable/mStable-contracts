@@ -24,13 +24,15 @@ import {
     StakedTokenBPT,
 } from "types"
 import { DEAD_ADDRESS } from "index"
-import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
+import { ONE_DAY, ONE_WEEK } from "@utils/constants"
 import { assertBNClose } from "@utils/assertions"
 import { simpleToExactAmount, BN } from "@utils/math"
 import { expect } from "chai"
 import { getTimestamp, increaseTime } from "@utils/time"
 import { formatBytes32String } from "ethers/lib/utils"
 import { BalConfig, UserStakingData } from "types/stakedToken"
+import { MockBalancerPoolGauge__factory } from "types/generated/factories/MockBalancerPoolGauge__factory"
+import { MockBalancerPoolGauge } from "types/generated/MockBalancerPoolGauge"
 
 interface Deployment {
     stakedToken: StakedTokenBPT
@@ -43,6 +45,7 @@ interface BPTDeployment {
     bpt: MockBPT
     bal: MockERC20
     underlying: MockERC20[]
+    gauge: MockBalancerPoolGauge
 }
 
 describe("Staked Token BPT", () => {
@@ -60,6 +63,7 @@ describe("Staked Token BPT", () => {
         const token2 = await new MockERC20__factory(sa.default.signer).deploy("Test Token 2", "TST2", 18, sa.default.address, 10000000)
         const mockBal = await new MockERC20__factory(sa.default.signer).deploy("Mock BAL", "mkBAL", 18, sa.default.address, 10000000)
         const bptLocal = await new MockBPT__factory(sa.default.signer).deploy("Balance Pool Token", "mBPT")
+        const mockBptGauge = await new MockBalancerPoolGauge__factory(sa.default.signer).deploy(bptLocal.address)
         const vault = await new MockBVault__factory(sa.default.signer).deploy()
         await mockMTA.approve(vault.address, simpleToExactAmount(100000))
         await token2.approve(vault.address, simpleToExactAmount(100000))
@@ -73,6 +77,7 @@ describe("Staked Token BPT", () => {
             bpt: bptLocal,
             bal: mockBal,
             underlying: [mockMTA, token2],
+            gauge: mockBptGauge,
         }
     }
 
@@ -124,16 +129,20 @@ describe("Staked Token BPT", () => {
                 ONE_DAY.mul(2),
                 [bptLocal.bal.address, bptLocal.vault.address],
                 await bptLocal.vault.poolIds(bptLocal.bpt.address),
+                bptLocal.gauge.address,
             )
             data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
                 formatBytes32String("Staked Rewards"),
                 formatBytes32String("stkRWD"),
                 sa.mockRewardsDistributor.address,
-                sa.fundManager.address,
                 44000,
             ])
+
             const stakedTokenProxy = await new AssetProxy__factory(sa.default.signer).deploy(stakedTokenImpl.address, DEAD_ADDRESS, data)
             sToken = stakedTokenFactory.attach(stakedTokenProxy.address) as StakedTokenBPT
+
+            // set BAL Recipient as this is no longer in the initialize function
+            await sToken.connect(sa.governor.signer).setBalRecipient(sa.fundManager.address)
         }
 
         const qMaster = QuestManager__factory.connect(questManagerProxy.address, sa.default.signer)
@@ -153,14 +162,12 @@ describe("Staked Token BPT", () => {
     }
 
     const snapBalData = async (): Promise<BalConfig> => {
-        const balRecipient = await stakedToken.balRecipient()
-        const keeper = await stakedToken.keeper()
         const pendingBPTFees = await stakedToken.pendingBPTFees()
         const priceCoefficient = await stakedToken.priceCoefficient()
         const lastPriceUpdateTime = await stakedToken.lastPriceUpdateTime()
         return {
-            balRecipient,
-            keeper,
+            // balRecipient,
+            // keeper,
             pendingBPTFees,
             priceCoefficient,
             lastPriceUpdateTime,
@@ -194,6 +201,8 @@ describe("Staked Token BPT", () => {
         const accounts = await ethers.getSigners()
         const mAssetMachine = await new MassetMachine().initAccounts(accounts)
         sa = mAssetMachine.sa
+
+        console.log(`StakedTokenBPT contract size ${StakedTokenBPT__factory.bytecode.length / 2}`)
     })
 
     // '''..................................................................'''
@@ -209,8 +218,8 @@ describe("Staked Token BPT", () => {
             expect(await stakedToken.BAL()).eq(bpt.bal.address)
             expect(await stakedToken.balancerVault()).eq(bpt.vault.address)
             expect(await stakedToken.poolId()).eq(await bpt.vault.poolIds(bpt.bpt.address))
-            expect(data.balRecipient).eq(sa.fundManager.address)
-            expect(data.keeper).eq(ZERO_ADDRESS)
+            // expect(data.balRecipient).eq(sa.fundManager.address)
+            // expect(data.keeper).eq(ZERO_ADDRESS)
             expect(data.pendingBPTFees).eq(0)
             expect(data.priceCoefficient).eq(44000)
             expect(data.lastPriceUpdateTime).eq(0)
@@ -231,14 +240,7 @@ describe("Staked Token BPT", () => {
             await expect(stakedToken.setBalRecipient(sa.fundManager.address)).to.be.revertedWith("Only governor can execute")
             const tx = stakedToken.connect(sa.governor.signer).setBalRecipient(sa.fundManager.address)
             await expect(tx).to.emit(stakedToken, "BalRecipientChanged").withArgs(sa.fundManager.address)
-            expect(await stakedToken.balRecipient()).to.eq(sa.fundManager.address)
-        })
-        it("should allow BAL tokens to be claimed", async () => {
-            const balBefore = await bpt.bal.balanceOf(sa.fundManager.address)
-            const tx = stakedToken.claimBal()
-            await expect(tx).to.emit(stakedToken, "BalClaimed")
-            const balAfter = await bpt.bal.balanceOf(sa.fundManager.address)
-            expect(balAfter.sub(balBefore)).eq(balAirdrop)
+            // expect(await stakedToken.balRecipient()).to.eq(sa.fundManager.address)
         })
     })
 
@@ -298,24 +300,12 @@ describe("Staked Token BPT", () => {
     // '''...................    PRICE COEFFICIENT    ......................'''
     // '''..................................................................'''
 
-    context("setting keeper", () => {
-        before(async () => {
-            ;({ stakedToken, questManager, bpt } = await redeployStakedToken())
-        })
-        it("should allow governance to set keeper", async () => {
-            await expect(stakedToken.setKeeper(sa.default.address)).to.be.revertedWith("Only governor can execute")
-            const tx = stakedToken.connect(sa.governor.signer).setKeeper(sa.default.address)
-            await expect(tx).to.emit(stakedToken, "KeeperUpdated").withArgs(sa.default.address)
-            expect(await stakedToken.keeper()).to.eq(sa.default.address)
-        })
-    })
-
     context("fetching live priceCoeff", () => {
         before(async () => {
             ;({ stakedToken, questManager, bpt } = await redeployStakedToken())
         })
         it("should fail if not called by governor or keeper", async () => {
-            await expect(stakedToken.fetchPriceCoefficient()).to.be.revertedWith("Gov or keeper")
+            await expect(stakedToken.fetchPriceCoefficient()).to.be.revertedWith("Only keeper or governor")
         })
         it("should allow govenror or keeper to fetch new price Coeff", async () => {
             const newPrice = await stakedToken.getProspectivePriceCoefficient()
@@ -328,11 +318,11 @@ describe("Staked Token BPT", () => {
             assertBNClose(await stakedToken.lastPriceUpdateTime(), timeNow, 3)
         })
         it("should fail to set more than once per 14 days", async () => {
-            await expect(stakedToken.connect(sa.governor.signer).fetchPriceCoefficient()).to.be.revertedWith("Max 1 update per 14 days")
+            await expect(stakedToken.connect(sa.governor.signer).fetchPriceCoefficient()).to.be.revertedWith("< 14 days")
         })
         it("should fail to set if the diff is < 5%", async () => {
             await increaseTime(ONE_WEEK.mul(2).add(1))
-            await expect(stakedToken.connect(sa.governor.signer).fetchPriceCoefficient()).to.be.revertedWith("Must be > 5% diff")
+            await expect(stakedToken.connect(sa.governor.signer).fetchPriceCoefficient()).to.be.revertedWith("< 5% diff")
         })
         it("should fail if its's out of bounds", async () => {
             await bpt.vault.setUnitsPerBpt(bpt.bpt.address, [simpleToExactAmount(0.5), simpleToExactAmount(0.0002693)])
@@ -357,7 +347,7 @@ describe("Staked Token BPT", () => {
         const stakedAmount = simpleToExactAmount(1000)
         let mockStakedToken: MockStakedTokenWithPrice
         before(async () => {
-            ({ stakedToken, bpt, questManager } = await redeployStakedToken(true))
+            ;({ stakedToken, bpt, questManager } = await redeployStakedToken(true))
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             mockStakedToken = stakedToken as any as MockStakedTokenWithPrice
             await bpt.bpt.connect(sa.default.signer).approve(mockStakedToken.address, stakedAmount.mul(3))

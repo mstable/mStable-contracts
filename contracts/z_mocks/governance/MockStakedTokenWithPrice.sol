@@ -3,13 +3,14 @@ pragma solidity 0.8.6;
 pragma abicoder v2;
 
 import { StakedToken } from "../../governance/staking/StakedToken.sol";
+import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 /**
  * @title StakedTokenBPT
  * @dev Derives from StakedToken, and simply adds the ability to withdraw any unclaimed $BAL tokens
  * that are at this address
  **/
-contract MockStakedTokenWithPrice is StakedToken {
+contract MockStakedTokenWithPrice is StakedToken, Initializable {
     /// @notice Most recent PriceCoefficient
     uint256 public priceCoefficient;
 
