@@ -10,7 +10,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @dev     VERSION: 1.0
  *          DATE:    2022-02-10
  */
-interface IERC4626Vault {
+interface IERC4626Vault is IERC20 {
     /// @notice The address of the underlying token used for the Vault uses for accounting, depositing, and withdrawing
     function asset() external view returns (address assetTokenAddress);
 
