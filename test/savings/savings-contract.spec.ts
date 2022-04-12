@@ -10,6 +10,7 @@ import {
     Masset,
     AssetProxy__factory,
     ExposedMasset,
+    IERC4626Vault,
     MockConnector__factory,
     MockERC20,
     MockERC20__factory,
@@ -32,7 +33,7 @@ import {
 } from "types/generated"
 import { getTimestamp } from "@utils/time"
 import { IModuleBehaviourContext, shouldBehaveLikeModule } from "../shared/Module.behaviour"
-// import { IERC4626BehaviourContext, shouldBehaveLikeERC4626 } from "../shared/ERC4626.behaviour"
+import { IERC4626BehaviourContext, shouldBehaveLikeERC4626 } from "../shared/ERC4626.behaviour"
 
 interface Balances {
     totalCredits: BN
@@ -219,7 +220,7 @@ describe("SavingsContract", async () => {
     let bob: Account
     let charlie: Account
     const ctx: Partial<IModuleBehaviourContext> = {}
-    // const ctxVault: Partial<IERC4626BehaviourContext> = {}
+    const ctxVault: Partial<IERC4626BehaviourContext> = {}
     const initialExchangeRate = simpleToExactAmount(1, 17)
 
     let mAssetMachine: MassetMachine
@@ -301,15 +302,17 @@ describe("SavingsContract", async () => {
             })
             shouldBehaveLikeModule(ctx as IModuleBehaviourContext)
         })
-        // describe("behave like a Vault ERC4626", async () => {
-        //     beforeEach(async () => {
-        //         await createNewSavingsContract()
-        //         ctxVault.vault = savingsContract
-        //         ctxVault.token = masset
-        //         ctx.sa = sa
-        //     })
-        //     shouldBehaveLikeERC4626(ctx as IERC4626BehaviourContext)
-        // })
+        describe("behave like a Vault ERC4626", async () => {
+            beforeEach(async () => {
+                await createNewSavingsContract()
+                await savingsContract.connect(sa.governor.signer).automateInterestCollectionFlag(false)
+
+                ctxVault.vault = savingsContract as unknown as IERC4626Vault
+                ctxVault.asset = masset
+                ctxVault.sa = sa
+            })
+            shouldBehaveLikeERC4626(ctxVault as IERC4626BehaviourContext)
+        })
     })
 
     describe("constructor", async () => {
@@ -1510,7 +1513,6 @@ describe("SavingsContract", async () => {
             expect(dataEnd.balances.user).eq(data.balances.user.add(deposit))
         })
     })
-
     ;[
         { deposit: depositSavingsFn, redeem: redeemCreditsFn },
         { deposit: deposit4626Fn, redeem: redeem4626Fn },

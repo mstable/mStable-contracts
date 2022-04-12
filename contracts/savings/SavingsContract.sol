@@ -806,7 +806,6 @@ contract SavingsContract is
      */
     function deposit(uint256 assets, address receiver) external override returns (uint256 shares) {
         shares = _transferAndMint(assets, receiver, true);
-        emit Deposit(msg.sender, receiver, assets, shares);
     }
 
     /**
@@ -824,16 +823,15 @@ contract SavingsContract is
     ) external returns (uint256 shares) {
         shares = _transferAndMint(assets, receiver, true);
         emit Referral(referrer, receiver, assets);
-        emit Deposit(msg.sender, receiver, assets, shares);
     }
 
     /**
      * @notice The maximum number of vault shares that caller can mint.
-     * @param caller Account that the underlying assets will be transferred from.
+     * caller Account that the underlying assets will be transferred from.
      * @return maxShares The maximum amount of vault shares the caller can mint.
      */
-    function maxMint(address caller) external view override returns (uint256 maxShares) {
-        maxShares = balanceOf(caller);
+    function maxMint(address /* caller */) external pure override returns (uint256 maxShares) {
+        maxShares = type(uint256).max;
     }
 
     /**
@@ -856,7 +854,6 @@ contract SavingsContract is
     function mint(uint256 shares, address receiver) external override returns (uint256 assets) {
         (assets, ) = _creditsToUnderlying(shares);
         _transferAndMint(assets, receiver, true);
-        emit Deposit(msg.sender, receiver, assets, shares);
     }
 
     /**
@@ -865,7 +862,6 @@ contract SavingsContract is
      */
     function maxWithdraw(address caller) external view override returns (uint256 maxAssets) {
         (maxAssets, ) = _creditsToUnderlying(balanceOf(caller));
-        return maxAssets;
     }
 
     /**
@@ -875,7 +871,6 @@ contract SavingsContract is
      */
     function previewWithdraw(uint256 assets) external view override returns (uint256 shares) {
         (shares, ) = _underlyingToCredits(assets);
-        return shares;
     }
 
     /**
@@ -896,7 +891,6 @@ contract SavingsContract is
         (shares, _exchangeRate) = _underlyingToCredits(assets);
 
         _burnTransfer(assets, shares, receiver, owner, _exchangeRate, true);
-        emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
     /**
@@ -906,7 +900,6 @@ contract SavingsContract is
      */
     function maxRedeem(address caller) external view override returns (uint256 maxShares) {
         maxShares = balanceOf(caller);
-        return maxShares;
     }
 
     /**
@@ -938,7 +931,6 @@ contract SavingsContract is
         (assets, _exchangeRate) = _creditsToUnderlying(shares);
 
         _burnTransfer(assets, shares, receiver, owner, _exchangeRate, true); //transferAssets=true
-        emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -966,6 +958,7 @@ contract SavingsContract is
 
         // add credits to ERC20 balances
         _mint(receiver, shares);
+        emit Deposit(msg.sender, receiver, assets, shares);
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -983,18 +976,18 @@ contract SavingsContract is
         // If caller is not the owner of the shares
         uint256 allowed = allowance(owner, msg.sender);
         if (msg.sender != owner && allowed != type(uint256).max) {
-            require(shares <= allowed, "amount exceeds allowance");
+            require(shares <= allowed, "Amount exceeds allowance");
             _approve(owner, msg.sender, allowed - shares);
         }
 
-        // Burn required shares from the sender FIRST
+        // Burn required shares from the owner FIRST
         _burn(owner, shares);
 
-        // Optionally, transfer tokens from here to sender
+        // Optionally, transfer tokens from here to receiver
         if (transferAssets) {
             require(underlying.transfer(receiver, assets), "Must send tokens");
+            emit Withdraw(msg.sender, receiver, owner, assets, shares);
         }
-
         // If this withdrawal pushes the portion of stored collateral in the `connector` over a certain
         // threshold (fraction + 20%), then this should trigger a _poke on the connector. This is to avoid
         // a situation in which there is a rush on withdrawals for some reason, causing the connector
