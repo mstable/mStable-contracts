@@ -6,7 +6,7 @@ import { StakedToken } from "./StakedToken.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IBVault, ExitPoolRequest } from "./interfaces/IBVault.sol";
-import { IBalancerPoolGauge } from "../../peripheral/Balancer/IBalancerPoolGauge.sol";
+import { IBalancerGauge } from "../../peripheral/Balancer/IBalancerGauge.sol";
 
 /**
  * @title StakedTokenBPT
@@ -22,10 +22,11 @@ contract StakedTokenBPT is StakedToken {
     /// @notice Balancer vault
     IBVault public immutable balancerVault;
 
-    /// @notice Balancer poolId
+    /// @notice Balancer pool Id
     bytes32 public immutable poolId;
 
-    IBalancerPoolGauge public immutable balancerPoolGauge;
+    /// @notice Balancer Pool Token Gauge. eg mBPT Gauge (mBPT-gauge)
+    IBalancerGauge public immutable balancerGauge;
 
     /// @notice contract that can redistribute the $BAL
     /// @dev Deprecated as the $BAL recipient is now set in the BPT Gauge.
@@ -58,10 +59,9 @@ contract StakedTokenBPT is StakedToken {
      * @param _questManager Centralised manager of quests
      * @param _stakedToken Core token that is staked and tracked e.g. mStable MTA/WETH Staking BPT (mBPT)
      * @param _cooldownSeconds Seconds a user must wait after she initiates her cooldown before withdrawal is possible
-     * @param _unstakeWindow Window in which it is possible to withdraw, following the cooldown period
      * @param _bal Balancer addresses, [0] = $BAL addr, [1] = BAL vault
      * @param _poolId Balancer Pool identifier
-     * @param _balancerPoolGauge Address of the Balancer Pool Gauge. eg mBPT Gauge (mBPT-gauge)
+     * @param _balancerGauge Address of the Balancer Pool Token Gauge. eg mBPT Gauge (mBPT-gauge)
      */
     constructor(
         address _nexus,
@@ -69,10 +69,9 @@ contract StakedTokenBPT is StakedToken {
         address _questManager,
         address _stakedToken,
         uint256 _cooldownSeconds,
-        uint256 _unstakeWindow,
         address[2] memory _bal,
         bytes32 _poolId,
-        address _balancerPoolGauge
+        address _balancerGauge
     )
         StakedToken(
             _nexus,
@@ -80,14 +79,13 @@ contract StakedTokenBPT is StakedToken {
             _questManager,
             _stakedToken,
             _cooldownSeconds,
-            _unstakeWindow,
             true
         )
     {
         BAL = IERC20(_bal[0]);
         balancerVault = IBVault(_bal[1]);
         poolId = _poolId;
-        balancerPoolGauge = IBalancerPoolGauge(_balancerPoolGauge);
+        balancerGauge = IBalancerGauge(_balancerGauge);
     }
 
     /**
@@ -108,12 +106,12 @@ contract StakedTokenBPT is StakedToken {
         }
 
         // Staking Token contract approves the Balancer Pool Gauge to transfer the staking token. eg mBPT
-        STAKED_TOKEN.safeApprove(address(balancerPoolGauge), type(uint256).max);
+        STAKED_TOKEN.safeApprove(address(balancerGauge), type(uint256).max);
 
         uint256 stakingBal = STAKED_TOKEN.balanceOf(address(this));
 
         if (stakingBal > 0) {
-            balancerPoolGauge.deposit(stakingBal);
+            balancerGauge.deposit(stakingBal);
         }
     }
 
@@ -125,7 +123,7 @@ contract StakedTokenBPT is StakedToken {
      * @dev Sets the recipient for any potential $BAL earnings
      */
     function setBalRecipient(address _newRecipient) external onlyGovernor {
-        balancerPoolGauge.set_rewards_receiver(_newRecipient);
+        balancerGauge.set_rewards_receiver(_newRecipient);
 
         emit BalRecipientChanged(_newRecipient);
     }
@@ -142,9 +140,10 @@ contract StakedTokenBPT is StakedToken {
         require(pendingBPT > 1, "no fees");
         pendingBPTFees = 1;
 
-        // 1. Sell the BPT
-        uint256 stakingBalBefore = STAKED_TOKEN.balanceOf(address(this));
+        // 1. Sell the mBPT
+        uint256 stakingBalBefore = balancerGauge.balanceOf(address(this));
         uint256 mtaBalBefore = REWARDS_TOKEN.balanceOf(address(this));
+
         (address[] memory tokens, , ) = balancerVault.getPoolTokens(poolId);
         require(tokens[0] == address(REWARDS_TOKEN), "not MTA");
 
@@ -156,7 +155,11 @@ contract StakedTokenBPT is StakedToken {
             minOut[0] = (pendingBPT * priceCoefficient) / 11000;
         }
 
-        // 1.2. Exits to here, from here. Assumes token is in position 0
+        // 1.2 Withdraw pending mBPT fees from the mBPT Gauge back to this mBPT staking contract
+        balancerGauge.withdraw(pendingBPT - 1);
+
+        // 1.3. Exits rewards (MTA) to this staking contract for mBPT from this staking contract.
+        // Assumes rewards token (MTA) is in position 0
         balancerVault.exitPool(
             poolId,
             address(this),
@@ -165,13 +168,13 @@ contract StakedTokenBPT is StakedToken {
         );
 
         // 2. Verify and update state
-        uint256 stakingBalAfter = STAKED_TOKEN.balanceOf(address(this));
+        uint256 stakingBalAfter = balancerGauge.balanceOf(address(this));
         require(
             stakingBalAfter == (stakingBalBefore - pendingBPT + 1),
             "< min BPT"
         );
 
-        // 3. Inform HeadlessRewards about the new rewards
+        // 3. Inform HeadlessRewards about the new MTA rewards
         uint256 received = REWARDS_TOKEN.balanceOf(address(this)) - mtaBalBefore;
         require(received >= minOut[0], "< min MTA");
         super._notifyAdditionalReward(received);
@@ -180,14 +183,13 @@ contract StakedTokenBPT is StakedToken {
     }
 
     /**
-     * @dev Called by the child contract to notify of any additional rewards that have accrued.
-     *      Trusts that this is called honestly.
-     * @param _additionalReward Units of additional RewardToken to add at the next notification
+     * @dev Called by `StakedToken._withdraw` to add early withdrawal fee charged in the staking token mBPT.
+     * @param _fees Units of staking token mBPT.
      */
-    function _notifyAdditionalReward(uint256 _additionalReward) internal override {
-        require(_additionalReward < 1e24, "> mil");
+    function _notifyAdditionalReward(uint256 _fees) internal override {
+        require(_fees < 1e24, "> mil");
 
-        pendingBPTFees += _additionalReward;
+        pendingBPTFees += _fees;
     }
 
     /***************************************
@@ -261,21 +263,21 @@ contract StakedTokenBPT is StakedToken {
     ) internal override {
         STAKED_TOKEN.safeTransferFrom(_msgSender(), address(this), _amount);
 
-        balancerPoolGauge.deposit(_amount);
+        balancerGauge.deposit(_amount);
 
         _settleStake(_amount, _delegatee, _exitCooldown);
     }
 
-    function _transferStakedTokens(
+    function _withdrawStakedTokens(
         address _recipient,
         uint256 userWithdrawal
     ) internal override {
-        balancerPoolGauge.withdraw(userWithdrawal);
+        balancerGauge.withdraw(userWithdrawal);
 
         STAKED_TOKEN.safeTransfer(_recipient, userWithdrawal);
     }
 
     function _balanceOfStakedTokens() internal override view returns (uint256 stakedTokens) {
-        stakedTokens = balancerPoolGauge.balanceOf(address(this));
+        stakedTokens = balancerGauge.balanceOf(address(this));
     }
 }

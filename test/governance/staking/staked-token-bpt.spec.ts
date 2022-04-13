@@ -18,21 +18,21 @@ import {
     MockEmissionController__factory,
     MockBPT,
     MockBPT__factory,
+    MockBPTGauge__factory,
+    MockBPTGauge,
     MockBVault,
     MockBVault__factory,
     StakedTokenBPT__factory,
     StakedTokenBPT,
 } from "types"
 import { DEAD_ADDRESS } from "index"
-import { ONE_DAY, ONE_WEEK } from "@utils/constants"
+import { ONE_WEEK } from "@utils/constants"
 import { assertBNClose } from "@utils/assertions"
 import { simpleToExactAmount, BN } from "@utils/math"
 import { expect } from "chai"
 import { getTimestamp, increaseTime } from "@utils/time"
 import { formatBytes32String } from "ethers/lib/utils"
 import { BalConfig, UserStakingData } from "types/stakedToken"
-import { MockBalancerPoolGauge__factory } from "types/generated/factories/MockBalancerPoolGauge__factory"
-import { MockBalancerPoolGauge } from "types/generated/MockBalancerPoolGauge"
 
 interface Deployment {
     stakedToken: StakedTokenBPT
@@ -45,7 +45,7 @@ interface BPTDeployment {
     bpt: MockBPT
     bal: MockERC20
     underlying: MockERC20[]
-    gauge: MockBalancerPoolGauge
+    gauge: MockBPTGauge
 }
 
 describe("Staked Token BPT", () => {
@@ -63,7 +63,7 @@ describe("Staked Token BPT", () => {
         const token2 = await new MockERC20__factory(sa.default.signer).deploy("Test Token 2", "TST2", 18, sa.default.address, 10000000)
         const mockBal = await new MockERC20__factory(sa.default.signer).deploy("Mock BAL", "mkBAL", 18, sa.default.address, 10000000)
         const bptLocal = await new MockBPT__factory(sa.default.signer).deploy("Balance Pool Token", "mBPT")
-        const mockBptGauge = await new MockBalancerPoolGauge__factory(sa.default.signer).deploy(bptLocal.address)
+        const mockBptGauge = await new MockBPTGauge__factory(sa.default.signer).deploy(bptLocal.address)
         const vault = await new MockBVault__factory(sa.default.signer).deploy()
         await mockMTA.approve(vault.address, simpleToExactAmount(100000))
         await token2.approve(vault.address, simpleToExactAmount(100000))
@@ -108,7 +108,6 @@ describe("Staked Token BPT", () => {
                 questManagerProxy.address,
                 bptLocal.bpt.address,
                 ONE_WEEK,
-                ONE_DAY.mul(2),
             )
             data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
                 formatBytes32String("Staked Rewards"),
@@ -126,7 +125,6 @@ describe("Staked Token BPT", () => {
                 questManagerProxy.address,
                 bptLocal.bpt.address,
                 ONE_WEEK,
-                ONE_DAY.mul(2),
                 [bptLocal.bal.address, bptLocal.vault.address],
                 await bptLocal.vault.poolIds(bptLocal.bpt.address),
                 bptLocal.gauge.address,
@@ -166,8 +164,6 @@ describe("Staked Token BPT", () => {
         const priceCoefficient = await stakedToken.priceCoefficient()
         const lastPriceUpdateTime = await stakedToken.lastPriceUpdateTime()
         return {
-            // balRecipient,
-            // keeper,
             pendingBPTFees,
             priceCoefficient,
             lastPriceUpdateTime,
@@ -201,8 +197,6 @@ describe("Staked Token BPT", () => {
         const accounts = await ethers.getSigners()
         const mAssetMachine = await new MassetMachine().initAccounts(accounts)
         sa = mAssetMachine.sa
-
-        console.log(`StakedTokenBPT contract size ${StakedTokenBPT__factory.bytecode.length / 2}`)
     })
 
     // '''..................................................................'''
@@ -215,14 +209,97 @@ describe("Staked Token BPT", () => {
         })
         it("post initialize", async () => {
             const data = await snapBalData()
-            expect(await stakedToken.BAL()).eq(bpt.bal.address)
-            expect(await stakedToken.balancerVault()).eq(bpt.vault.address)
-            expect(await stakedToken.poolId()).eq(await bpt.vault.poolIds(bpt.bpt.address))
-            // expect(data.balRecipient).eq(sa.fundManager.address)
-            // expect(data.keeper).eq(ZERO_ADDRESS)
+            expect(await stakedToken.BAL(), "BAL token").eq(bpt.bal.address)
+            expect(await stakedToken.balancerVault(), "Balancer Vault").eq(bpt.vault.address)
+            expect(await stakedToken.poolId(), "Balancer Pool ID").eq(await bpt.vault.poolIds(bpt.bpt.address))
+            expect(await stakedToken.balancerGauge(), "BPT Gauge").eq(bpt.gauge.address)
             expect(data.pendingBPTFees).eq(0)
             expect(data.priceCoefficient).eq(44000)
             expect(data.lastPriceUpdateTime).eq(0)
+        })
+    })
+
+    // '''..................................................................'''
+    // '''...................         Staking         ......................'''
+    // '''..................................................................'''
+
+    context("stake", () => {
+        const stakerStartingBptBal = simpleToExactAmount(10000)
+        const stakeAmount = simpleToExactAmount(100)
+        before(async () => {
+            ;({ stakedToken, questManager, bpt } = await redeployStakedToken())
+            await bpt.bpt.approve(stakedToken.address, stakeAmount)
+        })
+        it("stake mBPT with delegation", async () => {
+            expect(await stakedToken.balanceOf(sa.default.address), "staker's stkBPT bal before").to.eq(0)
+            expect(await stakedToken.getVotes(sa.default.address), "staker's votes before").to.eq(0)
+            expect(await stakedToken.getVotes(sa.dummy1.address), "delegatee's votes before").to.eq(0)
+            expect(await stakedToken.totalSupply(), "stkBPT's total supply before").to.eq(0)
+            expect(await bpt.bpt.balanceOf(sa.default.address), "staker's mBPT bal before").to.eq(stakerStartingBptBal)
+            expect(await bpt.bpt.balanceOf(bpt.gauge.address), "gauge's mBPT bal before").to.eq(0)
+
+            await stakedToken.connect(sa.default.signer)["stake(uint256,address)"](stakeAmount, sa.dummy1.address)
+
+            // Price coefficient is 44,000 and is scaled to 10,000 = 4.4
+            const stakedBptAmount = stakeAmount.mul(44000).div(10000)
+            expect(await stakedToken.balanceOf(sa.default.address), "staker's stkBPT bal after").to.eq(stakedBptAmount)
+            expect(await stakedToken.getVotes(sa.default.address), "staker's votes after").to.eq(0)
+            expect(await stakedToken.getVotes(sa.dummy1.address), "delegatee's votes after").to.eq(stakedBptAmount)
+            expect(await stakedToken.totalSupply(), "stkBPT's total supply after").to.eq(stakedBptAmount)
+
+            expect(await bpt.bpt.balanceOf(sa.default.address), "staker's mBPT bal after").to.eq(stakerStartingBptBal.sub(stakeAmount))
+            expect(await bpt.bpt.balanceOf(stakedToken.address), "stkBPT's mBPT bal after").to.eq(0)
+            expect(await bpt.bpt.balanceOf(bpt.gauge.address), "gauge's mBPT bal after").to.eq(stakeAmount)
+
+            expect(await bpt.gauge.balanceOf(sa.default.address), "staker's gauge bal after").to.eq(0)
+            expect(await bpt.gauge.balanceOf(stakedToken.address), "stkBPT's gauge bal after").to.eq(stakeAmount)
+        })
+    })
+
+    // '''..................................................................'''
+    // '''...................         Withdraw        ......................'''
+    // '''..................................................................'''
+
+    context("withdraw", () => {
+        const stakerStartingBptBal = simpleToExactAmount(10000)
+        const stakeAmount = simpleToExactAmount(100)
+        const withdrawAmount = simpleToExactAmount(80)
+        // Redemption fee starts at 7.5% and drops using a curve after 3 weeks
+        const expectedFees = withdrawAmount.sub(withdrawAmount.mul(1000).div(1075))
+        before(async () => {
+            ;({ stakedToken, questManager, bpt } = await redeployStakedToken())
+            await bpt.bpt.approve(stakedToken.address, stakeAmount)
+            await stakedToken.connect(sa.default.signer)["stake(uint256,address)"](stakeAmount, sa.dummy1.address)
+            await stakedToken.startCooldown(stakeAmount)
+            await increaseTime(ONE_WEEK.add(1))
+        })
+        it("withdraw mBPT to recipient", async () => {
+            expect(await bpt.bpt.balanceOf(sa.dummy2.address), "recipient's mBPT bal before").to.eq(0)
+
+            const tx = await stakedToken.connect(sa.default.signer).withdraw(withdrawAmount, sa.dummy2.address, true, true)
+
+            await expect(tx).to.emit(stakedToken, "Withdraw")
+
+            // Price coefficient is 44,000 and is scaled to 10,000 = 4.4
+            const stakedBptAmount = stakeAmount.sub(withdrawAmount).mul(44000).div(10000)
+            expect(await stakedToken.balanceOf(sa.default.address), "staker's stkBPT bal after").to.eq(stakedBptAmount)
+            expect(await stakedToken.balanceOf(sa.dummy2.address), "recipient's stkBPT bal after").to.eq(0)
+            expect(await stakedToken.getVotes(sa.default.address), "staker's votes after").to.eq(0)
+            expect(await stakedToken.getVotes(sa.dummy1.address), "delegatee's votes after").to.eq(stakedBptAmount)
+            expect(await stakedToken.getVotes(sa.dummy2.address), "recipient's votes after").to.eq(0)
+            expect(await stakedToken.totalSupply(), "stkBPT's total supply after").to.eq(stakedBptAmount)
+
+            expect(await bpt.bpt.balanceOf(sa.default.address), "staker's mBPT bal after").to.eq(stakerStartingBptBal.sub(stakeAmount))
+            expect(await bpt.bpt.balanceOf(sa.dummy2.address), "recipient's mBPT bal after").to.eq(withdrawAmount.sub(expectedFees))
+            expect(await bpt.bpt.balanceOf(stakedToken.address), "stkBPT's mBPT bal after").to.eq(0)
+            expect(await bpt.bpt.balanceOf(bpt.gauge.address), "gauge's mBPT bal after").to.eq(
+                stakeAmount.sub(withdrawAmount).add(expectedFees),
+            )
+
+            expect(await bpt.gauge.balanceOf(sa.default.address), "staker's gauge bal after").to.eq(0)
+            expect(await bpt.gauge.balanceOf(stakedToken.address), "stkBPT's gauge bal after").to.eq(
+                stakeAmount.sub(withdrawAmount).add(expectedFees),
+            )
         })
     })
 
@@ -240,7 +317,6 @@ describe("Staked Token BPT", () => {
             await expect(stakedToken.setBalRecipient(sa.fundManager.address)).to.be.revertedWith("Only governor can execute")
             const tx = stakedToken.connect(sa.governor.signer).setBalRecipient(sa.fundManager.address)
             await expect(tx).to.emit(stakedToken, "BalRecipientChanged").withArgs(sa.fundManager.address)
-            // expect(await stakedToken.balRecipient()).to.eq(sa.fundManager.address)
         })
     })
 
@@ -264,11 +340,13 @@ describe("Staked Token BPT", () => {
             expectedMTA = expectedFees.mul(data.balData.priceCoefficient).div(12000)
         })
         it("should collect 7.5% as fees", async () => {
-            expect(await stakedToken.pendingAdditionalReward()).eq(0)
-            expect(data.balData.pendingBPTFees).eq(expectedFees)
+            expect(await stakedToken.pendingAdditionalReward(), "MTA rewards").eq(0)
+            expect(data.balData.pendingBPTFees, "mBPT fees").eq(expectedFees)
+            expect(await bpt.bpt.balanceOf(bpt.gauge.address), "gauge's mBPT bal").to.eq(expectedFees)
+            expect(await bpt.gauge.balanceOf(stakedToken.address), "stkBPT's gauge bal").to.eq(expectedFees)
         })
         it("should convert fees back into $MTA", async () => {
-            const bptBalBefore = await bpt.bpt.balanceOf(stakedToken.address)
+            const bptBalBefore = await bpt.bpt.balanceOf(bpt.gauge.address)
             const mtaBalBefore = await rewardToken.balanceOf(stakedToken.address)
             const tx = stakedToken.convertFees()
             // it should emit the event
@@ -280,7 +358,7 @@ describe("Staked Token BPT", () => {
             expect(await stakedToken.pendingAdditionalReward()).gt(expectedMTA)
 
             // should burn bpt and receive mta
-            const bptBalAfter = await bpt.bpt.balanceOf(stakedToken.address)
+            const bptBalAfter = await bpt.bpt.balanceOf(bpt.gauge.address)
             const mtaBalAfter = await rewardToken.balanceOf(stakedToken.address)
             expect(mtaBalAfter.sub(mtaBalBefore)).gt(expectedMTA)
             expect(mtaBalAfter).eq(await stakedToken.pendingAdditionalReward())
@@ -292,7 +370,7 @@ describe("Staked Token BPT", () => {
             expect(await stakedToken.pendingAdditionalReward()).eq(1)
         })
         it("should fail if there is nothing to collect", async () => {
-            await expect(stakedToken.convertFees()).to.be.revertedWith("Must have something to convert")
+            await expect(stakedToken.convertFees()).to.be.revertedWith("no fees")
         })
     })
 

@@ -34,7 +34,7 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
     /// @notice Seconds a user must wait after she initiates her cooldown before withdrawal is possible
     uint256 public immutable COOLDOWN_SECONDS;
     /// @notice Window in which it is possible to withdraw, following the cooldown period
-    uint256 public immutable UNSTAKE_WINDOW;
+    uint256 public constant UNSTAKE_WINDOW = 14 days;
     /// @notice A week
     uint256 private constant ONE_WEEK = 7 days;
 
@@ -70,7 +70,6 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
      * @param _questManager Centralised manager of quests
      * @param _stakedToken Core token that is staked and tracked (e.g. MTA)
      * @param _cooldownSeconds Seconds a user must wait after she initiates her cooldown before withdrawal is possible
-     * @param _unstakeWindow Window in which it is possible to withdraw, following the cooldown period
      * @param _hasPriceCoeff true if raw staked amount is multiplied by price coeff to get staked amount. eg BPT Staked Token
      */
     constructor(
@@ -79,12 +78,10 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
         address _questManager,
         address _stakedToken,
         uint256 _cooldownSeconds,
-        uint256 _unstakeWindow,
         bool _hasPriceCoeff
     ) GamifiedVotingToken(_nexus, _rewardsToken, _questManager, _hasPriceCoeff) {
         STAKED_TOKEN = IERC20(_stakedToken);
         COOLDOWN_SECONDS = _cooldownSeconds;
-        UNSTAKE_WINDOW = _unstakeWindow;
     }
 
     /**
@@ -235,7 +232,7 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
     /**
      * @dev Withdraw raw tokens from the system, following an elapsed cooldown period.
      * Note - May be subject to a transfer fee, depending on the users weightedTimestamp
-     * @param _amount Units of raw token to withdraw
+     * @param _amount Units of raw staking token to withdraw. eg MTA or mBPT
      * @param _recipient Address of beneficiary who will receive the raw tokens
      * @param _amountIncludesFee Is the `_amount` specified inclusive of any applicable redemption fee?
      * @param _exitCooldown Should we take this opportunity to exit the cooldown period?
@@ -252,7 +249,7 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
     /**
      * @dev Withdraw raw tokens from the system, following an elapsed cooldown period.
      * Note - May be subject to a transfer fee, depending on the users weightedTimestamp
-     * @param _amount Units of raw token to withdraw
+     * @param _amount Units of raw staking token to withdraw. eg MTA or mBPT
      * @param _recipient Address of beneficiary who will receive the raw tokens
      * @param _amountIncludesFee Is the `_amount` specified inclusive of any applicable redemption fee?
      * @param _exitCooldown Should we take this opportunity to exit the cooldown period?
@@ -270,7 +267,7 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
             // 1. If recollateralisation has occured, the contract is finished and we can skip all checks
             _burnRaw(_msgSender(), _amount, false, true);
             // 2. Return a proportionate amount of tokens, based on the collateralisation ratio
-            _transferStakedTokens(_recipient, (_amount * safetyData.collateralisationRatio) / 1e18);
+            _withdrawStakedTokens(_recipient, (_amount * safetyData.collateralisationRatio) / 1e18);
             emit Withdraw(_msgSender(), _recipient, _amount);
         } else {
             // 1. If no recollateralisation has occured, the user must be within their UNSTAKE_WINDOW period in order to withdraw
@@ -291,7 +288,7 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
             // 3. Apply redemption fee
             //      e.g. (55e18 / 5e18) - 2e18 = 9e18 / 100 = 9e16
             uint256 feeRate = calcRedemptionFeeRate(balance.weightedTimestamp);
-            //      fee = amount * 1e18 / feeRate
+            //      fee = amount * feeRate / 1e18
             //      totalAmount = amount + fee
             uint256 totalWithdraw = _amountIncludesFee
                 ? _amount
@@ -308,20 +305,21 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
 
             // 5. Settle the withdrawal by burning the voting tokens
             _burnRaw(_msgSender(), totalWithdraw, exitCooldown, false);
-            //      Log any redemption fee to the rewards contract
+            // Log any redemption fee to the rewards contract if MTA or
+            // the staking token if mBPT.
             _notifyAdditionalReward(totalWithdraw - userWithdrawal);
-            //      Finally transfer staked tokens back to recipient
-            _transferStakedTokens(_recipient, userWithdrawal);
+            // Finally transfer staked tokens back to recipient
+            _withdrawStakedTokens(_recipient, userWithdrawal);
 
             emit Withdraw(_msgSender(), _recipient, _amount);
         }
     }
 
     /**
-     * @dev Transfers an `amount` of staked tokens to the `recipient`. eg MTA or mBPT.
+     * @dev Transfers an `amount` of staked tokens to the withdraw `recipient`. eg MTA or mBPT.
      * Can be overridden if the tokens are held elsewhere. eg in the Balancer Pool Gauge.
      */
-    function _transferStakedTokens(
+    function _withdrawStakedTokens(
         address _recipient,
         uint256 amount
     ) internal virtual {
@@ -384,7 +382,7 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
         safetyData.collateralisationRatio = 1e18 - safetyData.slashingPercentage;
         // 2. Take slashing percentage
         uint256 balance = _balanceOfStakedTokens();
-        _transferStakedTokens(_recollateraliser(), (balance * safetyData.slashingPercentage) / 1e18);
+        _withdrawStakedTokens(_recollateraliser(), (balance * safetyData.slashingPercentage) / 1e18);
         // 3. No functions should work anymore because the colRatio has changed
         emit Recollateralised();
     }

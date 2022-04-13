@@ -3,7 +3,7 @@ pragma solidity 0.8.6;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-interface IBalancerPoolGauge is IERC20 {
+interface IBalancerGauge is IERC20 {
     /**
      * @notice Deposit `_value` LP tokens. eg mBPT.
      * @param _value Number of tokens to deposit

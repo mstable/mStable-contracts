@@ -102,7 +102,6 @@ describe("Staked Token", () => {
             questManagerProxy.address,
             rewardToken.address,
             ONE_WEEK,
-            ONE_DAY.mul(2),
             false,
         )
         data = stakedTokenImpl.interface.encodeFunctionData("__StakedToken_init", [
@@ -177,7 +176,7 @@ describe("Staked Token", () => {
             expect(await stakedToken.STAKED_TOKEN(), "staked token").to.eq(rewardToken.address)
             expect(await stakedToken.REWARDS_TOKEN(), "reward token").to.eq(rewardToken.address)
             expect(await stakedToken.COOLDOWN_SECONDS(), "cooldown").to.eq(ONE_WEEK)
-            expect(await stakedToken.UNSTAKE_WINDOW(), "unstake window").to.eq(ONE_DAY.mul(2))
+            expect(await stakedToken.UNSTAKE_WINDOW(), "unstake window").to.eq(ONE_WEEK.mul(2))
             expect(await stakedToken.questManager(), "quest manager").to.eq(questManager.address)
             expect(await stakedToken.hasPriceCoeff(), "price coeff").to.eq(false)
 
@@ -1198,6 +1197,7 @@ describe("Staked Token", () => {
                     expect(stakerDataAfter.votes, "staked votes after").to.eq(stakedAmount)
                 })
                 it("in unstake window", async () => {
+                    // 1 week cooldown
                     await increaseTime(ONE_DAY.mul(8))
                     const tx = await stakedToken.endCooldown()
 
@@ -1212,7 +1212,8 @@ describe("Staked Token", () => {
                     expect(stakerDataAfter.votes, "staked votes after").to.eq(stakedAmount)
                 })
                 it("after unstake window", async () => {
-                    await increaseTime(ONE_DAY.mul(12))
+                    // 1 week cooldown and 2 weeks unstake window
+                    await increaseTime(ONE_DAY.mul(22))
                     const tx = await stakedToken.endCooldown()
 
                     await expect(tx).to.emit(stakedToken, "CooldownExited").withArgs(sa.default.address)
@@ -1433,7 +1434,7 @@ describe("Staked Token", () => {
             })
             it("after the unstake window", async () => {
                 await stakedToken.startCooldown(stakedAmount)
-                await increaseTime(ONE_DAY.mul(9).add(60))
+                await increaseTime(ONE_DAY.mul(22))
                 await expect(stakedToken.withdraw(withdrawAmount, sa.default.address, false, false)).to.revertedWith(
                     "UNSTAKE_WINDOW_FINISHED",
                 )
@@ -1680,7 +1681,7 @@ describe("Staked Token", () => {
             { stakedSeconds: ONE_DAY, expected: 75, desc: "1 day" },
             { stakedSeconds: ONE_WEEK, expected: 75, desc: "1 week" },
             { stakedSeconds: ONE_WEEK.mul(2), expected: 75, desc: "2 weeks" },
-            { stakedSeconds: ONE_WEEK.mul(32).div(10), expected: 71.82458365, desc: "3.1 weeks" },
+            { stakedSeconds: ONE_WEEK.mul(32).div(10), expected: 71.82458365, desc: "3.2 weeks" },
             { stakedSeconds: ONE_WEEK.mul(10), expected: 29.77225575, desc: "10 weeks" },
             { stakedSeconds: ONE_WEEK.mul(12), expected: 25, desc: "12 weeks" },
             { stakedSeconds: ONE_WEEK.mul(47), expected: 0.26455763, desc: "47 weeks" },

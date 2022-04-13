@@ -118,18 +118,11 @@ export const deployStakingToken = async (
     const stakedTokenLibraryAddresses = {
         "contracts/rewards/staking/PlatformTokenVendorFactory.sol:PlatformTokenVendorFactory": platformTokenVendorFactoryAddress,
     }
-    let constructorArguments: [string,string,string,string,BigNumberish, BigNumberish, string[]?,string?]
+    let constructorArguments: [string, string, string, string, BigNumberish, [string, string]?, string?, string?]
     let stakedTokenImpl: Contract
     let data: string
     if (rewardsTokenAddress === stakedTokenAddress) {
-        constructorArguments = [
-            nexusAddress,
-            rewardsTokenAddress,
-            questManagerAddress,
-            rewardsTokenAddress,
-            stakedTokenData.cooldown,
-            stakedTokenData.unstakeWindow,
-        ]
+        constructorArguments = [nexusAddress, rewardsTokenAddress, questManagerAddress, rewardsTokenAddress, stakedTokenData.cooldown]
 
         stakedTokenImpl = await deployContract(
             new StakedTokenMTA__factory(stakedTokenLibraryAddresses, deployer.signer),
@@ -146,7 +139,7 @@ export const deployStakingToken = async (
 
         const balPoolId = resolveAddress("BalancerStakingPoolId", chain)
         const balancerVaultAddress = resolveAddress("BalancerVault", chain)
-        const balancerRecipientAddress = resolveAddress("BalancerRecipient", chain)
+        const balancerGaugeAddress = resolveAddress("mBPT", chain, "gauge")
 
         constructorArguments = [
             nexusAddress,
@@ -154,9 +147,9 @@ export const deployStakingToken = async (
             questManagerAddress,
             stakedTokenAddress,
             stakedTokenData.cooldown,
-            stakedTokenData.unstakeWindow,
             [balAddress, balancerVaultAddress],
             balPoolId,
+            balancerGaugeAddress,
         ]
 
         console.log(`Staked Token BPT contract size ${StakedTokenBPT__factory.bytecode.length / 2} bytes`)
@@ -167,12 +160,11 @@ export const deployStakingToken = async (
             constructorArguments,
         )
 
-        const priceCoeff = 42550
+        const priceCoeff = 49631
         data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
             formatBytes32String(stakedTokenData.name),
             formatBytes32String(stakedTokenData.symbol),
             rewardsDistributorAddress,
-            balancerRecipientAddress,
             priceCoeff,
         ])
     }
@@ -193,6 +185,8 @@ export const deployStakingToken = async (
             data,
         ])
     }
+
+    console.log(`Governor needs to call setBalRecipient`)
 
     return {
         stakedToken: proxy?.address,

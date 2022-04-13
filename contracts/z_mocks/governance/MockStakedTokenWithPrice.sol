@@ -21,8 +21,7 @@ contract MockStakedTokenWithPrice is StakedToken, Initializable {
         address _rewardsToken,
         address _questManager,
         address _stakedToken,
-        uint256 _cooldownSeconds,
-        uint256 _unstakeWindow
+        uint256 _cooldownSeconds
     )
         StakedToken(
             _nexus,
@@ -30,7 +29,6 @@ contract MockStakedTokenWithPrice is StakedToken, Initializable {
             _questManager,
             _stakedToken,
             _cooldownSeconds,
-            _unstakeWindow,
             true
         )
     {}

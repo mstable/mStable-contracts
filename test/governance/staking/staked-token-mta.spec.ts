@@ -78,7 +78,6 @@ describe("Staked Token MTA rewards", () => {
             questManagerProxy.address,
             rewardToken.address,
             ONE_WEEK,
-            ONE_DAY.mul(2),
         )
         data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
             formatBytes32String("Staked Rewards"),
