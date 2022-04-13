@@ -29,6 +29,7 @@ export interface Token {
     bridgeForwarder?: string // Mainnet contract that forwards MTA rewards from the Emissions Controller to the L2 Bridge
     bridgeRecipient?: string // L2 contract that receives bridge MTA rewards from the L2 Bridge
     priceGetter?: string // Contract for price of asset, used for NonPeggedFeederPool
+    gauge?: string // Curve or Balancer gauge for rewards
 }
 
 export function isToken(asset: unknown): asset is Token {
@@ -46,6 +47,7 @@ export const assetAddressTypes = [
     "platformTokenVendor",
     "bridgeForwarder",
     "bridgeRecipient",
+    "gauge",
 ] as const
 export type AssetAddressTypes = typeof assetAddressTypes[number]
 
@@ -498,6 +500,7 @@ export const mBPT: Token = {
     decimals: 18,
     quantityFormatter: "USD",
     vault: "0xeFbe22085D9f29863Cfb77EEd16d3cC0D927b011",
+    gauge: "0xbeC2d02008Dc64A6AD519471048CF3D3aF5ca0C5",
 }
 
 export const RmBPT: Token = {

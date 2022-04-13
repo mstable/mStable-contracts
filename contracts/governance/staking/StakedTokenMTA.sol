@@ -18,17 +18,16 @@ contract StakedTokenMTA is StakedToken, Initializable {
     /**
      * @param _nexus System nexus
      * @param _rewardsToken Token that is being distributed as a reward. eg MTA
+     * @param _questManager Centralised manager of quests
      * @param _stakedToken Core token that is staked and tracked (e.g. MTA)
      * @param _cooldownSeconds Seconds a user must wait after she initiates her cooldown before withdrawal is possible
-     * @param _unstakeWindow Window in which it is possible to withdraw, following the cooldown period
      */
     constructor(
         address _nexus,
         address _rewardsToken,
         address _questManager,
         address _stakedToken,
-        uint256 _cooldownSeconds,
-        uint256 _unstakeWindow
+        uint256 _cooldownSeconds
     )
         StakedToken(
             _nexus,
@@ -36,7 +35,6 @@ contract StakedTokenMTA is StakedToken, Initializable {
             _questManager,
             _stakedToken,
             _cooldownSeconds,
-            _unstakeWindow,
             false
         )
     {}
