@@ -107,3 +107,5 @@ export const sqrt = (value: BN | number): BN => {
 }
 // Returns the sum of two big numbers
 export const sum = (a: BN, b: BN): BN => a.add(b)
+
+export const safeInfinity = BN.from(2).pow(256).sub(1)

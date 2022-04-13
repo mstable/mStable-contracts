@@ -15,7 +15,6 @@ import { Initializable } from "../shared/@openzeppelin-2.5/Initializable.sol";
 
 // Libs
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { StableMath } from "../shared/StableMath.sol";
 import { YieldValidator } from "../shared/YieldValidator.sol";
 
@@ -26,7 +25,7 @@ import { YieldValidator } from "../shared/YieldValidator.sol";
  *          the value of the Savers "credits" (ERC20) relative to the amount of additional
  *          underlying collateral that has been deposited into this contract ("interest")
  * @dev     VERSION: 2.2
- *          DATE:    2021-04-08
+ *          DATE:    2022-04-08
  */
 contract SavingsContract is
     ISavingsContractV3,
@@ -36,7 +35,6 @@ contract SavingsContract is
     ImmutableModule
 {
     using StableMath for uint256;
-    using SafeERC20 for IERC20;
 
     // Core events for depositing and withdrawing
     event ExchangeRateUpdated(uint256 newExchangeRate, uint256 interestCollected);
@@ -780,7 +778,9 @@ contract SavingsContract is
      * caller Account that the assets will be transferred from.
      * @return maxAssets The maximum amount of underlying assets the caller can deposit.
      */
-    function maxDeposit(address /** caller **/) external pure override returns (uint256 maxAssets) {
+    function maxDeposit(
+        address /** caller **/
+    ) external pure override returns (uint256 maxAssets) {
         maxAssets = type(uint256).max;
     }
 
@@ -830,7 +830,9 @@ contract SavingsContract is
      * caller Account that the underlying assets will be transferred from.
      * @return maxShares The maximum amount of vault shares the caller can mint.
      */
-    function maxMint(address /* caller */) external pure override returns (uint256 maxShares) {
+    function maxMint(
+        address /* caller */
+    ) external pure override returns (uint256 maxShares) {
         maxShares = type(uint256).max;
     }
 
@@ -973,6 +975,8 @@ contract SavingsContract is
         uint256 _exchangeRate,
         bool transferAssets
     ) internal {
+        require(receiver != address(0), "Invalid beneficiary address");
+
         // If caller is not the owner of the shares
         uint256 allowed = allowance(owner, msg.sender);
         if (msg.sender != owner && allowed != type(uint256).max) {
