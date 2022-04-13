@@ -1,7 +1,7 @@
 import { formatUnits } from "@ethersproject/units"
 import { ONE_DAY } from "@utils/constants"
 import { impersonate } from "@utils/fork"
-import { BN, simpleToExactAmount } from "@utils/math"
+import { safeInfinity, simpleToExactAmount } from "@utils/math"
 import { increaseTime } from "@utils/time"
 import { expect } from "chai"
 import { Signer } from "ethers"
@@ -51,8 +51,6 @@ const asUsdAddress = "0x6C5024Cd4F8A59110119C56f8933403A539555EB"
 const aWBtcAddress = "0x9ff58f4fFB29fA2266Ab25e75e2A8b3503311656"
 // Compound cTokens
 const cDaiAddress = "0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643"
-
-const safeInfinity = BN.from(2).pow(256).sub(1)
 
 context("DAI and WBTC migration to integration that can claim stkAave", () => {
     let governor: Signer

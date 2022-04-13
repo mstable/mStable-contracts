@@ -1,6 +1,226 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.0;
 
+interface IERC20 {
+    /**
+     * @dev Returns the amount of tokens in existence.
+     */
+    function totalSupply() external view returns (uint256);
+
+    /**
+     * @dev Returns the amount of tokens owned by `account`.
+     */
+    function balanceOf(address account) external view returns (uint256);
+
+    /**
+     * @dev Moves `amount` tokens from the caller's account to `recipient`.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * Emits a {Transfer} event.
+     */
+    function transfer(address recipient, uint256 amount) external returns (bool);
+
+    /**
+     * @dev Returns the remaining number of tokens that `spender` will be
+     * allowed to spend on behalf of `owner` through {transferFrom}. This is
+     * zero by default.
+     *
+     * This value changes when {approve} or {transferFrom} are called.
+     */
+    function allowance(address owner, address spender) external view returns (uint256);
+
+    /**
+     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * IMPORTANT: Beware that changing an allowance with this method brings the risk
+     * that someone may use both the old and the new allowance by unfortunate
+     * transaction ordering. One possible solution to mitigate this race
+     * condition is to first reduce the spender's allowance to 0 and set the
+     * desired value afterwards:
+     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
+     *
+     * Emits an {Approval} event.
+     */
+    function approve(address spender, uint256 amount) external returns (bool);
+
+    /**
+     * @dev Moves `amount` tokens from `sender` to `recipient` using the
+     * allowance mechanism. `amount` is then deducted from the caller's
+     * allowance.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * Emits a {Transfer} event.
+     */
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) external returns (bool);
+
+    /**
+     * @dev Emitted when `value` tokens are moved from one account (`from`) to
+     * another (`to`).
+     *
+     * Note that `value` may be zero.
+     */
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    /**
+     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
+     * a call to {approve}. `value` is the new allowance.
+     */
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+}
+
+interface IERC4626Vault is IERC20 {
+    /// @notice The address of the underlying token used for the Vault uses for accounting, depositing, and withdrawing
+    function asset() external view returns (address assetTokenAddress);
+
+    /// @notice Total amount of the underlying asset that is “managed” by Vault
+    function totalAssets() external view returns (uint256 totalManagedAssets);
+
+    /**
+     * @notice The amount of shares that the Vault would exchange for the amount of assets provided, in an ideal scenario where all the conditions are met.
+     * @param assets The amount of underlying assets to be convert to vault shares.
+     * @return shares The amount of vault shares converted from the underlying assets.
+     */
+    function convertToShares(uint256 assets) external view returns (uint256 shares);
+
+    /**
+     * @notice The amount of assets that the Vault would exchange for the amount of shares provided, in an ideal scenario where all the conditions are met.
+     * @param shares The amount of vault shares to be converted to the underlying assets.
+     * @return assets The amount of underlying assets converted from the vault shares.
+     */
+    function convertToAssets(uint256 shares) external view returns (uint256 assets);
+
+    /**
+     * @notice The maximum number of underlying assets that caller can deposit.
+     * @param caller Account that the assets will be transferred from.
+     * @return maxAssets The maximum amount of underlying assets the caller can deposit.
+     */
+    function maxDeposit(address caller) external view returns (uint256 maxAssets);
+
+    /**
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their deposit at the current block, given current on-chain conditions.
+     * @param assets The amount of underlying assets to be transferred.
+     * @return shares The amount of vault shares that will be minted.
+     */
+    function previewDeposit(uint256 assets) external view returns (uint256 shares);
+
+    /**
+     * @notice Mint vault shares to receiver by transferring exact amount of underlying asset tokens from the caller.
+     * @param assets The amount of underlying assets to be transferred to the vault.
+     * @param receiver The account that the vault shares will be minted to.
+     * @return shares The amount of vault shares that were minted.
+     */
+    function deposit(uint256 assets, address receiver) external returns (uint256 shares);
+
+    /**
+     * @notice The maximum number of vault shares that caller can mint.
+     * @param caller Account that the underlying assets will be transferred from.
+     * @return maxShares The maximum amount of vault shares the caller can mint.
+     */
+    function maxMint(address caller) external view returns (uint256 maxShares);
+
+    /**
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their mint at the current block, given current on-chain conditions.
+     * @param shares The amount of vault shares to be minted.
+     * @return assets The amount of underlying assests that will be transferred from the caller.
+     */
+    function previewMint(uint256 shares) external view returns (uint256 assets);
+
+    /**
+     * @notice Mint exact amount of vault shares to the receiver by transferring enough underlying asset tokens from the caller.
+     * @param shares The amount of vault shares to be minted.
+     * @param receiver The account the vault shares will be minted to.
+     * @return assets The amount of underlying assets that were transferred from the caller.
+     */
+    function mint(uint256 shares, address receiver) external returns (uint256 assets);
+
+    /**
+     * @notice The maximum number of underlying assets that owner can withdraw.
+     * @param owner Account that owns the vault shares.
+     * @return maxAssets The maximum amount of underlying assets the owner can withdraw.
+     */
+    function maxWithdraw(address owner) external view returns (uint256 maxAssets);
+
+    /**
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their withdrawal at the current block, given current on-chain conditions.
+     * @param assets The amount of underlying assets to be withdrawn.
+     * @return shares The amount of vault shares that will be burnt.
+     */
+    function previewWithdraw(uint256 assets) external view returns (uint256 shares);
+
+    /**
+     * @notice Burns enough vault shares from owner and transfers the exact amount of underlying asset tokens to the receiver.
+     * @param assets The amount of underlying assets to be withdrawn from the vault.
+     * @param receiver The account that the underlying assets will be transferred to.
+     * @param owner Account that owns the vault shares to be burnt.
+     * @return shares The amount of vault shares that were burnt.
+     */
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner
+    ) external returns (uint256 shares);
+
+    /**
+     * @notice The maximum number of shares an owner can redeem for underlying assets.
+     * @param owner Account that owns the vault shares.
+     * @return maxShares The maximum amount of shares the owner can redeem.
+     */
+    function maxRedeem(address owner) external view returns (uint256 maxShares);
+
+    /**
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their redeemption at the current block, given current on-chain conditions.
+     * @param shares The amount of vault shares to be burnt.
+     * @return assets The amount of underlying assests that will transferred to the receiver.
+     */
+    function previewRedeem(uint256 shares) external view returns (uint256 assets);
+
+    /**
+     * @notice Burns exact amount of vault shares from owner and transfers the underlying asset tokens to the receiver.
+     * @param shares The amount of vault shares to be burnt.
+     * @param receiver The account the underlying assets will be transferred to.
+     * @param owner The account that owns the vault shares to be burnt.
+     * @return assets The amount of underlying assets that were transferred to the receiver.
+     */
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner
+    ) external returns (uint256 assets);
+
+    /*///////////////////////////////////////////////////////////////
+                                Events
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @dev Emitted when caller has exchanged assets for shares, and transferred those shares to owner.
+     *
+     * Note It must be emitted when tokens are deposited into the Vault in ERC4626.mint or ERC4626.deposit methods.
+     *
+     */
+    event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
+    /**
+     * @dev Emitted when sender has exchanged shares for assets, and transferred those assets to receiver.
+     *
+     * Note It must be emitted when shares are withdrawn from the Vault in ERC4626.redeem or ERC4626.withdraw methods.
+     *
+     */
+    event Withdraw(
+        address indexed caller,
+        address indexed receiver,
+        address indexed owner,
+        uint256 assets,
+        uint256 shares
+    );
+}
+
 interface IUnwrapper {
     // @dev Get bAssetOut status
     function getIsBassetOut(
@@ -122,81 +342,6 @@ abstract contract Context {
         this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
         return msg.data;
     }
-}
-
-interface IERC20 {
-    /**
-     * @dev Returns the amount of tokens in existence.
-     */
-    function totalSupply() external view returns (uint256);
-
-    /**
-     * @dev Returns the amount of tokens owned by `account`.
-     */
-    function balanceOf(address account) external view returns (uint256);
-
-    /**
-     * @dev Moves `amount` tokens from the caller's account to `recipient`.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * Emits a {Transfer} event.
-     */
-    function transfer(address recipient, uint256 amount) external returns (bool);
-
-    /**
-     * @dev Returns the remaining number of tokens that `spender` will be
-     * allowed to spend on behalf of `owner` through {transferFrom}. This is
-     * zero by default.
-     *
-     * This value changes when {approve} or {transferFrom} are called.
-     */
-    function allowance(address owner, address spender) external view returns (uint256);
-
-    /**
-     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * IMPORTANT: Beware that changing an allowance with this method brings the risk
-     * that someone may use both the old and the new allowance by unfortunate
-     * transaction ordering. One possible solution to mitigate this race
-     * condition is to first reduce the spender's allowance to 0 and set the
-     * desired value afterwards:
-     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-     *
-     * Emits an {Approval} event.
-     */
-    function approve(address spender, uint256 amount) external returns (bool);
-
-    /**
-     * @dev Moves `amount` tokens from `sender` to `recipient` using the
-     * allowance mechanism. `amount` is then deducted from the caller's
-     * allowance.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * Emits a {Transfer} event.
-     */
-    function transferFrom(
-        address sender,
-        address recipient,
-        uint256 amount
-    ) external returns (bool);
-
-    /**
-     * @dev Emitted when `value` tokens are moved from one account (`from`) to
-     * another (`to`).
-     *
-     * Note that `value` may be zero.
-     */
-    event Transfer(address indexed from, address indexed to, uint256 value);
-
-    /**
-     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
-     * a call to {approve}. `value` is the new allowance.
-     */
-    event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
 contract ERC205 is Context, IERC20 {
@@ -927,11 +1072,12 @@ library StableMath {
  * @notice  Savings contract uses the ever increasing "exchangeRate" to increase
  *          the value of the Savers "credits" (ERC20) relative to the amount of additional
  *          underlying collateral that has been deposited into this contract ("interest")
- * @dev     VERSION: 2.1
- *          DATE:    2021-11-25
+ * @dev     VERSION: 2.2
+ *          DATE:    2022-04-08
  */
 contract SavingsContract_imbtc_mainnet_22 is
     ISavingsContractV3,
+    IERC4626Vault,
     Initializable,
     InitializableToken,
     ImmutableModule
@@ -1175,24 +1321,7 @@ contract SavingsContract_imbtc_mainnet_22 is
         address _beneficiary,
         bool _collectInterest
     ) internal returns (uint256 creditsIssued) {
-        require(_underlying > 0, "Must deposit something");
-        require(_beneficiary != address(0), "Invalid beneficiary address");
-
-        // Collect recent interest generated by basket and update exchange rate
-        IERC20 mAsset = underlying;
-        if (_collectInterest) {
-            ISavingsManager(_savingsManager()).collectAndDistributeInterest(address(mAsset));
-        }
-
-        // Transfer tokens from sender to here
-        require(mAsset.transferFrom(msg.sender, address(this), _underlying), "Must receive tokens");
-
-        // Calc how many credits they receive based on currentRatio
-        (creditsIssued, ) = _underlyingToCredits(_underlying);
-
-        // add credits to ERC20 balances
-        _mint(_beneficiary, creditsIssued);
-
+        creditsIssued = _transferAndMint(_underlying, _beneficiary, _collectInterest);
         emit SavingsDeposited(_beneficiary, _underlying, creditsIssued);
     }
 
@@ -1353,21 +1482,14 @@ contract SavingsContract_imbtc_mainnet_22 is
             (credits_, exchangeRate_) = _underlyingToCredits(_amt);
         }
 
-        // Burn required credits from the sender FIRST
-        _burn(msg.sender, credits_);
-        // Optionally, transfer tokens from here to sender
-        if (_transferUnderlying) {
-            require(underlying.transfer(msg.sender, underlying_), "Must send tokens");
-        }
-        // If this withdrawal pushes the portion of stored collateral in the `connector` over a certain
-        // threshold (fraction + 20%), then this should trigger a _poke on the connector. This is to avoid
-        // a situation in which there is a rush on withdrawals for some reason, causing the connector
-        // balance to go up and thus having too large an exposure.
-        CachedData memory cachedData = _cacheData();
-        ConnectorStatus memory status = _getConnectorStatus(cachedData, exchangeRate_);
-        if (status.inConnector > status.limit) {
-            _poke(cachedData, false);
-        }
+        _burnTransfer(
+            underlying_,
+            credits_,
+            msg.sender,
+            msg.sender,
+            exchangeRate_,
+            _transferUnderlying
+        );
 
         emit CreditsRedeemed(msg.sender, credits_, underlying_);
 
@@ -1528,9 +1650,9 @@ contract SavingsContract_imbtc_mainnet_22 is
             uint256 ideal = sum.mulTruncate(_data.fraction);
             //     If there is not enough mAsset in the connector, then deposit
             if (ideal > connectorBalance) {
-                uint256 deposit = ideal - connectorBalance;
-                underlying.approve(address(connector_), deposit);
-                connector_.deposit(deposit);
+                uint256 deposit_ = ideal - connectorBalance;
+                underlying.approve(address(connector_), deposit_);
+                connector_.deposit(deposit_);
             }
             //     Else withdraw, if there is too much mAsset in the connector
             else if (connectorBalance > ideal) {
@@ -1677,5 +1799,274 @@ contract SavingsContract_imbtc_mainnet_22 is
         // e.g. (1e20 * 14e17) / 1e18 = 1.4e20
         exchangeRate_ = exchangeRate;
         underlyingAmount = _credits.mulTruncate(exchangeRate_);
+    }
+
+    /*///////////////////////////////////////////////////////////////
+                                IERC4626Vault
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice it must be an ERC-20 token contract. Must not revert.
+     *
+     * Returns the address of the underlying token used for the Vault uses for accounting, depositing, and withdrawing.
+     */
+    function asset() external view override returns (address assetTokenAddress) {
+        return address(underlying);
+    }
+
+    /**
+     * @notice The address of the underlying token used for the Vault uses for accounting, depositing, and withdrawing.
+     * Returns the total amount of the underlying asset that is “managed” by Vault.
+     */
+    function totalAssets() external view override returns (uint256 totalManagedAssets) {
+        return underlying.balanceOf(address(this));
+    }
+
+    /**
+     * @notice The amount of shares that the Vault would exchange for the amount of assets provided, in an ideal scenario where all the conditions are met.
+     * @param assets The amount of underlying assets to be convert to vault shares.
+     * @return shares The amount of vault shares converted from the underlying assets.
+     */
+    function convertToShares(uint256 assets) external view override returns (uint256 shares) {
+        (shares, ) = _underlyingToCredits(assets);
+    }
+
+    /**
+     * @notice The amount of assets that the Vault would exchange for the amount of shares provided, in an ideal scenario where all the conditions are met.
+     * @param shares The amount of vault shares to be converted to the underlying assets.
+     * @return assets The amount of underlying assets converted from the vault shares.
+     */
+    function convertToAssets(uint256 shares) external view override returns (uint256 assets) {
+        (assets, ) = _creditsToUnderlying(shares);
+    }
+
+    /**
+     * @notice The maximum number of underlying assets that caller can deposit.
+     * caller Account that the assets will be transferred from.
+     * @return maxAssets The maximum amount of underlying assets the caller can deposit.
+     */
+    function maxDeposit(
+        address /** caller **/
+    ) external pure override returns (uint256 maxAssets) {
+        maxAssets = type(uint256).max;
+    }
+
+    /**
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their deposit at the current block, given current on-chain conditions.
+     * @param assets The amount of underlying assets to be transferred.
+     * @return shares The amount of vault shares that will be minted.
+     */
+    function previewDeposit(uint256 assets) external view override returns (uint256 shares) {
+        require(assets > 0, "Must deposit something");
+        (shares, ) = _underlyingToCredits(assets);
+    }
+
+    /**
+     * @notice Mint vault shares to receiver by transferring exact amount of underlying asset tokens from the caller.
+     *      Credit amount is calculated as a ratio of deposit amount and exchange rate:
+     *                    credits = underlying / exchangeRate
+     *      We will first update the internal exchange rate by collecting any interest generated on the underlying.
+     * Emits a {Deposit} event.
+     * @param assets      Units of underlying to deposit into savings vault. eg mUSD or mBTC
+     * @param receiver    The address to receive the Vault shares.
+     * @return shares     Units of credits issued. eg imUSD or imBTC
+     */
+    function deposit(uint256 assets, address receiver) external override returns (uint256 shares) {
+        shares = _transferAndMint(assets, receiver, true);
+    }
+
+    /**
+     *
+     * @notice Overloaded `deposit` method with an optional referrer address.
+     * @param assets    Units of underlying to deposit into savings vault. eg mUSD or mBTC
+     * @param receiver  Address to the new credits will be issued to.
+     * @param referrer  Referrer address for this deposit.
+     * @return shares   Units of credits issued. eg imUSD or imBTC
+     */
+    function deposit(
+        uint256 assets,
+        address receiver,
+        address referrer
+    ) external returns (uint256 shares) {
+        shares = _transferAndMint(assets, receiver, true);
+        emit Referral(referrer, receiver, assets);
+    }
+
+    /**
+     * @notice The maximum number of vault shares that caller can mint.
+     * caller Account that the underlying assets will be transferred from.
+     * @return maxShares The maximum amount of vault shares the caller can mint.
+     */
+    function maxMint(
+        address /* caller */
+    ) external pure override returns (uint256 maxShares) {
+        maxShares = type(uint256).max;
+    }
+
+    /**
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their mint at the current block, given current on-chain conditions.
+     * @param shares The amount of vault shares to be minted.
+     * @return assets The amount of underlying assests that will be transferred from the caller.
+     */
+    function previewMint(uint256 shares) external view override returns (uint256 assets) {
+        (assets, ) = _creditsToUnderlying(shares);
+        return assets;
+    }
+
+    /**
+     * @notice Mint exact amount of vault shares to the receiver by transferring enough underlying asset tokens from the caller.
+     * @param shares The amount of vault shares to be minted.
+     * @param receiver The account the vault shares will be minted to.
+     * @return assets The amount of underlying assets that were transferred from the caller.
+     * Emits a {Deposit} event.
+     */
+    function mint(uint256 shares, address receiver) external override returns (uint256 assets) {
+        (assets, ) = _creditsToUnderlying(shares);
+        _transferAndMint(assets, receiver, true);
+    }
+
+    /**
+     *
+     *  Returns Total number of underlying assets that caller can withdraw.
+     */
+    function maxWithdraw(address caller) external view override returns (uint256 maxAssets) {
+        (maxAssets, ) = _creditsToUnderlying(balanceOf(caller));
+    }
+
+    /**
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their withdrawal at the current block, given current on-chain conditions.
+     *
+     *  Return the exact amount of Vault shares that would be redeemed by the caller if withdrawing a given exact amount of underlying assets using the withdraw method.
+     */
+    function previewWithdraw(uint256 assets) external view override returns (uint256 shares) {
+        (shares, ) = _underlyingToCredits(assets);
+    }
+
+    /**
+     *  Redeems shares from owner and sends assets of underlying tokens to receiver.
+     *  Returns Total number of underlying shares redeemed.
+     * Emits a {Withdraw} event.
+     */
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner
+    ) external override returns (uint256 shares) {
+        require(assets > 0, "Must withdraw something");
+        uint256 _exchangeRate;
+        if (automateInterestCollection) {
+            ISavingsManager(_savingsManager()).collectAndDistributeInterest(address(underlying));
+        }
+        (shares, _exchangeRate) = _underlyingToCredits(assets);
+
+        _burnTransfer(assets, shares, receiver, owner, _exchangeRate, true);
+    }
+
+    /**
+     * @notice it must return a limited value if caller is subject to some withdrawal limit or timelock. must return balanceOf(caller) if caller is not subject to any withdrawal limit or timelock. MAY be used in the previewRedeem or redeem methods for shares input parameter. must NOT revert.
+     *
+     *  Returns Total number of underlying shares that caller can redeem.
+     */
+    function maxRedeem(address caller) external view override returns (uint256 maxShares) {
+        maxShares = balanceOf(caller);
+    }
+
+    /**
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their redeemption at the current block, given current on-chain conditions.
+     *
+     *  Returns the exact amount of underlying assets that would be withdrawn by the caller if redeeming a given exact amount of Vault shares using the redeem method
+     */
+    function previewRedeem(uint256 shares) external view override returns (uint256 assets) {
+        (assets, ) = _creditsToUnderlying(shares);
+        return assets;
+    }
+
+    /**
+     * Redeems shares from owner and sends assets of underlying tokens to receiver.
+     *
+     *  Returns Total number of underlying assets of underlying redeemed.
+     * Emits a {Withdraw} event.
+     */
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner
+    ) external override returns (uint256 assets) {
+        require(shares > 0, "Must withdraw something");
+        uint256 _exchangeRate;
+        if (automateInterestCollection) {
+            ISavingsManager(_savingsManager()).collectAndDistributeInterest(address(underlying));
+        }
+        (assets, _exchangeRate) = _creditsToUnderlying(shares);
+
+        _burnTransfer(assets, shares, receiver, owner, _exchangeRate, true); //transferAssets=true
+    }
+
+    /*///////////////////////////////////////////////////////////////
+                        INTERNAL DEPOSIT/MINT
+    //////////////////////////////////////////////////////////////*/
+    function _transferAndMint(
+        uint256 assets,
+        address receiver,
+        bool _collectInterest
+    ) internal returns (uint256 shares) {
+        require(assets > 0, "Must deposit something");
+        require(receiver != address(0), "Invalid beneficiary address");
+
+        // Collect recent interest generated by basket and update exchange rate
+        IERC20 mAsset = underlying;
+        if (_collectInterest) {
+            ISavingsManager(_savingsManager()).collectAndDistributeInterest(address(mAsset));
+        }
+
+        // Transfer tokens from sender to here
+        require(mAsset.transferFrom(msg.sender, address(this), assets), "Must receive tokens");
+
+        // Calc how many credits they receive based on currentRatio
+        (shares, ) = _underlyingToCredits(assets);
+
+        // add credits to ERC20 balances
+        _mint(receiver, shares);
+        emit Deposit(msg.sender, receiver, assets, shares);
+    }
+
+    /*///////////////////////////////////////////////////////////////
+                        INTERNAL WITHDRAW/REDEEM
+    //////////////////////////////////////////////////////////////*/
+
+    function _burnTransfer(
+        uint256 assets,
+        uint256 shares,
+        address receiver,
+        address owner,
+        uint256 _exchangeRate,
+        bool transferAssets
+    ) internal {
+        require(receiver != address(0), "Invalid beneficiary address");
+
+        // If caller is not the owner of the shares
+        uint256 allowed = allowance(owner, msg.sender);
+        if (msg.sender != owner && allowed != type(uint256).max) {
+            require(shares <= allowed, "Amount exceeds allowance");
+            _approve(owner, msg.sender, allowed - shares);
+        }
+
+        // Burn required shares from the owner FIRST
+        _burn(owner, shares);
+
+        // Optionally, transfer tokens from here to receiver
+        if (transferAssets) {
+            require(underlying.transfer(receiver, assets), "Must send tokens");
+            emit Withdraw(msg.sender, receiver, owner, assets, shares);
+        }
+        // If this withdrawal pushes the portion of stored collateral in the `connector` over a certain
+        // threshold (fraction + 20%), then this should trigger a _poke on the connector. This is to avoid
+        // a situation in which there is a rush on withdrawals for some reason, causing the connector
+        // balance to go up and thus having too large an exposure.
+        CachedData memory cachedData = _cacheData();
+        ConnectorStatus memory status = _getConnectorStatus(cachedData, _exchangeRate);
+        if (status.inConnector > status.limit) {
+            _poke(cachedData, false);
+        }
     }
 }

@@ -61,7 +61,6 @@ export function shouldBehaveLikeERC4626(ctx: IERC4626BehaviourContext): void {
             )
         })
     })
-
     describe("mint", async () => {
         it("should mint shares to the vault", async () => {
             await ctx.asset.approve(ctx.vault.address, simpleToExactAmount(1, 21))
@@ -98,7 +97,6 @@ export function shouldBehaveLikeERC4626(ctx: IERC4626BehaviourContext): void {
             )
         })
     })
-
     describe("withdraw", async () => {
         it("from the vault, same caller, receiver and owner", async () => {
             await ctx.asset.approve(ctx.vault.address, simpleToExactAmount(1, 21))
