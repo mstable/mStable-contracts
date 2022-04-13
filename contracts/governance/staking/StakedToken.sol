@@ -2,11 +2,13 @@
 pragma solidity 0.8.6;
 pragma abicoder v2;
 
-import { IStakedToken } from "./interfaces/IStakedToken.sol";
-import { GamifiedVotingToken } from "./GamifiedVotingToken.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+import { SlotFiller } from "./SlotFiller.sol";
+import { IStakedToken } from "./interfaces/IStakedToken.sol";
+import { GamifiedVotingToken } from "./GamifiedVotingToken.sol";
 import { Root } from "../../shared/Root.sol";
 import { InitializableReentrancyGuard } from "../../shared/InitializableReentrancyGuard.sol";
 import "./deps/GamifiedTokenStructs.sol";
@@ -26,7 +28,7 @@ import "./deps/GamifiedTokenStructs.sol";
  * @dev Only whitelisted contracts can communicate with this contract, in order to avoid having tokenised wrappers that
  * could potentially circumvent our unstaking procedure.
  **/
-contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
+contract StakedToken is SlotFiller, GamifiedVotingToken, InitializableReentrancyGuard {
     using SafeERC20 for IERC20;
 
     /// @notice Core token that is staked and tracked (e.g. MTA)
@@ -186,7 +188,7 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
      * @dev Gets the total number of staked tokens in this staking contract. eg MTA or mBPT.
      * Can be overridden if the tokens are held elsewhere. eg in the Balancer Pool Gauge.
      */
-    function _balanceOfStakedTokens() internal virtual view returns (uint256 stakedTokens) {
+    function _balanceOfStakedTokens() internal view virtual returns (uint256 stakedTokens) {
         stakedTokens = STAKED_TOKEN.balanceOf(address(this));
     }
 
@@ -319,10 +321,7 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
      * @dev Transfers an `amount` of staked tokens to the withdraw `recipient`. eg MTA or mBPT.
      * Can be overridden if the tokens are held elsewhere. eg in the Balancer Pool Gauge.
      */
-    function _withdrawStakedTokens(
-        address _recipient,
-        uint256 amount
-    ) internal virtual {
+    function _withdrawStakedTokens(address _recipient, uint256 amount) internal virtual {
         STAKED_TOKEN.safeTransfer(_recipient, amount);
     }
 
@@ -382,7 +381,10 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
         safetyData.collateralisationRatio = 1e18 - safetyData.slashingPercentage;
         // 2. Take slashing percentage
         uint256 balance = _balanceOfStakedTokens();
-        _withdrawStakedTokens(_recollateraliser(), (balance * safetyData.slashingPercentage) / 1e18);
+        _withdrawStakedTokens(
+            _recollateraliser(),
+            (balance * safetyData.slashingPercentage) / 1e18
+        );
         // 3. No functions should work anymore because the colRatio has changed
         emit Recollateralised();
     }
