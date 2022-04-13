@@ -5,7 +5,6 @@ import { network } from "hardhat"
 import { deployContract } from "tasks/utils/deploy-utils"
 // Polygon imUSD Vault
 import { StakingRewardsWithPlatformTokenImusdPolygon2__factory } from "types/generated/factories/StakingRewardsWithPlatformTokenImusdPolygon2__factory"
-import { StakingRewardsWithPlatformTokenImusdPolygon2 } from "types/generated/StakingRewardsWithPlatformTokenImusdPolygon2"
 
 // Polygon imUSD Contract
 import { SavingsContractImusdPolygon22__factory } from "types/generated/factories/SavingsContractImusdPolygon22__factory"
@@ -18,20 +17,21 @@ import {
     IERC20__factory,
     Unwrapper,
     Unwrapper__factory,
-    AssetProxy__factory,
+    IERC20,
 } from "types/generated"
 
-import { assertBNClosePercent, Chain, DEAD_ADDRESS, simpleToExactAmount } from "index"
+import { assertBNClosePercent, Chain, DEAD_ADDRESS, ZERO_ADDRESS, simpleToExactAmount, safeInfinity } from "index"
 import { BigNumber } from "@ethersproject/bignumber"
 import { getChainAddress, resolveAddress } from "tasks/utils/networkAddressFactory"
 import { upgradeContract } from "@utils/deploy"
 
 const chain = Chain.polygon
 const delayedProxyAdminAddress = getChainAddress("DelayedProxyAdmin", chain)
-const multiSigAddress = "0x4aA2Dd5D5387E4b8dcf9b6Bfa4D9236038c3AD43" // 4/8 Multisig
 const governorAddress = resolveAddress("Governor", chain)
 const nexusAddress = getChainAddress("Nexus", chain)
 const deployerAddress = getChainAddress("OperationsSigner", chain)
+const unwrapperAddress = getChainAddress("Unwrapper", chain)
+
 const imusdHolderAddress = "0x9d8B7A637859668A903797D9f02DE2Aa05e5b0a0"
 const musdHolderAddress = "0xb14fFDB81E804D2792B6043B90aE5Ac973EcD53D"
 const vmusdHolderAddress = "0x9d8B7A637859668A903797D9f02DE2Aa05e5b0a0"
@@ -42,11 +42,9 @@ const musdAddress = resolveAddress("mUSD", chain)
 const imusdAddress = resolveAddress("mUSD", chain, "savings")
 const imusdVaultAddress = resolveAddress("mUSD", chain, "vault")
 const fraxFeederPool = resolveAddress("FRAX", chain, "feederPool")
-const mtaAddress = resolveAddress("MTA", chain)
-const wmaticAddress = resolveAddress("WMATIC", chain)
 
 // DEPLOYMENT PIPELINE
-//  1. Deploy Unwrapper
+//  1. Connects Unwrapper
 //   1.1. Set the Unwrapper address as constant in imUSD Vault via initialize
 //  2. Upgrade and check storage
 //   2.1. Vaults
@@ -60,7 +58,6 @@ context("Unwrapper and Vault upgrades", () => {
     let musdHolder: Signer
     let unwrapper: Unwrapper
     let governor: Signer
-    let multiSig: Signer
     let delayedProxyAdmin: DelayedProxyAdmin
 
     const redeemAndUnwrap = async (
@@ -128,14 +125,7 @@ context("Unwrapper and Vault upgrades", () => {
         expect(tokenBalanceAfter, "Token balance has increased").to.be.gt(tokenBalanceBefore)
         expect(holderVaultBalanceAfter, "Vault balance has decreased").to.be.lt(holderVaultBalanceBefore)
     }
-    /**
-     * imUSD Vault on polygon was deployed with the wrong proxy admin, this fix the issue setting the DelayedProxyAdmin as it's proxy admin
-     * It changes from multiSig to delayedProxyAdmin.address
-     */
-    async function fixImusdVaultProxyAdmin() {
-        const imusdVaultAssetProxy = AssetProxy__factory.connect(imusdVaultAddress, multiSig)
-        await imusdVaultAssetProxy.changeAdmin(delayedProxyAdmin.address)
-    }
+
     before("reset block number", async () => {
         await network.provider.request({
             method: "hardhat_reset",
@@ -143,7 +133,8 @@ context("Unwrapper and Vault upgrades", () => {
                 {
                     forking: {
                         jsonRpcUrl: process.env.NODE_URL,
-                        blockNumber: 24186168,
+                        // Nov-25-2021 03:15:21 PM +UTC
+                        blockNumber: 13684204,
                     },
                 },
             ],
@@ -152,7 +143,6 @@ context("Unwrapper and Vault upgrades", () => {
         musdHolder = await impersonate(musdHolderAddress)
         deployer = await impersonate(deployerAddress)
         governor = await impersonate(governorAddress)
-        multiSig = await impersonate(multiSigAddress)
         delayedProxyAdmin = DelayedProxyAdmin__factory.connect(delayedProxyAdminAddress, governor)
     })
     it("Test connectivity", async () => {
@@ -162,43 +152,12 @@ context("Unwrapper and Vault upgrades", () => {
     })
 
     context("Stage 1", () => {
-        it("Deploys the unwrapper proxy contract ", async () => {
-            unwrapper = await deployContract<Unwrapper>(new Unwrapper__factory(deployer), "Unwrapper", [nexusAddress])
-            expect(unwrapper.address).to.length(42)
-            // approve tokens for router
-            const routers = [fraxFeederPool]
-            const tokens = [musdAddress]
-            await unwrapper.connect(governor).approve(routers, tokens)
+        it("Connects the unwrapper proxy contract ", async () => {
+            unwrapper = await Unwrapper__factory.connect(unwrapperAddress, deployer)
         })
     })
 
     context("Stage 2", () => {
-        describe.skip("2.1 Upgrading vaults", () => {
-            it("Upgrades the imUSD Vault", async () => {
-                await fixImusdVaultProxyAdmin()
-
-                const constructorArguments = [
-                    nexusAddress, // 0x3c6fbb8cbfcb75ecec5128e9f73307f2cb33f2f6 deployed
-                    imusdAddress, // imUSD
-                    mtaAddress, // MTA bridged to Polygon
-                    wmaticAddress, // Wrapped Matic on Polygon
-                ]
-
-                const saveVaultImpl = await deployContract<StakingRewardsWithPlatformTokenImusdPolygon2>(
-                    new StakingRewardsWithPlatformTokenImusdPolygon2__factory(deployer),
-                    "mStable: mUSD Savings Vault",
-                    constructorArguments,
-                )
-                await upgradeContract<StakingRewardsWithPlatformTokenImusdPolygon2>(
-                    StakingRewardsWithPlatformTokenImusdPolygon2__factory as unknown as ContractFactory,
-                    saveVaultImpl,
-                    imusdVaultAddress,
-                    governor,
-                    delayedProxyAdmin,
-                )
-                expect(await delayedProxyAdmin.getProxyImplementation(imusdVaultAddress)).eq(saveVaultImpl.address)
-            })
-        })
         describe("2.2 Upgrading savings contracts", () => {
             it("Upgrades the imUSD contract", async () => {
                 const constructorArguments = [nexusAddress, musdAddress, unwrapper.address]
@@ -215,8 +174,7 @@ context("Unwrapper and Vault upgrades", () => {
                     delayedProxyAdmin,
                 )
 
-                const unwrapperAddress = await saveContractProxy.unwrapper()
-                expect(unwrapperAddress).to.eq(unwrapper.address)
+                expect(await saveContractProxy.unwrapper()).to.eq(unwrapper.address)
                 expect(await delayedProxyAdmin.getProxyImplementation(imusdAddress)).eq(musdSaveImpl.address)
                 expect(musdAddress).eq(await musdSaveImpl.underlying())
             })
@@ -421,6 +379,358 @@ context("Unwrapper and Vault upgrades", () => {
                 await expect(tx)
                     .to.emit(saveContractProxy, "Referral")
                     .withArgs(DEAD_ADDRESS, musdHolderAddress, simpleToExactAmount(1, 18))
+            })
+        })
+    })
+    context("Stage 4 Savings Contract Vault4626", () => {
+        const saveContracts = [{ name: "imusd", address: imusdAddress }]
+
+        saveContracts.forEach((sc) => {
+            let ctxSaveContract: SavingsContractImusdPolygon22
+            let assetAddress: string
+            let holderAddress: string
+            let anotherHolderAddress: string
+            let asset: IERC20
+            let holder: Signer
+            let anotherHolder: Signer
+            let assetsAmount = simpleToExactAmount(10, 18)
+            let sharesAmount = simpleToExactAmount(100, 18)
+
+            before(async () => {
+                if (sc.name === "imusd") {
+                    holder = await impersonate(imusdHolderAddress)
+                    anotherHolder = await impersonate(musdHolderAddress)
+                    ctxSaveContract = SavingsContractImusdPolygon22__factory.connect(sc.address, holder)
+                    assetAddress = musdAddress
+                    assetsAmount = simpleToExactAmount(1, 18)
+                    sharesAmount = simpleToExactAmount(10, 18)
+                } else {
+                    // not needed now.
+                }
+                holderAddress = await holder.getAddress()
+                anotherHolderAddress = await anotherHolder.getAddress()
+                asset = IERC20__factory.connect(assetAddress, holder)
+            })
+            describe(`SaveContract ${sc.name}`, async () => {
+                it("should properly store valid arguments", async () => {
+                    expect(await ctxSaveContract.asset(), "asset").to.eq(assetAddress)
+                })
+                describe("deposit", async () => {
+                    it("should deposit assets to the vault", async () => {
+                        await asset.approve(ctxSaveContract.address, simpleToExactAmount(1, 21))
+                        const shares = await ctxSaveContract.previewDeposit(assetsAmount)
+
+                        expect(await ctxSaveContract.maxDeposit(holderAddress), "max deposit").to.gte(assetsAmount)
+                        expect(await ctxSaveContract.maxMint(holderAddress), "max mint").to.gte(shares)
+
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max redeem").to.eq(0)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.eq(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(0)
+                        expect(await ctxSaveContract.convertToShares(assetsAmount), "convertToShares").to.lte(shares)
+
+                        // Test
+                        const tx = await ctxSaveContract.connect(holder)["deposit(uint256,address)"](assetsAmount, holderAddress)
+                        // Verify events, storage change, balance, etc.
+                        await expect(tx).to.emit(ctxSaveContract, "Deposit").withArgs(holderAddress, holderAddress, assetsAmount, shares)
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max redeem").to.lte(shares)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.lte(assetsAmount)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(assetsAmount)
+                    })
+                    it("fails if deposits zero", async () => {
+                        await expect(ctxSaveContract.connect(deployer)["deposit(uint256,address)"](0, holderAddress)).to.be.revertedWith(
+                            "Must deposit something",
+                        )
+                    })
+                    it("fails if receiver is zero", async () => {
+                        await expect(ctxSaveContract.connect(deployer)["deposit(uint256,address)"](10, ZERO_ADDRESS)).to.be.revertedWith(
+                            "Invalid beneficiary address",
+                        )
+                    })
+                })
+                describe("mint", async () => {
+                    it("should mint shares to the vault", async () => {
+                        await asset.approve(ctxSaveContract.address, simpleToExactAmount(1, 21))
+                        // const shares = sharesAmount
+                        const assets = await ctxSaveContract.previewMint(sharesAmount)
+                        const shares = await ctxSaveContract.previewDeposit(assetsAmount)
+
+                        expect(await ctxSaveContract.maxDeposit(holderAddress), "max deposit").to.gte(assets)
+                        expect(await ctxSaveContract.maxMint(holderAddress), "max mint").to.gte(shares)
+
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max redeem").to.eq(0)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.eq(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(0)
+
+                        expect(await ctxSaveContract.convertToShares(assets), "convertToShares").to.lte(shares)
+                        expect(await ctxSaveContract.convertToAssets(shares), "convertToShares").to.lte(assets)
+
+                        const tx = await ctxSaveContract.connect(holder).mint(shares, holderAddress)
+                        // Verify events, storage change, balance, etc.
+                        await expect(tx).to.emit(ctxSaveContract, "Deposit").withArgs(holderAddress, holderAddress, assets, shares)
+
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max redeem").to.lte(shares)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.lte(assets)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(assets)
+                    })
+                    it("fails if mint zero", async () => {
+                        await expect(ctxSaveContract.connect(deployer)["mint(uint256,address)"](0, holderAddress)).to.be.revertedWith(
+                            "Must deposit something",
+                        )
+                    })
+                    it("fails if receiver is zero", async () => {
+                        await expect(ctxSaveContract.connect(deployer)["mint(uint256,address)"](10, ZERO_ADDRESS)).to.be.revertedWith(
+                            "Invalid beneficiary address",
+                        )
+                    })
+                })
+                describe("withdraw", async () => {
+                    it("from the vault, same caller, receiver and owner", async () => {
+                        await asset.approve(ctxSaveContract.address, simpleToExactAmount(1, 21))
+
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.eq(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(0)
+
+                        await ctxSaveContract.connect(holder)["deposit(uint256,address)"](assetsAmount, holderAddress)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.gt(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.gt(0)
+                        const shares = await ctxSaveContract.previewWithdraw(assetsAmount)
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max redeem").to.eq(shares)
+
+                        // Test
+                        const tx = await ctxSaveContract.connect(holder).withdraw(assetsAmount, holderAddress, holderAddress)
+                        // Verify events, storage change, balance, etc.
+                        await expect(tx)
+                            .to.emit(ctxSaveContract, "Withdraw")
+                            .withArgs(holderAddress, holderAddress, holderAddress, assetsAmount, shares)
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max redeem").to.eq(0)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.eq(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(0)
+                    })
+                    it("from the vault, caller != receiver and caller = owner", async () => {
+                        // Alice deposits assets (owner), Alice withdraws assets (caller), Bob receives assets (receiver)
+                        await asset.connect(holder).approve(ctxSaveContract.address, simpleToExactAmount(1, 21))
+
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.eq(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(0)
+
+                        await ctxSaveContract.connect(holder)["deposit(uint256,address)"](assetsAmount, holderAddress)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.gt(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.gt(0)
+                        const shares = await ctxSaveContract.previewWithdraw(assetsAmount)
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max redeem").to.eq(shares)
+
+                        // Test
+                        const tx = await ctxSaveContract.connect(holder).withdraw(assetsAmount, anotherHolderAddress, holderAddress)
+                        // Verify events, storage change, balance, etc.
+                        await expect(tx)
+                            .to.emit(ctxSaveContract, "Withdraw")
+                            .withArgs(holderAddress, anotherHolderAddress, holderAddress, assetsAmount, shares)
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max redeem").to.eq(0)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.eq(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(0)
+                    })
+                    it("from the vault caller != owner, infinite approval", async () => {
+                        // Alice deposits assets (owner), Bob withdraws assets (caller), Bob receives assets (receiver)
+                        await asset.connect(holder).approve(ctxSaveContract.address, simpleToExactAmount(1, 21))
+                        await ctxSaveContract.connect(holder).approve(anotherHolderAddress, safeInfinity)
+
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.eq(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(0)
+
+                        await ctxSaveContract.connect(holder)["deposit(uint256,address)"](assetsAmount, holderAddress)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.gt(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.gt(0)
+                        const shares = await ctxSaveContract.previewWithdraw(assetsAmount)
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max redeem").to.eq(shares)
+
+                        // Test
+                        const tx = await ctxSaveContract.connect(anotherHolder).withdraw(assetsAmount, anotherHolderAddress, holderAddress)
+                        // Verify events, storage change, balance, etc.
+                        await expect(tx)
+                            .to.emit(ctxSaveContract, "Withdraw")
+                            .withArgs(anotherHolderAddress, anotherHolderAddress, holderAddress, assetsAmount, shares)
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max redeem").to.eq(0)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.eq(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(0)
+                    })
+                    it("from the vault, caller != receiver and caller != owner", async () => {
+                        // Alice deposits assets (owner), Bob withdraws assets (caller), Bob receives assets (receiver)
+                        await asset.connect(holder).approve(ctxSaveContract.address, simpleToExactAmount(1, 21))
+                        await ctxSaveContract.connect(holder).approve(anotherHolderAddress, simpleToExactAmount(1, 21))
+
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.eq(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(0)
+
+                        await ctxSaveContract.connect(holder)["deposit(uint256,address)"](assetsAmount, holderAddress)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.gt(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.gt(0)
+                        const shares = await ctxSaveContract.previewWithdraw(assetsAmount)
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max redeem").to.eq(shares)
+
+                        // Test
+                        const tx = await ctxSaveContract.connect(anotherHolder).withdraw(assetsAmount, anotherHolderAddress, holderAddress)
+                        // Verify events, storage change, balance, etc.
+                        await expect(tx)
+                            .to.emit(ctxSaveContract, "Withdraw")
+                            .withArgs(anotherHolderAddress, anotherHolderAddress, holderAddress, assetsAmount, shares)
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max redeem").to.eq(0)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.eq(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(0)
+                    })
+                    it("fails if deposits zero", async () => {
+                        await expect(ctxSaveContract.connect(deployer).withdraw(0, holderAddress, holderAddress)).to.be.revertedWith(
+                            "Must withdraw something",
+                        )
+                    })
+                    it("fails if receiver is zero", async () => {
+                        await expect(ctxSaveContract.connect(deployer).withdraw(10, ZERO_ADDRESS, ZERO_ADDRESS)).to.be.revertedWith(
+                            "Invalid beneficiary address",
+                        )
+                    })
+                    it("fail if caller != owner and it has not allowance", async () => {
+                        // Alice deposits assets (owner), Bob withdraws assets (caller), Bob receives assets (receiver)
+                        await asset.connect(holder).approve(ctxSaveContract.address, simpleToExactAmount(1, 21))
+
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.eq(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(0)
+
+                        await ctxSaveContract.connect(holder)["deposit(uint256,address)"](assetsAmount, holderAddress)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.gt(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.gt(0)
+                        const shares = await ctxSaveContract.previewWithdraw(assetsAmount)
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max redeem").to.eq(shares)
+
+                        // Test
+                        const tx = ctxSaveContract.connect(anotherHolder).withdraw(assetsAmount, anotherHolderAddress, holderAddress)
+                        // Verify events, storage change, balance, etc.
+                        await expect(tx).to.be.revertedWith("Amount exceeds allowance")
+                    })
+                })
+                describe("redeem", async () => {
+                    it("from the vault, same caller, receiver and owner", async () => {
+                        await asset.approve(ctxSaveContract.address, simpleToExactAmount(1, 21))
+
+                        const assets = await ctxSaveContract.previewRedeem(sharesAmount)
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max maxRedeem").to.eq(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(0)
+
+                        await ctxSaveContract.connect(holder)["deposit(uint256,address)"](assets, holderAddress)
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max maxRedeem").to.gt(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.gt(0)
+                        const shares = await ctxSaveContract.maxRedeem(holderAddress)
+
+                        // Test
+                        const tx = await ctxSaveContract
+                            .connect(holder)
+                            ["redeem(uint256,address,address)"](shares, holderAddress, holderAddress)
+                        // Verify events, storage change, balance, etc.
+                        await expect(tx)
+                            .to.emit(ctxSaveContract, "Withdraw")
+                            .withArgs(holderAddress, holderAddress, holderAddress, assets, shares)
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max redeem").to.eq(0)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.eq(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(0)
+                    })
+                    it("from the vault, caller != receiver and caller = owner", async () => {
+                        // Alice deposits assets (owner), Alice withdraws assets (caller), Bob receives assets (receiver)
+                        await asset.connect(holder).approve(ctxSaveContract.address, simpleToExactAmount(1, 21))
+                        const assets = await ctxSaveContract.previewRedeem(sharesAmount)
+
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max withdraw").to.eq(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(0)
+
+                        await ctxSaveContract.connect(holder)["deposit(uint256,address)"](assetsAmount, holderAddress)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.eq(assets)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.gt(0)
+                        const shares = await ctxSaveContract.maxRedeem(holderAddress)
+
+                        // Test
+                        const tx = await ctxSaveContract
+                            .connect(holder)
+                            ["redeem(uint256,address,address)"](shares, anotherHolderAddress, holderAddress)
+                        // Verify events, storage change, balance, etc.
+                        await expect(tx)
+                            .to.emit(ctxSaveContract, "Withdraw")
+                            .withArgs(holderAddress, anotherHolderAddress, holderAddress, assets, shares)
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max redeem").to.eq(0)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.eq(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(0)
+                    })
+                    it("from the vault caller != owner, infinite approval", async () => {
+                        // Alice deposits assets (owner), Bob withdraws assets (caller), Bob receives assets (receiver)
+                        await asset.connect(holder).approve(ctxSaveContract.address, simpleToExactAmount(1, 21))
+                        await ctxSaveContract.connect(holder).approve(anotherHolderAddress, safeInfinity)
+                        const assets = await ctxSaveContract.previewRedeem(sharesAmount)
+
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.eq(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(0)
+
+                        await ctxSaveContract.connect(holder)["deposit(uint256,address)"](assets, holderAddress)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.gt(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.gt(0)
+                        const shares = await ctxSaveContract.maxRedeem(holderAddress)
+
+                        // Test
+                        const tx = await ctxSaveContract
+                            .connect(anotherHolder)
+                            ["redeem(uint256,address,address)"](shares, anotherHolderAddress, holderAddress)
+                        // Verify events, storage change, balance, etc.
+                        await expect(tx)
+                            .to.emit(ctxSaveContract, "Withdraw")
+                            .withArgs(anotherHolderAddress, anotherHolderAddress, holderAddress, assets, shares)
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max redeem").to.eq(0)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.eq(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(0)
+                    })
+                    it("from the vault, caller != receiver and caller != owner", async () => {
+                        // Alice deposits assets (owner), Bob withdraws assets (caller), Bob receives assets (receiver)
+                        await asset.connect(holder).approve(ctxSaveContract.address, simpleToExactAmount(1, 21))
+                        await ctxSaveContract.connect(holder).approve(anotherHolderAddress, simpleToExactAmount(1, 21))
+
+                        const assets = await ctxSaveContract.previewRedeem(sharesAmount)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.eq(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(0)
+
+                        await ctxSaveContract.connect(holder)["deposit(uint256,address)"](assets, holderAddress)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.gt(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.gt(0)
+                        const shares = await ctxSaveContract.maxRedeem(holderAddress)
+
+                        // Test
+                        const tx = await ctxSaveContract
+                            .connect(anotherHolder)
+                            ["redeem(uint256,address,address)"](shares, anotherHolderAddress, holderAddress)
+                        // Verify events, storage change, balance, etc.
+                        await expect(tx)
+                            .to.emit(ctxSaveContract, "Withdraw")
+                            .withArgs(anotherHolderAddress, anotherHolderAddress, holderAddress, assets, shares)
+                        expect(await ctxSaveContract.maxRedeem(holderAddress), "max redeem").to.eq(0)
+                        expect(await ctxSaveContract.maxWithdraw(holderAddress), "max withdraw").to.eq(0)
+                        expect(await ctxSaveContract.totalAssets(), "totalAssets").to.eq(0)
+                    })
+                    it("fails if deposits zero", async () => {
+                        await expect(
+                            ctxSaveContract.connect(deployer)["redeem(uint256,address,address)"](0, holderAddress, holderAddress),
+                        ).to.be.revertedWith("Must withdraw something")
+                    })
+                    it("fails if receiver is zero", async () => {
+                        await expect(
+                            ctxSaveContract.connect(deployer)["redeem(uint256,address,address)"](10, ZERO_ADDRESS, ZERO_ADDRESS),
+                        ).to.be.revertedWith("Invalid beneficiary address")
+                    })
+                    it("fail if caller != owner and it has not allowance", async () => {
+                        // Alice deposits assets (owner), Bob withdraws assets (caller), Bob receives assets (receiver)
+                        await asset.connect(holder).approve(ctxSaveContract.address, simpleToExactAmount(1, 21))
+                        const assets = await ctxSaveContract.previewRedeem(sharesAmount)
+                        await ctxSaveContract.connect(holder)["deposit(uint256,address)"](assets, holderAddress)
+                        // Test
+                        const tx = ctxSaveContract
+                            .connect(anotherHolder)
+                            ["redeem(uint256,address,address)"](sharesAmount, anotherHolderAddress, holderAddress)
+                        // Verify events, storage change, balance, etc.
+                        await expect(tx).to.be.revertedWith("Amount exceeds allowance")
+                    })
+                })
             })
         })
     })
