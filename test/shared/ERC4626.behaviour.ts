@@ -1,11 +1,10 @@
 import { ZERO_ADDRESS } from "@utils/constants"
 import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
-import { BN, simpleToExactAmount } from "@utils/math"
+import { BN, simpleToExactAmount, safeInfinity } from "@utils/math"
 import { expect } from "chai"
 import { Account } from "types"
 import { ERC20, ERC205, IERC20Metadata, IERC4626Vault } from "types/generated"
 
-const safeInfinity = BN.from(2).pow(96).sub(1)
 
 export interface IERC4626BehaviourContext {
     vault: IERC4626Vault
