@@ -6,7 +6,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import { SlotFiller } from "./SlotFiller.sol";
 import { IStakedToken } from "./interfaces/IStakedToken.sol";
 import { GamifiedVotingToken } from "./GamifiedVotingToken.sol";
 import { Root } from "../../shared/Root.sol";
@@ -28,7 +27,7 @@ import "./deps/GamifiedTokenStructs.sol";
  * @dev Only whitelisted contracts can communicate with this contract, in order to avoid having tokenised wrappers that
  * could potentially circumvent our unstaking procedure.
  **/
-contract StakedToken is SlotFiller, GamifiedVotingToken, InitializableReentrancyGuard {
+contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
     using SafeERC20 for IERC20;
 
     /// @notice Core token that is staked and tracked (e.g. MTA)

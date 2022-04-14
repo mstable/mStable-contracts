@@ -6,6 +6,7 @@ import { ILockedERC20 } from "./interfaces/ILockedERC20.sol";
 import { HeadlessStakingRewards } from "../../rewards/staking/HeadlessStakingRewards.sol";
 import { IQuestManager } from "./interfaces/IQuestManager.sol";
 import "./deps/GamifiedTokenStructs.sol";
+import { SlotFiller51 } from "../../shared/SlotFiller51.sol";
 
 /**
  * @title GamifiedToken
@@ -23,6 +24,7 @@ import "./deps/GamifiedTokenStructs.sol";
  **/
 abstract contract GamifiedToken is
     ILockedERC20,
+    SlotFiller51,
     HeadlessStakingRewards
 {
     /// @notice name of this token (ERC20)
