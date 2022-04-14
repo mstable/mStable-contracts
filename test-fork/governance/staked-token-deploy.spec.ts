@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-syntax */
 /* eslint-disable no-await-in-loop */
-import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS, DEAD_ADDRESS } from "@utils/constants"
+import { ONE_DAY, ONE_WEEK, DEAD_ADDRESS } from "@utils/constants"
 import { assertBNClose, assertBNClosePercent } from "@utils/assertions"
 import { impersonate, impersonateAccount } from "@utils/fork"
 import { BN, simpleToExactAmount } from "@utils/math"
@@ -121,14 +121,12 @@ context("StakedToken deployments and vault upgrades", () => {
     }
 
     const snapBalData = async (stakedTokenBpt: StakedTokenBPT): Promise<BalConfig> => {
-        // const balRecipient = await stakedTokenBpt.balRecipient()
-        // const keeper = await stakedTokenBpt.keeper()
+        const totalSupply = await stakedTokenBpt.totalSupply()
         const pendingBPTFees = await stakedTokenBpt.pendingBPTFees()
         const priceCoefficient = await stakedTokenBpt.priceCoefficient()
         const lastPriceUpdateTime = await stakedTokenBpt.lastPriceUpdateTime()
         return {
-            // balRecipient,
-            // keeper,
+            totalSupply,
             pendingBPTFees,
             priceCoefficient,
             lastPriceUpdateTime,
@@ -199,6 +197,8 @@ context("StakedToken deployments and vault upgrades", () => {
                 signatureVerifier: getChainAddress("SignatureVerifier", Chain.mainnet),
                 platformTokenVendorFactory: getChainAddress("PlatformTokenVendorFactory", Chain.mainnet),
                 stakedToken: getChainAddress("StakedTokenMTA", Chain.mainnet),
+                stakedTokenImpl: "",
+                initData: "",
             }
 
             if (!stakedTokenAddresses.questManager || !stakedTokenAddresses.stakedToken) {
@@ -207,7 +207,6 @@ context("StakedToken deployments and vault upgrades", () => {
                         rewardsTokenSymbol: "MTA",
                         stakedTokenSymbol: "MTA",
                         cooldown: ONE_WEEK.mul(3).toNumber(),
-                        unstakeWindow: ONE_WEEK.mul(2).toNumber(),
                         name: "Staked Token MTA",
                         symbol: "stkMTA",
                     },
@@ -228,7 +227,6 @@ context("StakedToken deployments and vault upgrades", () => {
                         stakedTokenSymbol: "mBPT",
                         balTokenSymbol: "BAL",
                         cooldown: ONE_WEEK.mul(3).toNumber(),
-                        unstakeWindow: ONE_WEEK.mul(2).toNumber(),
                         name: "Staked Token BPT",
                         symbol: "stkBPT",
                     },

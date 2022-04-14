@@ -26,17 +26,18 @@ export interface StakedTokenData {
     stakedTokenSymbol: string
     balTokenSymbol?: string
     cooldown: BigNumberish
-    unstakeWindow: BigNumberish
     name: string
     symbol: string
 }
 
 export interface StakedTokenDeployAddresses {
-    stakedToken?: string
+    stakedToken: string
+    stakedTokenImpl: string
     questManager?: string
     signatureVerifier?: string
     platformTokenVendorFactory?: string
-    proxyAdminAddress?: string
+    proxyAdminAddress: string
+    initData: string
 }
 
 export const deployStakingToken = async (
@@ -184,16 +185,22 @@ export const deployStakingToken = async (
             proxyAdminAddress,
             data,
         ])
+    } else if (rewardsTokenAddress === stakedTokenAddress) {
+        proxy = stakedTokenImpl.attach(resolveAddress("StokedTokenMTA", chain))
+    } else {
+        proxy = stakedTokenImpl.attach(resolveAddress("StakedTokenBPT", chain))
     }
 
     console.log(`Governor needs to call setBalRecipient`)
 
     return {
         stakedToken: proxy?.address,
+        stakedTokenImpl: stakedTokenImpl.address,
         questManager: questManagerAddress,
         signatureVerifier: signatureVerifierAddress,
         platformTokenVendorFactory: platformTokenVendorFactoryAddress,
         proxyAdminAddress,
+        initData: data,
     }
 }
 

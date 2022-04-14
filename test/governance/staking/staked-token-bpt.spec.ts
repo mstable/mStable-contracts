@@ -160,10 +160,12 @@ describe("Staked Token BPT", () => {
     }
 
     const snapBalData = async (): Promise<BalConfig> => {
+        const totalSupply = await stakedToken.totalSupply()
         const pendingBPTFees = await stakedToken.pendingBPTFees()
         const priceCoefficient = await stakedToken.priceCoefficient()
         const lastPriceUpdateTime = await stakedToken.lastPriceUpdateTime()
         return {
+            totalSupply,
             pendingBPTFees,
             priceCoefficient,
             lastPriceUpdateTime,

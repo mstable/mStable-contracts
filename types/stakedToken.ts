@@ -18,18 +18,28 @@ export interface QuestBalance {
 export interface UserStakingData {
     scaledBalance: BN
     votes: BN
+    pastStakerVotes?: BN
     earnedRewards: BN
-    numCheckpoints: number
-    rewardTokenBalance: BN
+    numCheckpoints?: number
+    rewardTokenBalance?: BN
     rawBalance: UserBalance
     userPriceCoeff: BN
-    questBalance: QuestBalance
+    questBalance?: QuestBalance
     balData?: BalConfig
 }
 export interface BalConfig {
+    totalSupply: BN
+    pastTotalSupply?: BN
     pendingBPTFees: BN
     priceCoefficient: BN
     lastPriceUpdateTime: BN
+    mbptBalOfStakedToken?: BN
+    mbptBalOfGauge?: BN
+    stakerBal?: BN
+    stakerVotes?: BN
+    pastStakerVotes?: BN
+    deployerStkbptBal?: BN
+    whitelisted?: boolean[]
 }
 
 export enum QuestType {
