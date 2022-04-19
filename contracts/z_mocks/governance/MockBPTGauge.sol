@@ -36,4 +36,8 @@ contract MockBPTGauge is IBalancerGauge, ERC20 {
     function set_rewards_receiver(address _receiver) external override {
         rewards_receiver[msg.sender] = _receiver;
     }
+
+    function claim_rewards(address _addr) external override {
+        
+    }
 }

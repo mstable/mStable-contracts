@@ -1,31 +1,48 @@
 /* eslint-disable no-restricted-syntax */
 /* eslint-disable no-await-in-loop */
-import { ONE_WEEK } from "@utils/constants"
-import { impersonate, impersonateAccount } from "@utils/fork"
+import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
+import { impersonateAccount } from "@utils/fork"
 import { simpleToExactAmount } from "@utils/math"
 import { increaseTime } from "@utils/time"
 import { expect } from "chai"
-import { Signer } from "ethers"
 import * as hre from "hardhat"
 import { deployStakingToken, StakedTokenDeployAddresses } from "tasks/utils/rewardsUtils"
-import { IERC20, StakedTokenBPT, StakedTokenBPT__factory, DelayedProxyAdmin__factory, IERC20__factory } from "types/generated"
+import {
+    IBalancerGauge__factory,
+    IERC20,
+    StakedTokenBPT,
+    StakedTokenBPT__factory,
+    DelayedProxyAdmin__factory,
+    IERC20__factory,
+    IBalancerGauge,
+} from "types/generated"
 import { BalConfig, UserStakingData, Account } from "types"
 import { Chain } from "tasks/utils/tokens"
+import { BigNumberish } from "ethers"
 import { resolveAddress } from "../../tasks/utils/networkAddressFactory"
 
 const governorAddress = resolveAddress("Governor")
 const deployerAddress = resolveAddress("OperationsSigner")
 const stakedTokenBptAddress = resolveAddress("StakedTokenBPT")
+const mbptGaugeAddress = resolveAddress("mBPT", Chain.mainnet, "gauge")
 const ethWhaleAddress = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+const mtaWhaleAddress = "0x24167305A3667023Ea565f971D72509ef758Ac78"
+const mbptWhaleAddress = "0xe4b8b2Ff4E66E73A7BBc77B308a6b97AFA5aA566"
 
-const staker1 = "0xe76be9c1e10910d6bc6b63d8031729747910c2f6"
+const staker1 = "0xE76Be9C1e10910d6Bc6b63D8031729747910c2f6"
+const delegatorBPT = "0x32a59b87352e980dd6ab1baf462696d28e63525d"
 
 context("StakedToken deployments and vault upgrades", () => {
     let deployer: Account
-    let governor: Signer
-    let ethWhale: Signer
+    let governor: Account
+    let ethWhale: Account
+    let mtaWhale: Account
+    let mbptWhale: Account
     let stkBPT: StakedTokenBPT
     let mBPT: IERC20
+    let MTA: IERC20
+    let BAL: IERC20
+    let gauge: IBalancerGauge
 
     const { network } = hre
 
@@ -67,6 +84,7 @@ context("StakedToken deployments and vault upgrades", () => {
         const stakerBal = await stakedTokenBpt.balanceOf(staker1)
         const stakerVotes = await stakedTokenBpt.getVotes(staker1)
         const pastStakerVotes = await stakedTokenBpt.getPastVotes(staker1, 14300000)
+        const delegatee = await stakedTokenBpt.delegates(delegatorBPT)
 
         const whitelisted1 = await stakedTokenBpt.whitelistedWrappers("0x10a19e7ee7d7f8a52822f6817de8ea18204f2e4f")
         const whitelisted2 = await stakedTokenBpt.whitelistedWrappers("0x6fce4c6cdd8c4e6c7486553d09bdd9aee61cf095")
@@ -86,6 +104,7 @@ context("StakedToken deployments and vault upgrades", () => {
             stakerVotes,
             pastStakerVotes,
             whitelisted: [whitelisted1, whitelisted2, whitelisted3, whitelisted4],
+            delegatee,
         }
     }
 
@@ -115,30 +134,59 @@ context("StakedToken deployments and vault upgrades", () => {
         }
     }
 
-    before("reset block number", async () => {
+    // Upgrade the staking contract
+    const upgradeStkMbpt = async () => {
+        const stakedBptAddresses = await deployStakingToken(
+            {
+                rewardsTokenSymbol: "MTA",
+                stakedTokenSymbol: "mBPT",
+                balTokenSymbol: "BAL",
+                cooldown: ONE_WEEK.mul(3).toNumber(),
+                name: "Staked Token BPT",
+                symbol: "stkBPT",
+            },
+            deployer,
+            hre,
+            false,
+        )
+        const delayedProxyAdmin = DelayedProxyAdmin__factory.connect(resolveAddress("DelayedProxyAdmin"), governor.signer)
+        await delayedProxyAdmin
+            .connect(governor.signer)
+            .proposeUpgrade(stakedTokenBptAddress, stakedBptAddresses.stakedTokenImpl, stakedBptAddresses.initData)
+        await increaseTime(ONE_WEEK.add(2))
+        await delayedProxyAdmin.connect(governor.signer).acceptUpgradeRequest(stakedTokenBptAddress)
+    }
+
+    const setup = async (blockNumber?: BigNumberish) => {
         await network.provider.request({
             method: "hardhat_reset",
             params: [
                 {
                     forking: {
                         jsonRpcUrl: process.env.NODE_URL,
-                        blockNumber: 14581000,
+                        blockNumber,
                     },
                 },
             ],
         })
         deployer = await impersonateAccount(deployerAddress)
-        governor = await impersonate(governorAddress)
-        ethWhale = await impersonate(ethWhaleAddress)
+        governor = await impersonateAccount(governorAddress)
+        ethWhale = await impersonateAccount(ethWhaleAddress)
+        mtaWhale = await impersonateAccount(mtaWhaleAddress)
+        mbptWhale = await impersonateAccount(mbptWhaleAddress)
 
         mBPT = IERC20__factory.connect(resolveAddress("mBPT"), deployer.signer)
+        MTA = IERC20__factory.connect(resolveAddress("MTA"), mtaWhale.signer)
+        BAL = IERC20__factory.connect(resolveAddress("BAL"), deployer.signer)
+        stkBPT = StakedTokenBPT__factory.connect(stakedTokenBptAddress, deployer.signer)
+        gauge = IBalancerGauge__factory.connect(mbptGaugeAddress, deployer.signer)
 
         // send some Ether to the impersonated multisig contract as it doesn't have Ether
-        await ethWhale.sendTransaction({
+        await ethWhale.signer.sendTransaction({
             to: governorAddress,
             value: simpleToExactAmount(1),
         })
-    })
+    }
     context("1. Upgrade", () => {
         let stakedBptAddresses: StakedTokenDeployAddresses
         let balDataBefore: BalConfig
@@ -147,7 +195,7 @@ context("StakedToken deployments and vault upgrades", () => {
         const slotOffset = 0
         let slotsBefore: string[]
         before(async () => {
-            stkBPT = StakedTokenBPT__factory.connect(stakedTokenBptAddress, deployer.signer)
+            await setup(14581000)
             balDataBefore = await snapBalData(stkBPT)
             staker1DataBefore = await snapshotUserStakingData(staker1)
             slotsBefore = await snapStorage(stakedTokenBptAddress, slots, slotOffset)
@@ -169,13 +217,13 @@ context("StakedToken deployments and vault upgrades", () => {
             )
         })
         it("upgrade proxy", async () => {
-            const delayedProxyAdmin = DelayedProxyAdmin__factory.connect(resolveAddress("DelayedProxyAdmin"), governor)
+            const delayedProxyAdmin = DelayedProxyAdmin__factory.connect(resolveAddress("DelayedProxyAdmin"), governor.signer)
             await delayedProxyAdmin
-                .connect(governor)
+                .connect(governor.signer)
                 .proposeUpgrade(stakedTokenBptAddress, stakedBptAddresses.stakedTokenImpl, stakedBptAddresses.initData)
 
             await increaseTime(ONE_WEEK.add(2))
-            await delayedProxyAdmin.connect(governor).acceptUpgradeRequest(stakedTokenBptAddress)
+            await delayedProxyAdmin.connect(governor.signer).acceptUpgradeRequest(stakedTokenBptAddress)
         })
         describe("post upgrade verification", () => {
             let configAfter
@@ -228,6 +276,8 @@ context("StakedToken deployments and vault upgrades", () => {
                 expect(balDataAfter.whitelisted[1], "2nd whitelisted").eq(true)
                 expect(balDataAfter.whitelisted[2], "3rd whitelisted").eq(true)
                 expect(balDataAfter.whitelisted[3], "4th whitelisted").eq(false)
+                expect(balDataAfter.delegatee, "delegatee").length(42)
+                expect(balDataAfter.delegatee, "delegatee").eq(balDataBefore.delegatee)
             })
             it("staker balances", async () => {
                 const staker1DataAfter = await snapshotUserStakingData(staker1)
@@ -269,6 +319,108 @@ context("StakedToken deployments and vault upgrades", () => {
                     balDataBefore.mbptBalOfGauge.add(balDataBefore.mbptBalOfStakedToken),
                 )
             })
+        })
+    })
+    describe("upgrade and withdraw", () => {
+        let withdrawAmount: BigNumberish
+        before(async () => {
+            await setup(14612990)
+            await upgradeStkMbpt()
+        })
+        it("withdraw", async () => {
+            const gaugeMbptBefore = await mBPT.balanceOf(mbptGaugeAddress)
+
+            // Withdraw mBPT so it can be staked again after upgrade
+            withdrawAmount = simpleToExactAmount(1000)
+            // Need to add fees to the withdraw amount for the cooldown
+            await stkBPT.connect(mbptWhale.signer).startCooldown(withdrawAmount.add(simpleToExactAmount(75)))
+            await increaseTime(ONE_DAY.mul(22))
+
+            const tx = await stkBPT.connect(mbptWhale.signer).withdraw(withdrawAmount, mbptWhale.address, false, true)
+
+            await expect(tx).to.emit(stkBPT, "Withdraw").withArgs(mbptWhale.address, mbptWhale.address, withdrawAmount)
+            await expect(tx).to.emit(mBPT, "Transfer").withArgs(mbptGaugeAddress, stkBPT.address, withdrawAmount)
+            await expect(tx).to.emit(mBPT, "Transfer").withArgs(stkBPT.address, mbptWhale.address, withdrawAmount)
+
+            expect(await mBPT.balanceOf(mbptGaugeAddress), "gauge's mBPT bal after").to.eq(gaugeMbptBefore.sub(withdrawAmount))
+            expect(await mBPT.balanceOf(stakedTokenBptAddress), "stkBPT's mBPT bal after").to.eq(0)
+            expect(await mBPT.balanceOf(mbptWhale.address), "staker's mBPT bal after").to.eq(withdrawAmount)
+        })
+        it("convert fees to MTA", async () => {
+            const mtaBalBefore = await MTA.balanceOf(stkBPT.address)
+            expect(mtaBalBefore, "stkBPT's MTA bal before").to.gt(0)
+            const tx = await stkBPT.connect(deployer.signer).convertFees()
+
+            await expect(tx).to.emit(stkBPT, "FeesConverted")
+
+            expect(await MTA.balanceOf(stkBPT.address), "stkBPT's MTA bal after").to.gt(mtaBalBefore)
+        })
+        it("fetch latest price coefficient", async () => {
+            const priceCoefficientBefore = await stkBPT.priceCoefficient()
+
+            const tx = stkBPT.connect(deployer.signer).fetchPriceCoefficient()
+
+            await expect(tx).to.revertedWith("< 5% diff")
+            expect(await stkBPT.priceCoefficient(), "priceCoefficient after").to.eq(priceCoefficientBefore)
+        })
+        it("delegate", async () => {
+            const delegateBefore = await stkBPT.delegates(staker1)
+            const staker = await impersonateAccount(staker1)
+            const tx = await stkBPT.connect(staker.signer).delegate(mbptWhaleAddress)
+
+            await expect(tx).to.emit(stkBPT, "DelegateChanged").withArgs(staker1, staker1, mbptWhaleAddress)
+
+            const delegateAfter = await stkBPT.delegates(staker1)
+            expect(delegateAfter).to.eq(mbptWhaleAddress)
+            expect(delegateAfter).not.eq(delegateBefore)
+        })
+    })
+    describe("withdraw, upgrade and stake", () => {
+        let stakedAmount: BigNumberish
+        before(async () => {
+            await setup(14612990)
+
+            // Withdraw mBPT so it can be staked again after upgrade
+            const mbptBal = (await stkBPT.rawBalanceOf(mbptWhaleAddress))[0]
+            await stkBPT.connect(mbptWhale.signer).startCooldown(mbptBal)
+            await increaseTime(ONE_DAY.mul(22))
+            await stkBPT.connect(mbptWhale.signer).withdraw(mbptBal, mbptWhale.address, true, true)
+
+            // the amount withdraw is less fees so is smaller than the raw stkBPT balance
+            stakedAmount = await mBPT.balanceOf(mbptWhale.address)
+            await mBPT.connect(mbptWhale.signer).approve(stkBPT.address, stakedAmount)
+
+            await upgradeStkMbpt()
+        })
+        it("staking", async () => {
+            const gaugeMbptBefore = await mBPT.balanceOf(mbptGaugeAddress)
+            expect(gaugeMbptBefore).to.gt(0)
+
+            const tx = await stkBPT.connect(mbptWhale.signer)["stake(uint256)"](stakedAmount)
+
+            await expect(tx).to.emit(stkBPT, "Staked").withArgs(mbptWhale.address, stakedAmount, ZERO_ADDRESS)
+            await expect(tx).to.emit(mBPT, "Transfer").withArgs(mbptWhale.address, stkBPT.address, stakedAmount)
+            await expect(tx).to.emit(mBPT, "Transfer").withArgs(stkBPT.address, mbptGaugeAddress, stakedAmount)
+
+            expect(await mBPT.balanceOf(mbptGaugeAddress), "gauge's mBPT bal after").to.eq(gaugeMbptBefore.add(stakedAmount))
+            expect(await mBPT.balanceOf(stakedTokenBptAddress), "stkBPT's mBPT bal after").to.eq(0)
+            expect(await mBPT.balanceOf(mbptWhale.address), "staker's mBPT bal after").to.eq(0)
+        })
+        it("set BAL recipient", async () => {
+            const tx = await stkBPT.connect(governor.signer).setBalRecipient(deployer.address)
+
+            await expect(tx).to.emit(stkBPT, "BalRecipientChanged").withArgs(deployer.address)
+        })
+        it("claim BAL rewards", async () => {
+            expect(await BAL.balanceOf(deployer.address), "deployer's BAL rewards before").to.eq(0)
+            expect(await BAL.balanceOf(stkBPT.address), "stkmBPT's BAL rewards before").to.eq(0)
+            await increaseTime(ONE_WEEK.mul(2))
+
+            await gauge.claim_rewards(stkBPT.address)
+
+            // TODO work out how to distribute BAL via the Gauge
+            // expect(await BAL.balanceOf(deployer.address), "deployer BAL rewards after").to.gt(0)
+            expect(await BAL.balanceOf(stkBPT.address), "stkmBPT's BAL rewards after").to.eq(0)
         })
     })
 })

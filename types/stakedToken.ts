@@ -40,6 +40,7 @@ export interface BalConfig {
     pastStakerVotes?: BN
     deployerStkbptBal?: BN
     whitelisted?: boolean[]
+    delegatee?: string
 }
 
 export enum QuestType {

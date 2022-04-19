@@ -30,9 +30,6 @@ export const compilerConfig = (version: string) => ({
         },
         outputSelection: {
             "*": {
-                Masset: ["storageLayout"],
-                FeederPool: ["storageLayout"],
-                EmissionsController: ["storageLayout"],
                 SavingsContract: ["storageLayout"],
             },
         },
