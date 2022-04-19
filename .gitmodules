@@ -4,3 +4,6 @@
 [submodule "test/savings/foundry-tests/lib/openzeppelin-contracts"]
 	path = test/savings/foundry-tests/lib/openzeppelin-contracts
 	url = https://github.com/Openzeppelin/openzeppelin-contracts
+[submodule "test/savings/foundry-tests/lib/mStable-contracts"]
+	path = test/savings/foundry-tests/lib/mStable-contracts
+	url = https://github.com/mstable/mStable-contracts
