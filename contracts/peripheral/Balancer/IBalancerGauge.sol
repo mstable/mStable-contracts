@@ -22,4 +22,11 @@ interface IBalancerGauge is IERC20 {
      * @param _receiver Receiver address for any rewards claimed via `claim_rewards`
      */
      function set_rewards_receiver(address _receiver) external;
+
+
+    /**
+     * @notice Claim available reward tokens for `_addr`
+     * @param _addr Address to claim for
+     */
+    function claim_rewards(address _addr) external;
 }

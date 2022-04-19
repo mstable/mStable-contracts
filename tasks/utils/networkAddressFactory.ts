@@ -184,7 +184,7 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "MStableYieldSource":
                 return "0xdB4C9f763A4B13CF2830DFe7c2854dADf5b96E99"
             case "OperationsSigner":
-                return "0xb81473f20818225302b8fffb905b53d58a793d84"
+                return "0xB81473F20818225302b8FfFB905B53D58a793D84"
             case "ENSRegistrarController":
                 return "0x283Af0B28c62C092C9727F1Ee09c02CA627EB7F5"
             case "ENSResolver":
