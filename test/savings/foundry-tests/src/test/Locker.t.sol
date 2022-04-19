@@ -12,31 +12,49 @@ error UnAuthorisedWithdrawal();
 error ThresholdNotReached();
 error UnAuthorisedBatchExecution();
 error InvalidDeposit();
+
 interface CheatCodes {
+    // Advances time to specified timestamp
     function warp(uint256 x) external;
+
+    // Sents the next transaction as specified address
     function prank(address sender) external;
-    function roll(uint256 x) external;
-    function deal(address, uint256) external;
-    function expectEmit(bool, bool, bool, bool) external;
+
+    // Checks if events are output successfully
+    function expectEmit(
+        bool,
+        bool,
+        bool,
+        bool
+    ) external;
+
+    // Initialises a new address
     function addr(uint256 privateKey) external returns (address);
+
+    /** 
+    Used to create `prank blocks` which uses the specified
+    address to execute all subsequent calls within the block.
+    Prank blocks must be closed using the stopPrank hack.
+    */
     function startPrank(address) external;
+
     function stopPrank() external;
+
+    // Passes if call reverts as expected
     function expectRevert(bytes4) external;
 }
-contract LockerTest is DSTest {
 
+contract LockerTest is DSTest {
     // Interfaces
-    CheatCodes constant hack = CheatCodes(HEVM_ADDRESS);
+    CheatCodes public constant hack = CheatCodes(HEVM_ADDRESS);
     // Savings Contract mainnet
-    address constant SAVINGS_CONTRACT_MAINNET = 0x30647a72Dc82d7Fbb1123EA74716aB8A317Eac19;
-    address constant MASSET_ADDRESS_MAINNET = 0xe2f2a5C287993345a840Db3B0845fbC70f5935a5;
+    address public constant SAVINGS_CONTRACT_MAINNET = 0x30647a72Dc82d7Fbb1123EA74716aB8A317Eac19;
+    address public constant MASSET_ADDRESS_MAINNET = 0xe2f2a5C287993345a840Db3B0845fbC70f5935a5;
 
     // Token Locker Contract
-    TokenLocker public locker = new TokenLocker(
-        MASSET_ADDRESS_MAINNET, 
-        SAVINGS_CONTRACT_MAINNET);
+    TokenLocker public locker = new TokenLocker(MASSET_ADDRESS_MAINNET, SAVINGS_CONTRACT_MAINNET);
     // mUSD Interface
-    IERC20 constant mUSD = IERC20(MASSET_ADDRESS_MAINNET);
+    IERC20 public constant mUSD = IERC20(MASSET_ADDRESS_MAINNET);
 
     // Events
     event NewDeposit(address indexed _from, uint256 indexed _amount, uint256 indexed _time);
@@ -55,7 +73,6 @@ contract LockerTest is DSTest {
 
     // Starting masset pool to distribute amongst 3 users
     uint256 public massetStartAmount = 100000;
-    
 
     function setUp() public {
         annie = hack.addr(1);
@@ -84,7 +101,6 @@ contract LockerTest is DSTest {
     }
 
     function testBadWithdrawal() public {
-
         emit Logger("It should not allow withdrawals from user with no previous deposit");
 
         hack.startPrank(annie);
@@ -94,7 +110,6 @@ contract LockerTest is DSTest {
     }
 
     function testFailInsufficientCache() public {
-
         emit Logger("It should revert if mUSD threshold is not reached");
 
         hack.startPrank(annie);
@@ -104,7 +119,6 @@ contract LockerTest is DSTest {
     }
 
     function testZeroDepositAmount() public {
-
         emit Logger("It should revert if deposit amount is 0");
 
         hack.startPrank(bob);
@@ -115,7 +129,6 @@ contract LockerTest is DSTest {
     }
 
     function testDeposit() public {
-
         emit Logger("It should only allow one deposit per user");
 
         uint256 depositValue = 5000;
@@ -138,7 +151,6 @@ contract LockerTest is DSTest {
     }
 
     function testBadExecutor() public {
-        
         emit Logger("It should revert on unauthorised batch execution");
 
         hack.startPrank(bob);
@@ -154,7 +166,6 @@ contract LockerTest is DSTest {
     }
 
     function testBatchExecuteAndWithdrawals() public {
-
         emit Logger("It should allow batch execute after threshold reached");
 
         hack.startPrank(charlie);
@@ -192,10 +203,9 @@ contract LockerTest is DSTest {
         uint256 returned = locker.withdraw(creditWithdrawal);
 
         // Checks if annies credit balance after withdrawal reflects the amount deducted
-        uint256 creditAfter = locker.getCredit(annie); 
+        uint256 creditAfter = locker.getCredit(annie);
         uint256 balanceAfter = locker.getBalance(annie);
         assertEq(balanceAfter, balanceBefore + returned);
         assertEq(creditAfter, creditBefore - creditWithdrawal);
     }
 }
-
