@@ -1,3 +1,6 @@
 [submodule "test/savings/foundry-tests/lib/ds-test"]
 	path = test/savings/foundry-tests/lib/ds-test
 	url = https://github.com/dapphub/ds-test
+[submodule "test/savings/foundry-tests/lib/openzeppelin-contracts"]
+	path = test/savings/foundry-tests/lib/openzeppelin-contracts
+	url = https://github.com/Openzeppelin/openzeppelin-contracts
