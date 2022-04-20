@@ -268,7 +268,9 @@ interface ISavingsManager {
     function lastBatchCollected(address _mAsset) external view returns (uint256);
 }
 
-interface ISavingsContractV3 {
+interface ISavingsContractV4 is
+    IERC4626Vault // V4
+{
     // DEPRECATED but still backwards compatible
     function redeem(uint256 _amount) external returns (uint256 massetReturned);
 
@@ -296,8 +298,6 @@ interface ISavingsContractV3 {
 
     function creditsToUnderlying(uint256 _underlying) external view returns (uint256 credits); // V2
 
-    // --------------------------------------------
-
     function redeemAndUnwrap(
         uint256 _amount,
         bool _isCreditAmt,
@@ -319,6 +319,19 @@ interface ISavingsContractV3 {
         address _beneficiary,
         address _referrer
     ) external returns (uint256 creditsIssued);
+
+    // -------------------------------------------- V4
+    function deposit(
+        uint256 assets,
+        address receiver,
+        address referrer
+    ) external returns (uint256 shares);
+
+    function mint(
+        uint256 shares,
+        address receiver,
+        address referrer
+    ) external returns (uint256 assets);
 }
 
 /*
@@ -1122,8 +1135,7 @@ library YieldValidator {
  *          DATE:    2022-04-08
  */
 contract SavingsContract_imusd_polygon_22 is
-    ISavingsContractV3,
-    IERC4626Vault,
+    ISavingsContractV4,
     Initializable,
     InitializableToken,
     ImmutableModule
@@ -1903,7 +1915,7 @@ contract SavingsContract_imusd_polygon_22 is
         uint256 assets,
         address receiver,
         address referrer
-    ) external returns (uint256 shares) {
+    ) external override returns (uint256 shares) {
         shares = _transferAndMint(assets, receiver, true);
         emit Referral(referrer, receiver, assets);
     }
@@ -1953,7 +1965,7 @@ contract SavingsContract_imusd_polygon_22 is
         uint256 shares,
         address receiver,
         address referrer
-    ) external returns (uint256 assets) {
+    ) external override returns (uint256 assets) {
         (assets, ) = _creditsToUnderlying(shares);
         _transferAndMint(assets, receiver, true);
         emit Referral(referrer, receiver, assets);

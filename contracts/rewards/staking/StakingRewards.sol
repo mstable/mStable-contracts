@@ -4,7 +4,7 @@ pragma solidity 0.8.6;
 // Internal
 import { StakingTokenWrapper } from "./StakingTokenWrapper.sol";
 import { InitializableRewardsDistributionRecipient } from "../InitializableRewardsDistributionRecipient.sol";
-import { ISavingsContractV3 } from "../../interfaces/ISavingsContract.sol";
+import { ISavingsContractV4 } from "../../interfaces/ISavingsContract.sol";
 import { StableMath } from "../../shared/StableMath.sol";
 
 // Libs
@@ -203,7 +203,7 @@ contract StakingRewards is
         _reduceRaw(_amount);
 
         // Unwrap `stakingToken` into `output` and send to `beneficiary`
-        (, , outputQuantity) = ISavingsContractV3(address(stakingToken)).redeemAndUnwrap(
+        (, , outputQuantity) = ISavingsContractV4(address(stakingToken)).redeemAndUnwrap(
             _amount,
             true,
             _minAmountOut,

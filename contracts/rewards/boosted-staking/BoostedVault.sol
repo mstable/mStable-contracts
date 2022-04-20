@@ -3,7 +3,7 @@ pragma solidity 0.8.6;
 
 // Internal
 import { IBoostedVaultWithLockup } from "../../interfaces/IBoostedVaultWithLockup.sol";
-import { ISavingsContractV3 } from "../../interfaces/ISavingsContract.sol";
+import { ISavingsContractV4 } from "../../interfaces/ISavingsContract.sol";
 import { InitializableRewardsDistributionRecipient } from "../InitializableRewardsDistributionRecipient.sol";
 import { BoostedTokenWrapper } from "./BoostedTokenWrapper.sol";
 import { Initializable } from "../../shared/@openzeppelin-2.5/Initializable.sol";
@@ -287,7 +287,7 @@ contract BoostedVault is
         _reduceRaw(_amount);
 
         // Unwrap `stakingToken` into `output` and send to `beneficiary`
-        (, , outputQuantity) = ISavingsContractV3(address(stakingToken)).redeemAndUnwrap(
+        (, , outputQuantity) = ISavingsContractV4(address(stakingToken)).redeemAndUnwrap(
             _amount,
             true,
             _minAmountOut,

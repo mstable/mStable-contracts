@@ -5,7 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ImmutableModule } from "../../shared/ImmutableModule.sol";
 
-import { ISavingsContractV3 } from "../../interfaces/ISavingsContract.sol";
+import { ISavingsContractV4 } from "../../interfaces/ISavingsContract.sol";
 import { IUnwrapper } from "../../interfaces/IUnwrapper.sol";
 import { IMasset } from "../../interfaces/IMasset.sol";
 import { IFeederPool } from "../../interfaces/IFeederPool.sol";
@@ -36,7 +36,7 @@ contract Unwrapper is IUnwrapper, ImmutableModule {
         bool _inputIsCredit,
         address _output
     ) external view override returns (bool isBassetOut) {
-        address input = _inputIsCredit ? address(ISavingsContractV3(_input).underlying()) : _input;
+        address input = _inputIsCredit ? address(ISavingsContractV4(_input).underlying()) : _input;
         (BassetPersonal[] memory bAssets, ) = IMasset(input).getBassets();
         for (uint256 i = 0; i < bAssets.length; i++) {
             if (bAssets[i].addr == _output) return true;
@@ -66,13 +66,13 @@ contract Unwrapper is IUnwrapper, ImmutableModule {
         uint256 _amount
     ) external view override returns (uint256 outputQuantity) {
         uint256 amt = _inputIsCredit
-            ? ISavingsContractV3(_input).creditsToUnderlying(_amount)
+            ? ISavingsContractV4(_input).creditsToUnderlying(_amount)
             : _amount;
         if (_isBassetOut) {
             outputQuantity = IMasset(_router).getRedeemOutput(_output, amt);
         } else {
             address input = _inputIsCredit
-                ? address(ISavingsContractV3(_input).underlying())
+                ? address(ISavingsContractV4(_input).underlying())
                 : _input;
             outputQuantity = IFeederPool(_router).getSwapOutput(input, _output, amt);
         }
