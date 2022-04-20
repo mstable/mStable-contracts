@@ -1333,7 +1333,8 @@ contract SavingsContract_imusd_mainnet_22 is
     uint256 private constant MAX_APY = 4e18;
     uint256 private constant SECONDS_IN_YEAR = 365 days;
     // Proxy contract for easy redemption
-    address public unwrapper; // TODO!!
+    address public constant unwrapper = 0xc1443Cb9ce81915fB914C270d74B0D57D1c87be0;
+    uint256 private constant MAX_INT256 = 2**256 - 1;
 
     // Add these constants to bytecode at deploytime
     function initialize(
@@ -1503,7 +1504,6 @@ contract SavingsContract_imusd_mainnet_22 is
         bool _collectInterest
     ) internal returns (uint256 creditsIssued) {
         creditsIssued = _transferAndMint(_underlying, _beneficiary, _collectInterest);
-        emit SavingsDeposited(_beneficiary, _underlying, creditsIssued);
     }
 
     /***************************************
@@ -2026,7 +2026,7 @@ contract SavingsContract_imusd_mainnet_22 is
     function maxDeposit(
         address /** caller **/
     ) external view returns (uint256 maxAssets) {
-        maxAssets = 2**256 - 1;
+        maxAssets = MAX_INT256;
     }
 
     /**
@@ -2078,7 +2078,7 @@ contract SavingsContract_imusd_mainnet_22 is
     function maxMint(
         address /* caller */
     ) external view returns (uint256 maxShares) {
-        maxShares = 2**256 - 1;
+        maxShares = MAX_INT256;
     }
 
     /**
@@ -2101,6 +2101,24 @@ contract SavingsContract_imusd_mainnet_22 is
     function mint(uint256 shares, address receiver) external returns (uint256 assets) {
         (assets, ) = _creditsToUnderlying(shares);
         _transferAndMint(assets, receiver, true);
+    }
+
+    /**
+     * @notice Mint exact amount of vault shares to the receiver by transferring enough underlying asset tokens from the caller.
+     * @param shares The amount of vault shares to be minted.
+     * @param receiver The account the vault shares will be minted to.
+     * @param referrer  Referrer address for this deposit.
+     * @return assets The amount of underlying assets that were transferred from the caller.
+     * Emits a {Deposit}, {Referral} events
+     */
+    function mint(
+        uint256 shares,
+        address receiver,
+        address referrer
+    ) external returns (uint256 assets) {
+        (assets, ) = _creditsToUnderlying(shares);
+        _transferAndMint(assets, receiver, true);
+        emit Referral(referrer, receiver, assets);
     }
 
     /**
@@ -2206,6 +2224,7 @@ contract SavingsContract_imusd_mainnet_22 is
         // add credits to ERC20 balances
         _mint(receiver, shares);
         emit Deposit(msg.sender, receiver, assets, shares);
+        emit SavingsDeposited(receiver, assets, shares);
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -2224,7 +2243,7 @@ contract SavingsContract_imusd_mainnet_22 is
 
         // If caller is not the owner of the shares
         uint256 allowed = allowance(owner, msg.sender);
-        if (msg.sender != owner && allowed != (2**256 - 1)) {
+        if (msg.sender != owner && allowed != MAX_INT256) {
             require(shares <= allowed, "Amount exceeds allowance");
             _approve(owner, msg.sender, allowed - shares);
         }
