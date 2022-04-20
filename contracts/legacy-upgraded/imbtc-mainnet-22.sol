@@ -1322,7 +1322,6 @@ contract SavingsContract_imbtc_mainnet_22 is
         bool _collectInterest
     ) internal returns (uint256 creditsIssued) {
         creditsIssued = _transferAndMint(_underlying, _beneficiary, _collectInterest);
-        emit SavingsDeposited(_beneficiary, _underlying, creditsIssued);
     }
 
     /***************************************
@@ -1926,6 +1925,24 @@ contract SavingsContract_imbtc_mainnet_22 is
     }
 
     /**
+     * @notice Mint exact amount of vault shares to the receiver by transferring enough underlying asset tokens from the caller.
+     * @param shares The amount of vault shares to be minted.
+     * @param receiver The account the vault shares will be minted to.
+     * @param referrer  Referrer address for this deposit.
+     * @return assets The amount of underlying assets that were transferred from the caller.
+     * Emits a {Deposit}, {Referral} events
+     */
+    function mint(
+        uint256 shares,
+        address receiver,
+        address referrer
+    ) external returns (uint256 assets) {
+        (assets, ) = _creditsToUnderlying(shares);
+        _transferAndMint(assets, receiver, true);
+        emit Referral(referrer, receiver, assets);
+    }
+
+    /**
      *
      *  Returns Total number of underlying assets that caller can withdraw.
      */
@@ -2028,6 +2045,7 @@ contract SavingsContract_imbtc_mainnet_22 is
         // add credits to ERC20 balances
         _mint(receiver, shares);
         emit Deposit(msg.sender, receiver, assets, shares);
+        emit SavingsDeposited(receiver, assets, shares);
     }
 
     /*///////////////////////////////////////////////////////////////

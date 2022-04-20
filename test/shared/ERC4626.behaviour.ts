@@ -5,7 +5,6 @@ import { expect } from "chai"
 import { Account } from "types"
 import { ERC20, ERC205, IERC20Metadata, IERC4626Vault } from "types/generated"
 
-
 export interface IERC4626BehaviourContext {
     vault: IERC4626Vault
     asset: ERC20
@@ -77,7 +76,7 @@ export function shouldBehaveLikeERC4626(ctx: IERC4626BehaviourContext): void {
             expect(await ctx.vault.convertToShares(assets), "convertToShares").to.lte(shares)
             expect(await ctx.vault.convertToAssets(shares), "convertToShares").to.lte(assets)
 
-            const tx = await ctx.vault.connect(alice.signer).mint(shares, alice.address)
+            const tx = await ctx.vault.connect(alice.signer)["mint(uint256,address)"](shares, alice.address)
             // Verify events, storage change, balance, etc.
             await expect(tx).to.emit(ctx.vault, "Deposit").withArgs(alice.address, alice.address, assets, shares)
 
