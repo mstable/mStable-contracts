@@ -202,7 +202,7 @@ interface ISavingsContractV1 {
     function creditBalances(address) external view returns (uint256);
 }
 
-interface ISavingsContractV3 {
+interface ISavingsContractV4 {
     // DEPRECATED but still backwards compatible
     function redeem(uint256 _amount) external returns (uint256 massetReturned);
 
@@ -253,6 +253,19 @@ interface ISavingsContractV3 {
         address _beneficiary,
         address _referrer
     ) external returns (uint256 creditsIssued);
+
+    // -------------------------------------------- V4
+    function deposit(
+        uint256 assets,
+        address receiver,
+        address referrer
+    ) external returns (uint256 shares);
+
+    function mint(
+        uint256 shares,
+        address receiver,
+        address referrer
+    ) external returns (uint256 assets);
 }
 
 /*
@@ -1273,7 +1286,7 @@ library StableMath {
  */
 contract SavingsContract_imusd_mainnet_22 is
     ISavingsContractV1,
-    ISavingsContractV3,
+    ISavingsContractV4,
     IERC4626Vault,
     Initializable,
     InitializableToken,
