@@ -423,4 +423,15 @@ context("StakedToken deployments and vault upgrades", () => {
             expect(await BAL.balanceOf(stkBPT.address), "stkmBPT's BAL rewards after").to.eq(0)
         })
     })
+    describe("fail to", () => {
+        before(async () => {
+            await setup(14612990)
+            await upgradeStkMbpt()
+        })
+        it("stake zero amount", async () => {
+            const tx = stkBPT.connect(mbptWhale.signer)["stake(uint256)"](0)
+
+            await expect(tx).to.revertedWith("INVALID_ZERO_AMOUNT")
+        })
+    })
 })
