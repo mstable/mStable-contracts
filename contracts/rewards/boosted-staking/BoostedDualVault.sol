@@ -4,7 +4,7 @@ pragma solidity 0.8.6;
 // Internal
 import { IRewardsRecipientWithPlatformToken } from "../../interfaces/IRewardsDistributionRecipient.sol";
 import { IBoostedDualVaultWithLockup } from "../../interfaces/IBoostedDualVaultWithLockup.sol";
-import { ISavingsContractV3 } from "../../interfaces/ISavingsContract.sol";
+import { ISavingsContractV4 } from "../../interfaces/ISavingsContract.sol";
 import { IRewardsDistributionRecipient, InitializableRewardsDistributionRecipient } from "../InitializableRewardsDistributionRecipient.sol";
 import { BoostedTokenWrapper } from "./BoostedTokenWrapper.sol";
 import { PlatformTokenVendor } from "../staking/PlatformTokenVendor.sol";
@@ -331,7 +331,7 @@ contract BoostedDualVault is
         _reduceRaw(_amount);
 
         // Unwrap `stakingToken` into `output` and send to `beneficiary`
-        (, , outputQuantity) = ISavingsContractV3(address(stakingToken)).redeemAndUnwrap(
+        (, , outputQuantity) = ISavingsContractV4(address(stakingToken)).redeemAndUnwrap(
             _amount,
             true,
             _minAmountOut,

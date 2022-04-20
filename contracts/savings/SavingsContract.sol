@@ -5,9 +5,8 @@ pragma solidity 0.8.6;
 import { ISavingsManager } from "../interfaces/ISavingsManager.sol";
 
 // Internal
-import { ISavingsContractV3 } from "../interfaces/ISavingsContract.sol";
+import { ISavingsContractV4 } from "../interfaces/ISavingsContract.sol";
 import { IUnwrapper } from "../interfaces/IUnwrapper.sol";
-import { IERC4626Vault } from "../interfaces/IERC4626Vault.sol";
 import { InitializableToken } from "../shared/InitializableToken.sol";
 import { ImmutableModule } from "../shared/ImmutableModule.sol";
 import { IConnector } from "./peripheral/IConnector.sol";
@@ -27,13 +26,7 @@ import { YieldValidator } from "../shared/YieldValidator.sol";
  * @dev     VERSION: 2.2
  *          DATE:    2022-04-08
  */
-contract SavingsContract is
-    ISavingsContractV3,
-    IERC4626Vault,
-    Initializable,
-    InitializableToken,
-    ImmutableModule
-{
+contract SavingsContract is ISavingsContractV4, Initializable, InitializableToken, ImmutableModule {
     using StableMath for uint256;
 
     // Core events for depositing and withdrawing
@@ -819,7 +812,7 @@ contract SavingsContract is
         uint256 assets,
         address receiver,
         address referrer
-    ) external returns (uint256 shares) {
+    ) external override returns (uint256 shares) {
         shares = _transferAndMint(assets, receiver, true);
         emit Referral(referrer, receiver, assets);
     }
@@ -869,7 +862,7 @@ contract SavingsContract is
         uint256 shares,
         address receiver,
         address referrer
-    ) external returns (uint256 assets) {
+    ) external override returns (uint256 assets) {
         (assets, ) = _creditsToUnderlying(shares);
         _transferAndMint(assets, receiver, true);
         emit Referral(referrer, receiver, assets);

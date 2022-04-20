@@ -7,7 +7,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { IBoostedVaultWithLockup } from "../../interfaces/IBoostedVaultWithLockup.sol";
 import { IFeederPool } from "../../interfaces/IFeederPool.sol";
 import { IMasset } from "../../interfaces/IMasset.sol";
-import { ISavingsContractV3 } from "../../interfaces/ISavingsContract.sol";
+import { ISavingsContractV4 } from "../../interfaces/ISavingsContract.sol";
 import { IUniswapV2Router02 } from "../../peripheral/Uniswap/IUniswapV2Router02.sol";
 import { IBasicToken } from "../../shared/IBasicToken.sol";
 import { ImmutableModule } from "../../shared/ImmutableModule.sol";
@@ -306,19 +306,19 @@ contract SaveWrapper is ImmutableModule {
         address _referrer
     ) internal {
         if (_stake && _referrer != address(0)) {
-            uint256 credits = ISavingsContractV3(_save).depositSavings(
+            uint256 credits = ISavingsContractV4(_save).depositSavings(
                 _amount,
                 address(this),
                 _referrer
             );
             IBoostedVaultWithLockup(_vault).stake(msg.sender, credits);
         } else if (_stake && _referrer == address(0)) {
-            uint256 credits = ISavingsContractV3(_save).depositSavings(_amount, address(this));
+            uint256 credits = ISavingsContractV4(_save).depositSavings(_amount, address(this));
             IBoostedVaultWithLockup(_vault).stake(msg.sender, credits);
         } else if (!_stake && _referrer != address(0)) {
-            ISavingsContractV3(_save).depositSavings(_amount, msg.sender, _referrer);
+            ISavingsContractV4(_save).depositSavings(_amount, msg.sender, _referrer);
         } else {
-            ISavingsContractV3(_save).depositSavings(_amount, msg.sender);
+            ISavingsContractV4(_save).depositSavings(_amount, msg.sender);
         }
     }
 
