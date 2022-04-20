@@ -5,7 +5,7 @@ pragma solidity 0.8.6;
 import { IRewardsDistributionRecipient, IRewardsRecipientWithPlatformToken } from "../../interfaces/IRewardsDistributionRecipient.sol";
 import { IStakingRewardsWithPlatformToken } from "../../interfaces/IStakingRewardsWithPlatformToken.sol";
 import { InitializableRewardsDistributionRecipient } from "../InitializableRewardsDistributionRecipient.sol";
-import { ISavingsContractV3 } from "../../interfaces/ISavingsContract.sol";
+import { ISavingsContractV4 } from "../../interfaces/ISavingsContract.sol";
 import { StakingTokenWrapper } from "./StakingTokenWrapper.sol";
 import { PlatformTokenVendor } from "./PlatformTokenVendor.sol";
 import { StableMath } from "../../shared/StableMath.sol";
@@ -218,7 +218,7 @@ contract StakingRewardsWithPlatformToken is
         _reduceRaw(_amount);
 
         // Unwrap `stakingToken` into `output` and send to `beneficiary`
-        (, , outputQuantity) = ISavingsContractV3(address(stakingToken)).redeemAndUnwrap(
+        (, , outputQuantity) = ISavingsContractV4(address(stakingToken)).redeemAndUnwrap(
             _amount,
             true,
             _minAmountOut,
