@@ -1818,15 +1818,14 @@ contract SavingsContract_imbtc_mainnet_22 is
     /**
      * @notice it must be an ERC-20 token contract. Must not revert.
      *
-     * Returns the address of the underlying token used for the Vault uses for accounting, depositing, and withdrawing.
+     * @return assetTokenAddress the address of the underlying asset token. eg mUSD or mBTC
      */
     function asset() external view override returns (address assetTokenAddress) {
         return address(underlying);
     }
 
     /**
-     * @notice The address of the underlying token used for the Vault uses for accounting, depositing, and withdrawing.
-     * Returns the total amount of the underlying asset that is “managed” by Vault.
+     * @return totalManagedAssets the total amount of the underlying asset tokens that is “managed” by Vault.
      */
     function totalAssets() external view override returns (uint256 totalManagedAssets) {
         return underlying.balanceOf(address(this));
@@ -1925,10 +1924,11 @@ contract SavingsContract_imbtc_mainnet_22 is
 
     /**
      * @notice Mint exact amount of vault shares to the receiver by transferring enough underlying asset tokens from the caller.
+     * Emits a {Deposit} event.
+     *
      * @param shares The amount of vault shares to be minted.
      * @param receiver The account the vault shares will be minted to.
      * @return assets The amount of underlying assets that were transferred from the caller.
-     * Emits a {Deposit} event.
      */
     function mint(uint256 shares, address receiver) external override returns (uint256 assets) {
         (assets, ) = _creditsToUnderlying(shares);
@@ -1954,26 +1954,31 @@ contract SavingsContract_imbtc_mainnet_22 is
     }
 
     /**
-     *
-     *  Returns Total number of underlying assets that caller can withdraw.
+     * @notice The maximum number of underlying assets that owner can withdraw.
+     * @param owner Address that owns the underlying assets.
+     * @return maxAssets The maximum amount of underlying assets the owner can withdraw.
      */
-    function maxWithdraw(address caller) external view override returns (uint256 maxAssets) {
-        (maxAssets, ) = _creditsToUnderlying(balanceOf(caller));
+    function maxWithdraw(address owner) external view override returns (uint256 maxAssets) {
+        (maxAssets, ) = _creditsToUnderlying(balanceOf(owner));
     }
 
     /**
      * @notice Allows an on-chain or off-chain user to simulate the effects of their withdrawal at the current block, given current on-chain conditions.
-     *
-     *  Return the exact amount of Vault shares that would be redeemed by the caller if withdrawing a given exact amount of underlying assets using the withdraw method.
+     * @param assets The amount of underlying assets to be withdrawn.
+     * @return shares The amount of vault shares that will be burnt.
      */
     function previewWithdraw(uint256 assets) external view override returns (uint256 shares) {
         (shares, ) = _underlyingToCredits(assets);
     }
 
     /**
-     *  Redeems shares from owner and sends assets of underlying tokens to receiver.
-     *  Returns Total number of underlying shares redeemed.
+     * @notice Burns enough vault shares from owner and transfers the exact amount of underlying asset tokens to the receiver.
      * Emits a {Withdraw} event.
+     *
+     * @param assets The amount of underlying assets to be withdrawn from the vault.
+     * @param receiver The account that the underlying assets will be transferred to.
+     * @param owner Account that owns the vault shares to be burnt.
+     * @return shares The amount of vault shares that were burnt.
      */
     function withdraw(
         uint256 assets,
@@ -1991,18 +1996,19 @@ contract SavingsContract_imbtc_mainnet_22 is
     }
 
     /**
-     * @notice it must return a limited value if caller is subject to some withdrawal limit or timelock. must return balanceOf(caller) if caller is not subject to any withdrawal limit or timelock. MAY be used in the previewRedeem or redeem methods for shares input parameter. must NOT revert.
+     * @notice it must return a limited value if owner is subject to some withdrawal limit or timelock. must return balanceOf(owner) if owner is not subject to any withdrawal limit or timelock. MAY be used in the previewRedeem or redeem methods for shares input parameter. must NOT revert.
      *
-     *  Returns Total number of underlying shares that caller can redeem.
+     * @param owner Address that owns the shares.
+     * @return maxShares Total number of shares that owner can redeem.
      */
-    function maxRedeem(address caller) external view override returns (uint256 maxShares) {
-        maxShares = balanceOf(caller);
+    function maxRedeem(address owner) external view override returns (uint256 maxShares) {
+        maxShares = balanceOf(owner);
     }
 
     /**
      * @notice Allows an on-chain or off-chain user to simulate the effects of their redeemption at the current block, given current on-chain conditions.
      *
-     *  Returns the exact amount of underlying assets that would be withdrawn by the caller if redeeming a given exact amount of Vault shares using the redeem method
+     * @return assets the exact amount of underlying assets that would be withdrawn by the caller if redeeming a given exact amount of Vault shares using the redeem method
      */
     function previewRedeem(uint256 shares) external view override returns (uint256 assets) {
         (assets, ) = _creditsToUnderlying(shares);
@@ -2010,10 +2016,13 @@ contract SavingsContract_imbtc_mainnet_22 is
     }
 
     /**
-     * Redeems shares from owner and sends assets of underlying tokens to receiver.
-     *
-     *  Returns Total number of underlying assets of underlying redeemed.
+     * @notice Burns exact amount of vault shares from owner and transfers the underlying asset tokens to the receiver.
      * Emits a {Withdraw} event.
+     *
+     * @param shares The amount of vault shares to be burnt.
+     * @param receiver The account the underlying assets will be transferred to.
+     * @param owner The account that owns the vault shares to be burnt.
+     * @return assets The amount of underlying assets that were transferred to the receiver.
      */
     function redeem(
         uint256 shares,
