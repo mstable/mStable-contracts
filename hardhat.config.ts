@@ -59,7 +59,7 @@ export const hardhatConfig = {
         },
     },
     solidity: {
-        compilers: [{ ...compilerConfig("0.8.6") }],
+        compilers: [{ ...compilerConfig("0.8.6") }, { ...compilerConfig("0.8.2") }, { ...compilerConfig("0.5.16") }],
     },
     paths: { artifacts: "./build" },
     abiExporter: {
