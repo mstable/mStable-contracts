@@ -95,8 +95,6 @@ contract RebasedFeederPool is
     uint256 private constant M_INDEX = 0;
     uint256 private constant F_INDEX = 1;
     uint256 private constant NUM_ASSETS = 2;
-    uint256 private constant RAY = 10**27;
-    uint128 private fAssetBaseRatio;
     address public immutable override mAsset;
 
     // Core data storage
@@ -137,7 +135,7 @@ contract RebasedFeederPool is
         _initializeReentrancyGuard();
 
         require(_mAsset.addr == mAsset, "mAsset incorrect");
-        fAssetBaseRatio = SafeCast.toUint128(10**(26 - IBasicToken(_fAsset.addr).decimals()));
+        uint128 fAssetBaseRatio = SafeCast.toUint128(10**(26 - IBasicToken(_fAsset.addr).decimals()));
         data.bAssetPersonal.push(
             BassetPersonal(_mAsset.addr, _mAsset.integrator, false, BassetStatus.Normal)
         );

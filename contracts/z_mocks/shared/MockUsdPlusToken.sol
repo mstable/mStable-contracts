@@ -20,7 +20,6 @@ contract MockUsdPlusToken is IERC20, Context {
 
     string private _name;
     string private _symbol;
-    uint8 private _decimals;
 
     // ---  fields
 
@@ -30,8 +29,8 @@ contract MockUsdPlusToken is IERC20, Context {
     uint256 public liquidityIndexChangeTime;
     uint256 public liquidityIndex;
 
-    EnumerableSet.AddressSet _owners;
 
+    // ---  setters
 
     function setLiquidityIndex(uint256 _liquidityIndex) external {
         require(_liquidityIndex > 0, "Zero liquidity index not allowed");
@@ -49,7 +48,6 @@ contract MockUsdPlusToken is IERC20, Context {
     ) external {
         _name = name;
         _symbol = symbol;
-        _decimals = decimals;
         liquidityIndex = 10 ** 27;
         liquidityIndexChangeTime = block.timestamp;
         _mint(_initialRecipient, _initialMint * (10 ** 27));
@@ -65,27 +63,20 @@ contract MockUsdPlusToken is IERC20, Context {
         mintAmount = mintAmount.rayDiv(liquidityIndex);
         _mint(_sender, mintAmount);
         _totalMint += mintAmount;
-        emit Transfer(address(0), _sender, _amount);
     }
 
     /** @dev Creates `amount` tokens and assigns them to `account`, increasing
      * the total supply.
      *
-     * Emits a {Transfer} event with `from` set to the zero address.
-     *
      * Requirements:
      *
      * - `account` cannot be the zero address.
      */
-    function _mint(address account, uint256 amount) internal  {
+    function _mint(address account, uint256 amount) internal {
         require(account != address(0), "ERC20: mint to the zero address");
-
-        _beforeTokenTransfer(address(0), account, amount);
 
         _totalSupply += amount;
         _balances[account] += amount;
-
-        _afterTokenTransfer(address(0), account, amount);
     }
 
     function burn(address _sender, uint256 _amount) external {
@@ -94,24 +85,19 @@ contract MockUsdPlusToken is IERC20, Context {
         burnAmount = burnAmount.rayDiv(liquidityIndex);
         _burn(_sender, burnAmount);
         _totalBurn += burnAmount;
-        emit Transfer(_sender, address(0), _amount);
     }
 
     /**
     * @dev Destroys `amount` tokens from `account`, reducing the
      * total supply.
      *
-     * Emits a {Transfer} event with `to` set to the zero address.
-     *
      * Requirements:
      *
      * - `account` cannot be the zero address.
      * - `account` must have at least `amount` tokens.
      */
-    function _burn(address account, uint256 amount) internal  {
+    function _burn(address account, uint256 amount) internal {
         require(account != address(0), "ERC20: burn from the zero address");
-
-        _beforeTokenTransfer(account, address(0), amount);
 
         uint256 accountBalance = _balances[account];
         require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
@@ -119,9 +105,6 @@ contract MockUsdPlusToken is IERC20, Context {
             _balances[account] = accountBalance - amount;
         }
         _totalSupply -= amount;
-
-
-        _afterTokenTransfer(account, address(0), amount);
     }
 
 
@@ -131,8 +114,6 @@ contract MockUsdPlusToken is IERC20, Context {
      *
      * This internal function is equivalent to {transfer}, and can be used to
      * e.g. implement automatic token fees, slashing mechanisms, etc.
-     *
-     * Emits a {Transfer} event.
      *
      * Requirements:
      *
@@ -144,23 +125,16 @@ contract MockUsdPlusToken is IERC20, Context {
         address sender,
         address recipient,
         uint256 amount
-    ) internal  {
+    ) internal {
         require(sender != address(0), "ERC20: transfer from the zero address");
         require(recipient != address(0), "ERC20: transfer to the zero address");
-//        console.log("sender: ", sender);
-//        console.log("recipient: ", recipient);
-//        console.log("amount: ", amount);
-        _beforeTokenTransfer(sender, recipient, amount);
 
         uint256 senderBalance = _balances[sender];
-//        console.log("senderBalance: ", senderBalance);
         require(senderBalance >= amount, "ERC20: transfer amount exceeds balance");
         unchecked {
             _balances[sender] = senderBalance - amount;
         }
         _balances[recipient] += amount;
-
-        _afterTokenTransfer(sender, recipient, amount);
     }
 
 
@@ -172,7 +146,6 @@ contract MockUsdPlusToken is IERC20, Context {
         uint256 transferAmount = amount.wadToRay();
         transferAmount = transferAmount.rayDiv(liquidityIndex);
         _transfer(_msgSender(), recipient, transferAmount);
-        emit Transfer(_msgSender(), recipient, amount);
         return true;
     }
 
@@ -181,7 +154,11 @@ contract MockUsdPlusToken is IERC20, Context {
      * @dev See {IERC20-allowance}.
      */
     function allowance(address owner, address spender) public view override returns (uint256) {
-        uint256 allowanceRay = _allowance(owner, spender).rayMul(liquidityIndex);
+        uint256 allowanceRay = _allowance(owner, spender);
+        if (allowanceRay == type(uint256).max) {
+            return type(uint256).max;
+        }
+        allowanceRay = allowanceRay.rayMul(liquidityIndex);
         // ray -> wad
         return allowanceRay.rayToWad();
     }
@@ -198,9 +175,14 @@ contract MockUsdPlusToken is IERC20, Context {
      * @dev See {IERC20-approve}.
      */
     function approve(address spender, uint256 amount) external override returns (bool){
-        // up to ray
-        uint256 scaledAmount = amount.wadToRay();
-        scaledAmount = scaledAmount.rayDiv(liquidityIndex);
+        uint256 scaledAmount;
+        if (amount == type(uint256).max) {
+            scaledAmount = type(uint256).max;
+        } else {
+            // up to ray
+            scaledAmount = amount.wadToRay();
+            scaledAmount = scaledAmount.rayDiv(liquidityIndex);
+        }
         _approve(_msgSender(), spender, scaledAmount);
         return true;
     }
@@ -210,8 +192,6 @@ contract MockUsdPlusToken is IERC20, Context {
      *
      * This internal function is equivalent to `approve`, and can be used to
      * e.g. set automatic allowances for certain subsystems, etc.
-     *
-     * Emits an {Approval} event.
      *
      * Requirements:
      *
@@ -227,7 +207,6 @@ contract MockUsdPlusToken is IERC20, Context {
         require(spender != address(0), "ERC20: approve to the zero address");
 
         _allowances[owner][spender] = amount;
-        emit Approval(owner, spender, amount);
     }
 
 
@@ -247,7 +226,6 @@ contract MockUsdPlusToken is IERC20, Context {
         unchecked {
             _approve(sender, _msgSender(), currentAllowance - scaledAmount);
         }
-        emit Transfer(sender, recipient, amount);
 
         return true;
     }
@@ -275,7 +253,7 @@ contract MockUsdPlusToken is IERC20, Context {
     /**
     * @dev See {IERC20-balanceOf}.
      */
-    function _balanceOf(address account) internal view  returns (uint256) {
+    function _balanceOf(address account) internal view returns (uint256) {
         return _balances[account];
     }
 
@@ -323,14 +301,15 @@ contract MockUsdPlusToken is IERC20, Context {
      * This is an alternative to {approve} that can be used as a mitigation for
      * problems described in {IERC20-approve}.
      *
-     * Emits an {Approval} event indicating the updated allowance.
-     *
      * Requirements:
      *
      * - `spender` cannot be the zero address.
      */
-    function increaseAllowance(address spender, uint256 addedValue) public  returns (bool) {
-        _approve(_msgSender(), spender, _allowances[_msgSender()][spender] + addedValue);
+    function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {
+        // up to ray
+        uint256 scaledAmount = addedValue.wadToRay();
+        scaledAmount = scaledAmount.rayDiv(liquidityIndex);
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender] + scaledAmount);
         return true;
     }
 
@@ -340,19 +319,20 @@ contract MockUsdPlusToken is IERC20, Context {
      * This is an alternative to {approve} that can be used as a mitigation for
      * problems described in {IERC20-approve}.
      *
-     * Emits an {Approval} event indicating the updated allowance.
-     *
      * Requirements:
      *
      * - `spender` cannot be the zero address.
      * - `spender` must have allowance for the caller of at least
      * `subtractedValue`.
      */
-    function decreaseAllowance(address spender, uint256 subtractedValue) public  returns (bool) {
+    function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
+        // up to ray
+        uint256 scaledAmount = subtractedValue.wadToRay();
+        scaledAmount = scaledAmount.rayDiv(liquidityIndex);
         uint256 currentAllowance = _allowances[_msgSender()][spender];
-        require(currentAllowance >= subtractedValue, "ERC20: decreased allowance below zero");
+        require(currentAllowance >= scaledAmount, "ERC20: decreased allowance below zero");
         unchecked {
-            _approve(_msgSender(), spender, currentAllowance - subtractedValue);
+            _approve(_msgSender(), spender, currentAllowance - scaledAmount);
         }
 
         return true;
@@ -364,19 +344,6 @@ contract MockUsdPlusToken is IERC20, Context {
      **/
     function scaledTotalSupply() public view returns (uint256) {
         return _totalSupply;
-    }
-
-
-    function ownerLength() external view returns (uint256) {
-        return _owners.length();
-    }
-
-    function ownerAt(uint256 index) external view returns (address) {
-        return _owners.at(index);
-    }
-
-    function ownerBalanceAt(uint256 index) external view returns (uint256) {
-        return balanceOf(_owners.at(index));
     }
 
     /**
@@ -408,55 +375,8 @@ contract MockUsdPlusToken is IERC20, Context {
      * no way affects any of the arithmetic of the contract, including
      * {IERC20-balanceOf} and {IERC20-transfer}.
      */
-    function decimals() public view returns (uint8) {
-        return _decimals;
-    }
-
-
-    /**
-    * @dev Hook that is called before any transfer of tokens. This includes
-     * minting and burning.
-     *
-     * Calling conditions:
-     *
-     * - when `from` and `to` are both non-zero, `amount` of ``from``'s tokens
-     * will be transferred to `to`.
-     * - when `from` is zero, `amount` tokens will be minted for `to`.
-     * - when `to` is zero, `amount` of ``from``'s tokens will be burned.
-     * - `from` and `to` are never both zero.
-     *
-     * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
-     */
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal  {
-
-    }
-
-
-    function _afterTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal  {
-
-        if (from == address(0)) {
-            // mint
-            _owners.add(to);
-        } else if (to == address(0)) {
-            // burn
-            if (balanceOf(from) == 0) {
-                _owners.remove(from);
-            }
-        } else {
-            // transfer
-            if (balanceOf(from) == 0) {
-                _owners.remove(from);
-            }
-            _owners.add(to);
-        }
+    function decimals() public pure returns (uint8) {
+        return 6;
     }
 
 }

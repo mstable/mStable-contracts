@@ -18,6 +18,7 @@ import {
     Masset,
     MockERC20__factory,
     NonPeggedFeederPool__factory,
+    RebasedFeederPool,
     RebasedFeederPool__factory,
     RedemptionPriceSnapMock,
     RedemptionPriceSnapMock__factory,
@@ -30,7 +31,7 @@ import { ActionDetails, BasketComposition } from "../../types/machines"
 import { MassetMachine, MassetDetails } from "./mAssetMachine"
 
 export interface FeederDetails {
-    pool?: FeederPool
+    pool?: FeederPool | RebasedFeederPool
     logic?: FeederLogic
     manager?: FeederManager
     interestValidator?: InterestValidator
@@ -323,7 +324,7 @@ export class FeederMachine {
     }
 
     public async approveFeeder(
-        asset: MockERC20,
+        asset: MockERC20 | MockUsdPlusToken,
         feeder: string,
         assetQuantity: number | BN | string,
         sender: Signer = this.sa.default.signer,
