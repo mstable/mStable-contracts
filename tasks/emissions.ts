@@ -8,17 +8,19 @@ import {
     IERC20__factory,
     L2EmissionsController__factory,
     RevenueBuyBack__factory,
+    RevenueSplitBuyBack__factory,
     RevenueForwarder__factory,
     VotiumBribeForwarder__factory,
     SavingsManager__factory,
 } from "types/generated"
 import { ONE_HOUR } from "@utils/constants"
+import { simpleToExactAmount } from "@utils/math"
 import { logTxDetails, logger, mUSD, mBTC } from "./utils"
 import { getSigner } from "./utils/signerFactory"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
 import { getBalancerPolygonReport } from "./utils/emission-disperse-bal"
 import { sendPrivateTransaction } from "./utils/flashbots"
-
+import { splitBuyBackRewards } from "./utils/emissions-split-buy-back"
 const log = logger("emission")
 
 subtask("emission-calc", "Calculate the weekly emissions")
@@ -163,15 +165,47 @@ subtask("revenue-buy-back", "Buy back MTA from mUSD and mBTC gov fees")
 task("revenue-buy-back").setAction(async (_, __, runSuper) => {
     await runSuper()
 })
+subtask("revenue-split-buy-back", "Buy back MTA from mUSD and mBTC gov fees")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+        const revenueSplitBuyBackAddress = resolveAddress("RevenueSplitBuyBack", chain)
+        const revenueSplitBuyBack = RevenueSplitBuyBack__factory.connect(revenueSplitBuyBackAddress, signer)
+        const musd = {
+            address: resolveAddress("mUSD", chain),
+            bAssetMinSlippage: 2, // 2%
+            rewardMinSlippage: 1, // 1%
+            mAssetMinBalance: simpleToExactAmount(1000), // 1k USD
+        }
 
+        const mbtc = {
+            address: resolveAddress("mBTC", chain),
+            bAssetMinSlippage: 5, // 5%
+            rewardMinSlippage: 3, // 3%
+            mAssetMinBalance: simpleToExactAmount(10, 14), // 10 wBTC
+        }
+        const mAssets = [musd, mbtc]
+        const request = {
+            mAssets,
+            revenueSplitBuyBack,
+            swapFees: [3000, 3000],
+            blockNumber: "latest",
+        }
+        const tx = await splitBuyBackRewards(signer, request)
+        await logTxDetails(tx, `buy back MTA from gov fees`)
+    })
+task("revenue-split-buy-back").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})
 subtask("revenue-donate-rewards", "Donate purchased MTA to the staking dials in the Emissions Controller")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)
         const chain = getChain(hre)
 
-        const revenueBuyBackAddress = resolveAddress("RevenueBuyBack", chain)
-        const revenueBuyBack = RevenueBuyBack__factory.connect(revenueBuyBackAddress, signer)
+        const revenueBuyBackAddress = resolveAddress("RevenueSplitBuyBack", chain)
+        const revenueBuyBack = RevenueSplitBuyBack__factory.connect(revenueBuyBackAddress, signer)
 
         const tx = await revenueBuyBack.donateRewards()
         await logTxDetails(tx, `donate purchased MTA to Emissions Controller`)
@@ -252,7 +286,7 @@ task("emissions-process", "Weekly mainnet emissions process")
         // Dial 15 (Votium) is skipped for now
         if (proposal === undefined) {
             await hre.run("votium-forward", { speed, proposal })
-        }        
+        }
         // Distributes to dial 16
         await hre.run("emission-dist", { speed, dialIds: "16" })
 
