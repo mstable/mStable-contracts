@@ -34,7 +34,7 @@ task("upgrade-imusd-polygon", "Upgrade Polygon imUSD save contract imUSD")
         const unwrapperAddress = getChainAddress("Unwrapper", chain)
         const constructorArguments = [nexusAddress, musdAddress, unwrapperAddress]
 
-        // Deploy step 1 - Save Vault
+        // Deploy step 1 - Save Contract
         const saveContractImpl = await deployContract<SavingsContractImusdPolygon22>(
             new SavingsContractImusdPolygon22__factory(signer),
             "mStable: mUSD Savings Contract (imUSD)",

@@ -1,4 +1,4 @@
-import { ZERO_ADDRESS } from "@utils/constants"
+import { ZERO, ZERO_ADDRESS } from "@utils/constants"
 import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
 import { BN, simpleToExactAmount, safeInfinity } from "@utils/math"
 import { expect } from "chai"
@@ -58,6 +58,11 @@ export function shouldBehaveLikeERC4626(ctx: IERC4626BehaviourContext): void {
                 "Invalid beneficiary address",
             )
         })
+        it("fails if preview amount is zero", async () => {
+            await expect(ctx.vault.connect(ctx.sa.default.signer).previewDeposit(ZERO)).to.be.revertedWith(
+                "Must deposit something",
+            )
+        })        
     })
     describe("mint", async () => {
         it("should mint shares to the vault", async () => {

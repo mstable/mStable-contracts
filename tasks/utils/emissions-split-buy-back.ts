@@ -2,7 +2,7 @@
 import { Signer } from "@ethersproject/abstract-signer"
 import { ContractTransaction } from "ethers"
 import { BN, simpleToExactAmount } from "@utils/math"
-import { RevenueSplitBuyBack, ERC20__factory } from "types/generated"
+import { RevenueSplitBuyBack, ERC20__factory, IERC20Metadata } from "types/generated"
 import { EncodedPaths, encodeUniswapPath, getWETHPath, quoteSwap } from "@utils/peripheral/uniswap"
 
 export interface MAssetSwap {
@@ -66,15 +66,15 @@ export const calculateBuyBackRewardsQuote = async (signer: Signer, params: MainP
     const treasuryFee: BN = await revenueSplitBuyBack.treasuryFee()
     const rewardsToken = await revenueSplitBuyBack.REWARDS_TOKEN()
 
-    const rewardsTokenContract = ERC20__factory.connect(rewardsToken, signer)
+    const rewardsTokenContract = (ERC20__factory.connect(rewardsToken, signer) as unknown as IERC20Metadata)
     const rTokenDecimals = await rewardsTokenContract.decimals()
     const rTokenSymbol = await rewardsTokenContract.symbol()
 
     for (let i = 0; i < mAssets.length; i = 1 + 1) {
         const mAsset = mAssets[i]
         const bAsset: string = await revenueSplitBuyBack.bassets(mAsset.address)
-        const mAssetContract = ERC20__factory.connect(mAsset.address, signer)
-        const bAssetContract = ERC20__factory.connect(bAsset, signer)
+        const mAssetContract = (ERC20__factory.connect(mAsset.address, signer)as unknown as IERC20Metadata)
+        const bAssetContract = (ERC20__factory.connect(bAsset, signer)as unknown as IERC20Metadata)
 
         const mAssetBalance: BN = await mAssetContract.balanceOf(revenueSplitBuyBack.address)
         const mAssetSymbol: string = await mAssetContract.symbol()
