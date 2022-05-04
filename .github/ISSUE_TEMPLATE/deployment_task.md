@@ -11,6 +11,7 @@ A clear and concise description including contracts and networks.[...]
 ## Checklist
 The following tasks must be completed previous to the deployment.
 - [ ] Development
+- [ ] if upgraded, verify no collisions on storage layout
 - [ ] Feature branch passed all CI requirements. 
 - [ ] Unit Tests passed
 - [ ] Fork Tests passed, (functional tests, integration tests, deployment tests, upgrade tests)
@@ -22,6 +23,7 @@ The following tasks must be completed previous to the deployment.
   - [ ] Proposed upgrade to smart contract (write down encodeFunctionData)
   - [ ] Accept upgrade to smart contract 
 - [ ] Verify Etherscan
+- [ ] Request labels for Etherscan
 - [ ] Announce it on Discord
 
 
