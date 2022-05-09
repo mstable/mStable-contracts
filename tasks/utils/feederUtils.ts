@@ -1,13 +1,13 @@
+/* eslint-disable @typescript-eslint/no-shadow */
 /* eslint-disable no-restricted-syntax */
 /* eslint-disable no-await-in-loop */
 import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
-import { BN, simpleToExactAmount } from "@utils/math"
+import { BN } from "@utils/math"
 import { Signer } from "ethers"
 import { formatEther } from "ethers/lib/utils"
 import { HardhatRuntimeEnvironment } from "hardhat/types/runtime"
 import {
     FeederPool,
-    NonPeggedFeederPool,
     BoostedVault,
     MockERC20__factory,
     MockInitializableToken__factory,
@@ -15,6 +15,7 @@ import {
     MockERC20,
     FeederPool__factory,
     NonPeggedFeederPool__factory,
+    RebasedFeederPool__factory,
     BoostedVault__factory,
     Masset__factory,
     BoostedDualVault,
@@ -24,7 +25,9 @@ import {
     StakingRewardsWithPlatformToken__factory,
     StakingRewards__factory,
     IRedemptionPriceSnap__factory,
-} from "types/generated"
+    FeederPoolType,
+    FeederPoolTypes,
+} from "types"
 import { deployContract } from "./deploy-utils"
 import { verifyEtherscan } from "./etherscan"
 import { getChain, getChainAddress } from "./networkAddressFactory"
@@ -79,7 +82,12 @@ export const deployFasset = async (
     return new MockERC20__factory(sender).attach(proxy.address)
 }
 
-export const deployFeederPool = async (signer: Signer, feederData: FeederData, hre: HardhatRuntimeEnvironment): Promise<FeederPool> => {
+export const deployFeederPool = async (
+    signer: Signer,
+    feederData: FeederData,
+    hre: HardhatRuntimeEnvironment,
+    type: FeederPoolTypes = FeederPoolTypes.FeederPool,
+): Promise<FeederPool> => {
     const chain = getChain(hre)
     const feederManagerAddress = getChainAddress("FeederManager", chain)
     const feederLogicAddress = getChainAddress("FeederLogic", chain)
@@ -90,17 +98,24 @@ export const deployFeederPool = async (signer: Signer, feederData: FeederData, h
         "contracts/feeders/FeederManager.sol:FeederManager": feederManagerAddress,
     }
 
-    let impl: FeederPool | NonPeggedFeederPool
+    let impl: FeederPoolType
     let fpConstructorArgs: Array<string>
-
-    if (feederData.fAssetRedemptionPriceGetter) {
-        // Update fAssetRedemptionPriceGetter price oracle
-        await IRedemptionPriceSnap__factory.connect(feederData.fAssetRedemptionPriceGetter, signer).updateSnappedPrice()
-        fpConstructorArgs = [getChainAddress("Nexus", chain), feederData.mAsset.address, feederData.fAssetRedemptionPriceGetter]
-        impl = await deployContract(new NonPeggedFeederPool__factory(linkedAddress, signer), "NonPeggedFeederPool", fpConstructorArgs)
-    } else {
-        fpConstructorArgs = [getChainAddress("Nexus", chain), feederData.mAsset.address]
-        impl = await deployContract(new FeederPool__factory(linkedAddress, signer), "FeederPool", fpConstructorArgs)
+    switch (type) {
+        case FeederPoolTypes.NonPeggedFeederPool:
+            // Update fAssetRedemptionPriceGetter price oracle
+            await IRedemptionPriceSnap__factory.connect(feederData.fAssetRedemptionPriceGetter, signer).updateSnappedPrice()
+            fpConstructorArgs = [getChainAddress("Nexus", chain), feederData.mAsset.address, feederData.fAssetRedemptionPriceGetter]
+            impl = await deployContract(new NonPeggedFeederPool__factory(linkedAddress, signer), "NonPeggedFeederPool", fpConstructorArgs)
+            break
+        case FeederPoolTypes.RebasedFeederPool:
+            fpConstructorArgs = [getChainAddress("Nexus", chain), feederData.mAsset.address]
+            impl = await deployContract(new RebasedFeederPool__factory(linkedAddress, signer), "RebasedFeederPool", fpConstructorArgs)
+            break
+        case FeederPoolTypes.FeederPool:
+        default:
+            fpConstructorArgs = [getChainAddress("Nexus", chain), feederData.mAsset.address]
+            impl = await deployContract(new FeederPool__factory(linkedAddress, signer), "FeederPool", fpConstructorArgs)
+            break
     }
 
     await verifyEtherscan(hre, {

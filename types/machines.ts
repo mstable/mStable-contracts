@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-shadow */
 import { BN } from "../test-utils/math"
 import { EthAddress } from "./common"
 import { Basset } from "../test-utils/mstable-objects"
-import { MockERC20 } from "./generated"
+import { MockERC20, FeederPool, NonPeggedFeederPool, RebasedFeederPool } from "./generated"
 
 export interface ATokenDetails {
     bAsset: EthAddress
@@ -50,4 +51,12 @@ export interface ActionDetails {
     expectInteraction: boolean
     amount?: BN
     rawBalance?: BN
+}
+
+export type FeederPoolType = FeederPool | NonPeggedFeederPool | RebasedFeederPool
+
+export enum FeederPoolTypes {
+    FeederPool,
+    NonPeggedFeederPool,
+    RebasedFeederPool,
 }

@@ -11,7 +11,8 @@ import {
     AlchemixIntegration,
     AlchemixIntegration__factory,
     FeederWrapper__factory,
-} from "types/generated"
+    FeederPoolTypes,
+} from "types"
 import { simpleToExactAmount } from "@utils/math"
 import { ALCX, alUSD, BUSD, CREAM, cyMUSD, GUSD, mUSD, tokens } from "./utils/tokens"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
@@ -26,7 +27,9 @@ task("deployFeederPool", "Deploy Feeder Pool")
     .addOptionalParam("min", "Minimum asset weight of the basket as a percentage. eg 10 for 10% of the basket.", 10, types.int)
     .addOptionalParam("max", "Maximum asset weight of the basket as a percentage. eg 90 for 90% of the basket.", 90, types.int)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .addOptionalParam("type", "Type of feeder pool 'FeederPool' | 'RebasedFeederPool'", "FeederPool", types.string)
     .setAction(async (taskArgs, hre) => {
+        // TODO  -  usd+ , no need to add a new one , this can be reused.
         const signer = await getSigner(hre, taskArgs.speed)
         const chain = getChain(hre)
 
@@ -52,7 +55,12 @@ task("deployFeederPool", "Deploy Feeder Pool")
         }
 
         // Deploy Feeder Pool
-        await deployFeederPool(signer, poolData, hre)
+        await deployFeederPool(
+            signer,
+            poolData,
+            hre,
+            taskArgs.max === "FeederPool" ? FeederPoolTypes.FeederPool : FeederPoolTypes.RebasedFeederPool,
+        )
     })
 
 task("deployNonPeggedFeederPool", "Deploy Non Pegged Feeder Pool")
@@ -91,7 +99,7 @@ task("deployNonPeggedFeederPool", "Deploy Non Pegged Feeder Pool")
         }
 
         // Deploy Feeder Pool
-        await deployFeederPool(signer, poolData, hre)
+        await deployFeederPool(signer, poolData, hre, FeederPoolTypes.NonPeggedFeederPool)
     })
 
 task("deployAlcxInt", "Deploy Alchemix integration contract for alUSD Feeder Pool")

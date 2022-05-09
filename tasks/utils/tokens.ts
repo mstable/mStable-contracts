@@ -508,6 +508,8 @@ export const RmBPT: Token = {
     quantityFormatter: "USD",
 }
 
+// TODO - add usd+  configuration here.
+
 export const tokens = [
     AAVE,
     stkAAVE,

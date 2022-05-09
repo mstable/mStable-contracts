@@ -186,7 +186,7 @@ contract FeederPool is
      * @param _input                Address of the bAsset to deposit.
      * @param _inputQuantity        Quantity in input token units.
      * @param _minOutputQuantity    Minimum fpToken quantity to be minted. This protects against slippage.
-     * @param _recipient            Receipient of the newly minted fpTokens
+     * @param _recipient            Recipient of the newly minted fpTokens
      * @return mintOutput           Quantity of fpToken minted from the deposited bAsset.
      */
     function mint(
@@ -219,7 +219,7 @@ contract FeederPool is
      * @param _inputs               Address of the bAssets to deposit.
      * @param _inputQuantities      Quantity in input token units.
      * @param _minOutputQuantity    Minimum fpToken quantity to be minted. This protects against slippage.
-     * @param _recipient            Receipient of the newly minted fpTokens
+     * @param _recipient            Recipient of the newly minted fpTokens
      * @return mintOutput           Quantity of fpToken minted from the deposited bAssets.
      */
     function mintMulti(
@@ -727,7 +727,7 @@ contract FeederPool is
         uint64 endA = ampData_.targetA;
         uint64 endTime = ampData_.rampEndTime;
 
-        // If still changing, work out based on current timestmap
+        // If still changing, work out based on current timestamp
         if (block.timestamp < endTime) {
             uint64 startA = ampData_.initialA;
             uint64 startTime = ampData_.rampStartTime;
@@ -819,7 +819,7 @@ contract FeederPool is
     }
 
     /**
-     * @dev Set the ecosystem fee for sewapping bAssets or redeeming specific bAssets
+     * @dev Set the ecosystem fee for swapping bAssets or redeeming specific bAssets
      * @param _swapFee       Fee calculated in (%/100 * 1e18)
      * @param _redemptionFee Fee calculated in (%/100 * 1e18)
      * @param _govFee        Fee calculated in (%/100 * 1e18)

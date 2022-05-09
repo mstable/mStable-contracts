@@ -30,8 +30,14 @@ describe("Feeder - Mint", () => {
         use2dp = false,
         useRedemptionPrice = false,
     ): Promise<void> => {
-        details = await feederMachine.deployFeeder(feederWeights, mAssetWeights, useLendingMarkets,
-            useInterestValidator, use2dp, useRedemptionPrice)
+        details = await feederMachine.deployFeeder(
+            feederWeights,
+            mAssetWeights,
+            useLendingMarkets,
+            useInterestValidator,
+            use2dp,
+            useRedemptionPrice,
+        )
     }
 
     before("Init contract", async () => {
@@ -142,6 +148,8 @@ describe("Feeder - Mint", () => {
         sender: Account = sa.default,
         quantitiesAreExact = true,
     ): Promise<MintOutput> => {
+        const priceBefore = await fd.pool.getPrice()
+
         const pool = fd.pool.connect(sender.signer)
 
         // Get before balances
@@ -213,6 +221,9 @@ describe("Feeder - Mint", () => {
         // VaultBalance should update for this asset
         const assetAfter = await feederMachine.getAsset(details, inputAsset.address)
         expect(BN.from(assetAfter.vaultBalance), "vault balance after").eq(BN.from(assetBefore.vaultBalance).add(assetQuantityExact))
+        const priceAfter = await fd.pool.getPrice()
+
+        console.log("priceBefore", priceBefore.toString(), "priceAfter", priceAfter.toString())
 
         return {
             outputQuantity: outputQuantityExact,
