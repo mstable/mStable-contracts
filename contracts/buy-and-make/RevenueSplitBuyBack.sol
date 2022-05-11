@@ -214,7 +214,7 @@ contract RevenueSplitBuyBack is IRevenueRecipient, Initializable, ImmutableModul
     }
 
     /**
-     * @notice donates purchased rewards, eg MTA, to staking contracts via the Emissions Controller.
+     * @notice Donates purchased rewards, eg MTA, to staking contracts via the Emissions Controller.
      */
     function donateRewards() external onlyKeeperOrGovernor {
         // STEP 1 - Get the voting power of the staking contracts
