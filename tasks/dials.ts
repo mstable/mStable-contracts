@@ -108,6 +108,7 @@ const dialNames = [
     "Votium",
     "Visor Finance",
     "Vesper Finance",
+    "Idle Finance",
 ]
 
 const dialsDetailsToString = (dialsDetails: Array<DialDetails>) =>
