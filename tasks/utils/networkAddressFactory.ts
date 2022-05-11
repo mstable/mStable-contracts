@@ -67,6 +67,7 @@ export const contractNames = [
     "VisorRouter",
     "VotiumBribe",
     "VotiumForwarder",
+    "IdleForwarder",
 ] as const
 export type ContractNames = typeof contractNames[number]
 
@@ -199,6 +200,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x19bbc3463dd8d07f55438014b021fb457ebd4595"
             case "VotiumForwarder":
                 return "0xb6d519a0D616f6F5Fac2b1dBC5bcb92ea58EDa4a"
+            case "IdleForwarder":
+                return "0xD2192aa940588851541086D03942572E02CF71B4"
             default:
         }
     } else if (chain === Chain.polygon) {
