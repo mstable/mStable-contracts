@@ -4,7 +4,7 @@ import { task, types } from "hardhat/config"
 import { ONE_WEEK } from "@utils/constants"
 
 import { simpleToExactAmount } from "@utils/math"
-import { BoostedDualVault__factory, BoostDirectorV2__factory, BoostDirectorV2 } from "../types/generated"
+import { BoostedDualVault__factory, BoostDirectorV2__factory, BoostDirectorV2, StakedTokenBatcher__factory } from "../types/generated"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getSignerAccount, getSigner } from "./utils/signerFactory"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
@@ -99,4 +99,14 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
         await deployStakingToken(stakingTokenData, deployer, hre, taskArgs.proxy)
     })
 
+    task("StakedTokenBatcher.deploy", "Deploys a Staked Token Batcher")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const stakedTokenBatcher = await deployContract(new StakedTokenBatcher__factory(signer), "GaugeBriber", [])
+        await verifyEtherscan(hre, {
+            address: stakedTokenBatcher.address,
+            contract: "contracts/governance/staking/StakedTokenBatcher.sol:StakedTokenBatcher",
+        })
+    })    
 export {}
