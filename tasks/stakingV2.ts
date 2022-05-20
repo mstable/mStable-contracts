@@ -3,12 +3,83 @@ import { StakedTokenBPT__factory, StakedTokenMTA__factory, StakedToken__factory 
 import { BN, simpleToExactAmount } from "@utils/math"
 import { formatUnits } from "@ethersproject/units"
 import { ONE_WEEK } from "@utils/constants"
+import { gql, GraphQLClient } from "graphql-request"
+import { Signer } from "ethers"
 import { getSigner } from "./utils/signerFactory"
 import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
 import { usdFormatter } from "./utils/quantity-formatters"
 import { getBlock } from "./utils/snap-utils"
 
+interface Account {
+    id: string
+    stakedTokenAccounts: Array<{ id: string }>
+}
+const NO_TIME_MULTIPLIER_UPDATE = "NO_TIME_MULTIPLIER_UPDATE"
+const BATCH_SIZE = 50
+const QUERY_SIZE = 1000
+
+async function fetchAllStakers(): Promise<Array<Account>> {
+    // TODO = it has a limit of 1000 accounts, it needs pagination to bring all accounts or find the way to pass "limit -1" to the query.
+    // https://dune.com/queries/161334/315606
+    const gqlClient = new GraphQLClient("https://api.thegraph.com/subgraphs/name/mstable/mstable-staking")
+    const query = gql`{
+        accounts(first: ${QUERY_SIZE}) {
+          id
+          stakedTokenAccounts {
+            id
+          }
+        }
+        _meta {
+          block {
+            number
+            hash
+          }
+        }
+      }`
+
+    const gqlData = await gqlClient.request(query)
+    const accounts = gqlData.accounts
+    // eslint-disable-next-line no-underscore-dangle
+    const blockNumber = gqlData._meta.block.number
+    console.log(`staked-time:: fetchAllStakersHolders for block number: ${blockNumber} accounts total: ${accounts.length}`)
+    return accounts
+}
+
+
+function filterAccountsByStakingToken(accounts: Array<Account>, stakingTokenAddress: string): Array<string> {
+
+    const isStakingTokenAccount = (account: Account) => account.stakedTokenAccounts.find(a => a.id.toLowerCase().includes(stakingTokenAddress))
+    const stakerHolders = accounts.filter(isStakingTokenAccount).map((a: Account) => a.id)
+
+    console.log(`staked-time:: filterAccountsByStakingToken accounts total: ${accounts.length}`)
+    return stakerHolders
+}
+async function filterAccountsTimeMultiplier(accounts: Array<string>, stakingTokenAddress: string, signer: Signer): Promise<Array<string>> {
+    const stakingToken = StakedToken__factory.connect(stakingTokenAddress, signer)
+
+    const tryReviewTimestamp = async (accountAddress: string): Promise<string> => stakingToken.callStatic.reviewTimestamp(accountAddress).then(() => accountAddress).catch(() => NO_TIME_MULTIPLIER_UPDATE)
+    const accountsToUpdate = []
+    let progress = BATCH_SIZE > accounts.length ? accounts.length : BATCH_SIZE
+    let promises = []
+    for (let i = 0; i < accounts.length; i++) {
+        const accountAddress = accounts[i]
+        promises.push(tryReviewTimestamp(accountAddress))
+        if (progress < i || i === accounts.length - 1) {
+            console.log(`staked-time:: filterAccountsTimeMultiplier validating: ${progress} out of ${accounts.length}`, new Date())
+            progress = progress + BATCH_SIZE > accounts.length ? accounts.length : progress + BATCH_SIZE
+            // eslint-disable-next-line no-await-in-loop
+            const resolved = (await Promise.all(promises)).filter(result => result !== NO_TIME_MULTIPLIER_UPDATE)
+            promises = [] // clean buffer of promises
+            accountsToUpdate.push(...resolved)
+        }
+    }
+    console.log(`staked-time:: filterAccountsTimeMultiplier ${accountsToUpdate.length} out of ${accounts.length}
+    accounts: 
+    ${accountsToUpdate.join(",")}`)
+
+    return accountsToUpdate
+}
 subtask("staked-snap", "Dumps a user's staking token details.")
     .addOptionalParam("asset", "Symbol of staking token. MTA or mBPT", "MTA", types.string)
     .addParam("user", "Address or contract name of user", undefined, types.string)
@@ -266,21 +337,74 @@ task("staked-fees").setAction(async (_, __, runSuper) => {
 })
 
 subtask("staked-time", "Updates a user's time multiplier.")
-    .addParam("user", "Address or contract name of user", undefined, types.string)
+    .addParam("user", "Address or contract name of users, separated by ',' ", undefined, types.string)
     .addOptionalParam("asset", "Symbol of staking token. MTA or mBPT", "MTA", types.string)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed, false)
         const chain = getChain(hre)
-
-        const stakingTokenAddress = resolveAddress("MTA", chain, "vault")
+        console.log(`staked-time user ${taskArgs.user} asset ${taskArgs.asset} speed ${taskArgs.speed}`)
+        const stakingTokenAddress = resolveAddress(taskArgs.asset, chain, "vault")
         const stakingToken = StakedToken__factory.connect(stakingTokenAddress, signer)
+        const users = taskArgs.user.split(",");
+        let totalTxCost = BN.from(0)
+        let progress = BATCH_SIZE > users.length ? users.length : BATCH_SIZE
+        let promises = []
+        const reviewTimestamp = async (accountAddress: string): Promise<BN> => {
+            const tx = await stakingToken.reviewTimestamp(accountAddress)
+            const receipt = await logTxDetails(tx, `update time multiplier for ${accountAddress}`)
+            return receipt.gasUsed.mul(tx.gasPrice ?? 0)
+        }
 
-        const userAddress = resolveAddress(taskArgs.user, chain)
-
-        const tx = await stakingToken.reviewTimestamp(userAddress)
-        await logTxDetails(tx, `update time multiplier`)
+        for (let i = 0; i < users.length; i++) {
+            promises.push(reviewTimestamp(users[i]))
+            if (progress < i || i === users.length - 1) {
+                console.log(`staked-time:: executing ${progress} out of ${users.length}`, new Date())
+                progress = progress + BATCH_SIZE > users.length ? users.length : progress + BATCH_SIZE
+                // eslint-disable-next-line no-await-in-loop
+                totalTxCost = totalTxCost.add((await Promise.all(promises)).reduce((a, b) => a.add(b)))
+                promises = [] // clean buffer of promises
+            }
+        }
+        console.log(`staked-time:: Time multiplier updated for  ${users.length} accounts, total gas ${formatUnits(totalTxCost)} Gwei`)
     })
 task("staked-time").setAction(async (_, __, runSuper) => {
+    await runSuper()
+})
+
+subtask("staked-time-all-users", "Updates all user's time multiplier.")
+    .addOptionalParam("assets", "Symbol of staking token. MTA or mBPT", "MTA,mBPT", types.string)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const chain = getChain(hre)
+        const signer = await getSigner(hre, taskArgs.speed, false)
+
+        const stakingTokens = taskArgs.assets.split(",")
+        const startDate = new Date()
+        console.log(`staked-time-all-user:: assets: ${taskArgs.assets} stakingTokens: ${stakingTokens} ${stakingTokens.length}  startDate: ${startDate}`)
+        const allStakers = await fetchAllStakers()
+        // for each stakingTokens call staked-time
+        for (let i = 0; i < stakingTokens.length; i++) {
+            const stakingTokenAddress = resolveAddress(stakingTokens[i], chain, "vault")
+            console.log(`staked-time:: stakingTokens: ${stakingTokens[i]} chain:${chain} stakingTokenAddress:${stakingTokenAddress}`)
+            let accounts = filterAccountsByStakingToken(allStakers, stakingTokenAddress.toLowerCase())
+            // eslint-disable-next-line no-await-in-loop
+            accounts = await filterAccountsTimeMultiplier(accounts, stakingTokenAddress, signer)
+            if (accounts.length > 0) {
+                // eslint-disable-next-line no-await-in-loop
+                await hre.run("staked-time",
+                    {
+                        user: accounts.join(","),
+                        asset: stakingTokens[i],
+                        speed: taskArgs.speed
+                    });
+            }
+        }
+        const endDate = new Date()
+        const diff = ((endDate.getTime() - startDate.getTime()) / 1000) / 60;
+
+        console.log(`staked-time-all-user:: startDate: ${startDate}, endDate: ${endDate}, process time: ${Math.abs(Math.round(diff))}`)
+    })
+task("staked-time-all-users").setAction(async (_, __, runSuper) => {
     await runSuper()
 })
