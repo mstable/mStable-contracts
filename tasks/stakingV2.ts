@@ -1,5 +1,5 @@
 import { subtask, task, types } from "hardhat/config"
-import { StakedTokenBPT__factory, StakedTokenMTA__factory, StakedToken__factory } from "types/generated"
+import { StakedTokenBPT__factory, StakedTokenMTA__factory, StakedToken__factory, StakedTokenBatcher__factory } from "types/generated"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { formatUnits } from "@ethersproject/units"
 import { ONE_WEEK } from "@utils/constants"
@@ -348,28 +348,11 @@ subtask("staked-time", "Updates a user's time multiplier.")
         const signer = await getSigner(hre, taskArgs.speed, false)
         const chain = getChain(hre)
         const stakingTokenAddress = resolveAddress(taskArgs.asset, chain, "vault")
-        const stakingToken = StakedToken__factory.connect(stakingTokenAddress, signer)
-        const users = taskArgs.user.split(",")
-        let totalTxCost = BN.from(0)
-        let progress = BATCH_SIZE > users.length ? users.length : BATCH_SIZE
-        let promises = []
-        const reviewTimestamp = async (accountAddress: string): Promise<BN> => {
-            const tx = await stakingToken.reviewTimestamp(accountAddress)
-            const receipt = await logTxDetails(tx, `update time multiplier for ${accountAddress}`)
-            return receipt.gasUsed.mul(tx.gasPrice ?? 0)
-        }
+        const stakingTokenBatcher = StakedTokenBatcher__factory.connect(stakingTokenAddress, signer)
 
-        for (let i = 0; i < users.length; i += 1) {
-            promises.push(reviewTimestamp(users[i]))
-            if (progress < i || i === users.length - 1) {
-                log(`executing ${progress} out of ${users.length}`, new Date())
-                progress = progress + BATCH_SIZE > users.length ? users.length : progress + BATCH_SIZE
-                // eslint-disable-next-line no-await-in-loop
-                totalTxCost = totalTxCost.add((await Promise.all(promises)).reduce((a, b) => a.add(b)))
-                promises = [] // clean buffer of promises
-            }
-        }
-        log(`Time multiplier updated for  ${users.length} accounts, total gas ${formatUnits(totalTxCost)} Gwei`)
+        const users: Array<string> = taskArgs.user.split(",")
+        const tx = await stakingTokenBatcher.reviewTimestamp(stakingTokenAddress, users)
+        await logTxDetails(tx, `update time multiplier for ${users.length} users`)
     })
 task("staked-time").setAction(async (_, __, runSuper) => {
     await runSuper()
