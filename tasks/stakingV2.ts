@@ -6,11 +6,12 @@ import { ONE_WEEK } from "@utils/constants"
 import { gql, GraphQLClient } from "graphql-request"
 import { Signer } from "ethers"
 import { getSigner } from "./utils/signerFactory"
-import { logTxDetails } from "./utils/deploy-utils"
+import { logTxDetails, logger } from "./utils/deploy-utils"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
 import { usdFormatter } from "./utils/quantity-formatters"
 import { getBlock } from "./utils/snap-utils"
 
+const log = logger("stakingV2")
 interface Account {
     id: string
     stakedTokenAccounts: Array<{ id: string }>
@@ -42,39 +43,42 @@ async function fetchAllStakers(): Promise<Array<Account>> {
     const accounts = gqlData.accounts
     // eslint-disable-next-line no-underscore-dangle
     const blockNumber = gqlData._meta.block.number
-    console.log(`staked-time:: fetchAllStakersHolders for block number: ${blockNumber} accounts total: ${accounts.length}`)
+    log(`fetchAllStakersHolders for block number: ${blockNumber} accounts total: ${accounts.length}`)
     return accounts
 }
 
-
 function filterAccountsByStakingToken(accounts: Array<Account>, stakingTokenAddress: string): Array<string> {
+    const isStakingTokenAccount = (account: Account) =>
+        account.stakedTokenAccounts.find((a) => a.id.toLowerCase().includes(stakingTokenAddress))
+    const stakeHolders = accounts.filter(isStakingTokenAccount).map((a: Account) => a.id)
 
-    const isStakingTokenAccount = (account: Account) => account.stakedTokenAccounts.find(a => a.id.toLowerCase().includes(stakingTokenAddress))
-    const stakerHolders = accounts.filter(isStakingTokenAccount).map((a: Account) => a.id)
-
-    console.log(`staked-time:: filterAccountsByStakingToken accounts total: ${accounts.length}`)
-    return stakerHolders
+    log(`filterAccountsByStakingToken accounts total: ${accounts.length}`)
+    return stakeHolders
 }
 async function filterAccountsTimeMultiplier(accounts: Array<string>, stakingTokenAddress: string, signer: Signer): Promise<Array<string>> {
     const stakingToken = StakedToken__factory.connect(stakingTokenAddress, signer)
 
-    const tryReviewTimestamp = async (accountAddress: string): Promise<string> => stakingToken.callStatic.reviewTimestamp(accountAddress).then(() => accountAddress).catch(() => NO_TIME_MULTIPLIER_UPDATE)
+    const tryReviewTimestamp = async (accountAddress: string): Promise<string> =>
+        stakingToken.callStatic
+            .reviewTimestamp(accountAddress)
+            .then(() => accountAddress)
+            .catch(() => NO_TIME_MULTIPLIER_UPDATE)
     const accountsToUpdate = []
     let progress = BATCH_SIZE > accounts.length ? accounts.length : BATCH_SIZE
     let promises = []
-    for (let i = 0; i < accounts.length; i++) {
+    for (let i = 0; i < accounts.length; i += 1) {
         const accountAddress = accounts[i]
         promises.push(tryReviewTimestamp(accountAddress))
         if (progress < i || i === accounts.length - 1) {
-            console.log(`staked-time:: filterAccountsTimeMultiplier validating: ${progress} out of ${accounts.length}`, new Date())
+            log(`filterAccountsTimeMultiplier validating: ${progress} out of ${accounts.length}`, new Date())
             progress = progress + BATCH_SIZE > accounts.length ? accounts.length : progress + BATCH_SIZE
             // eslint-disable-next-line no-await-in-loop
-            const resolved = (await Promise.all(promises)).filter(result => result !== NO_TIME_MULTIPLIER_UPDATE)
+            const resolved = (await Promise.all(promises)).filter((result) => result !== NO_TIME_MULTIPLIER_UPDATE)
             promises = [] // clean buffer of promises
             accountsToUpdate.push(...resolved)
         }
     }
-    console.log(`staked-time:: filterAccountsTimeMultiplier ${accountsToUpdate.length} out of ${accounts.length}
+    log(`filterAccountsTimeMultiplier ${accountsToUpdate.length} out of ${accounts.length}
     accounts: 
     ${accountsToUpdate.join(",")}`)
 
@@ -343,10 +347,9 @@ subtask("staked-time", "Updates a user's time multiplier.")
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed, false)
         const chain = getChain(hre)
-        console.log(`staked-time user ${taskArgs.user} asset ${taskArgs.asset} speed ${taskArgs.speed}`)
         const stakingTokenAddress = resolveAddress(taskArgs.asset, chain, "vault")
         const stakingToken = StakedToken__factory.connect(stakingTokenAddress, signer)
-        const users = taskArgs.user.split(",");
+        const users = taskArgs.user.split(",")
         let totalTxCost = BN.from(0)
         let progress = BATCH_SIZE > users.length ? users.length : BATCH_SIZE
         let promises = []
@@ -356,17 +359,17 @@ subtask("staked-time", "Updates a user's time multiplier.")
             return receipt.gasUsed.mul(tx.gasPrice ?? 0)
         }
 
-        for (let i = 0; i < users.length; i++) {
+        for (let i = 0; i < users.length; i += 1) {
             promises.push(reviewTimestamp(users[i]))
             if (progress < i || i === users.length - 1) {
-                console.log(`staked-time:: executing ${progress} out of ${users.length}`, new Date())
+                log(`executing ${progress} out of ${users.length}`, new Date())
                 progress = progress + BATCH_SIZE > users.length ? users.length : progress + BATCH_SIZE
                 // eslint-disable-next-line no-await-in-loop
                 totalTxCost = totalTxCost.add((await Promise.all(promises)).reduce((a, b) => a.add(b)))
                 promises = [] // clean buffer of promises
             }
         }
-        console.log(`staked-time:: Time multiplier updated for  ${users.length} accounts, total gas ${formatUnits(totalTxCost)} Gwei`)
+        log(`Time multiplier updated for  ${users.length} accounts, total gas ${formatUnits(totalTxCost)} Gwei`)
     })
 task("staked-time").setAction(async (_, __, runSuper) => {
     await runSuper()
@@ -381,29 +384,28 @@ subtask("staked-time-all-users", "Updates all user's time multiplier.")
 
         const stakingTokens = taskArgs.assets.split(",")
         const startDate = new Date()
-        console.log(`staked-time-all-user:: assets: ${taskArgs.assets} stakingTokens: ${stakingTokens} ${stakingTokens.length}  startDate: ${startDate}`)
+        log(`assets: ${taskArgs.assets} stakingTokens: ${stakingTokens} ${stakingTokens.length}  startDate: ${startDate}`)
         const allStakers = await fetchAllStakers()
         // for each stakingTokens call staked-time
-        for (let i = 0; i < stakingTokens.length; i++) {
+        for (let i = 0; i < stakingTokens.length; i += 1) {
             const stakingTokenAddress = resolveAddress(stakingTokens[i], chain, "vault")
-            console.log(`staked-time:: stakingTokens: ${stakingTokens[i]} chain:${chain} stakingTokenAddress:${stakingTokenAddress}`)
+            log(`stakingTokens: ${stakingTokens[i]} chain:${chain} stakingTokenAddress:${stakingTokenAddress}`)
             let accounts = filterAccountsByStakingToken(allStakers, stakingTokenAddress.toLowerCase())
             // eslint-disable-next-line no-await-in-loop
             accounts = await filterAccountsTimeMultiplier(accounts, stakingTokenAddress, signer)
             if (accounts.length > 0) {
                 // eslint-disable-next-line no-await-in-loop
-                await hre.run("staked-time",
-                    {
-                        user: accounts.join(","),
-                        asset: stakingTokens[i],
-                        speed: taskArgs.speed
-                    });
+                await hre.run("staked-time", {
+                    user: accounts.join(","),
+                    asset: stakingTokens[i],
+                    speed: taskArgs.speed,
+                })
             }
         }
         const endDate = new Date()
-        const diff = ((endDate.getTime() - startDate.getTime()) / 1000) / 60;
+        const diff = (endDate.getTime() - startDate.getTime()) / 1000 / 60
 
-        console.log(`staked-time-all-user:: startDate: ${startDate}, endDate: ${endDate}, process time: ${Math.abs(Math.round(diff))}`)
+        log(`staked-time-all-user:: startDate: ${startDate}, endDate: ${endDate}, process time: ${Math.abs(Math.round(diff))}`)
     })
 task("staked-time-all-users").setAction(async (_, __, runSuper) => {
     await runSuper()
