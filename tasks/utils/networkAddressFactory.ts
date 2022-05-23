@@ -41,6 +41,7 @@ export const contractNames = [
     "QuestSigner",
     "StakedTokenMTA",
     "StakedTokenBPT",
+    "StakedTokenBatcher",
     "PlatformTokenVendorFactory",
     "BalancerVault",
     "BalancerRecipient",
@@ -67,7 +68,9 @@ export const contractNames = [
     "VisorRouter",
     "VotiumBribe",
     "VotiumForwarder",
+    "VisorForwarder",
     "IdleForwarder",
+    "TreasuryDAOForwarder",
 ] as const
 export type ContractNames = typeof contractNames[number]
 
@@ -162,6 +165,8 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x8f2326316eC696F6d023E37A9931c2b2C177a3D7"
             case "StakedTokenBPT":
                 return "0xeFbe22085D9f29863Cfb77EEd16d3cC0D927b011"
+            case "StakedTokenBatcher":
+                return "0xB40DC45576Cb3B70A1a56E91A120768F76A82042"
             case "AaveIncentivesController":
                 return "0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5"
             case "AaveLendingPoolAddressProvider":
@@ -200,6 +205,10 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0x19bbc3463dd8d07f55438014b021fb457ebd4595"
             case "VotiumForwarder":
                 return "0xb6d519a0D616f6F5Fac2b1dBC5bcb92ea58EDa4a"
+            case "VisorForwarder":
+                return "0xceF5df9d514bF0619c2ee87e2dDF1Af93FfAc0F6"
+            case "TreasuryDAOForwarder":
+                return "0x4b27BaD829092229D2461633A3c08e284BdcBC3A"
             case "IdleForwarder":
                 return "0xD2192aa940588851541086D03942572E02CF71B4"
             default:

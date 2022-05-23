@@ -4,7 +4,7 @@ import { subtask, task, types } from "hardhat/config"
 import { IChildToken__factory, IRootChainManager__factory } from "types/generated"
 import { simpleToExactAmount } from "@utils/math"
 import { ethers } from "ethers"
-import { logTxDetails, logger } from "./utils"
+import { logTxDetails } from "./utils"
 import { getSigner } from "./utils/signerFactory"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
 
