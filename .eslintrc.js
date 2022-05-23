@@ -41,6 +41,7 @@ module.exports = {
                 enforceForRenamedProperties: false,
             },
         ],
+        "no-plusplus": ["error", { allowForLoopAfterthoughts: true }],
     },
     overrides: [
         {

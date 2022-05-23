@@ -166,7 +166,7 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
             case "StakedTokenBPT":
                 return "0xeFbe22085D9f29863Cfb77EEd16d3cC0D927b011"
             case "StakedTokenBatcher":
-                return "TODO_AFTER_DEPLOYMENT"
+                return "0xB40DC45576Cb3B70A1a56E91A120768F76A82042"
             case "AaveIncentivesController":
                 return "0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5"
             case "AaveLendingPoolAddressProvider":

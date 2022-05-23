@@ -99,14 +99,14 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
         await deployStakingToken(stakingTokenData, deployer, hre, taskArgs.proxy)
     })
 
-    task("StakedTokenBatcher.deploy", "Deploys a Staked Token Batcher")
+task("StakedTokenBatcher.deploy", "Deploys a Staked Token Batcher")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)
-        const stakedTokenBatcher = await deployContract(new StakedTokenBatcher__factory(signer), "GaugeBriber", [])
+        const stakedTokenBatcher = await deployContract(new StakedTokenBatcher__factory(signer), "StakedTokenBatcher", [])
         await verifyEtherscan(hre, {
             address: stakedTokenBatcher.address,
             contract: "contracts/governance/staking/StakedTokenBatcher.sol:StakedTokenBatcher",
         })
-    })    
+    })
 export {}
