@@ -19,8 +19,11 @@ contract StakedTokenBatcher {
         IStakedToken stakedToken = IStakedToken(_stakedToken);
         uint256 len = _accounts.length;
         require(len > 0, "Invalid inputs");
-        for (uint256 i = 0; i < len; i++) {
+        for (uint256 i = 0; i < len; ) {
             stakedToken.reviewTimestamp(_accounts[i]);
+            unchecked {
+                ++i;
+            }
         }
     }
 }
