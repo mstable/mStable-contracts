@@ -78,7 +78,7 @@ async function filterAccountsTimeMultiplier(accounts: Array<string>, stakingToke
             accountsToUpdate.push(...resolved)
         }
     }
-    log(`filterAccountsTimeMultiplier ${accountsToUpdate.length} out of ${accounts.length}
+    log(`filterAccountsTimeMultiplier accounts to update ${accountsToUpdate.length} out of ${accounts.length}
     accounts: 
     ${accountsToUpdate.join(",")}`)
 
@@ -341,16 +341,17 @@ task("staked-fees").setAction(async (_, __, runSuper) => {
 })
 
 subtask("staked-time", "Updates a user's time multiplier.")
-    .addParam("user", "Address or contract name of users, separated by ',' ", undefined, types.string)
+    .addParam("users", "Address or contract name of users, separated by ',' ", undefined, types.string)
     .addOptionalParam("asset", "Symbol of staking token. MTA or mBPT", "MTA", types.string)
-    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "safeLow", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed, false)
         const chain = getChain(hre)
         const stakingTokenAddress = resolveAddress(taskArgs.asset, chain, "vault")
-        const stakingTokenBatcher = StakedTokenBatcher__factory.connect(stakingTokenAddress, signer)
+        const stakingTokenBatcherAddress = resolveAddress("StakedTokenBatcher", chain)
+        const stakingTokenBatcher = StakedTokenBatcher__factory.connect(stakingTokenBatcherAddress, signer)
 
-        const users: Array<string> = taskArgs.user.split(",")
+        const users: Array<string> = taskArgs.users.split(",")
         const tx = await stakingTokenBatcher.reviewTimestamp(stakingTokenAddress, users)
         await logTxDetails(tx, `update time multiplier for ${users.length} users`)
     })
@@ -360,7 +361,7 @@ task("staked-time").setAction(async (_, __, runSuper) => {
 
 subtask("staked-time-all-users", "Updates all user's time multiplier.")
     .addOptionalParam("assets", "Symbol of staking token. MTA or mBPT", "MTA,mBPT", types.string)
-    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "safeLow", types.string)
     .setAction(async (taskArgs, hre) => {
         const chain = getChain(hre)
         const signer = await getSigner(hre, taskArgs.speed, false)
@@ -379,7 +380,7 @@ subtask("staked-time-all-users", "Updates all user's time multiplier.")
             if (accounts.length > 0) {
                 // eslint-disable-next-line no-await-in-loop
                 await hre.run("staked-time", {
-                    user: accounts.join(","),
+                    users: accounts.join(","),
                     asset: stakingTokens[i],
                     speed: taskArgs.speed,
                 })
