@@ -309,7 +309,7 @@ export const getMints = async (
     logs.forEach((log: any) => {
         const inputBasset = bAssets.find((b) => b.address === log.args.input)
         if (!inputBasset) {
-            throw Error(`Failed to find bAsset with address ${log.args.input}`)
+            throw Error(`Failed to find bAsset with address ${log.args.input} for tx ${log.transactionHash}`)
         }
         // mAssetQuantity is for Masset. output is for FeederPool
         const quantity = log.args.mAssetQuantity || log.args.output
@@ -761,7 +761,7 @@ export const getCompTokens = async (
     console.log(`COMP/USDC exchange rate: ${compUsdc.exchangeRate}`)
 
     const liquidator = await Liquidator__factory.connect(liquidatorAddress, signer)
-    const liqData = await liquidator.liquidations(USDC.integrator)
+    const liqData = await liquidator.liquidations(USDC.integrator, { blockTag: toBlock.blockNumber })
     console.log(`Min COMP/USDC rate ${formatUnits(liqData.minReturn, USDC.decimals)}`)
     const nextRunFromTimestamp = liqData.lastTriggered.add(ONE_WEEK)
     console.log(`Next run ${new Date(nextRunFromTimestamp.toNumber() * 1000)}`)
