@@ -7,3 +7,4 @@ coverage
 # no generated types
 types/generated
 test-utils/env_setup.ts
+eth-sdk/config.ts
