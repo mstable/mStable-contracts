@@ -2,7 +2,7 @@ import { impersonateAccount } from "@utils/fork"
 import { ethers, network } from "hardhat"
 import { Account, ERC20 } from "types"
 
-import { getMainnetSdk } from "@dethcrypto/eth-sdk-client"
+// import { getMainnetSdk } from "@dethcrypto/eth-sdk-client"
 
 import { expect } from "chai"
 import { BN, simpleToExactAmount } from "@utils/math"
