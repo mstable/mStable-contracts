@@ -1,8 +1,8 @@
-import { ethers } from "hardhat"
+import { BN, simpleToExactAmount } from "@utils/math"
 import { expect } from "chai"
+import { ethers } from "hardhat"
 
-import { simpleToExactAmount, BN } from "@utils/math"
-import { ExposedMassetLogic } from "types/generated"
+import type { ExposedMassetLogic } from "types/generated"
 
 const config = {
     supply: BN.from(0),

@@ -1,9 +1,12 @@
+import { MassetMachine } from "@utils/machines"
 import { expect } from "chai"
 import { ethers } from "hardhat"
-import { MassetMachine } from "@utils/machines"
 import { DelayedClaimableGovernor__factory } from "types/generated"
-import { shouldBehaveLikeDelayedClaimable, IGovernableBehaviourContext } from "./DelayedClaimableGovernor.behaviour"
+
 import { shouldBehaveLikeClaimable } from "./ClaimableGovernor.behaviour"
+import { shouldBehaveLikeDelayedClaimable } from "./DelayedClaimableGovernor.behaviour"
+
+import type { IGovernableBehaviourContext } from "./DelayedClaimableGovernor.behaviour"
 
 describe("DelayedClaimableGovernor", () => {
     const ctx: Partial<IGovernableBehaviourContext> = {}

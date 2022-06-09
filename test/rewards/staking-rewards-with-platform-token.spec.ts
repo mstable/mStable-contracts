@@ -6,20 +6,17 @@ import { BN, simpleToExactAmount } from "@utils/math"
 import { getTimestamp, increaseTime } from "@utils/time"
 import { expect } from "chai"
 import { ethers } from "hardhat"
-import { Account } from "types"
 import {
     AssetProxy__factory,
-    ExposedMasset,
-    FeederPool,
-    MockERC20,
     MockERC20__factory,
-    MockNexus,
     MockNexus__factory,
     MockSavingsContract__factory,
     PlatformTokenVendor__factory,
-    StakingRewardsWithPlatformToken,
     StakingRewardsWithPlatformToken__factory,
 } from "types/generated"
+
+import type { Account } from "types"
+import type { ExposedMasset, FeederPool, MockERC20, MockNexus, StakingRewardsWithPlatformToken } from "types/generated"
 
 interface StakingData {
     totalSupply: BN

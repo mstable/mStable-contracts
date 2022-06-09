@@ -1,9 +1,11 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
 
+import { simpleToExactAmount } from "@utils/math"
 import { task } from "hardhat/config"
-import { RevenueRecipient__factory, MockERC20__factory, CRPFactory__factory, ConfigurableRightsPool__factory } from "types/generated"
-import { simpleToExactAmount, BN } from "@utils/math"
+import { ConfigurableRightsPool__factory, CRPFactory__factory, MockERC20__factory, RevenueRecipient__factory } from "types/generated"
+
+import type { BN } from "@utils/math"
 
 interface Config {
     deployer: string

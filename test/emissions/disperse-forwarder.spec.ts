@@ -1,18 +1,13 @@
 import { MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
+import { MassetMachine } from "@utils/machines"
 import { simpleToExactAmount } from "@utils/math"
 import { expect } from "chai"
 import { ethers } from "hardhat"
-import { Account } from "types/common"
-import {
-    MockERC20,
-    MockNexus,
-    MockNexus__factory,
-    MockDisperse,
-    MockDisperse__factory,
-    DisperseForwarder,
-    DisperseForwarder__factory,
-} from "types/generated"
+import { DisperseForwarder__factory, MockDisperse__factory, MockNexus__factory } from "types/generated"
+
+import type { StandardAccounts } from "@utils/machines"
+import type { Account } from "types/common"
+import type { DisperseForwarder, MockDisperse, MockERC20, MockNexus } from "types/generated"
 
 describe("DisperseForwarder", () => {
     let sa: StandardAccounts

@@ -1,11 +1,13 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
+
 import { task, types } from "hardhat/config"
-import { GaugeBriber__factory, ERC20__factory, SavingsManager__factory } from "types/generated"
+import { ERC20__factory, GaugeBriber__factory, SavingsManager__factory } from "types/generated"
+
 import { deployContract } from "./utils/deploy-utils"
-import { getSigner } from "./utils/signerFactory"
 import { verifyEtherscan } from "./utils/etherscan"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
+import { getSigner } from "./utils/signerFactory"
 
 task("deploy-GaugeBriber")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)

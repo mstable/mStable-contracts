@@ -1,8 +1,10 @@
 import { fullScale, ratioScale } from "@utils/constants"
 import { BN, simpleToExactAmount } from "@utils/math"
-import { ethers } from "hardhat"
-import { PublicStableMath, PublicStableMath__factory } from "types/generated"
 import { expect } from "chai"
+import { ethers } from "hardhat"
+import { PublicStableMath__factory } from "types/generated"
+
+import type { PublicStableMath } from "types/generated"
 
 describe("StableMath", async () => {
     let math: PublicStableMath

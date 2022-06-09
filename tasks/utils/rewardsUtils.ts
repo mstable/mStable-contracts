@@ -1,25 +1,26 @@
-import { BigNumberish } from "@ethersproject/bignumber"
-import { Contract } from "@ethersproject/contracts"
 import { formatBytes32String } from "@ethersproject/strings"
-import { Signer } from "ethers"
-import { Account } from "types/common"
-import { HardhatRuntimeEnvironment } from "hardhat/types/runtime"
 import {
     AssetProxy__factory,
-    InstantProxyAdmin__factory,
-    PlatformTokenVendorFactory__factory,
-    L2BridgeRecipient,
-    L2BridgeRecipient__factory,
-    BridgeForwarder,
     BridgeForwarder__factory,
+    InstantProxyAdmin__factory,
+    L2BridgeRecipient__factory,
+    PlatformTokenVendorFactory__factory,
     QuestManager__factory,
     SignatureVerifier__factory,
     StakedTokenBPT__factory,
     StakedTokenMTA__factory,
 } from "types/generated"
-import { deployContract } from "./deploy-utils"
+
 import { verifyEtherscan } from "./etherscan"
 import { getChain, getChainAddress, resolveAddress } from "./networkAddressFactory"
+
+import type { BigNumberish } from "@ethersproject/bignumber"
+import type { Contract } from "@ethersproject/contracts"
+import type { Signer } from "ethers"
+import type { HardhatRuntimeEnvironment } from "hardhat/types/runtime"
+import type { Account } from "types/common"
+import type { BridgeForwarder, L2BridgeRecipient } from "types/generated"
+import { deployContract } from "./deploy-utils"
 
 export interface StakedTokenData {
     rewardsTokenSymbol: string

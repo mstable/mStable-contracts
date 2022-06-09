@@ -1,10 +1,12 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
+
 import { task, types } from "hardhat/config"
 import { RevenueForwarder__factory } from "types/generated"
+
 import { deployContract } from "./utils/deploy-utils"
-import { getSigner } from "./utils/signerFactory"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
+import { getSigner } from "./utils/signerFactory"
 
 task("deploy-RevenueForwarder")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)

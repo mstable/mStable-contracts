@@ -1,16 +1,21 @@
 /* eslint-disable consistent-return */
 
-import { StandardAccounts, MassetMachine } from "@utils/machines"
-import { ZERO_ADDRESS, DEAD_ADDRESS, fullScale, MAX_UINT256 } from "@utils/constants"
-import { BN, simpleToExactAmount } from "@utils/math"
-import { MockCToken, MockCToken__factory, MockERC20, MockERC20__factory, MockNexus, MockNexus__factory } from "types/generated"
-import { ethers } from "hardhat"
-import { CompoundIntegration } from "types/generated/CompoundIntegration"
-import { expect } from "chai"
-import { CompoundIntegration__factory } from "types/generated/factories/CompoundIntegration__factory"
-import { BassetIntegrationDetails, Account } from "types"
 import { assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent } from "@utils/assertions"
-import { shouldBehaveLikeModule, IModuleBehaviourContext } from "../../shared/Module.behaviour"
+import { DEAD_ADDRESS, fullScale, MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
+import { BN, simpleToExactAmount } from "@utils/math"
+import { expect } from "chai"
+import { ethers } from "hardhat"
+import { MockCToken__factory, MockERC20__factory, MockNexus__factory } from "types/generated"
+import { CompoundIntegration__factory } from "types/generated/factories/CompoundIntegration__factory"
+
+import type { StandardAccounts } from "@utils/machines"
+import type { Account, BassetIntegrationDetails } from "types"
+import type { MockCToken, MockERC20, MockNexus } from "types/generated"
+import type { CompoundIntegration } from "types/generated/CompoundIntegration"
+import { shouldBehaveLikeModule } from "../../shared/Module.behaviour"
+
+import type { IModuleBehaviourContext } from "../../shared/Module.behaviour"
 
 const convertUnderlyingToCToken = async (cToken: MockCToken, underlyingAmount: BN): Promise<BN> => {
     const exchangeRate = await cToken.exchangeRateStored()

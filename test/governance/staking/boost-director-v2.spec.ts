@@ -1,22 +1,16 @@
 /* eslint-disable no-underscore-dangle */
 
-import { ethers } from "hardhat"
-import { expect } from "chai"
-import { BN } from "@utils/math"
-import { StandardAccounts, MassetMachine } from "@utils/machines"
 import { DEAD_ADDRESS } from "@utils/constants"
-import {
-    MockStakingContract,
-    MockStakingContract__factory,
-    MockNexus,
-    MockNexus__factory,
-    MockBoostedVault,
-    MockBoostedVault__factory,
-    BoostDirectorV2__factory,
-    BoostDirectorV2,
-} from "types/generated"
-import { Account } from "types"
-import { Contract } from "@ethersproject/contracts"
+import { MassetMachine } from "@utils/machines"
+import { BN } from "@utils/math"
+import { expect } from "chai"
+import { ethers } from "hardhat"
+import { BoostDirectorV2__factory, MockBoostedVault__factory, MockNexus__factory, MockStakingContract__factory } from "types/generated"
+
+import type { Contract } from "@ethersproject/contracts"
+import type { StandardAccounts } from "@utils/machines"
+import type { Account } from "types"
+import type { BoostDirectorV2, MockBoostedVault, MockNexus, MockStakingContract } from "types/generated"
 
 const vaultNumbers = [...Array(7).keys()]
 

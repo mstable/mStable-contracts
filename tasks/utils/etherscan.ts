@@ -1,4 +1,4 @@
-import { HardhatRuntimeEnvironment } from "hardhat/types"
+import type { HardhatRuntimeEnvironment } from "hardhat/types"
 
 export const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 

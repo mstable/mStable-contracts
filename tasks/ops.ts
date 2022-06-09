@@ -1,22 +1,21 @@
+import { BN, simpleToExactAmount } from "@utils/math"
+import { DefenderRelayProvider, DefenderRelaySigner } from "defender-relay-client/lib/ethers"
 import { task, types } from "hardhat/config"
 import {
-    PAaveIntegration__factory,
-    PLiquidator__factory,
-    SavingsManager__factory,
     AssetProxy__factory,
-    QuestManager__factory,
     ERC20__factory,
+    QuestManager__factory,
     RevenueRecipient__factory,
+    SavingsManager__factory,
 } from "types/generated"
 import { QuestType } from "types/stakedToken"
-import { DefenderRelayProvider, DefenderRelaySigner } from "defender-relay-client/lib/ethers"
-import { BN, simpleToExactAmount } from "@utils/math"
-import { PmUSD, PUSDC, tokens } from "./utils/tokens"
-import { getSigner } from "./utils/signerFactory"
+
 import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
-import { getBlockRange } from "./utils/snap-utils"
 import { getQueuedUsersForQuest, hasUserCompletedQuest, signQuestUsers } from "./utils/quest-utils"
+import { getSigner } from "./utils/signerFactory"
+import { getBlockRange } from "./utils/snap-utils"
+import { PmUSD, tokens } from "./utils/tokens"
 
 task("collect-interest", "Collects and streams interest from platforms")
     .addParam(

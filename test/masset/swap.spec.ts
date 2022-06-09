@@ -1,14 +1,15 @@
-import { Signer } from "ethers"
-import { ethers } from "hardhat"
-import { expect } from "chai"
-
-import { simpleToExactAmount, BN } from "@utils/math"
-import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
-import { Masset, MockERC20 } from "types/generated"
+import { assertBasketIsHealthy, assertBNSlightlyGTPercent } from "@utils/assertions"
 import { fullScale, ratioScale, ZERO_ADDRESS } from "@utils/constants"
-import { assertBNSlightlyGTPercent, assertBasketIsHealthy } from "@utils/assertions"
+import { MassetMachine } from "@utils/machines"
+import { BN, simpleToExactAmount } from "@utils/math"
 import { BassetStatus } from "@utils/mstable-objects"
-import { Account } from "types"
+import { expect } from "chai"
+import { ethers } from "hardhat"
+
+import type { MassetDetails, StandardAccounts } from "@utils/machines"
+import type { Signer } from "ethers"
+import type { Account } from "types"
+import type { Masset, MockERC20 } from "types/generated"
 
 // (AS) - test cases to add:
 //  - whenHealthy flag

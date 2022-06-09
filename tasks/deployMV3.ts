@@ -1,9 +1,9 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
 
-import { task } from "hardhat/config"
 import { DEAD_ADDRESS } from "@utils/constants"
 import { simpleToExactAmount } from "@utils/math"
+import { task } from "hardhat/config"
 
 const defaultConfig = {
     a: 120,

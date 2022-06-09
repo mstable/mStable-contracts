@@ -1,20 +1,14 @@
 import { assertBNClose } from "@utils/assertions"
 import { DEAD_ADDRESS, fullScale, MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
+import { MassetMachine } from "@utils/machines"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { feederData } from "@utils/validator-data"
-
 import { expect } from "chai"
 import { ethers } from "hardhat"
-import {
-    ExposedFeederLogic,
-    ExposedFeederLogic__factory,
-    FeederLogic__factory,
-    FeederPool,
-    MockERC20,
-    FeederManager__factory,
-    FeederPool__factory,
-} from "types/generated"
+import { ExposedFeederLogic__factory, FeederLogic__factory, FeederManager__factory } from "types/generated"
+
+import type { StandardAccounts } from "@utils/machines"
+import type { ExposedFeederLogic, FeederPool, FeederPool__factory, MockERC20 } from "types/generated"
 
 const { mintData, mintMultiData, redeemData, redeemExactData, redeemProportionalData, swapData } = feederData
 

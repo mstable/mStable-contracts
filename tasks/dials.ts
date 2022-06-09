@@ -1,8 +1,10 @@
-import { BN, sum, percentToWeight, simpleToExactAmount } from "@utils/math"
-import { task, types } from "hardhat/config"
 import "ts-node/register"
 import "tsconfig-paths/register"
+
+import { task, types } from "hardhat/config"
+import { BN, percentToWeight, simpleToExactAmount, sum } from "@utils/math"
 import { EmissionsController__factory, IERC20__factory, StakedTokenMTA__factory } from "types/generated"
+
 import { MTA, usdFormatter } from "./utils"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getSigner } from "./utils/signerFactory"

@@ -10,24 +10,27 @@ import { ethers } from "hardhat"
 import { BN, increaseTime, simpleToExactAmount } from "index"
 import {
     AssetProxy__factory,
-    L2EmissionsController,
-    L2EmissionsController__factory,
-    EmissionsController,
+    BridgeForwarder__factory,
     EmissionsController__factory,
-    IRootChainManager,
-    MockERC20,
+    L2BridgeRecipient__factory,
+    L2EmissionsController__factory,
     MockERC20__factory,
-    MockNexus,
     MockNexus__factory,
-    MockRewardsDistributionRecipient,
     MockRewardsDistributionRecipient__factory,
     MockRootChainManager__factory,
-    MockStakingContract,
     MockStakingContract__factory,
-    L2BridgeRecipient,
+} from "types/generated"
+
+import type {
     BridgeForwarder,
-    BridgeForwarder__factory,
-    L2BridgeRecipient__factory,
+    EmissionsController,
+    IRootChainManager,
+    L2BridgeRecipient,
+    L2EmissionsController,
+    MockERC20,
+    MockNexus,
+    MockRewardsDistributionRecipient,
+    MockStakingContract,
 } from "types/generated"
 
 const defaultConfig = {

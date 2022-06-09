@@ -2,36 +2,41 @@
 /* eslint-disable no-restricted-syntax */
 import "ts-node/register"
 import "tsconfig-paths/register"
-import { task, types } from "hardhat/config"
-import { Signer } from "ethers"
 
-import { Masset, MassetManager__factory, Masset__factory, SavingsManager__factory } from "types/generated"
 import { BN } from "@utils/math"
+import { task, types } from "hardhat/config"
+import { Masset__factory, MassetManager__factory, SavingsManager__factory } from "types/generated"
 import { MusdEth__factory } from "types/generated/factories/MusdEth__factory"
 import { MusdLegacy__factory } from "types/generated/factories/MusdLegacy__factory"
-import { MusdLegacy } from "types/generated/MusdLegacy"
-import { MusdEth } from "types/generated/MusdEth"
-import { dumpBassetStorage, dumpConfigStorage, dumpTokenStorage } from "./utils/storage-utils"
-import {
-    getMultiRedemptions,
-    getBlock,
-    getBlockRange,
-    getBasket,
-    snapConfig,
-    getMints,
-    getMultiMints,
-    getSwaps,
-    getRedemptions,
-    outputFees,
-    getBalances,
-    snapSave,
-    getCollectedInterest,
-} from "./utils/snap-utils"
-import { Token, sUSD, USDC, DAI, USDT, PUSDT, PUSDC, PDAI, mUSD, PmUSD, MmUSD, RmUSD, Chain } from "./utils/tokens"
-import { usdFormatter } from "./utils/quantity-formatters"
-import { getSwapRates } from "./utils/rates-utils"
+
+import type { Signer } from "ethers"
 import { getSigner } from "./utils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
+import { usdFormatter } from "./utils/quantity-formatters"
+import { getSwapRates } from "./utils/rates-utils"
+import {
+    getBalances,
+    getBasket,
+    getBlock,
+    getBlockRange,
+    getCollectedInterest,
+    getMints,
+    getMultiMints,
+    getMultiRedemptions,
+    getRedemptions,
+    getSwaps,
+    outputFees,
+    snapConfig,
+    snapSave,
+} from "./utils/snap-utils"
+import { dumpBassetStorage, dumpConfigStorage, dumpTokenStorage } from "./utils/storage-utils"
+import { Chain, DAI, MmUSD, mUSD, PDAI, PmUSD, PUSDC, PUSDT, RmUSD, sUSD, USDC, USDT } from "./utils/tokens"
+
+import type { Masset } from "types/generated"
+import type { MusdEth } from "types/generated/MusdEth"
+import type { MusdLegacy } from "types/generated/MusdLegacy"
+
+import type { Token } from "./utils/tokens"
 
 const mUsdBassets: Token[] = [sUSD, USDC, DAI, USDT]
 const mUsdPolygonBassets: Token[] = [PUSDC, PDAI, PUSDT]

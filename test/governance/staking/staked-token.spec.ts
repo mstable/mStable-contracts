@@ -1,33 +1,33 @@
 /* eslint-disable no-restricted-syntax */
 /* eslint-disable no-await-in-loop */
 /* eslint-disable @typescript-eslint/no-unused-expressions */
+import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
+import { BN, simpleToExactAmount } from "@utils/math"
+import { advanceBlock, getTimestamp, increaseTime } from "@utils/time"
+import { expect } from "chai"
+import { formatBytes32String } from "ethers/lib/utils"
 import { ethers } from "hardhat"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
-import { MockNexus__factory } from "types/generated/factories/MockNexus__factory"
+import { assertBNClose, DEAD_ADDRESS } from "index"
+import { signQuestUsers, signUserQuests } from "tasks/utils/quest-utils"
 import {
     AssetProxy__factory,
-    QuestManager__factory,
-    MockERC20,
-    MockERC20__factory,
-    MockNexus,
-    PlatformTokenVendorFactory__factory,
-    SignatureVerifier__factory,
-    StakedToken,
-    StakedTokenWrapper__factory,
-    StakedToken__factory,
-    QuestManager,
     MockEmissionController__factory,
+    MockERC20__factory,
+    PlatformTokenVendorFactory__factory,
+    QuestManager__factory,
+    SignatureVerifier__factory,
+    StakedToken__factory,
+    StakedTokenWrapper__factory,
 } from "types"
-import { assertBNClose, DEAD_ADDRESS } from "index"
-import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
-import { BN, simpleToExactAmount } from "@utils/math"
-import { expect } from "chai"
-import { advanceBlock, getTimestamp, increaseTime } from "@utils/time"
-import { formatBytes32String } from "ethers/lib/utils"
-import { Signer } from "ethers"
-import { QuestStatus, QuestType, UserStakingData } from "types/stakedToken"
-import { Block } from "@ethersproject/abstract-provider"
-import { signQuestUsers, signUserQuests } from "tasks/utils/quest-utils"
+import { MockNexus__factory } from "types/generated/factories/MockNexus__factory"
+import { QuestStatus, QuestType } from "types/stakedToken"
+
+import type { Block } from "@ethersproject/abstract-provider"
+import type { StandardAccounts } from "@utils/machines"
+import type { Signer } from "ethers"
+import type { MockERC20, MockNexus, QuestManager, StakedToken } from "types"
+import type { UserStakingData } from "types/stakedToken"
 
 /**
  * Calculate the new weighted timestamp after a stake or withdraw

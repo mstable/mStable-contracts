@@ -2,27 +2,25 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
 
-import { subtask, task, types } from "hardhat/config"
-import {
-    AaveV2Integration,
-    AaveV2Integration__factory,
-    DelayedProxyAdmin__factory,
-    Liquidator,
-    Liquidator__factory,
-    Masset__factory,
-    PAaveIntegration,
-    PAaveIntegration__factory,
-    Unliquidator,
-    Unliquidator__factory,
-} from "types/generated"
+import { ZERO_ADDRESS } from "@utils/constants"
 import { simpleToExactAmount } from "@utils/math"
 import { encodeUniswapPath } from "@utils/peripheral/uniswap"
-import { ZERO_ADDRESS } from "@utils/constants"
+import { subtask, task, types } from "hardhat/config"
+import {
+    AaveV2Integration__factory,
+    DelayedProxyAdmin__factory,
+    Liquidator__factory,
+    Masset__factory,
+    PAaveIntegration__factory,
+    Unliquidator__factory,
+} from "types/generated"
+
+import type { AaveV2Integration, Liquidator, PAaveIntegration, Unliquidator } from "types/generated"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
-import { AAVE, ALCX, Chain, COMP, stkAAVE, tokens } from "./utils/tokens"
+import { verifyEtherscan } from "./utils/etherscan"
 import { getChain, getChainAddress, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
 import { getSigner } from "./utils/signerFactory"
-import { verifyEtherscan } from "./utils/etherscan"
+import { AAVE, ALCX, Chain, COMP, stkAAVE, tokens } from "./utils/tokens"
 
 task("integration-aave-deploy", "Deploys an instance of AaveV2Integration contract")
     .addParam(

@@ -1,6 +1,9 @@
 import { DEAD_ADDRESS } from "@utils/constants"
 import { ethereumAddress } from "@utils/regex"
-import { AssetAddressTypes, Chain, Token, tokens } from "./tokens"
+
+import { Chain, tokens } from "./tokens"
+
+import type { AssetAddressTypes, Token } from "./tokens"
 
 export const contractNames = [
     "Nexus",

@@ -1,14 +1,15 @@
+import { assertBasketIsHealthy, assertBNClosePercent, assertBNSlightlyGTPercent } from "@utils/assertions"
+import { ZERO_ADDRESS } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
+import { applyRatio, BN, simpleToExactAmount } from "@utils/math"
+import { BassetStatus } from "@utils/mstable-objects"
 import { expect } from "chai"
-import { Signer } from "ethers"
 import { ethers } from "hardhat"
 
-import { assertBasketIsHealthy, assertBNClosePercent, assertBNSlightlyGTPercent } from "@utils/assertions"
-import { applyRatio, BN, simpleToExactAmount } from "@utils/math"
-import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
-import { BassetStatus } from "@utils/mstable-objects"
-import { ZERO_ADDRESS } from "@utils/constants"
-import { Masset, MockERC20 } from "types/generated"
-import { Account } from "types"
+import type { MassetDetails, StandardAccounts } from "@utils/machines"
+import type { Signer } from "ethers"
+import type { Account } from "types"
+import type { Masset, MockERC20 } from "types/generated"
 
 interface MintOutput {
     mAssets: BN

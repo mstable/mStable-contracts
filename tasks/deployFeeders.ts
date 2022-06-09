@@ -3,21 +3,18 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
 
-import { task, types } from "hardhat/config"
-import {
-    FeederPool__factory,
-    CompoundIntegration__factory,
-    CompoundIntegration,
-    AlchemixIntegration,
-    AlchemixIntegration__factory,
-    FeederWrapper__factory,
-} from "types/generated"
 import { simpleToExactAmount } from "@utils/math"
-import { ALCX, alUSD, BUSD, CREAM, cyMUSD, GUSD, mUSD, tokens } from "./utils/tokens"
+import { task, types } from "hardhat/config"
+import { AlchemixIntegration__factory, CompoundIntegration__factory, FeederPool__factory, FeederWrapper__factory } from "types/generated"
+
+import type { AlchemixIntegration, CompoundIntegration } from "types/generated"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
-import { getSigner } from "./utils/signerFactory"
-import { deployFeederPool, deployVault, FeederData, VaultData } from "./utils/feederUtils"
+import { deployFeederPool, deployVault } from "./utils/feederUtils"
 import { getChain, getChainAddress, resolveToken } from "./utils/networkAddressFactory"
+import { getSigner } from "./utils/signerFactory"
+import { ALCX, alUSD, BUSD, CREAM, cyMUSD, GUSD, mUSD, tokens } from "./utils/tokens"
+
+import type { FeederData, VaultData } from "./utils/feederUtils"
 
 task("deployFeederPool", "Deploy Feeder Pool")
     .addParam("masset", "Token symbol of mAsset. eg mUSD", "mUSD", types.string)

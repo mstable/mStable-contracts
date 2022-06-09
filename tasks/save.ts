@@ -1,9 +1,10 @@
+import { simpleToExactAmount } from "@utils/math"
 import { subtask, task, types } from "hardhat/config"
 import { SavingsContract__factory } from "types/generated"
-import { simpleToExactAmount } from "@utils/math"
-import { getSignerAccount } from "./utils/signerFactory"
+
 import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
+import { getSignerAccount } from "./utils/signerFactory"
 
 subtask("save-deposit", "Deposit to savings contract")
     .addParam("masset", "Symbol of the mAsset. eg mUSD or mBTC", undefined, types.string)

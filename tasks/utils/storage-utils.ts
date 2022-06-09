@@ -1,12 +1,14 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-restricted-syntax */
-import { FeederPool, Masset, MV1, MV2 } from "types/generated"
 import { BasketManager__factory } from "types/generated/factories/BasketManager__factory"
-import { MusdEth } from "types/generated/MusdEth"
-import { MusdLegacy } from "types/generated/MusdLegacy"
+
+import type { FeederPool, Masset, MV1, MV2 } from "types/generated"
 import { getChainAddress } from "./networkAddressFactory"
 import { isFeederPool, isMusdEth, isMusdLegacy } from "./snap-utils"
 import { Chain } from "./tokens"
+
+import type { MusdEth } from "types/generated/MusdEth"
+import type { MusdLegacy } from "types/generated/MusdLegacy"
 
 // Get mAsset token storage variables
 export const dumpTokenStorage = async (token: Masset | MusdEth | MusdLegacy | FeederPool, toBlock: number): Promise<void> => {

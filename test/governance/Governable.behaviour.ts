@@ -1,7 +1,8 @@
-import { expect } from "chai"
-import { Governable } from "types/generated/Governable"
 import { ZERO_ADDRESS } from "@utils/constants"
-import { Account } from "types"
+import { expect } from "chai"
+
+import type { Account } from "types"
+import type { Governable } from "types/generated/Governable"
 
 export interface IGovernableBehaviourContext {
     governable: Governable

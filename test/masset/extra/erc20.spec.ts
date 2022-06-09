@@ -1,8 +1,11 @@
 import { MassetMachine } from "@utils/machines"
 import { simpleToExactAmount } from "@utils/math"
 import { ethers } from "hardhat"
-import { ERC20 } from "types/generated/ERC20"
-import { IERC20BehaviourContext, shouldBehaveLikeERC20 } from "../../shared/ERC20.behaviour"
+
+import type { ERC20 } from "types/generated/ERC20"
+import { shouldBehaveLikeERC20 } from "../../shared/ERC20.behaviour"
+
+import type { IERC20BehaviourContext } from "../../shared/ERC20.behaviour"
 
 describe("Masset - ERC20", () => {
     const ctx: Partial<IERC20BehaviourContext> = {}

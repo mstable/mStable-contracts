@@ -1,29 +1,27 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 
-import { ethers } from "hardhat"
-import { expect } from "chai"
-import { simpleToExactAmount, BN } from "@utils/math"
 import { assertBNClose, assertBNClosePercent, assertBNSlightlyGTPercent } from "@utils/assertions"
-import { StandardAccounts, MassetMachine } from "@utils/machines"
-import { fullScale, ZERO_ADDRESS, ZERO, MAX_UINT256, TEN_MINS, ONE_DAY, DEAD_ADDRESS, ONE_WEEK, ONE_MIN } from "@utils/constants"
+import { DEAD_ADDRESS, fullScale, MAX_UINT256, ONE_DAY, ONE_MIN, ONE_WEEK, TEN_MINS, ZERO, ZERO_ADDRESS } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
+import { BN, simpleToExactAmount } from "@utils/math"
 import { getTimestamp, increaseTime } from "@utils/time"
+import { expect } from "chai"
+import { ethers } from "hardhat"
 import {
-    SavingsContract,
-    MockNexus__factory,
-    MockNexus,
-    MockMasset,
     MockMasset__factory,
-    SavingsContract__factory,
-    SavingsManager,
-    SavingsManager__factory,
-    PausableModule,
-    MockERC20,
+    MockNexus__factory,
     MockRevenueRecipient__factory,
+    SavingsContract__factory,
+    SavingsManager__factory,
     Unwrapper__factory,
-    Unwrapper,
 } from "types/generated"
-import { Account } from "types"
-import { shouldBehaveLikePausableModule, IPausableModuleBehaviourContext } from "../shared/PausableModule.behaviour"
+
+import type { StandardAccounts } from "@utils/machines"
+import type { Account } from "types"
+import type { MockERC20, MockMasset, MockNexus, PausableModule, SavingsContract, SavingsManager, Unwrapper } from "types/generated"
+import { shouldBehaveLikePausableModule } from "../shared/PausableModule.behaviour"
+
+import type { IPausableModuleBehaviourContext } from "../shared/PausableModule.behaviour"
 
 describe("SavingsManager", async () => {
     const TEN = BN.from(10)

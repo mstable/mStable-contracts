@@ -1,12 +1,12 @@
 /* eslint-disable no-restricted-syntax */
-import { subtask, task, types } from "hardhat/config"
-
-import { IChildToken__factory, IRootChainManager__factory } from "types/generated"
 import { simpleToExactAmount } from "@utils/math"
 import { ethers } from "ethers"
+import { subtask, task, types } from "hardhat/config"
+import { IChildToken__factory, IRootChainManager__factory } from "types/generated"
+
 import { logTxDetails } from "./utils"
-import { getSigner } from "./utils/signerFactory"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
+import { getSigner } from "./utils/signerFactory"
 
 subtask("bridge-deposit", "Sends mainnet token to Polygon across Polygon's PoS Bridge")
     .addOptionalParam("token", "Symbol of mainnet token that is to be sent. eg MTA or mBTC", "MTA", types.string)

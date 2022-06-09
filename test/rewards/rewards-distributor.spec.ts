@@ -1,19 +1,16 @@
+import { ZERO_ADDRESS } from "@utils/constants"
 import { StandardAccounts } from "@utils/machines"
 import { simpleToExactAmount } from "@utils/math"
-
-import { ZERO_ADDRESS } from "@utils/constants"
+import { expect } from "chai"
+import { ethers } from "hardhat"
 import {
-    MockERC20,
     MockERC20__factory,
-    MockNexus,
     MockNexus__factory,
-    MockRewardsDistributionRecipient,
     MockRewardsDistributionRecipient__factory,
-    RewardsDistributor,
     RewardsDistributor__factory,
 } from "types/generated"
-import { ethers } from "hardhat"
-import { expect } from "chai"
+
+import type { MockERC20, MockNexus, MockRewardsDistributionRecipient, RewardsDistributor } from "types/generated"
 
 describe("RewardsDistributor", async () => {
     let sa: StandardAccounts

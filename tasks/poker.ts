@@ -3,15 +3,18 @@
 import { formatUnits } from "@ethersproject/units"
 import { fullScale } from "@utils/constants"
 import { BN, simpleToExactAmount } from "@utils/math"
-import { Signer } from "ethers"
 import { Contract, Provider } from "ethers-multicall"
 import { gql, GraphQLClient } from "graphql-request"
 import { task, types } from "hardhat/config"
-import { BoostedVault__factory, Poker, Poker__factory } from "types/generated"
-import { getSigner } from "./utils/signerFactory"
+import { BoostedVault__factory, Poker__factory } from "types/generated"
+
+import type { Signer } from "ethers"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
-import { mBTC, mUSD, GUSD, BUSD, HBTC, TBTC, alUSD, TBTCv2, RAI, FEI } from "./utils/tokens"
+import { getSigner } from "./utils/signerFactory"
+import { alUSD, BUSD, FEI, GUSD, HBTC, mBTC, mUSD, RAI, TBTC, TBTCv2 } from "./utils/tokens"
+
+import type { Poker } from "types/generated"
 
 const maxVMTA = simpleToExactAmount(600000, 18)
 const maxBoost = simpleToExactAmount(3, 18)

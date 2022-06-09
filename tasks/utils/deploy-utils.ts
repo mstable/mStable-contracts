@@ -1,6 +1,7 @@
 import { formatUnits } from "@ethersproject/units"
 import debug from "debug"
-import { Contract, ContractFactory, ContractReceipt, ContractTransaction, Overrides } from "ethers"
+
+import type { Contract, ContractFactory, ContractReceipt, ContractTransaction, Overrides } from "ethers"
 
 export const deployContract = async <T extends Contract>(
     contractFactory: ContractFactory,

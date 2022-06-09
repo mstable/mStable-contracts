@@ -1,9 +1,10 @@
 import axios from "axios"
 import { subtask, task, types } from "hardhat/config"
 import { IEjector__factory, IncentivisedVotingLockup__factory } from "types/generated"
-import { getSigner } from "./utils/signerFactory"
+
 import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
+import { getSigner } from "./utils/signerFactory"
 
 task("eject-stakers", "Ejects expired stakers from Meta staking contract (vMTA)")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)

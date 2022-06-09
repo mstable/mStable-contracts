@@ -1,9 +1,11 @@
 import { ZERO, ZERO_ADDRESS } from "@utils/constants"
-import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
-import { BN, simpleToExactAmount, safeInfinity } from "@utils/math"
+import { safeInfinity, simpleToExactAmount } from "@utils/math"
 import { expect } from "chai"
-import { Account } from "types"
-import { ERC20, ERC205, IERC20Metadata, IERC4626Vault } from "types/generated"
+
+import type { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
+import type { BN } from "@utils/math"
+import type { Account } from "types"
+import type { ERC20, ERC205, IERC20Metadata, IERC4626Vault } from "types/generated"
 
 export interface IERC4626BehaviourContext {
     vault: IERC4626Vault
@@ -59,10 +61,8 @@ export function shouldBehaveLikeERC4626(ctx: IERC4626BehaviourContext): void {
             )
         })
         it("fails if preview amount is zero", async () => {
-            await expect(ctx.vault.connect(ctx.sa.default.signer).previewDeposit(ZERO)).to.be.revertedWith(
-                "Must deposit something",
-            )
-        })        
+            await expect(ctx.vault.connect(ctx.sa.default.signer).previewDeposit(ZERO)).to.be.revertedWith("Must deposit something")
+        })
     })
     describe("mint", async () => {
         it("should mint shares to the vault", async () => {

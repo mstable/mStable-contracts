@@ -1,13 +1,14 @@
-import { ethers } from "hardhat"
-import { expect } from "chai"
-
 import { assertBNClosePercent } from "@utils/assertions"
-import { simpleToExactAmount } from "@utils/math"
-import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
-
 import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
-import { AssetProxy__factory, ExposedMasset, MassetLogic, MassetManager } from "types/generated"
-import { BasketComposition } from "types"
+import { MassetMachine } from "@utils/machines"
+import { simpleToExactAmount } from "@utils/math"
+import { expect } from "chai"
+import { ethers } from "hardhat"
+import { AssetProxy__factory } from "types/generated"
+
+import type { MassetDetails, StandardAccounts } from "@utils/machines"
+import type { BasketComposition } from "types"
+import type { ExposedMasset, MassetLogic, MassetManager } from "types/generated"
 
 describe("Masset - basic fns", () => {
     let sa: StandardAccounts

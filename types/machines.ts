@@ -1,7 +1,7 @@
-import { BN } from "../test-utils/math"
-import { EthAddress } from "./common"
-import { Basset } from "../test-utils/mstable-objects"
-import { MockERC20 } from "./generated"
+import type { BN } from "../test-utils/math"
+import type { Basset } from "../test-utils/mstable-objects"
+import type { EthAddress } from "./common"
+import type { MockERC20 } from "./generated"
 
 export interface ATokenDetails {
     bAsset: EthAddress

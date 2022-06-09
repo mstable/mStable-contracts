@@ -1,33 +1,37 @@
-import { Signer } from "@ethersproject/abstract-signer"
-import { BN } from "@utils/math"
-import { HardhatRuntimeEnvironment } from "hardhat/types"
 import {
     AssetProxy__factory,
-    BasicRewardsForwarder,
+    BalRewardsForwarder__factory,
     BasicRewardsForwarder__factory,
-    BridgeForwarder,
     BridgeForwarder__factory,
-    DisperseForwarder,
     DisperseForwarder__factory,
-    VotiumBribeForwarder,
-    VotiumBribeForwarder__factory,
-    EmissionsController,
     EmissionsController__factory,
-    L2BridgeRecipient,
     L2BridgeRecipient__factory,
-    L2EmissionsController,
     L2EmissionsController__factory,
-    RevenueBuyBack,
     RevenueBuyBack__factory,
     RevenueSplitBuyBack__factory,
-    RevenueSplitBuyBack,
-    BalRewardsForwarder,
-    BalRewardsForwarder__factory,
+    VotiumBribeForwarder__factory,
 } from "types/generated"
+
+import type { Signer } from "@ethersproject/abstract-signer"
 import { deployContract, logTxDetails } from "./deploy-utils"
 import { verifyEtherscan } from "./etherscan"
 import { getChain, resolveAddress } from "./networkAddressFactory"
 import { Chain } from "./tokens"
+
+import type { BN } from "@utils/math"
+import type { HardhatRuntimeEnvironment } from "hardhat/types"
+import type {
+    BalRewardsForwarder,
+    BasicRewardsForwarder,
+    BridgeForwarder,
+    DisperseForwarder,
+    EmissionsController,
+    L2BridgeRecipient,
+    L2EmissionsController,
+    RevenueBuyBack,
+    RevenueSplitBuyBack,
+    VotiumBribeForwarder,
+} from "types/generated"
 
 export const deployEmissionsController = async (signer: Signer, hre: HardhatRuntimeEnvironment): Promise<EmissionsController> => {
     const chain = getChain(hre)

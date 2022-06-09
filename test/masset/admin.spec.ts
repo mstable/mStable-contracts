@@ -1,24 +1,16 @@
-import { ethers } from "hardhat"
-import { expect } from "chai"
-
-import { simpleToExactAmount, BN } from "@utils/math"
-import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
-
+import { assertBNClose, assertBNSlightlyGTPercent } from "@utils/assertions"
 import { DEAD_ADDRESS, MAX_UINT256, ONE_DAY, ONE_HOUR, ONE_WEEK, TEN_MINS, ZERO_ADDRESS } from "@utils/constants"
-import {
-    Masset,
-    MockPlatformIntegration,
-    MaliciousAaveIntegration,
-    MaliciousAaveIntegration__factory,
-    MockERC20,
-    MockPlatformIntegration__factory,
-    ExposedMasset,
-    MockNexus__factory,
-} from "types/generated"
-import { assertBNSlightlyGTPercent, assertBNClose } from "@utils/assertions"
-import { keccak256, toUtf8Bytes } from "ethers/lib/utils"
+import { MassetMachine } from "@utils/machines"
+import { BN, simpleToExactAmount } from "@utils/math"
 import { BassetStatus } from "@utils/mstable-objects"
 import { getTimestamp, increaseTime } from "@utils/time"
+import { expect } from "chai"
+import { keccak256, toUtf8Bytes } from "ethers/lib/utils"
+import { ethers } from "hardhat"
+import { MaliciousAaveIntegration__factory, MockNexus__factory, MockPlatformIntegration__factory } from "types/generated"
+
+import type { MassetDetails, StandardAccounts } from "@utils/machines"
+import type { ExposedMasset, MaliciousAaveIntegration, Masset, MockERC20, MockPlatformIntegration } from "types/generated"
 
 describe("Masset Admin", () => {
     let sa: StandardAccounts

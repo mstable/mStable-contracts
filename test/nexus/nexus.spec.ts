@@ -1,13 +1,19 @@
-import { expect } from "chai"
-import { keccak256, toUtf8Bytes, hexlify } from "ethers/lib/utils"
-import { ethers } from "hardhat"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
+import { KEY_SAVINGS_MANAGER, ONE_DAY, ONE_WEEK, ZERO, ZERO_ADDRESS, ZERO_KEY } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
 import { BN } from "@utils/math"
-import { DelayedClaimableGovernor, Nexus, Nexus__factory } from "types/generated"
 import { getTimestamp, increaseTime } from "@utils/time"
-import { ONE_WEEK, ZERO_ADDRESS, KEY_SAVINGS_MANAGER, ONE_DAY, ZERO, ZERO_KEY } from "@utils/constants"
-import { shouldBehaveLikeDelayedClaimable, IGovernableBehaviourContext } from "../governance/DelayedClaimableGovernor.behaviour"
+import { expect } from "chai"
+import { hexlify, keccak256, toUtf8Bytes } from "ethers/lib/utils"
+import { ethers } from "hardhat"
+import { Nexus__factory } from "types/generated"
+
+import type { StandardAccounts } from "@utils/machines"
 import { shouldBehaveLikeClaimable } from "../governance/ClaimableGovernor.behaviour"
+import { shouldBehaveLikeDelayedClaimable } from "../governance/DelayedClaimableGovernor.behaviour"
+
+import type { DelayedClaimableGovernor, Nexus } from "types/generated"
+
+import type { IGovernableBehaviourContext } from "../governance/DelayedClaimableGovernor.behaviour"
 
 /** @dev Uses generic module getter to validate that a module exists with the specified properties */
 async function expectInModules(nexus: Nexus, _key: string, _addr: string, _isLocked: boolean): Promise<void> {

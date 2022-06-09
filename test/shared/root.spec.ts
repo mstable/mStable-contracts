@@ -1,7 +1,9 @@
 import { BN } from "@utils/math"
-import { ethers } from "hardhat"
-import { MockRoot, MockRoot__factory } from "types/generated"
 import { expect } from "chai"
+import { ethers } from "hardhat"
+import { MockRoot__factory } from "types/generated"
+
+import type { MockRoot } from "types/generated"
 
 describe("Root", () => {
     let root: MockRoot

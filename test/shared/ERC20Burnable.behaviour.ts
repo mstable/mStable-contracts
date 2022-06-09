@@ -1,10 +1,10 @@
+import { ZERO_ADDRESS } from "@utils/constants"
+import { BN } from "@utils/math"
 import { expect } from "chai"
 
-import { BN } from "@utils/math"
-import { ZERO_ADDRESS } from "@utils/constants"
-import { ERC20Burnable } from "types/generated"
-import { Account } from "types"
-import { ContractTransaction } from "ethers"
+import type { ContractTransaction } from "ethers"
+import type { Account } from "types"
+import type { ERC20Burnable } from "types/generated"
 
 export interface IERC20BurnableBehaviourContext {
     burnableToken: ERC20Burnable

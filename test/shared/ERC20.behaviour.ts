@@ -1,10 +1,10 @@
+import { ZERO_ADDRESS } from "@utils/constants"
+import { BN } from "@utils/math"
 import { expect } from "chai"
 
-import { BN } from "@utils/math"
-import { MassetMachine, MassetDetails } from "@utils/machines"
-import { ZERO_ADDRESS } from "@utils/constants"
-import { ERC20 } from "types/generated"
-import { Account, EthAddress } from "types"
+import type { MassetDetails, MassetMachine } from "@utils/machines"
+import type { Account, EthAddress } from "types"
+import type { ERC20 } from "types/generated"
 
 export interface IERC20BehaviourContext {
     token: ERC20

@@ -1,7 +1,10 @@
-import { ethers } from "hardhat"
 import { MassetMachine } from "@utils/machines"
+import { ethers } from "hardhat"
 import { MockGovernable__factory } from "types/generated"
-import { shouldBehaveLikeGovernable, IGovernableBehaviourContext } from "./Governable.behaviour"
+
+import { shouldBehaveLikeGovernable } from "./Governable.behaviour"
+
+import type { IGovernableBehaviourContext } from "./Governable.behaviour"
 
 describe("Governable", () => {
     const ctx: Partial<IGovernableBehaviourContext> = {}

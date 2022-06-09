@@ -1,26 +1,29 @@
-import { ethers } from "hardhat"
-import { expect } from "chai"
-
-import { simpleToExactAmount } from "@utils/math"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
-
-import {
-    MockERC20,
-    MockNexus__factory,
-    MockNexus,
-    RevenueBuyBack__factory,
-    RevenueBuyBack,
-    MockUniswapV3,
-    MockUniswapV3__factory,
-    EmissionsController,
-    MockStakingContract,
-    MockStakingContract__factory,
-    MockMasset__factory,
-    MockMasset,
-    EmissionsController__factory,
-} from "types/generated"
-import { EncodedPaths, encodeUniswapPath } from "@utils/peripheral/uniswap"
 import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
+import { simpleToExactAmount } from "@utils/math"
+import { encodeUniswapPath } from "@utils/peripheral/uniswap"
+import { expect } from "chai"
+import { ethers } from "hardhat"
+import {
+    EmissionsController__factory,
+    MockMasset__factory,
+    MockNexus__factory,
+    MockStakingContract__factory,
+    MockUniswapV3__factory,
+    RevenueBuyBack__factory,
+} from "types/generated"
+
+import type { StandardAccounts } from "@utils/machines"
+import type { EncodedPaths } from "@utils/peripheral/uniswap"
+import type {
+    EmissionsController,
+    MockERC20,
+    MockMasset,
+    MockNexus,
+    MockStakingContract,
+    MockUniswapV3,
+    RevenueBuyBack,
+} from "types/generated"
 
 describe("RevenueBuyBack", () => {
     let sa: StandardAccounts
