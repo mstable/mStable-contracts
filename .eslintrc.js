@@ -21,10 +21,31 @@ module.exports = {
             },
         },
     },
+    plugins: ["@typescript-eslint", "unused-imports", "simple-import-sort", "prettier"],
     rules: {
         "import/no-extraneous-dependencies": "off",
         "no-console": "off",
         "import/prefer-default-export": "off",
+        "unused-imports/no-unused-imports": "error",
+        "simple-import-sort/imports": [
+            "warn",
+            {
+                groups: [
+                    // Side effect imports
+                    ["^\\u0000"],
+                    // React Package(s) comes first as seperate group
+                    ["^react(-dom(/client)?)?$"],
+                    // All other imports
+                    ["^@?\\w"],
+                    ["^((?!\\u0000$)|/.*|$)"],
+                    ["^\\."],
+                    // Type imports: keep these last!
+                    ["^@?\\w.*\\u0000$"],
+                    ["^.*\\u0000$"],
+                    ["^\\..*\\u0000$"],
+                ],
+            },
+        ],
         "no-nested-ternary": 1,
         "no-await-in-loop": 1,
         "no-restricted-syntax": 1,
@@ -32,6 +53,7 @@ module.exports = {
         "@typescript-eslint/no-use-before-define": 1,
         "@typescript-eslint/no-loop-func": 1,
         "@typescript-eslint/no-unused-expressions": 1,
+        "@typescript-eslint/consistent-type-imports": "error",
         "lines-between-class-members": 0,
         "prefer-destructuring": [
             1,
