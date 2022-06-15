@@ -18,13 +18,11 @@ The following tasks must be completed previous to the deployment.
 - [ ] Code Coverage passed at https://coveralls.io/ 
 - [ ] Deployment hardhat tasks created.
     - [ ] Double check constructor arguments, initialize functions.
-- [ ] MIP Created and approved 
 - [ ] Deployment 
   - [ ] Proposed upgrade to smart contract (write down encodeFunctionData)
   - [ ] Accept upgrade to smart contract 
 - [ ] Verify Etherscan
 - [ ] Request labels for Etherscan
-- [ ] Announce it on Discord
 
 
 ## Artifacts 
