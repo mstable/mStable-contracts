@@ -60,6 +60,7 @@ contract BasicRewardsForwarder is
      */
     function notifyRewardAmount(uint256 _rewards)
         external
+        virtual
         override(IRewardsDistributionRecipient)
         onlyRewardsDistributor
     {

@@ -80,7 +80,7 @@ task("claim-comp").setAction(async (_, __, runSuper) => {
 
 task("claim-aave", "Call liquidator to claim stkAAVE")
     .addOptionalParam("basset", "Symbol of bAsset in AAVE. eg USDT, WBTC, BUSD or RAI", "USDT", types.string)
-    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "average", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)
         const chain = getChain(hre)

@@ -21,6 +21,8 @@ import {
     RevenueBuyBack__factory,
     RevenueSplitBuyBack__factory,
     RevenueSplitBuyBack,
+    BalRewardsForwarder,
+    BalRewardsForwarder__factory,
 } from "types/generated"
 import { deployContract, logTxDetails } from "./deploy-utils"
 import { verifyEtherscan } from "./etherscan"
@@ -351,4 +353,39 @@ export const deploySplitRevenueBuyBack = async (
     })
 
     return revenueBuyBack
+}
+
+export const deployBalRewardsForwarder = async (
+    signer: Signer,
+    emissionsControllerAddress: string,
+    recipient: string,
+    hre: HardhatRuntimeEnvironment,
+    owner?: string,
+): Promise<BasicRewardsForwarder> => {
+    const chain = getChain(hre)
+    const nexusAddress = resolveAddress("Nexus", chain)
+    const rewardsAddress = resolveAddress("MTA", chain)
+    const recipientAddress = resolveAddress(recipient, chain)
+    const ownerAddress = owner ? resolveAddress(owner, chain) : undefined
+
+    const constructorArguments = [nexusAddress, rewardsAddress]
+    const forwarder = await deployContract<BalRewardsForwarder>(new BalRewardsForwarder__factory(signer), "BalRewardsForwarder", [
+        nexusAddress,
+        rewardsAddress,
+    ])
+    const tx1 = await forwarder.initialize(emissionsControllerAddress, recipientAddress)
+    await logTxDetails(tx1, "initialize")
+
+    if (ownerAddress) {
+        const tx2 = await forwarder.transferOwnership(ownerAddress)
+        await logTxDetails(tx2, "transferOwnership")
+    }
+
+    await verifyEtherscan(hre, {
+        address: forwarder.address,
+        constructorArguments,
+        contract: "contracts/emissions/BalRewardsForwarder.sol:BalRewardsForwarder",
+    })
+
+    return forwarder
 }

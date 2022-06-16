@@ -5,8 +5,8 @@ import { Signer } from "ethers"
 import { resolveAddress } from "tasks/utils/networkAddressFactory"
 import { Chain, MTA, PBAL, PFRAX, PMTA, PmUSD } from "tasks/utils/tokens"
 import {
-    DisperseForwarder,
-    DisperseForwarder__factory,
+    BalRewardsForwarder,
+    BalRewardsForwarder__factory,
     IERC20,
     IERC20__factory,
     InitializableRewardsDistributionRecipient,
@@ -35,7 +35,7 @@ context("Fork test Emissions Controller on polygon", () => {
     let mta: IERC20
     let childChainManager: IStateReceiver
     let musdVault: InitializableRewardsDistributionRecipient
-    let disperseForwarder: DisperseForwarder
+    let balRewardsForwarder: BalRewardsForwarder
 
     const setup = async (blockNumber?: number) => {
         await network.provider.request({
@@ -110,23 +110,17 @@ context("Fork test Emissions Controller on polygon", () => {
     describe("Balancer Pool", () => {
         const depositAmount = simpleToExactAmount(15000)
 
-        it("Deposit 15k to Disperse Forwarder", async () => {
-            expect(await mta.balanceOf(PBAL.bridgeRecipient), "Disperse bal before").to.eq(0)
+        it("Deposit 15k to Stream Forwarder", async () => {
+            expect(await mta.balanceOf(PBAL.bridgeRecipient), "Stream bal before").to.eq(0)
 
             await deposit(PBAL.bridgeRecipient, depositAmount)
 
-            expect(await mta.balanceOf(PBAL.bridgeRecipient), "Disperse bal after").to.eq(depositAmount)
+            expect(await mta.balanceOf(PBAL.bridgeRecipient), "Stream bal after").to.eq(depositAmount)
         })
-        it("Disperse all 15k MTA", async () => {
-            disperseForwarder = DisperseForwarder__factory.connect(resolveAddress("DisperseForwarder", chain), ops)
-            await disperseForwarder.disperseToken(
-                [
-                    "0x030F249879C79331b7A154c48e27eEDCd972BDe9",
-                    "0x03A1a0EE0e2a14bd069c8691a4adEAbFa6a4d709",
-                    "0x0e50170Df6667b50e52867A80F7301Dc0fcB7568",
-                ],
-                [simpleToExactAmount(1000), simpleToExactAmount(4000), simpleToExactAmount(10000)],
-            )
+        it("Stream all 15k MTA", async () => {
+            balRewardsForwarder = BalRewardsForwarder__factory.connect(resolveAddress("BP-MTA-RewardsForwarder", chain), ops)
+            const tx = await balRewardsForwarder.notifyRewardAmount(simpleToExactAmount(15000))
+            await expect(tx).to.emit(balRewardsForwarder, "RewardsReceived").withArgs(simpleToExactAmount(15000))
         })
     })
 })
