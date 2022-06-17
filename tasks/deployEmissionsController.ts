@@ -56,6 +56,7 @@ task("deploy-bridge-forwarder", "Deploys a BridgeForwarder contract on mainnet f
         undefined,
         types.string,
     )
+    .addOptionalParam("useProxy", "Deploy with proxy", true, types.boolean)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const chain = getChain(hre)
@@ -63,7 +64,7 @@ task("deploy-bridge-forwarder", "Deploys a BridgeForwarder contract on mainnet f
 
         const l2Chain = chain === Chain.mainnet ? Chain.polygon : Chain.mumbai
         const bridgeRecipientAddress = resolveAddress(taskArgs.token, l2Chain, "bridgeRecipient")
-        await deployBridgeForwarder(signer, hre, bridgeRecipientAddress)
+        await deployBridgeForwarder(signer, hre, bridgeRecipientAddress, taskArgs.useProxy)
     })
 
 task("deploy-basic-forwarder", "Deploys a basic rewards forwarder from the emissions controller.")
@@ -131,7 +132,7 @@ task("deploy-bal-reward-forwarder", "Deploys a basic rewards forwarder from the 
         await deployBalRewardsForwarder(signer, emissionsControllerAddress, taskArgs.recipient, hre, taskArgs.owner)
     })
 
-task("deploy-bridge-recipient", "Deploys L2 Bridge Recipients for Polygon mUSD Vault and FRAX Farm")
+task("deploy-bridge-recipient", "Deploys L2 Bridge Recipients for Polygon")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)

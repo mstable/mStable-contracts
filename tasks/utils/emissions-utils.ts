@@ -275,6 +275,7 @@ export const deployBridgeForwarder = async (
     signer: Signer,
     hre: HardhatRuntimeEnvironment,
     bridgeRecipientAddress: string,
+    useProxy: boolean,
     _emissionsControllerAddress?: string,
 ): Promise<BridgeForwarder> => {
     const chain = getChain(hre)
@@ -283,52 +284,23 @@ export const deployBridgeForwarder = async (
     const emissionsControllerAddress = _emissionsControllerAddress || resolveAddress("EmissionsController", chain)
 
     const bridgeForwarderImpl = await deployBridgeForwarderImpl(signer, hre, "Vault Bridge Forwarder", bridgeRecipientAddress)
-
+    let bridgeForwarder = bridgeForwarderImpl
     // Deploy proxy and initialize
-    const initializeData = bridgeForwarderImpl.interface.encodeFunctionData("initialize", [emissionsControllerAddress])
-    const proxy = await deployContract(new AssetProxy__factory(signer), "AssetProxy", [
-        bridgeForwarderImpl.address,
-        proxyAdminAddress,
-        initializeData,
-    ])
-    const bridgeForwarder = new BridgeForwarder__factory(signer).attach(proxy.address)
+    if (useProxy) {
+        const initializeData = bridgeForwarderImpl.interface.encodeFunctionData("initialize", [emissionsControllerAddress])
+
+        const proxy = await deployContract(new AssetProxy__factory(signer), "AssetProxy", [
+            bridgeForwarderImpl.address,
+            proxyAdminAddress,
+            initializeData,
+        ])
+        bridgeForwarder = new BridgeForwarder__factory(signer).attach(proxy.address)
+    }
 
     console.log(`\nSet bridgeForwarder to ${bridgeForwarder.address}`)
     console.log(`Governor calls EmissionsController.addDial ${emissionsControllerAddress} with params:`)
     console.log(`recipient ${bridgeForwarder.address}, cap 0, notify true`)
 
-    return bridgeForwarder
-}
-
-export const upgradeBridgeForwarder = async (
-    signer: Signer,
-    hre: HardhatRuntimeEnvironment,
-    bridgeRecipientAddress: string,
-    proxyAddress: string,
-): Promise<BridgeForwarder> => {
-    const chain = getChain(hre)
-
-    const proxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)
-
-    const assetProxy = new AssetProxy__factory(signer).attach(proxyAddress)
-    const assetProxyAdmin = await assetProxy.callStatic.admin()
-    const signerAddress = await signer.getAddress()
-
-    console.log("AssetProxy address to validate", assetProxyAdmin, signerAddress, proxyAdminAddress)
-
-    if (assetProxyAdmin !== signerAddress || assetProxyAdmin !== proxyAdminAddress || proxyAdminAddress !== signerAddress) {
-        console.log("AssetProxy admin is not the same as the signer", assetProxyAdmin, signerAddress, proxyAdminAddress)
-    }
-
-    const bridgeForwarderImpl = await deployBridgeForwarderImpl(signer, hre, "Vault Bridge Forwarder", bridgeRecipientAddress)
-
-    // Upgrade deployed proxy to new implementation
-    await assetProxy.upgradeTo(bridgeForwarderImpl.address)
-
-    const bridgeForwarder = new BridgeForwarder__factory(signer).attach(proxyAddress)
-
-    console.log(`\nSet bridgeForwarder to ${bridgeForwarder.address}`)
-    console.log(`recipient ${bridgeForwarder.address}, cap 0, notify true`)
     return bridgeForwarder
 }
 

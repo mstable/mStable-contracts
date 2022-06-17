@@ -149,7 +149,25 @@ describe("Fork test Emissions Controller on mainnet", async () => {
         it("Deploy bridgeForwarder for Polygon mUSD Vault", async () => {
             emissionsController = await deployEmissionsController(ops, hre)
             const bridgeRecipient = Wallet.createRandom()
-            const bridgeForwarder = await deployBridgeForwarder(ops, hre, bridgeRecipient.address, emissionsController.address)
+            const bridgeForwarder = await deployBridgeForwarder(ops, hre, bridgeRecipient.address, true, emissionsController.address)
+
+            expect(await bridgeForwarder.BRIDGE_RECIPIENT(), "Bridge Recipient").to.eq(bridgeRecipient.address)
+            expect(await bridgeForwarder.rewardsDistributor(), "Emissions Controller").to.eq(emissionsController.address)
+            expect(await bridgeForwarder.BRIDGE_TOKEN_LOCKER(), "Bridge token locker").to.eq("0x40ec5B33f54e0E8A33A975908C5BA1c14e5BbbDf")
+            expect(await bridgeForwarder.ROOT_CHAIN_MANAGER(), "RootChainMananger").to.eq("0xA0c68C638235ee32657e8f720a23ceC1bFc77C77")
+            expect(await bridgeForwarder.REWARDS_TOKEN(), "MTA").to.eq(MTA.address)
+            expect(await mta.allowance(bridgeForwarder.address, "0x40ec5B33f54e0E8A33A975908C5BA1c14e5BbbDf")).to.eq(MAX_UINT256)
+
+            const tx = await emissionsController.connect(governor).addDial(bridgeForwarder.address, 0, true)
+
+            await expect(tx).to.emit(emissionsController, "AddedDial").withArgs(11, bridgeForwarder.address)
+
+            expect(await emissionsController.getDialRecipient(11), "dial 10 Bridge Forwarder").to.eq(bridgeForwarder.address)
+        })
+        it("Upgrade a bridgeForwarder proxy", async () => {
+            // emissionsController = await deployEmissionsController(ops, hre)
+            const bridgeRecipient = Wallet.createRandom()
+            const bridgeForwarder = await deployBridgeForwarder(ops, hre, bridgeRecipient.address, true, emissionsController.address)
 
             expect(await bridgeForwarder.BRIDGE_RECIPIENT(), "Bridge Recipient").to.eq(bridgeRecipient.address)
             expect(await bridgeForwarder.rewardsDistributor(), "Emissions Controller").to.eq(emissionsController.address)
