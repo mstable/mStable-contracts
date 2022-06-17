@@ -53,8 +53,8 @@ export const contractNames = [
     "CurveRegistryExchange",
     "Disperse",
     "DisperseForwarder",
-    "BP-MTA-Streamer",
-    "BP-MTA-RewardsForwarder",
+    "BpMTAStreamer",
+    "BpMTARewardsForwarder",
     "QuickSwapRouter",
     "UniswapRouterV3",
     "UniswapQuoterV3",
@@ -250,10 +250,10 @@ export const getChainAddress = (contractName: ContractNames, chain: Chain): stri
                 return "0xD152f549545093347A162Dce210e7293f1452150"
             case "DisperseForwarder":
                 return "0x5783458E67B380d19a84514F11054ABDc326EB07"
-            case "BP-MTA-Streamer":
+            case "BpMTAStreamer":
                 return "0xb061F502d84f00d1B26568888A8f741cBE352C23"
-            case "BP-MTA-RewardsForwarder":
-                return "TODO AFTER DEPLOYMENT"
+            case "BpMTARewardsForwarder":
+                return "TODO-L2BridgeRecipient"
             case "QuickSwapRouter":
                 return "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff"
             case "MStableYieldSource":

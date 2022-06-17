@@ -245,6 +245,31 @@ export const deployVotiumBribeForwarder = async (signer: Signer, hre: HardhatRun
 
     return votiumBribeForwarder
 }
+const deployBridgeForwarderImpl = async (
+    signer: Signer,
+    hre: HardhatRuntimeEnvironment,
+    contractName: string,
+    bridgeRecipientAddress: string,
+): Promise<BridgeForwarder> => {
+    const chain = getChain(hre)
+
+    const nexusAddress = resolveAddress("Nexus", chain)
+    const mtaAddress = resolveAddress("MTA", chain)
+    const tokenBridgeAddress = resolveAddress("PolygonPoSBridge", chain)
+    const rootChainManagerAddress = resolveAddress("PolygonRootChainManager", chain)
+
+    const constructorArguments = [nexusAddress, mtaAddress, tokenBridgeAddress, rootChainManagerAddress, bridgeRecipientAddress]
+    const bridgeForwarderImpl = await deployContract(new BridgeForwarder__factory(signer), contractName, constructorArguments)
+
+    console.log(`\nSet bridgeForwarder to ${bridgeForwarderImpl.address}`)
+    await verifyEtherscan(hre, {
+        address: bridgeForwarderImpl.address,
+        constructorArguments,
+        contract: "contracts/emissions/BridgeForwarder.sol:BridgeForwarder",
+    })
+
+    return bridgeForwarderImpl as BridgeForwarder
+}
 
 export const deployBridgeForwarder = async (
     signer: Signer,
@@ -254,15 +279,10 @@ export const deployBridgeForwarder = async (
 ): Promise<BridgeForwarder> => {
     const chain = getChain(hre)
 
-    const nexusAddress = resolveAddress("Nexus", chain)
-    const mtaAddress = resolveAddress("MTA", chain)
     const proxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)
-    const tokenBridgeAddress = resolveAddress("PolygonPoSBridge", chain)
-    const rootChainManagerAddress = resolveAddress("PolygonRootChainManager", chain)
     const emissionsControllerAddress = _emissionsControllerAddress || resolveAddress("EmissionsController", chain)
 
-    const constructorArguments = [nexusAddress, mtaAddress, tokenBridgeAddress, rootChainManagerAddress, bridgeRecipientAddress]
-    const bridgeForwarderImpl = await deployContract(new BridgeForwarder__factory(signer), "Vault Bridge Forwarder", constructorArguments)
+    const bridgeForwarderImpl = await deployBridgeForwarderImpl(signer, hre, "Vault Bridge Forwarder", bridgeRecipientAddress)
 
     // Deploy proxy and initialize
     const initializeData = bridgeForwarderImpl.interface.encodeFunctionData("initialize", [emissionsControllerAddress])
@@ -277,12 +297,38 @@ export const deployBridgeForwarder = async (
     console.log(`Governor calls EmissionsController.addDial ${emissionsControllerAddress} with params:`)
     console.log(`recipient ${bridgeForwarder.address}, cap 0, notify true`)
 
-    await verifyEtherscan(hre, {
-        address: bridgeForwarderImpl.address,
-        constructorArguments,
-        contract: "contracts/emissions/BridgeForwarder.sol:BridgeForwarder",
-    })
+    return bridgeForwarder
+}
 
+export const upgradeBridgeForwarder = async (
+    signer: Signer,
+    hre: HardhatRuntimeEnvironment,
+    bridgeRecipientAddress: string,
+    proxyAddress: string,
+): Promise<BridgeForwarder> => {
+    const chain = getChain(hre)
+
+    const proxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)
+
+    const assetProxy = new AssetProxy__factory(signer).attach(proxyAddress)
+    const assetProxyAdmin = await assetProxy.callStatic.admin()
+    const signerAddress = await signer.getAddress()
+
+    console.log("AssetProxy address to validate", assetProxyAdmin, signerAddress, proxyAdminAddress)
+
+    if (assetProxyAdmin !== signerAddress || assetProxyAdmin !== proxyAdminAddress || proxyAdminAddress !== signerAddress) {
+        console.log("AssetProxy admin is not the same as the signer", assetProxyAdmin, signerAddress, proxyAdminAddress)
+    }
+
+    const bridgeForwarderImpl = await deployBridgeForwarderImpl(signer, hre, "Vault Bridge Forwarder", bridgeRecipientAddress)
+
+    // Upgrade deployed proxy to new implementation
+    await assetProxy.upgradeTo(bridgeForwarderImpl.address)
+
+    const bridgeForwarder = new BridgeForwarder__factory(signer).attach(proxyAddress)
+
+    console.log(`\nSet bridgeForwarder to ${bridgeForwarder.address}`)
+    console.log(`recipient ${bridgeForwarder.address}, cap 0, notify true`)
     return bridgeForwarder
 }
 

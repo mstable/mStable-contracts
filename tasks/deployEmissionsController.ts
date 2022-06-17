@@ -25,17 +25,19 @@ task("deploy-emissions-polly", "Deploys L2EmissionsController and L2 Bridge Reci
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)
         const chain = getChain(hre)
-        const streamerAddress = resolveAddress("BP-MTA-streamer", chain)
+        const streamerAddress = resolveAddress("BpMTAStreamer", chain)
 
         const l2EmissionsController = await deployL2EmissionsController(signer, hre)
         console.log(`Set EmissionsController contract name in networkAddressFactory to ${l2EmissionsController.address}`)
 
-        const bridgeRecipient = await deployL2BridgeRecipients(signer, hre, l2EmissionsController.address)
-        console.log(`Set PmUSD bridgeRecipient to ${bridgeRecipient.address}`)
+        const pmUSDbridgeRecipient = await deployL2BridgeRecipients(signer, hre, l2EmissionsController.address)
+        console.log(`Set PmUSD bridgeRecipient to ${pmUSDbridgeRecipient.address}`)
 
-        const emissionsControllerAddress = resolveAddress("EmissionsController", chain)
-        const forwarder = await deployBalRewardsForwarder(signer, emissionsControllerAddress, streamerAddress, hre)
-        console.log(`Set PBAL bridgeRecipient to ${forwarder.address}`)
+        const pBALridgeRecipient = await deployL2BridgeRecipients(signer, hre, l2EmissionsController.address)
+        console.log(`Set PBAL bridgeRecipient to ${pBALridgeRecipient.address}`)
+
+        const forwarder = await deployBalRewardsForwarder(signer, l2EmissionsController.address, streamerAddress, hre)
+        console.log(`Invoke EmissionsController.addRecipient(${pBALridgeRecipient.address},${forwarder.address})`)
     })
 
 task("deploy-emissions")
@@ -60,7 +62,7 @@ task("deploy-bridge-forwarder", "Deploys a BridgeForwarder contract on mainnet f
         const signer = await getSigner(hre, taskArgs.speed)
 
         const l2Chain = chain === Chain.mainnet ? Chain.polygon : Chain.mumbai
-        const bridgeRecipientAddress = resolveAddress(taskArgs.token, l2Chain, "bridgeRecipient") // TODO - Balancer
+        const bridgeRecipientAddress = resolveAddress(taskArgs.token, l2Chain, "bridgeRecipient")
         await deployBridgeForwarder(signer, hre, bridgeRecipientAddress)
     })
 
@@ -127,5 +129,15 @@ task("deploy-bal-reward-forwarder", "Deploys a basic rewards forwarder from the 
         const signer = await getSigner(hre, taskArgs.speed)
         const emissionsControllerAddress = resolveAddress("EmissionsController", chain)
         await deployBalRewardsForwarder(signer, emissionsControllerAddress, taskArgs.recipient, hre, taskArgs.owner)
+    })
+
+task("deploy-bridge-recipient", "Deploys L2 Bridge Recipients for Polygon mUSD Vault and FRAX Farm")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+        const emissionsControllerAddress = resolveAddress("EmissionsController", chain)
+        const bridgeRecipient = await deployL2BridgeRecipients(signer, hre, emissionsControllerAddress)
+        console.log(`New bridgeRecipient to ${bridgeRecipient.address}`)
     })
 module.exports = {}
