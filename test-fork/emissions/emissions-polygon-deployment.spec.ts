@@ -11,15 +11,18 @@ import {
     IERC20__factory,
     InitializableRewardsDistributionRecipient,
     InitializableRewardsDistributionRecipient__factory,
+    IRewardsDistributionRecipient,
     IStateReceiver,
     IStateReceiver__factory,
+    L2BridgeRecipient,
     L2EmissionsController,
     L2EmissionsController__factory,
 } from "types/generated"
 import { keccak256 } from "@ethersproject/keccak256"
 import { toUtf8Bytes } from "ethers/lib/utils"
-import { BN, simpleToExactAmount } from "index"
+import { BN, simpleToExactAmount, ZERO_ADDRESS } from "index"
 import { expect } from "chai"
+import { deployL2BridgeRecipient } from "tasks/utils/rewardsUtils"
 
 const keeperKey = keccak256(toUtf8Bytes("Keeper"))
 console.log(`Keeper ${keeperKey}`)
@@ -36,6 +39,7 @@ context("Fork test Emissions Controller on polygon", () => {
     let childChainManager: IStateReceiver
     let musdVault: InitializableRewardsDistributionRecipient
     let balRewardsForwarder: BalRewardsForwarder
+    let nexusAddress: string
 
     const setup = async (blockNumber?: number) => {
         await network.provider.request({
@@ -52,6 +56,7 @@ context("Fork test Emissions Controller on polygon", () => {
         ops = await impersonate(resolveAddress("OperationsSigner", chain))
         governor = await impersonate(resolveAddress("Governor", chain))
         stateSyncer = await impersonate("0x0000000000000000000000000000000000001001")
+        nexusAddress = await resolveAddress("Nexus", chain)
 
         emissionsController = L2EmissionsController__factory.connect(resolveAddress("EmissionsController", chain), ops)
         mta = IERC20__factory.connect(PMTA.address, ops)
@@ -108,19 +113,52 @@ context("Fork test Emissions Controller on polygon", () => {
         })
     })
     describe("Balancer Pool", () => {
+        // 1.-Deploy new L2BridgeRecipient
+        // 2.-Deploy new BalRewardsForwarder
+        // 3.-EmissionsController Add Recipient(L2BridgeRecipient, BalRewardsForwarder)
+        // 4.-Distribute Rewards (L2BridgeRecipient=>BalRewardsForwarder=>BalancerStreamer)
         const depositAmount = simpleToExactAmount(15000)
 
-        it("Deposit 15k to Stream Forwarder", async () => {
-            expect(await mta.balanceOf(PBAL.bridgeRecipient), "Stream bal before").to.eq(0)
-
-            await deposit(PBAL.bridgeRecipient, depositAmount)
-
-            expect(await mta.balanceOf(PBAL.bridgeRecipient), "Stream bal after").to.eq(depositAmount)
+        let forwarderEndRecipient: string
+        let bridgeRecipient: L2BridgeRecipient
+        let endRecipient: IRewardsDistributionRecipient
+        before("deploy recipients", async () => {
+            forwarderEndRecipient = resolveAddress("BpMTAStreamer", chain)
+            // Deploy a new bridge recipient
+            bridgeRecipient = await deployL2BridgeRecipient(governor, mta.address, emissionsController.address)
+            // Deploy a new end recipient(Forwarder)
+            balRewardsForwarder = await new BalRewardsForwarder__factory(governor).deploy(nexusAddress, mta.address)
+            await balRewardsForwarder.initialize(emissionsController.address, forwarderEndRecipient)
+            endRecipient = balRewardsForwarder as IRewardsDistributionRecipient
         })
-        it("Stream all 15k MTA", async () => {
-            balRewardsForwarder = BalRewardsForwarder__factory.connect(resolveAddress("BP-MTA-RewardsForwarder", chain), ops)
-            const tx = await balRewardsForwarder.notifyRewardAmount(simpleToExactAmount(15000))
-            await expect(tx).to.emit(balRewardsForwarder, "RewardsReceived").withArgs(simpleToExactAmount(15000))
+        it("Deposit 15k to Stream Forwarder", async () => {
+            expect(await mta.balanceOf(bridgeRecipient.address), "Stream bal before").to.eq(0)
+            await deposit(bridgeRecipient.address, depositAmount)
+            expect(await mta.balanceOf(bridgeRecipient.address), "Stream bal after").to.eq(depositAmount)
+        })
+        it("Add recipient", async () => {
+            expect(await emissionsController.recipientMap(bridgeRecipient.address), "Recipient not set").to.eq(ZERO_ADDRESS)
+            await emissionsController.connect(governor).addRecipient(bridgeRecipient.address, endRecipient.address)
+            expect(await emissionsController.recipientMap(endRecipient.address), "Recipient set").to.eq(bridgeRecipient.address)
+        })
+        it("Distribute rewards", async () => {
+            const mtaBalBefore = await mta.balanceOf(bridgeRecipient.address)
+            const mtaForwarderBalBefore = await mta.balanceOf(forwarderEndRecipient)
+
+            expect(mtaBalBefore, "forwarder bal before").to.gt(0)
+            expect(mtaForwarderBalBefore, "streamer bal before").to.eq(0)
+
+            // AT  BLOCK , balancer has not add yet the MTA reward on polygon gauge
+            await expect(emissionsController.distributeRewards([endRecipient.address])).to.be.revertedWith("Invalid token or no new reward")
+
+            // *******NOTE BEGIN************//
+            // If balancer team adds the distributor and the token into the gauge this is the expected behavior
+            // await expect(tx).to.emit(balRewardsForwarder, "RewardsReceived").withArgs(depositAmount)
+            // const mtaBalAfter = await mta.balanceOf(bridgeRecipient.address)
+            // const mtaForwarderBalAfter = await mta.balanceOf(forwarderEndRecipient)
+            // expect(mtaBalAfter.sub(mtaBalBefore), "forwarder bal change").to.eq(depositAmount)
+            // expect(mtaForwarderBalAfter.sub(mtaForwarderBalBefore), "streamer bal change").to.eq(depositAmount)
+            // ******** NOTE END***********//
         })
     })
 })
