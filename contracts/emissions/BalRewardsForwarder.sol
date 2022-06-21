@@ -12,7 +12,7 @@ import { BasicRewardsForwarder } from "./BasicRewardsForwarder.sol";
 /**
  * @title  BalRewardsForwarder
  * @author mStable
- * @notice Transfers any received reward tokens to another contract or account.
+ * @notice Transfers any received reward tokens to another contract and notifies it.
  * @dev    VERSION: 1.0
  *         DATE:    2022-06-16
  */
