@@ -480,9 +480,9 @@ export const PBAL: Token = {
     chain: Chain.polygon,
     decimals: 18,
     quantityFormatter: "USD",
-    bridgeForwarder: "0x4e649Fa2f3C0Ff18b7695d1e1fa371a1999187Dc", // DEPLOY NEW BRIDGE FORWARDER
+    bridgeForwarder: "0x4e649Fa2f3C0Ff18b7695d1e1fa371a1999187Dc",
     // The L2BridgeRecipient contract on Polygon
-    bridgeRecipient: "TODO-L2BridgeRecipient",
+    bridgeRecipient: "0x9A718E9B80F7D7006E891051ba4790C6fc839268",
 }
 
 export const RBAL: Token = {
