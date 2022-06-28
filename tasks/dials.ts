@@ -1,10 +1,10 @@
-import { BN, sum, percentToWeight } from "@utils/math"
+import { BN, sum, percentToWeight, simpleToExactAmount } from "@utils/math"
 import { task, types } from "hardhat/config"
 import "ts-node/register"
 import "tsconfig-paths/register"
-import { EmissionsController__factory, IERC20__factory } from "types/generated"
+import { EmissionsController__factory, IERC20__factory, StakedTokenMTA__factory } from "types/generated"
 import { MTA, usdFormatter } from "./utils"
-import { getChain, getChainAddress } from "./utils/networkAddressFactory"
+import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getSigner } from "./utils/signerFactory"
 import { getBlock } from "./utils/snap-utils"
 
@@ -250,3 +250,84 @@ task("dials-snap", "Snaps Emissions Controller's dials")
     })
 
 module.exports = {}
+
+task("dials-dust-votes", "Gives a tiny amount of voting power to each dial")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (_taskArgs, hre) => {
+        const signer = await getSigner(hre)
+        const chain = getChain(hre)
+
+        const stakedMTA = StakedTokenMTA__factory.connect(resolveAddress("StakedTokenMTA", chain), signer)
+        const mta = IERC20__factory.connect(MTA.address, signer)
+        const emissionsController = EmissionsController__factory.connect(resolveAddress("EmissionsController", chain), signer)
+
+        const amount = simpleToExactAmount(1)
+        await mta.approve(stakedMTA.address, amount)
+        await stakedMTA["stake(uint256)"](amount)
+        await emissionsController.setVoterDialWeights([
+            {
+                dialId: "3",
+                weight: "5",
+            },
+            {
+                dialId: "4",
+                weight: "5",
+            },
+            {
+                dialId: "5",
+                weight: "5",
+            },
+            {
+                dialId: "6",
+                weight: "5",
+            },
+            {
+                dialId: "7",
+                weight: "5",
+            },
+            {
+                dialId: "8",
+                weight: "5",
+            },
+            {
+                dialId: "9",
+                weight: "5",
+            },
+            {
+                dialId: "10",
+                weight: "5",
+            },
+            {
+                dialId: "11",
+                weight: "5",
+            },
+            {
+                dialId: "12",
+                weight: "5",
+            },
+            {
+                dialId: "13",
+                weight: "5",
+            },
+            {
+                dialId: "14",
+                weight: "5",
+            },
+            {
+                dialId: "15",
+                weight: "5",
+            },
+            {
+                dialId: "16",
+                weight: "5",
+            },
+            {
+                dialId: "17",
+                weight: "5",
+            },
+            {
+                dialId: "18",
+                weight: "5",
+            },
+        ])
+    })
