@@ -26,6 +26,7 @@ import {
     RevenueBuyBack__factory,
     SavingsManager,
     SavingsManager__factory,
+    StakedTokenMTA__factory,
 } from "types/generated"
 import { Account } from "types/common"
 import { encodeUniswapPath } from "@utils/peripheral/uniswap"
@@ -883,6 +884,160 @@ describe("Fork test Emissions Controller on mainnet", async () => {
 
                 expect(await mta.balanceOf(votiumForwarderAddress), "votium fwd bal after").to.gt(simpleToExactAmount(34000))
             })
+        })
+    })
+    describe("Set vote weights", () => {
+        const voterAddress = "0x908db31ce01dc42c8b712f9156e969bc65023119"
+        let voter: Account
+        before(async () => {
+            await setup(15038270)
+            voter = await impersonateAccount(voterAddress)
+        })
+        it("set 100% voter weight to dial 14", async () => {
+            const oldPreferences = await emissionsController.voterPreferences(voter.address)
+            console.log("Old preferences:")
+            console.log(`  dialWeights: ${oldPreferences.dialWeights}`)
+            console.log(`  votesCast: ${oldPreferences.votesCast}`)
+            console.log(`  lastSourcePoke: ${oldPreferences.lastSourcePoke}`)
+            await emissionsController.connect(voter.signer).setVoterDialWeights([
+                {
+                    dialId: "14",
+                    weight: "200",
+                },
+            ])
+        })
+        it("move a dial weight to dial 14", async () => {
+            const anotherVoter = await impersonate("0x5853ed4f26a3fcea565b3fbc698bb19cdf6deb85")
+            await emissionsController.connect(anotherVoter).setVoterDialWeights([
+                {
+                    dialId: "6",
+                    weight: "1",
+                },
+                {
+                    dialId: "0",
+                    weight: "199",
+                },
+            ])
+            await emissionsController.connect(voter.signer).setVoterDialWeights([
+                {
+                    dialId: "4",
+                    weight: "10",
+                },
+                {
+                    dialId: "6",
+                    weight: "10",
+                },
+                {
+                    dialId: "12",
+                    weight: "10",
+                },
+                {
+                    dialId: "14",
+                    weight: "150",
+                },
+                {
+                    dialId: "15",
+                    weight: "10",
+                },
+                {
+                    dialId: "16",
+                    weight: "10",
+                },
+            ])
+        })
+        it("poke voter", async () => {
+            await emissionsController.pokeSources(voterAddress)
+        })
+        it("voter preferences", async () => {
+            const preferences = await emissionsController.getVoterPreferences(voterAddress)
+            console.log(`Old preferences ${preferences}`)
+            let totalWeight = BN.from(0)
+            console.log(`index\tdialId\tweight`)
+            preferences.forEach((preference, i) => {
+                console.log(`${i}\t${preference.dialId}\t${preference.weight}`)
+                // console.log(`dialId ${preference.dialId}`)
+                // console.log(`weight ${preference.weight}`)
+                totalWeight = totalWeight.add(preference.weight)
+            })
+            console.log(`totalWeight ${totalWeight}`)
+        })
+        it("relay account assigns 1 MTA to all dials", async () => {
+            const stakedMTA = StakedTokenMTA__factory.connect(resolveAddress("StakedTokenMTA"), ops)
+            const amount = simpleToExactAmount(1)
+            await mta.connect(ops).approve(stakedMTA.address, amount)
+            await stakedMTA["stake(uint256)"](amount)
+            await emissionsController.setVoterDialWeights([
+                {
+                    dialId: "3",
+                    weight: "5",
+                },
+                {
+                    dialId: "4",
+                    weight: "5",
+                },
+                {
+                    dialId: "5",
+                    weight: "5",
+                },
+                {
+                    dialId: "6",
+                    weight: "5",
+                },
+                {
+                    dialId: "7",
+                    weight: "5",
+                },
+                {
+                    dialId: "8",
+                    weight: "5",
+                },
+                {
+                    dialId: "9",
+                    weight: "5",
+                },
+                {
+                    dialId: "10",
+                    weight: "5",
+                },
+                {
+                    dialId: "11",
+                    weight: "5",
+                },
+                {
+                    dialId: "12",
+                    weight: "5",
+                },
+                {
+                    dialId: "13",
+                    weight: "5",
+                },
+                {
+                    dialId: "14",
+                    weight: "5",
+                },
+                {
+                    dialId: "15",
+                    weight: "5",
+                },
+                {
+                    dialId: "16",
+                    weight: "5",
+                },
+                {
+                    dialId: "17",
+                    weight: "5",
+                },
+                {
+                    dialId: "18",
+                    weight: "5",
+                },
+            ])
+            await emissionsController.connect(voter.signer).setVoterDialWeights([
+                {
+                    dialId: "14",
+                    weight: "200",
+                },
+            ])
         })
     })
 })
