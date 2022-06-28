@@ -39,7 +39,9 @@
         "test:file": "yarn hardhat test",
         "test:file:long": "LONG_TESTS=true yarn hardhat test",
         "copy-types": "cp -R types/generated dist/types",
-        "prepublishOnly": "yarn compile && yarn compile-ts && yarn copy-types"
+        "prepublishOnly": "yarn compile && yarn compile-ts && yarn copy-types",
+        "forknode:start": "yarn hardhat node --hostname 127.0.0.1 --config hardhat-fork.config.ts",
+        "forknode:prepare": "yarn task --network localhost prepareAccount"
     },
     "repository": {
         "type": "git",
