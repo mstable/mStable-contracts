@@ -137,7 +137,7 @@ const dialsDetailsToCsv = (dialsDetails: Array<DialDetails>) =>
 const outputDialsSnap = (dialsSnap: DialsSnap) => {
     if (!dialsSnap.csv) {
         console.log(`\nEmissions Controller Dials Snap at epoch ${dialsSnap.nextEpoch}`)
-        console.log(`\t\t Name\tPercent\t   Distributed\t\tDonated\t\t  Total`)
+        console.log(`\t\t Name\tPercent\t   Distributed\t       Revenue\t\t  Total`)
         console.log(dialsDetailsToString(dialsSnap.dialsDetails))
         console.log(
             `Totals\t\t\t\t${usdFormatter(dialsSnap.totalDistributed)}\t${usdFormatter(dialsSnap.totalDonated)}\t ${usdFormatter(
