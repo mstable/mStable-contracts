@@ -1,32 +1,34 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-restricted-syntax */
-import { Signer } from "ethers"
 import { fullScale, ONE_DAY, ONE_WEEK, ONE_YEAR } from "@utils/constants"
 import { applyDecimals, applyRatio, BN, simpleToExactAmount } from "@utils/math"
+import { encodeUniswapPath } from "@utils/peripheral/uniswap"
 import { formatUnits } from "ethers/lib/utils"
 import {
     ERC20__factory,
-    ExposedMassetLogic,
-    FeederPool,
     IAaveIncentivesController__factory,
     IAlchemixStakingPools__factory,
     IUniswapV2Router02__factory,
     IUniswapV3Quoter__factory,
     Liquidator__factory,
-    Masset,
     SavingsContract__factory,
-    SavingsManager,
     ValidatorWithTVLCap__factory,
 } from "types/generated"
-import { MusdEth } from "types/generated/MusdEth"
-import { encodeUniswapPath } from "@utils/peripheral/uniswap"
 import { AaveStakedTokenV2__factory } from "types/generated/factories/AaveStakedTokenV2__factory"
 import { Comptroller__factory } from "types/generated/factories/Comptroller__factory"
-import { MusdLegacy } from "types/generated/MusdLegacy"
-import { QuantityFormatter, usdFormatter } from "./quantity-formatters"
-import { AAVE, ALCX, alUSD, BUSD, Chain, COMP, DAI, FEI, GUSD, RAI, stkAAVE, sUSD, Token, USDC, USDT, WBTC } from "./tokens"
+
+import { usdFormatter } from "./quantity-formatters"
+import { AAVE, ALCX, alUSD, BUSD, Chain, COMP, DAI, FEI, GUSD, RAI, stkAAVE, sUSD, USDC, USDT, WBTC } from "./tokens"
+
+import type { Signer } from "ethers"
+import type { ExposedMassetLogic, FeederPool, Masset, SavingsManager } from "types/generated"
+import type { MusdEth } from "types/generated/MusdEth"
+import type { MusdLegacy } from "types/generated/MusdLegacy"
 import { getChainAddress, resolveAddress } from "./networkAddressFactory"
+
+import type { QuantityFormatter } from "./quantity-formatters"
+import type { Token } from "./tokens"
 
 const comptrollerAddress = "0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B"
 const uniswapEthToken = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"

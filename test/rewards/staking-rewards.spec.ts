@@ -1,22 +1,20 @@
+import { assertBNClose, assertBNSlightlyGT } from "@utils/assertions"
+import { FIVE_DAYS, fullScale, ONE_DAY, ONE_WEEK, ZERO, ZERO_ADDRESS } from "@utils/constants"
 import { StandardAccounts } from "@utils/machines"
 import { BN, simpleToExactAmount } from "@utils/math"
-import { FIVE_DAYS, fullScale, ONE_DAY, ONE_WEEK, ZERO, ZERO_ADDRESS } from "@utils/constants"
 import { getTimestamp, increaseTime } from "@utils/time"
+import { expect } from "chai"
+import { ethers } from "hardhat"
 import {
     AssetProxy__factory,
-    MockERC20,
     MockERC20__factory,
-    MockNexus,
     MockNexus__factory,
-    StakingRewards,
-    StakingRewards__factory,
-    FeederPool,
     MockSavingsContract__factory,
+    StakingRewards__factory,
 } from "types/generated"
-import { ethers } from "hardhat"
-import { expect } from "chai"
-import { assertBNClose, assertBNSlightlyGT } from "@utils/assertions"
-import { Account } from "types"
+
+import type { Account } from "types"
+import type { FeederPool, MockERC20, MockNexus, StakingRewards } from "types/generated"
 
 interface StakingData {
     totalSupply: BN

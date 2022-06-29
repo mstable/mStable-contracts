@@ -1,51 +1,56 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-console */
+import "ts-node/register"
+import "tsconfig-paths/register"
+
 import { formatUnits } from "@ethersproject/units"
 import { DEAD_ADDRESS, KEY_LIQUIDATOR, KEY_PROXY_ADMIN, KEY_SAVINGS_MANAGER, ONE_DAY, ZERO_ADDRESS } from "@utils/constants"
 import { BN, simpleToExactAmount } from "@utils/math"
-import { Signer } from "ethers"
 import { task, types } from "hardhat/config"
-import "ts-node/register"
-import "tsconfig-paths/register"
 import {
-    AssetProxy,
     AssetProxy__factory,
-    DelayedProxyAdmin,
     DelayedProxyAdmin__factory,
-    ERC20,
-    Masset,
-    MassetLogic,
-    MassetLogic__factory,
-    MassetManager,
-    MassetManager__factory,
     Masset__factory,
-    MockERC20,
+    MassetLogic__factory,
+    MassetManager__factory,
     MockERC20__factory,
-    MockInitializableToken,
     MockInitializableToken__factory,
-    Nexus,
     Nexus__factory,
-    PAaveIntegration,
     PAaveIntegration__factory,
-    PLiquidator,
     PLiquidator__factory,
     RewardsDistributor__factory,
-    SaveWrapper,
     SaveWrapper__factory,
-    SavingsContract,
     SavingsContract__factory,
-    SavingsManager,
     SavingsManager__factory,
-    StakingRewardsWithPlatformToken,
     StakingRewardsWithPlatformToken__factory,
-    Unwrapper,
     Unwrapper__factory,
 } from "types/generated"
-import { MassetLibraryAddresses } from "types/generated/factories/Masset__factory"
+
+import type { Signer } from "ethers"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getSigner } from "./utils/signerFactory"
 import { PMTA, PmUSD, PWMATIC, tokens } from "./utils/tokens"
+
+import type {
+    AssetProxy,
+    DelayedProxyAdmin,
+    ERC20,
+    Masset,
+    MassetLogic,
+    MassetManager,
+    MockERC20,
+    MockInitializableToken,
+    Nexus,
+    PAaveIntegration,
+    PLiquidator,
+    SaveWrapper,
+    SavingsContract,
+    SavingsManager,
+    StakingRewardsWithPlatformToken,
+    Unwrapper,
+} from "types/generated"
+import type { MassetLibraryAddresses } from "types/generated/factories/Masset__factory"
 
 // FIXME: this import does not work for some reason
 // import { sleep } from "@utils/time"
@@ -465,7 +470,6 @@ task("liquidator-snap", "Dumps the config details of the liquidator on Polygon")
 task("deploy-vimusd", "Deploy Polygon imUSD staking contract v-imUSD")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
-
         const signer = await getSigner(hre, taskArgs.speed)
         const chain = getChain(hre)
         const proxyAdminAddress = resolveAddress("DelayedProxyAdmin", chain)

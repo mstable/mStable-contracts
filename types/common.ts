@@ -1,4 +1,4 @@
-import { Signer } from "ethers"
+import type { Signer } from "ethers"
 
 export type EthAddress = string
 export type Bytes32 = string

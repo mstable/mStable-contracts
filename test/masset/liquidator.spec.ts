@@ -1,34 +1,41 @@
+import { assertBNClose } from "@utils/assertions"
+import { DEAD_ADDRESS, MAX_UINT256, ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
+import { BN, simpleToExactAmount } from "@utils/math"
+import { encodeUniswapPath } from "@utils/peripheral/uniswap"
+import { increaseTime } from "@utils/time"
 import { expect } from "chai"
 import { ethers } from "hardhat"
-
-import { BN, simpleToExactAmount } from "@utils/math"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
-import { DEAD_ADDRESS, MAX_UINT256, ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import {
     AssetProxy__factory,
-    MockERC20,
-    MockERC20__factory,
-    MockMasset,
-    MockMasset__factory,
-    MockNexus,
-    SavingsContract__factory,
-    Liquidator,
-    SavingsManager,
-    MockRewardToken,
     Liquidator__factory,
-    SavingsManager__factory,
-    MockRewardToken__factory,
+    MockERC20__factory,
+    MockMasset__factory,
     MockNexus__factory,
-    ImmutableModule,
-    MockUniswapV3,
-    MockUniswapV3__factory,
+    MockRewardToken__factory,
     MockStakedAave__factory,
+    MockUniswapV3__factory,
+    SavingsContract__factory,
+    SavingsManager__factory,
     Unwrapper__factory,
 } from "types/generated"
-import { increaseTime } from "@utils/time"
-import { EncodedPaths, encodeUniswapPath } from "@utils/peripheral/uniswap"
-import { assertBNClose } from "@utils/assertions"
-import { shouldBehaveLikeModule, IModuleBehaviourContext } from "../shared/Module.behaviour"
+
+
+import type { StandardAccounts } from "@utils/machines"
+import type { EncodedPaths } from "@utils/peripheral/uniswap"
+import type {
+    ImmutableModule,
+    Liquidator,
+    MockERC20,
+    MockMasset,
+    MockNexus,
+    MockRewardToken,
+    MockUniswapV3,
+    SavingsManager,
+} from "types/generated"
+import { shouldBehaveLikeModule } from "../shared/Module.behaviour"
+
+import type { IModuleBehaviourContext } from "../shared/Module.behaviour"
 
 describe("Liquidator", () => {
     let sa: StandardAccounts

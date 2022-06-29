@@ -1,4 +1,4 @@
-import { BN } from "@utils/math"
+import type { BN } from "@utils/math"
 
 export interface UserBalance {
     raw: BN

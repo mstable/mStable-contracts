@@ -1,25 +1,22 @@
 import { Wallet } from "@ethersproject/wallet"
 import { DEAD_ADDRESS, ONE_HOUR, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { StandardAccounts } from "@utils/machines"
-import { expect } from "chai"
-import { ethers } from "hardhat"
 import { BN, simpleToExactAmount, sum } from "@utils/math"
+import { currentWeekEpoch, getTimestamp, increaseTime, increaseTimeTo, startWeek, weekEpoch } from "@utils/time"
+import { expect } from "chai"
+import { keccak256, toUtf8Bytes } from "ethers/lib/utils"
+import { ethers } from "hardhat"
 import {
     AssetProxy__factory,
-    EmissionsController,
     EmissionsController__factory,
-    MockERC20,
     MockERC20__factory,
-    MockNexus,
     MockNexus__factory,
-    MockRewardsDistributionRecipient,
     MockRewardsDistributionRecipient__factory,
-    MockStakingContract,
     MockStakingContract__factory,
 } from "types/generated"
-import { currentWeekEpoch, increaseTime, getTimestamp, increaseTimeTo, startWeek, weekEpoch } from "@utils/time"
-import { Account } from "types/common"
-import { keccak256, toUtf8Bytes } from "ethers/lib/utils"
+
+import type { Account } from "types/common"
+import type { EmissionsController, MockERC20, MockNexus, MockRewardsDistributionRecipient, MockStakingContract } from "types/generated"
 
 const defaultConfig = {
     A: -166000000000000,

@@ -4,13 +4,14 @@
 
 import { assertBNClose } from "@utils/assertions"
 import { DEAD_ADDRESS, MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
+import { MassetMachine } from "@utils/machines"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { mAssetData } from "@utils/validator-data"
-
 import { expect } from "chai"
 import { ethers } from "hardhat"
-import { Masset, Masset__factory, MockERC20, ExposedMassetLogic, MassetLogic, MassetManager } from "types/generated"
+
+import type { StandardAccounts } from "@utils/machines"
+import type { ExposedMassetLogic, Masset, Masset__factory, MassetLogic, MassetManager, MockERC20 } from "types/generated"
 
 const { mintData, mintMultiData, redeemData, redeemExactData, redeemMassetData, swapData } = mAssetData
 

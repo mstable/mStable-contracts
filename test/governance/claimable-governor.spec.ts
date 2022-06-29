@@ -1,9 +1,11 @@
-import { ethers } from "hardhat"
-import { expect } from "chai"
-
 import { MassetMachine } from "@utils/machines"
+import { expect } from "chai"
+import { ethers } from "hardhat"
 import { ClaimableGovernor__factory } from "types/generated"
-import { shouldBehaveLikeClaimable, IClaimableGovernableBehaviourContext } from "./ClaimableGovernor.behaviour"
+
+import { shouldBehaveLikeClaimable } from "./ClaimableGovernor.behaviour"
+
+import type { IClaimableGovernableBehaviourContext } from "./ClaimableGovernor.behaviour"
 
 describe("ClaimableGovernable", () => {
     const ctx: Partial<IClaimableGovernableBehaviourContext> = {}

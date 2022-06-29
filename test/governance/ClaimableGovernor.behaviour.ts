@@ -1,7 +1,8 @@
-import { expect } from "chai"
-import { ClaimableGovernor } from "types/generated/ClaimableGovernor"
 import { ZERO_ADDRESS } from "@utils/constants"
-import { Account } from "types"
+import { expect } from "chai"
+
+import type { Account } from "types"
+import type { ClaimableGovernor } from "types/generated/ClaimableGovernor"
 
 export interface IClaimableGovernableBehaviourContext {
     claimable: ClaimableGovernor

@@ -1,13 +1,18 @@
 /* eslint-disable no-restricted-syntax */
 import { applyDecimals, BN, simpleToExactAmount } from "@utils/math"
-import { FeederPool, ICurve__factory, Masset } from "types/generated"
+import { ICurve__factory } from "types/generated"
 import { CurveRegistryExchange__factory } from "types/generated/factories/CurveRegistryExchange__factory"
-import { MusdEth } from "types/generated/MusdEth"
-import { MusdLegacy } from "types/generated/MusdLegacy"
+
+import type { FeederPool, Masset } from "types/generated"
 import { getChainAddress } from "./networkAddressFactory"
-import { QuantityFormatter } from "./quantity-formatters"
 import { isMusdLegacy } from "./snap-utils"
-import { Chain, PDAI, PUSDC, PUSDT, Token } from "./tokens"
+import { Chain, PDAI, PUSDC, PUSDT } from "./tokens"
+
+import type { MusdEth } from "types/generated/MusdEth"
+import type { MusdLegacy } from "types/generated/MusdLegacy"
+
+import type { QuantityFormatter } from "./quantity-formatters"
+import type { Token } from "./tokens"
 
 export interface Balances {
     total: BN

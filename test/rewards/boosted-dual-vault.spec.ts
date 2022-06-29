@@ -1,35 +1,39 @@
 /* eslint-disable no-underscore-dangle */
 
-import { ethers } from "hardhat"
+import { assertBNClose, assertBNClosePercent, assertBNSlightlyGT } from "@utils/assertions"
+import { DEAD_ADDRESS, FIVE_DAYS, fullScale, ONE_DAY, ONE_WEEK, ZERO, ZERO_ADDRESS } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
+import { BN, simpleToExactAmount } from "@utils/math"
+import { getTimestamp, increaseTime } from "@utils/time"
 import { expect } from "chai"
 import { utils } from "ethers"
-import { simpleToExactAmount, BN } from "@utils/math"
-import { assertBNClose, assertBNClosePercent, assertBNSlightlyGT } from "@utils/assertions"
-import { StandardAccounts, MassetMachine } from "@utils/machines"
-import { fullScale, ZERO_ADDRESS, ZERO, ONE_DAY, FIVE_DAYS, ONE_WEEK, DEAD_ADDRESS } from "@utils/constants"
-import { getTimestamp, increaseTime } from "@utils/time"
+import { ethers } from "hardhat"
 import {
-    MockERC20,
-    MockERC20__factory,
-    ImmutableModule,
-    MockStakingContract,
-    MockStakingContract__factory,
-    InitializableRewardsDistributionRecipient,
-    BoostedDualVault,
-    BoostedDualVault__factory,
-    MockNexus,
-    MockNexus__factory,
     AssetProxy__factory,
     BoostDirector__factory,
-    BoostDirector,
-    FeederPool,
+    BoostedDualVault__factory,
+    MockERC20__factory,
+    MockNexus__factory,
     MockSavingsContract__factory,
+    MockStakingContract__factory,
 } from "types/generated"
-import { Account } from "types"
-import {
-    shouldBehaveLikeDistributionRecipient,
-    IRewardsDistributionRecipientContext,
-} from "../shared/RewardsDistributionRecipient.behaviour"
+
+
+import type { StandardAccounts } from "@utils/machines"
+import type { Account } from "types"
+import type {
+    BoostDirector,
+    BoostedDualVault,
+    FeederPool,
+    ImmutableModule,
+    InitializableRewardsDistributionRecipient,
+    MockERC20,
+    MockNexus,
+    MockStakingContract,
+} from "types/generated"
+import { shouldBehaveLikeDistributionRecipient } from "../shared/RewardsDistributionRecipient.behaviour"
+
+import type { IRewardsDistributionRecipientContext } from "../shared/RewardsDistributionRecipient.behaviour"
 
 interface StakingBalance {
     raw: BN

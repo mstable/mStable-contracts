@@ -1,13 +1,14 @@
-import { Signer } from "ethers"
-import { ethers } from "hardhat"
-import { expect } from "chai"
-
-import { simpleToExactAmount, BN } from "@utils/math"
-import { MassetMachine, StandardAccounts, FeederMachine, FeederDetails } from "@utils/machines"
-import { FeederPool, MockERC20 } from "types/generated"
-import { ZERO_ADDRESS } from "@utils/constants"
 import { assertBNClosePercent } from "@utils/assertions"
-import { Account } from "types"
+import { ZERO_ADDRESS } from "@utils/constants"
+import { FeederMachine, MassetMachine } from "@utils/machines"
+import { BN, simpleToExactAmount } from "@utils/math"
+import { expect } from "chai"
+import { ethers } from "hardhat"
+
+import type { FeederDetails, StandardAccounts } from "@utils/machines"
+import type { Signer } from "ethers"
+import type { Account } from "types"
+import type { FeederPool, MockERC20 } from "types/generated"
 
 describe("Feeder - Swap", () => {
     let sa: StandardAccounts
@@ -22,8 +23,14 @@ describe("Feeder - Swap", () => {
         use2dp = false,
         useRedemptionPrice = false,
     ): Promise<void> => {
-        details = await feederMachine.deployFeeder(feederWeights, mAssetWeights, useLendingMarkets,
-            useInterestValidator, use2dp, useRedemptionPrice)
+        details = await feederMachine.deployFeeder(
+            feederWeights,
+            mAssetWeights,
+            useLendingMarkets,
+            useInterestValidator,
+            use2dp,
+            useRedemptionPrice,
+        )
     }
 
     before("Init contract", async () => {
@@ -234,8 +241,7 @@ describe("Feeder - Swap", () => {
             })
             context("and different RPs", () => {
                 before(async () => {
-                    await runSetup(undefined, undefined, undefined,
-                        undefined, undefined, true)
+                    await runSetup(undefined, undefined, undefined, undefined, undefined, true)
                 })
                 it("swap with RP of 0.75", async () => {
                     const { bAssets, redemptionPriceSnap } = details
@@ -302,8 +308,7 @@ describe("Feeder - Swap", () => {
             })
             context("swapping different assets using redemption price of 2", () => {
                 beforeEach(async () => {
-                    await runSetup(undefined, undefined, undefined,
-                        undefined, undefined, true)
+                    await runSetup(undefined, undefined, undefined, undefined, undefined, true)
                     const { redemptionPriceSnap } = details
                     await redemptionPriceSnap.setRedemptionPriceSnap("2000000000000000000000000000")
                 })
@@ -349,8 +354,7 @@ describe("Feeder - Swap", () => {
             })
             context("swapping different assets using redemption price of 0.5", () => {
                 beforeEach(async () => {
-                    await runSetup(undefined, undefined, undefined,
-                        undefined, undefined, true)
+                    await runSetup(undefined, undefined, undefined, undefined, undefined, true)
                     const { redemptionPriceSnap } = details
                     await redemptionPriceSnap.setRedemptionPriceSnap("500000000000000000000000000")
                 })

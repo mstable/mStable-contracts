@@ -1,38 +1,34 @@
 /* eslint-disable no-restricted-syntax */
 /* eslint-disable no-await-in-loop */
 /* eslint-disable @typescript-eslint/no-unused-expressions */
+import { assertBNClose } from "@utils/assertions"
+import { ONE_WEEK } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
+import { simpleToExactAmount } from "@utils/math"
+import { getTimestamp, increaseTime } from "@utils/time"
+import { expect } from "chai"
+import { formatBytes32String } from "ethers/lib/utils"
 import { ethers } from "hardhat"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
-import { MockNexus__factory } from "types/generated/factories/MockNexus__factory"
+import { DEAD_ADDRESS } from "index"
 import {
     AssetProxy__factory,
-    QuestManager__factory,
-    MockERC20,
-    MockERC20__factory,
-    MockNexus,
-    PlatformTokenVendorFactory__factory,
-    SignatureVerifier__factory,
-    MockStakedTokenWithPrice,
-    MockStakedTokenWithPrice__factory,
-    QuestManager,
-    MockEmissionController__factory,
-    MockBPT,
     MockBPT__factory,
     MockBPTGauge__factory,
-    MockBPTGauge,
-    MockBVault,
     MockBVault__factory,
+    MockEmissionController__factory,
+    MockERC20__factory,
+    MockStakedTokenWithPrice__factory,
+    PlatformTokenVendorFactory__factory,
+    QuestManager__factory,
+    SignatureVerifier__factory,
     StakedTokenBPT__factory,
-    StakedTokenBPT,
 } from "types"
-import { DEAD_ADDRESS } from "index"
-import { ONE_WEEK } from "@utils/constants"
-import { assertBNClose } from "@utils/assertions"
-import { simpleToExactAmount, BN } from "@utils/math"
-import { expect } from "chai"
-import { getTimestamp, increaseTime } from "@utils/time"
-import { formatBytes32String } from "ethers/lib/utils"
-import { BalConfig, UserStakingData } from "types/stakedToken"
+import { MockNexus__factory } from "types/generated/factories/MockNexus__factory"
+
+import type { StandardAccounts } from "@utils/machines"
+import type { BN } from "@utils/math"
+import type { MockBPT, MockBPTGauge, MockBVault, MockERC20, MockNexus, MockStakedTokenWithPrice, QuestManager, StakedTokenBPT } from "types"
+import type { BalConfig, UserStakingData } from "types/stakedToken"
 
 interface Deployment {
     stakedToken: StakedTokenBPT

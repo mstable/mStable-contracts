@@ -1,26 +1,26 @@
-import { ethers } from "hardhat"
-import { expect } from "chai"
-import { ContractTransaction, Event, ContractReceipt } from "ethers"
-import { Account } from "types"
-import { getTimestamp, increaseTime, increaseTimeTo } from "@utils/time"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
-import { assertBNClose, assertBNSlightlyGT, assertBNClosePercent } from "@utils/assertions"
+import { assertBNClose, assertBNClosePercent, assertBNSlightlyGT } from "@utils/assertions"
+import { DEFAULT_DECIMALS, FIVE_DAYS, fullScale, ONE_DAY, ONE_WEEK } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
 import { BN, simpleToExactAmount, sqrt } from "@utils/math"
-import { ONE_WEEK, ONE_DAY, FIVE_DAYS, fullScale, DEFAULT_DECIMALS } from "@utils/constants"
-import {
-    IncentivisedVotingLockup,
-    IncentivisedVotingLockup__factory,
-    InitializableRewardsDistributionRecipient,
+import { getTimestamp, increaseTime, increaseTimeTo } from "@utils/time"
+import { expect } from "chai"
+import { ethers } from "hardhat"
+import { IncentivisedVotingLockup__factory, MockERC20__factory, Nexus__factory } from "types/generated"
+
+
+import type { StandardAccounts } from "@utils/machines"
+import type { ContractReceipt, ContractTransaction, Event } from "ethers"
+import type { Account } from "types"
+import type {
     ImmutableModule,
-    Nexus,
-    Nexus__factory,
+    IncentivisedVotingLockup,
+    InitializableRewardsDistributionRecipient,
     MockERC20,
-    MockERC20__factory,
+    Nexus,
 } from "types/generated"
-import {
-    shouldBehaveLikeDistributionRecipient,
-    IRewardsDistributionRecipientContext,
-} from "../shared/RewardsDistributionRecipient.behaviour"
+import { shouldBehaveLikeDistributionRecipient } from "../shared/RewardsDistributionRecipient.behaviour"
+
+import type { IRewardsDistributionRecipientContext } from "../shared/RewardsDistributionRecipient.behaviour"
 
 const EVENTS = { DEPOSIT: "Deposit", WITHDRAW: "Withdraw", REWARD_PAID: "RewardPaid" }
 

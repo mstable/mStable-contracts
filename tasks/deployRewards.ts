@@ -1,16 +1,21 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
-import { task, types } from "hardhat/config"
-import { ONE_WEEK } from "@utils/constants"
 
+import { ONE_WEEK } from "@utils/constants"
 import { simpleToExactAmount } from "@utils/math"
-import { BoostedDualVault__factory, BoostDirectorV2__factory, BoostDirectorV2, StakedTokenBatcher__factory } from "../types/generated"
-import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
-import { getSignerAccount, getSigner } from "./utils/signerFactory"
+import { task, types } from "hardhat/config"
+
+import { BoostDirectorV2__factory, BoostedDualVault__factory, StakedTokenBatcher__factory } from "../types/generated"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
-import { deployVault, VaultData } from "./utils/feederUtils"
 import { verifyEtherscan } from "./utils/etherscan"
-import { deployStakingToken, StakedTokenData } from "./utils/rewardsUtils"
+import { deployVault } from "./utils/feederUtils"
+import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
+import { deployStakingToken } from "./utils/rewardsUtils"
+import { getSigner, getSignerAccount } from "./utils/signerFactory"
+
+import type { BoostDirectorV2 } from "../types/generated"
+import type { VaultData } from "./utils/feederUtils"
+import type { StakedTokenData } from "./utils/rewardsUtils"
 
 task("getBytecode-BoostedDualVault").setAction(async () => {
     const size = BoostedDualVault__factory.bytecode.length / 2 / 1000

@@ -1,22 +1,18 @@
 /* eslint-disable @typescript-eslint/dot-notation */
 /* eslint-disable no-await-in-loop */
 /* eslint-disable @typescript-eslint/naming-convention */
-import { network, ethers } from "hardhat"
-import { expect } from "chai"
 import { assertBNClose, assertBNClosePercent } from "@utils/assertions"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
+import { DEFAULT_DECIMALS, ONE_DAY, ONE_HOUR, ONE_WEEK, ONE_YEAR } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
+import { BN, maximum, simpleToExactAmount, sqrt } from "@utils/math"
 import { advanceBlock, getTimestamp, increaseTime, increaseTimeTo, latestBlock } from "@utils/time"
-import { BN, simpleToExactAmount, maximum, sqrt } from "@utils/math"
-import { ONE_WEEK, ONE_HOUR, ONE_DAY, ONE_YEAR, DEFAULT_DECIMALS } from "@utils/constants"
-import {
-    IncentivisedVotingLockup,
-    IncentivisedVotingLockup__factory,
-    MintableToken,
-    MintableToken__factory,
-    Nexus,
-    Nexus__factory,
-} from "types/generated"
-import { Account } from "types"
+import { expect } from "chai"
+import { ethers, network } from "hardhat"
+import { IncentivisedVotingLockup__factory, MintableToken__factory, Nexus__factory } from "types/generated"
+
+import type { StandardAccounts } from "@utils/machines"
+import type { Account } from "types"
+import type { IncentivisedVotingLockup, MintableToken, Nexus } from "types/generated"
 
 let sa: StandardAccounts
 let mAssetMachine: MassetMachine

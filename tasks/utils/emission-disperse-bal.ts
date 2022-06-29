@@ -1,7 +1,8 @@
-import axios from "axios"
 import { BN, simpleToExactAmount } from "@utils/math"
-import { PMTA } from "./tokens"
+import axios from "axios"
+
 import { logger } from "./deploy-utils"
+import { PMTA } from "./tokens"
 
 const log = logger("emission", "disperse-bal")
 

@@ -2,29 +2,27 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
 
-import { btcBassets, startingCap, config, mBtcName, mBtcSymbol, DeployedBasset } from "@utils/btcConstants"
+import { btcBassets, config, mBtcName, mBtcSymbol, startingCap } from "@utils/btcConstants"
 import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
-import { Signer } from "ethers"
-import { task } from "hardhat/config"
+import { BN, simpleToExactAmount } from "@utils/math"
 import { formatEther } from "ethers/lib/utils"
+import { task } from "hardhat/config"
 import {
-    SavingsContract,
-    Masset,
     AssetProxy__factory,
-    MockERC20,
+    BoostDirector__factory,
+    BoostedVault__factory,
+    ERC20__factory,
     MockERC20__factory,
     MockInitializableToken__factory,
-    SavingsContract__factory,
-    BoostedVault__factory,
-    BoostedVault,
-    ERC20__factory,
-    SaveWrapper__factory,
     RenWrapper__factory,
-    BoostDirector__factory,
-    IERC20Metadata,
+    SaveWrapper__factory,
+    SavingsContract__factory,
     Unwrapper__factory,
 } from "types/generated"
-import { simpleToExactAmount, BN } from "@utils/math"
+
+import type { DeployedBasset } from "@utils/btcConstants"
+import type { Signer } from "ethers"
+import type { BoostedVault, IERC20Metadata, Masset, MockERC20, SavingsContract } from "types/generated"
 
 interface CommonAddresses {
     mta: string

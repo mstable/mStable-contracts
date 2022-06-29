@@ -1,10 +1,15 @@
-import { Speed } from "defender-relay-client"
-import { Signer, Wallet } from "ethers"
-import { DefenderRelayProvider, DefenderRelaySigner } from "defender-relay-client/lib/ethers"
 import { impersonate } from "@utils/fork"
 import { ethereumAddress, privateKey } from "@utils/regex"
-import { Account } from "types"
-import { getChain, getChainAddress, HardhatRuntime, resolveAddress } from "./networkAddressFactory"
+import { DefenderRelayProvider, DefenderRelaySigner } from "defender-relay-client/lib/ethers"
+import { Wallet } from "ethers"
+
+
+import type { Speed } from "defender-relay-client"
+import type { Signer } from "ethers"
+import type { Account } from "types"
+import { getChain, getChainAddress, resolveAddress } from "./networkAddressFactory"
+
+import type { HardhatRuntime } from "./networkAddressFactory"
 
 export const getDefenderSigner = async (speed: Speed = "fast"): Promise<Signer> => {
     if (!process.env.DEFENDER_API_KEY || !process.env.DEFENDER_API_SECRET) {

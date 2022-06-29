@@ -1,5 +1,6 @@
-import { BN } from "@utils/math"
 import { formatUnits } from "ethers/lib/utils"
+
+import type { BN } from "@utils/math"
 
 export type QuantityFormatter = (amount: BN, decimals?: number, pad?: number, displayDecimals?: number) => string
 

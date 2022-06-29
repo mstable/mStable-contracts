@@ -1,13 +1,14 @@
 /* eslint-disable no-restricted-syntax */
 import { BN, simpleToExactAmount } from "@utils/math"
 import { subtask, task, types } from "hardhat/config"
-import { Collector__factory, SavingsManager, SavingsManager__factory, Unliquidator__factory } from "types/generated"
+import { Collector__factory, SavingsManager__factory, Unliquidator__factory } from "types/generated"
 import { Comptroller__factory } from "types/generated/factories/Comptroller__factory"
+
 import rewardsFiles from "./balancer-mta-rewards/20210817.json"
-import { btcFormatter, COMP, logTxDetails, mBTC, mUSD, stkAAVE, USDC, usdFormatter, USDT } from "./utils"
-import { getAaveTokens, getAlcxTokens, getBlock, getCompTokens } from "./utils/snap-utils"
-import { getSigner } from "./utils/signerFactory"
+import { btcFormatter, COMP, logTxDetails, mBTC, mUSD, stkAAVE, USDC, usdFormatter } from "./utils"
 import { getChain, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
+import { getSigner } from "./utils/signerFactory"
+import { getAaveTokens, getAlcxTokens, getBlock, getCompTokens } from "./utils/snap-utils"
 
 task("sum-rewards", "Totals the rewards in a disperse json file")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)

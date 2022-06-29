@@ -1,11 +1,12 @@
-import { subtask, task, types } from "hardhat/config"
-import { BoostedVault__factory, StakingRewards__factory } from "types/generated"
 import { simpleToExactAmount } from "@utils/math"
 import { formatUnits } from "ethers/lib/utils"
-import { getSignerAccount } from "./utils/signerFactory"
+import { subtask, task, types } from "hardhat/config"
+import { BoostedVault__factory, StakingRewards__factory } from "types/generated"
+
 import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
 import { usdFormatter } from "./utils/quantity-formatters"
+import { getSignerAccount } from "./utils/signerFactory"
 import { getBlock } from "./utils/snap-utils"
 
 subtask("vault-snap", "Dumps user data for a vault")

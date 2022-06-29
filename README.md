@@ -51,8 +51,7 @@ We publish the contract artifacts to an npm package called [@mstable/protocol](h
 
 ### Prerequisites
 
--   Node.js v14.16.1 (you may wish to use [nvm][1])
--   [ganache-cli][2]
+-   Node.js v14.19.3 (you may wish to use [nvm][1])
 
 ### Installing dependencies
 
@@ -106,7 +105,6 @@ Codebase rules are enforced through a passing [GitHub Actions](https://github.co
 <br />
 
 [1]: https://github.com/nvm-sh/nvm
-[2]: https://github.com/trufflesuite/ganache-cli
 
 ### Command Line Interface
 

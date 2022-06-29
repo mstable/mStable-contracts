@@ -1,9 +1,11 @@
-import { ethers } from "hardhat"
-import { expect } from "chai"
-
 import { assertBNClosePercent } from "@utils/assertions"
-import { BN, simpleToExactAmount } from "@utils/math"
-import { MassetMachine, StandardAccounts, FeederMachine, FeederDetails } from "@utils/machines"
+import { FeederMachine, MassetMachine } from "@utils/machines"
+import { simpleToExactAmount } from "@utils/math"
+import { expect } from "chai"
+import { ethers } from "hardhat"
+
+import type { FeederDetails, StandardAccounts } from "@utils/machines"
+import type { BN } from "@utils/math"
 
 describe("Feeder Pools", () => {
     let sa: StandardAccounts

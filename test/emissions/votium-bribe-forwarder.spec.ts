@@ -1,18 +1,13 @@
 import { MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
+import { MassetMachine } from "@utils/machines"
 import { simpleToExactAmount } from "@utils/math"
 import { expect } from "chai"
 import { ethers } from "hardhat"
-import { Account } from "types/common"
-import {
-    MockERC20,
-    MockNexus,
-    MockNexus__factory,
-    MockVotiumBribe,
-    MockVotiumBribe__factory,
-    VotiumBribeForwarder,
-    VotiumBribeForwarder__factory,
-} from "types/generated"
+import { MockNexus__factory, MockVotiumBribe__factory, VotiumBribeForwarder__factory } from "types/generated"
+
+import type { StandardAccounts } from "@utils/machines"
+import type { Account } from "types/common"
+import type { MockERC20, MockNexus, MockVotiumBribe, VotiumBribeForwarder } from "types/generated"
 
 export const hashFn = (str: string): string => ethers.utils.keccak256(ethers.utils.toUtf8Bytes(str))
 const PROPOSAL = hashFn("QmZpsJAvbKEY9YKFCZBUzzSMC5Y9vfy6QPA4HoXGsiLUyg")

@@ -1,9 +1,11 @@
 /* eslint-disable no-restricted-syntax */
 /* eslint-disable no-await-in-loop */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { PopulatedTransaction, Signer, UnsignedTransaction } from "ethers"
+import { JsonRpcProvider } from "@ethersproject/providers"
 import { BN } from "@utils/math"
-import { JsonRpcProvider, TransactionResponse } from "@ethersproject/providers"
+
+import type { TransactionResponse } from "@ethersproject/providers"
+import type { PopulatedTransaction, Signer, UnsignedTransaction } from "ethers"
 
 // Ethers provider for Flashbots Protect RPC
 const flashbotsProvider = new JsonRpcProvider("https://rpc.flashbots.net")

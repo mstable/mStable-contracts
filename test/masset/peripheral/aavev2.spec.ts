@@ -1,25 +1,26 @@
-import { ethers } from "hardhat"
-import { expect } from "chai"
-
-import { assertBNSlightlyGT, assertBNSlightlyGTPercent, assertBNClose } from "@utils/assertions"
-import { simpleToExactAmount, BN } from "@utils/math"
+import { assertBNClose, assertBNSlightlyGT, assertBNSlightlyGTPercent } from "@utils/assertions"
+import { DEAD_ADDRESS, MAX_UINT256, TEN_MINS, ZERO_ADDRESS } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
+import { BN, simpleToExactAmount } from "@utils/math"
 import { increaseTime } from "@utils/time"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
-import { MAX_UINT256, ZERO_ADDRESS, TEN_MINS, DEAD_ADDRESS } from "@utils/constants"
+import { expect } from "chai"
+import { ethers } from "hardhat"
 import {
-    MockNexus__factory,
-    MockNexus,
-    MockAaveV2__factory,
-    AaveV2Integration,
     AaveV2Integration__factory,
-    MockERC20__factory,
-    MockATokenV2__factory,
     ILendingPoolAddressesProviderV2__factory,
-    MockERC20,
-    MockATokenV2,
+    MockAaveV2__factory,
+    MockATokenV2__factory,
+    MockERC20__factory,
+    MockNexus__factory,
 } from "types/generated"
-import { BassetIntegrationDetails, Account } from "types"
-import { shouldBehaveLikeModule, IModuleBehaviourContext } from "../../shared/Module.behaviour"
+
+
+import type { StandardAccounts } from "@utils/machines"
+import type { Account, BassetIntegrationDetails } from "types"
+import type { AaveV2Integration, MockATokenV2, MockERC20, MockNexus } from "types/generated"
+import { shouldBehaveLikeModule } from "../../shared/Module.behaviour"
+
+import type { IModuleBehaviourContext } from "../../shared/Module.behaviour"
 
 describe("AaveIntegration", async () => {
     let sa: StandardAccounts

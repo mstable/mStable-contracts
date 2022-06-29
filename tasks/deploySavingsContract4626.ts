@@ -1,23 +1,25 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
+
 import { DEAD_ADDRESS } from "@utils/constants"
 import { task, types } from "hardhat/config"
 import { DelayedProxyAdmin__factory } from "types/generated"
-// Polygon imUSD Contract
-import { SavingsContractImusdPolygon22 } from "types/generated/SavingsContractImusdPolygon22"
-import { SavingsContractImusdPolygon22__factory } from "types/generated/factories/SavingsContractImusdPolygon22__factory"
 // Mainnet imBTC Contract
 import { SavingsContractImbtcMainnet22__factory } from "types/generated/factories/SavingsContractImbtcMainnet22__factory"
-import { SavingsContractImbtcMainnet22 } from "types/generated/SavingsContractImbtcMainnet22"
 // Mainnet imUSD Contract
 import { SavingsContractImusdMainnet22__factory } from "types/generated/factories/SavingsContractImusdMainnet22__factory"
-import { SavingsContractImusdMainnet22 } from "types/generated/SavingsContractImusdMainnet22"
+import { SavingsContractImusdPolygon22__factory } from "types/generated/factories/SavingsContractImusdPolygon22__factory"
 
+import type { SavingsContractImbtcMainnet22 } from "types/generated/SavingsContractImbtcMainnet22"
 import { deployContract } from "./utils/deploy-utils"
-import { getSigner } from "./utils/signerFactory"
-import { getChain, resolveAddress, getChainAddress } from "./utils/networkAddressFactory"
-import { Chain } from "./utils/tokens"
 import { verifyEtherscan } from "./utils/etherscan"
+import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
+import { getSigner } from "./utils/signerFactory"
+import { Chain } from "./utils/tokens"
+
+import type { SavingsContractImusdMainnet22 } from "types/generated/SavingsContractImusdMainnet22"
+// Polygon imUSD Contract
+import type { SavingsContractImusdPolygon22 } from "types/generated/SavingsContractImusdPolygon22"
 
 task("upgrade-imusd-polygon", "Upgrade Polygon imUSD save contract imUSD")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)

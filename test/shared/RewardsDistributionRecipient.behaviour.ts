@@ -1,7 +1,11 @@
-import { expect } from "chai"
 import { ZERO_ADDRESS } from "@utils/constants"
-import { InitializableRewardsDistributionRecipient } from "types/generated"
-import { IModuleBehaviourContext, shouldBehaveLikeModule } from "./Module.behaviour"
+import { expect } from "chai"
+
+import type { InitializableRewardsDistributionRecipient } from "types/generated"
+import { shouldBehaveLikeModule } from "./Module.behaviour"
+
+
+import type { IModuleBehaviourContext } from "./Module.behaviour"
 
 function behaveLikeAModule(ctx: IModuleBehaviourContext): void {
     return shouldBehaveLikeModule(ctx)

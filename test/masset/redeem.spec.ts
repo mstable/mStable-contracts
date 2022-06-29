@@ -1,14 +1,15 @@
+import { assertBasketIsHealthy, assertBNClosePercent, assertBNSlightlyGTPercent } from "@utils/assertions"
+import { fullScale, ZERO_ADDRESS } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
+import { BN, simpleToExactAmount } from "@utils/math"
+import { BassetStatus } from "@utils/mstable-objects"
 import { expect } from "chai"
 import { ethers } from "hardhat"
-import { Signer } from "ethers"
 
-import { simpleToExactAmount, BN } from "@utils/math"
-import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
-import { MockERC20, Masset } from "types/generated"
-import { fullScale, ZERO_ADDRESS } from "@utils/constants"
-import { assertBasketIsHealthy, assertBNClosePercent, assertBNSlightlyGTPercent } from "@utils/assertions"
-import { BassetStatus } from "@utils/mstable-objects"
-import { Account } from "types"
+import type { MassetDetails, StandardAccounts } from "@utils/machines"
+import type { Signer } from "ethers"
+import type { Account } from "types"
+import type { Masset, MockERC20 } from "types/generated"
 
 describe("Masset - Redeem", () => {
     let sa: StandardAccounts

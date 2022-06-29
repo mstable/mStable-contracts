@@ -1,28 +1,28 @@
 /* eslint-disable no-restricted-syntax */
 /* eslint-disable no-await-in-loop */
 /* eslint-disable @typescript-eslint/no-unused-expressions */
+import { assertBNClose, assertBNClosePercent } from "@utils/assertions"
+import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
+import { simpleToExactAmount } from "@utils/math"
+import { getTimestamp, increaseTime } from "@utils/time"
+import { expect } from "chai"
+import { formatBytes32String } from "ethers/lib/utils"
 import { ethers } from "hardhat"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
-import { MockNexus__factory } from "types/generated/factories/MockNexus__factory"
+import { DEAD_ADDRESS } from "index"
 import {
     AssetProxy__factory,
-    MockERC20,
     MockERC20__factory,
-    MockNexus,
     PlatformTokenVendorFactory__factory,
     QuestManager__factory,
     SignatureVerifier__factory,
-    StakedTokenMTA,
     StakedTokenMTA__factory,
-    UserStakingData,
 } from "types"
-import { DEAD_ADDRESS } from "index"
-import { ONE_DAY, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
-import { BN, simpleToExactAmount } from "@utils/math"
-import { expect } from "chai"
-import { getTimestamp, increaseTime } from "@utils/time"
-import { assertBNClose, assertBNClosePercent } from "@utils/assertions"
-import { formatBytes32String } from "ethers/lib/utils"
+import { MockNexus__factory } from "types/generated/factories/MockNexus__factory"
+
+import type { StandardAccounts } from "@utils/machines"
+import type { BN } from "@utils/math"
+import type { MockERC20, MockNexus, StakedTokenMTA, UserStakingData } from "types"
 
 export interface SnapData {
     periodFinish: number

@@ -1,20 +1,14 @@
 /* eslint-disable no-underscore-dangle */
 
-import { ethers } from "hardhat"
-import { expect } from "chai"
-import { StandardAccounts, MassetMachine } from "@utils/machines"
 import { DEAD_ADDRESS } from "@utils/constants"
-import {
-    MockStakingContract,
-    MockStakingContract__factory,
-    MockNexus,
-    MockNexus__factory,
-    BoostDirectorV2__factory,
-    BoostDirectorV2,
-    MockBoostedVault,
-    MockBoostedVault__factory,
-} from "types/generated"
-import { Account } from "types"
+import { MassetMachine } from "@utils/machines"
+import { expect } from "chai"
+import { ethers } from "hardhat"
+import { BoostDirectorV2__factory, MockBoostedVault__factory, MockNexus__factory, MockStakingContract__factory } from "types/generated"
+
+import type { StandardAccounts } from "@utils/machines"
+import type { Account } from "types"
+import type { BoostDirectorV2, MockBoostedVault, MockNexus, MockStakingContract } from "types/generated"
 
 describe("BoostDirectorV2", async () => {
     let sa: StandardAccounts

@@ -1,13 +1,15 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
+
+import { ONE_WEEK } from "@utils/constants"
+import { simpleToExactAmount } from "@utils/math"
 import { task, types } from "hardhat/config"
 import { SavingsManager__factory } from "types/generated"
-import { simpleToExactAmount } from "@utils/math"
-import { ONE_WEEK } from "@utils/constants"
+
 import { deployContract } from "./utils/deploy-utils"
-import { getSigner } from "./utils/signerFactory"
 import { verifyEtherscan } from "./utils/etherscan"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
+import { getSigner } from "./utils/signerFactory"
 
 task("deploy-SavingsManager")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)

@@ -1,29 +1,30 @@
 import { assertBNClose } from "@utils/assertions"
-import { ethers } from "hardhat"
-import { expect } from "chai"
-
-import { simpleToExactAmount, BN } from "@utils/math"
-import { FeederDetails, FeederMachine, MassetMachine, StandardAccounts, MassetDetails } from "@utils/machines"
-
 import { DEAD_ADDRESS, MAX_UINT256, ONE_DAY, ONE_HOUR, ONE_MIN, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
-import {
-    DudIntegration,
-    DudIntegration__factory,
-    DudPlatform,
-    DudPlatform__factory,
-    IPlatformIntegration__factory,
-    FeederPool,
-    MaliciousAaveIntegration,
-    MaliciousAaveIntegration__factory,
-    MockERC20,
-    MockPlatformIntegration,
-    MockPlatformIntegration__factory,
-    MockNexus,
-} from "types/generated"
-
+import { impersonate } from "@utils/fork"
+import { FeederMachine, MassetMachine } from "@utils/machines"
+import { BN, simpleToExactAmount } from "@utils/math"
 import { BassetStatus } from "@utils/mstable-objects"
 import { getTimestamp, increaseTime } from "@utils/time"
-import { impersonate } from "@utils/fork"
+import { expect } from "chai"
+import { ethers } from "hardhat"
+import {
+    DudIntegration__factory,
+    DudPlatform__factory,
+    IPlatformIntegration__factory,
+    MaliciousAaveIntegration__factory,
+    MockPlatformIntegration__factory,
+} from "types/generated"
+
+import type { FeederDetails, StandardAccounts } from "@utils/machines"
+import type {
+    DudIntegration,
+    DudPlatform,
+    FeederPool,
+    MaliciousAaveIntegration,
+    MockERC20,
+    MockNexus,
+    MockPlatformIntegration,
+} from "types/generated"
 
 describe("Feeder Admin", () => {
     let sa: StandardAccounts

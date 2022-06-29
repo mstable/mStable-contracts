@@ -1,7 +1,8 @@
-import { CLIArgumentType } from "hardhat/src/types/index"
 import { isValidAddress } from "ethereumjs-util"
 import { HardhatError } from "hardhat/internal/core/errors"
 import { ERRORS } from "hardhat/internal/core/errors-list"
+
+import type { CLIArgumentType } from "hardhat/src/types/index"
 
 /**
  * Hardhat task CLI argument types

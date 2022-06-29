@@ -1,42 +1,46 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
-import { task, types } from "hardhat/config"
-import { Signer } from "ethers"
 
+import { BN, simpleToExactAmount } from "@utils/math"
+import { formatUnits } from "ethers/lib/utils"
+import { task, types } from "hardhat/config"
 import {
     ERC20__factory,
-    FeederPool,
     FeederPool__factory,
     FeederWrapper__factory,
     IERC20__factory,
     InterestValidator__factory,
-    Masset,
     SavingsManager__factory,
 } from "types/generated"
-import { BN, simpleToExactAmount } from "@utils/math"
-import { formatUnits } from "ethers/lib/utils"
-import { dumpConfigStorage, dumpFassetStorage, dumpTokenStorage } from "./utils/storage-utils"
-import {
-    getMultiRedemptions,
-    Balances,
-    getBlock,
-    getBlockRange,
-    getBasket,
-    snapConfig,
-    getMints,
-    getMultiMints,
-    getSwaps,
-    getRedemptions,
-    outputFees,
-    getCollectedInterest,
-} from "./utils/snap-utils"
-import { Chain, PFRAX, PmUSD, Token, tokens } from "./utils/tokens"
-import { btcFormatter, QuantityFormatter, usdFormatter } from "./utils/quantity-formatters"
-import { getSwapRates } from "./utils/rates-utils"
-import { getSigner } from "./utils/signerFactory"
+
+import type { Signer } from "ethers"
 import { logTxDetails } from "./utils"
 import { getChain, getChainAddress, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
 import { params } from "./utils/params"
+import { btcFormatter, usdFormatter } from "./utils/quantity-formatters"
+import { getSwapRates } from "./utils/rates-utils"
+import { getSigner } from "./utils/signerFactory"
+import {
+    getBasket,
+    getBlock,
+    getBlockRange,
+    getCollectedInterest,
+    getMints,
+    getMultiMints,
+    getMultiRedemptions,
+    getRedemptions,
+    getSwaps,
+    outputFees,
+    snapConfig,
+} from "./utils/snap-utils"
+import { dumpConfigStorage, dumpFassetStorage, dumpTokenStorage } from "./utils/storage-utils"
+import { Chain, PFRAX, PmUSD, tokens } from "./utils/tokens"
+
+import type { FeederPool, Masset } from "types/generated"
+
+import type { QuantityFormatter } from "./utils/quantity-formatters"
+import type { Balances } from "./utils/snap-utils"
+import type { Token } from "./utils/tokens"
 
 const getBalances = async (
     feederPool: Masset | FeederPool,

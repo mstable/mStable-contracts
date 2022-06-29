@@ -1,6 +1,7 @@
 import axios from "axios"
-import { BigNumberish, Signer } from "ethers"
 import { arrayify, solidityKeccak256 } from "ethers/lib/utils"
+
+import type { BigNumberish, Signer } from "ethers"
 
 const questBookUrl = "https://europe-west1-mstable-questbook.cloudfunctions.net/questbook"
 

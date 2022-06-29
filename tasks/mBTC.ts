@@ -1,30 +1,34 @@
 import { btcBassets, capFactor, contracts, startingCap } from "@utils/btcConstants"
-import { Signer } from "ethers"
+import { BN } from "@utils/math"
 import { formatUnits } from "ethers/lib/utils"
 import { task, types } from "hardhat/config"
-import { BN } from "@utils/math"
-import { MusdEth__factory } from "types/generated/factories/MusdEth__factory"
-import { MusdEth } from "types/generated/MusdEth"
 import { SavingsManager__factory } from "types/generated"
-import { dumpBassetStorage, dumpConfigStorage, dumpTokenStorage } from "./utils/storage-utils"
+import { MusdEth__factory } from "types/generated/factories/MusdEth__factory"
+
+import type { Signer } from "ethers"
+import { getChain, getChainAddress } from "./utils/networkAddressFactory"
+import { getSwapRates } from "./utils/rates-utils"
+import { getSigner } from "./utils/signerFactory"
 import {
-    getMultiRedemptions,
-    getBlockRange,
+    getBalances,
     getBasket,
     getBlock,
-    snapConfig,
+    getBlockRange,
+    getCollectedInterest,
     getMints,
     getMultiMints,
+    getMultiRedemptions,
     getRedemptions,
     getSwaps,
     outputFees,
-    getBalances,
-    getCollectedInterest,
+    snapConfig,
 } from "./utils/snap-utils"
-import { Token, renBTC, sBTC, WBTC, mBTC, TBTC, HBTC, Chain } from "./utils/tokens"
-import { getSwapRates } from "./utils/rates-utils"
-import { getSigner } from "./utils/signerFactory"
-import { getChain, getChainAddress } from "./utils/networkAddressFactory"
+import { dumpBassetStorage, dumpConfigStorage, dumpTokenStorage } from "./utils/storage-utils"
+import { Chain, HBTC, mBTC, renBTC, sBTC, TBTC, WBTC } from "./utils/tokens"
+
+import type { MusdEth } from "types/generated/MusdEth"
+
+import type { Token } from "./utils/tokens"
 
 const bAssets: Token[] = [renBTC, sBTC, WBTC]
 

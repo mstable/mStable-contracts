@@ -1,12 +1,14 @@
+import { assertBNSlightlyGTPercent } from "@utils/assertions"
+import { ONE_DAY } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
+import { BN, simpleToExactAmount } from "@utils/math"
+import { getTimestamp, increaseTime } from "@utils/time"
 import { expect } from "chai"
 import { ethers, network } from "hardhat"
+import { MassetLogic__factory } from "types/generated"
 
-import { assertBNSlightlyGTPercent } from "@utils/assertions"
-import { BN, simpleToExactAmount } from "@utils/math"
-import { MassetDetails, MassetMachine, StandardAccounts } from "@utils/machines"
-import { ONE_DAY } from "@utils/constants"
-import { ExposedMassetLogic, MassetLogic__factory } from "types/generated"
-import { getTimestamp, increaseTime } from "@utils/time"
+import type { MassetDetails, StandardAccounts } from "@utils/machines"
+import type { ExposedMassetLogic } from "types/generated"
 
 const one = simpleToExactAmount(1)
 const swapFee = simpleToExactAmount(6, 14)

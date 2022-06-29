@@ -1,35 +1,40 @@
 /* eslint-disable no-restricted-syntax */
 /* eslint-disable no-await-in-loop */
 import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
-import { BN, simpleToExactAmount } from "@utils/math"
-import { Signer } from "ethers"
+import { BN } from "@utils/math"
 import { formatEther } from "ethers/lib/utils"
-import { HardhatRuntimeEnvironment } from "hardhat/types/runtime"
 import {
-    FeederPool,
-    NonPeggedFeederPool,
-    BoostedVault,
+    AssetProxy__factory,
+    BoostedDualVault__factory,
+    BoostedVault__factory,
+    FeederPool__factory,
+    IRedemptionPriceSnap__factory,
+    Masset__factory,
     MockERC20__factory,
     MockInitializableToken__factory,
-    AssetProxy__factory,
-    MockERC20,
-    FeederPool__factory,
     NonPeggedFeederPool__factory,
-    BoostedVault__factory,
-    Masset__factory,
-    BoostedDualVault,
-    StakingRewardsWithPlatformToken,
-    StakingRewards,
-    BoostedDualVault__factory,
-    StakingRewardsWithPlatformToken__factory,
     StakingRewards__factory,
-    IRedemptionPriceSnap__factory,
+    StakingRewardsWithPlatformToken__factory,
 } from "types/generated"
+
+import type { Signer } from "ethers"
 import { deployContract } from "./deploy-utils"
 import { verifyEtherscan } from "./etherscan"
 import { getChain, getChainAddress } from "./networkAddressFactory"
 import { getSigner } from "./signerFactory"
-import { Token } from "./tokens"
+
+import type { HardhatRuntimeEnvironment } from "hardhat/types/runtime"
+import type {
+    BoostedDualVault,
+    BoostedVault,
+    FeederPool,
+    MockERC20,
+    NonPeggedFeederPool,
+    StakingRewards,
+    StakingRewardsWithPlatformToken,
+} from "types/generated"
+
+import type { Token } from "./tokens"
 
 interface Config {
     a: BN

@@ -1,20 +1,14 @@
-import { ethers } from "hardhat"
-import { expect } from "chai"
-
-import { simpleToExactAmount, BN } from "@utils/math"
-import { MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
-import {
-    ExposedFeederPool,
-    ExposedFeederPool__factory,
-    ExposedMasset,
-    FeederLogic__factory,
-    MockERC20,
-    FeederManager__factory,
-    Masset,
-} from "types/generated"
 import { assertBNClose } from "@utils/assertions"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
+import { MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
+import { BN, simpleToExactAmount } from "@utils/math"
 import { crossData } from "@utils/validator-data"
+import { expect } from "chai"
+import { ethers } from "hardhat"
+import { FeederLogic__factory, FeederManager__factory } from "types/generated"
+
+import type { StandardAccounts } from "@utils/machines"
+import type { ExposedFeederPool, ExposedFeederPool__factory, ExposedMasset, Masset, MockERC20 } from "types/generated"
 
 const { integrationData } = crossData
 

@@ -1,8 +1,9 @@
-import { expect } from "chai"
-import { Account } from "types"
 import { BN } from "@utils/math"
 import { getTimestamp, increaseTime } from "@utils/time"
-import { DelayedClaimableGovernor } from "types/generated"
+import { expect } from "chai"
+
+import type { Account } from "types"
+import type { DelayedClaimableGovernor } from "types/generated"
 
 export interface IGovernableBehaviourContext {
     claimable: DelayedClaimableGovernor

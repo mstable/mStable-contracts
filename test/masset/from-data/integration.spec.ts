@@ -1,15 +1,16 @@
 /* eslint-disable no-restricted-syntax */
 /* eslint-disable @typescript-eslint/no-loop-func */
 
-import { ethers } from "hardhat"
-import { expect } from "chai"
-
-import { simpleToExactAmount, BN } from "@utils/math"
-import { DEAD_ADDRESS, MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
-import { MassetLogic, MassetManager, ExposedMasset } from "types/generated"
 import { assertBNClose, assertBNSlightlyGT } from "@utils/assertions"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
+import { DEAD_ADDRESS, MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
+import { BN, simpleToExactAmount } from "@utils/math"
 import { mAssetData } from "@utils/validator-data"
+import { expect } from "chai"
+import { ethers } from "hardhat"
+
+import type { StandardAccounts } from "@utils/machines"
+import type { ExposedMasset, MassetLogic, MassetManager } from "types/generated"
 
 const config = {
     a: BN.from(120),

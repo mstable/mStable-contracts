@@ -1,10 +1,11 @@
-import { subtask, task, types } from "hardhat/config"
-import { randomBytes } from "crypto"
 import { ONE_YEAR } from "@utils/constants"
+import { randomBytes } from "crypto"
+import { subtask, task, types } from "hardhat/config"
 import { EnsEthRegistrarController__factory } from "types/generated/factories/EnsEthRegistrarController__factory"
-import { getSigner } from "./utils/signerFactory"
+
 import { logTxDetails } from "./utils/deploy-utils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
+import { getSigner } from "./utils/signerFactory"
 
 subtask("ens-commit", "Registers a commitment to claiming an ENS domain")
     .addParam("domain", "Domain name without the .eth extension.", "mstable", types.string)

@@ -1,13 +1,14 @@
+import { ZERO_ADDRESS } from "@utils/constants"
+import { FeederMachine, MassetMachine } from "@utils/machines"
+import { BN, simpleToExactAmount } from "@utils/math"
+import { BassetStatus } from "@utils/mstable-objects"
 import { expect } from "chai"
-import { Signer } from "ethers"
 import { ethers } from "hardhat"
 
-import { BN, simpleToExactAmount } from "@utils/math"
-import { FeederDetails, FeederMachine, MassetMachine, StandardAccounts } from "@utils/machines"
-import { ZERO_ADDRESS } from "@utils/constants"
-import { FeederPool, MockERC20 } from "types/generated"
-import { BassetStatus } from "@utils/mstable-objects"
-import { Account } from "types"
+import type { FeederDetails, StandardAccounts } from "@utils/machines"
+import type { Signer } from "ethers"
+import type { Account } from "types"
+import type { FeederPool, MockERC20 } from "types/generated"
 
 interface MintOutput {
     outputQuantity: BN
@@ -30,8 +31,14 @@ describe("Feeder - Mint", () => {
         use2dp = false,
         useRedemptionPrice = false,
     ): Promise<void> => {
-        details = await feederMachine.deployFeeder(feederWeights, mAssetWeights, useLendingMarkets,
-            useInterestValidator, use2dp, useRedemptionPrice)
+        details = await feederMachine.deployFeeder(
+            feederWeights,
+            mAssetWeights,
+            useLendingMarkets,
+            useInterestValidator,
+            use2dp,
+            useRedemptionPrice,
+        )
     }
 
     before("Init contract", async () => {

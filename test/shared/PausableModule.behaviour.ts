@@ -1,7 +1,9 @@
-import { StandardAccounts } from "@utils/machines"
-import { expect } from "chai"
 import { ZERO_ADDRESS } from "@utils/constants"
-import { INexus__factory, PausableModule } from "types/generated"
+import { expect } from "chai"
+import { INexus__factory } from "types/generated"
+
+import type { StandardAccounts } from "@utils/machines"
+import type { PausableModule } from "types/generated"
 
 export interface IPausableModuleBehaviourContext {
     module: PausableModule

@@ -1,13 +1,14 @@
+import { ZERO_ADDRESS } from "@utils/constants"
+import { FeederMachine, MassetMachine } from "@utils/machines"
+import { BN, simpleToExactAmount } from "@utils/math"
+import { BassetStatus } from "@utils/mstable-objects"
 import { expect } from "chai"
-import { Signer } from "ethers"
 import { ethers } from "hardhat"
 
-import { BN, simpleToExactAmount } from "@utils/math"
-import { FeederDetails, FeederMachine, MassetMachine, StandardAccounts } from "@utils/machines"
-import { ZERO_ADDRESS } from "@utils/constants"
-import { FeederPool, MockERC20 } from "types/generated"
-import { BassetStatus } from "@utils/mstable-objects"
-import { Account } from "types"
+import type { FeederDetails, StandardAccounts } from "@utils/machines"
+import type { Signer } from "ethers"
+import type { Account } from "types"
+import type { FeederPool, MockERC20 } from "types/generated"
 
 interface RedeemOutput {
     outputQuantity: BN
@@ -30,8 +31,14 @@ describe("Feeder - Redeem", () => {
         use2dp = false,
         useRedemptionPrice = false,
     ): Promise<void> => {
-        details = await feederMachine.deployFeeder(feederWeights, mAssetWeights, useLendingMarkets,
-            useInterestValidator, use2dp, useRedemptionPrice)
+        details = await feederMachine.deployFeeder(
+            feederWeights,
+            mAssetWeights,
+            useLendingMarkets,
+            useInterestValidator,
+            use2dp,
+            useRedemptionPrice,
+        )
     }
 
     before("Init contract", async () => {
@@ -510,39 +517,37 @@ describe("Feeder - Redeem", () => {
             })
             context("scale fAsset by setting redemption price to 2", () => {
                 beforeEach(async () => {
-                    await runSetup(undefined, undefined, undefined,
-                        undefined, undefined, true)
-                    const {redemptionPriceSnap} = details
+                    await runSetup(undefined, undefined, undefined, undefined, undefined, true)
+                    const { redemptionPriceSnap } = details
                     await redemptionPriceSnap.setRedemptionPriceSnap("2000000000000000000000000000")
                 })
                 it("redeem 1 pool token for scaled mAsset quantity", async () => {
-                    const {mAsset} = details
+                    const { mAsset } = details
                     // TVL is 50% higher so 1 pool token should give about 1.5 mAssets.
                     await assertBasicRedeem(details, mAsset, simpleToExactAmount(1), "1493800546589159674")
                 })
                 it("redeem 1 pool token for scaled fAsset quantity", async () => {
-                    const {fAsset} = details
+                    const { fAsset } = details
                     // TVL is 50% higher and value of fAssets has doubled so should give about 1.5 / 2 per pool token.
                     await assertBasicRedeem(details, fAsset, simpleToExactAmount(1), "751092003565206370")
                 })
                 it("should redeem a single main pool asset independent of redemption price", async () => {
-                    const {mAssetDetails} = details
+                    const { mAssetDetails } = details
                     await assertBasicRedeem(details, mAssetDetails.bAssets[0], simpleToExactAmount(1))
                 })
             })
             context("enable using redemption price", () => {
                 beforeEach(async () => {
-                    await runSetup(undefined, undefined, undefined,
-                        undefined, undefined, true)
+                    await runSetup(undefined, undefined, undefined, undefined, undefined, true)
                 })
                 it("Set RP so mAsset should fail redeem", async () => {
-                    const {mAsset, pool, redemptionPriceSnap} = details
+                    const { mAsset, pool, redemptionPriceSnap } = details
                     await redemptionPriceSnap.setRedemptionPriceSnap("4500000000000000000000000000")
                     // Due to the RP fAsset is now overweight and redeeming mAsset should fail
                     await assertFailedRedeem("Exceeds weight limits", pool, mAsset, simpleToExactAmount(1))
                 })
                 it("Set RP so fAsset should fail redeem", async () => {
-                    const {fAsset, pool, redemptionPriceSnap} = details
+                    const { fAsset, pool, redemptionPriceSnap } = details
                     await redemptionPriceSnap.setRedemptionPriceSnap("240000000000000000000000000")
                     // Due to the RP fAsset is now overweight and redeeming mAsset should fail
                     await assertFailedRedeem("Exceeds weight limits", pool, fAsset, simpleToExactAmount(1))
@@ -794,9 +799,8 @@ describe("Feeder - Redeem", () => {
             })
             context("reset and set redemption to 2 before each", () => {
                 beforeEach(async () => {
-                    await runSetup(undefined, undefined, undefined,
-                        undefined, undefined, true)
-                    const {redemptionPriceSnap} = details
+                    await runSetup(undefined, undefined, undefined, undefined, undefined, true)
+                    const { redemptionPriceSnap } = details
                     await redemptionPriceSnap.setRedemptionPriceSnap("2000000000000000000000000000")
                 })
                 it("should redeem exact two thirds mStable asset", async () => {
@@ -945,8 +949,7 @@ describe("Feeder - Redeem", () => {
             })
             context("using redemption getter", () => {
                 beforeEach(async () => {
-                    await runSetup(undefined, undefined, undefined,
-                        undefined, undefined, true)
+                    await runSetup(undefined, undefined, undefined, undefined, undefined, true)
                 })
                 it("redeem proportionately. RP doubling should have no effect", async () => {
                     const { redemptionPriceSnap } = details

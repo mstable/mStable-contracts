@@ -2,12 +2,24 @@ import "ts-node/register"
 import "tsconfig-paths/register"
 
 import { task, types } from "hardhat/config"
-import { DudIntegration, DudIntegration__factory, DudPlatform, DudPlatform__factory } from "types/generated"
-import { getSigner } from "./utils/signerFactory"
-import { getChain, resolveAddress } from "./utils/networkAddressFactory"
+import { DudIntegration__factory, DudPlatform__factory } from "types/generated"
+
+import type { DudIntegration, DudPlatform } from "types/generated"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
-import { mUSD } from "./utils/tokens"
 import { verifyEtherscan } from "./utils/etherscan"
+import { getChain, resolveAddress } from "./utils/networkAddressFactory"
+import { getSigner } from "./utils/signerFactory"
+import { mUSD } from "./utils/tokens"
+
+
+
+
+
+
+
+
+
+
 
 task("deploy-dud-contracts", "Deploys dud platform and integration contracts for migration mUSD migration from Iron Bank")
     .addParam("feeder", "Token symbol or address of the Feeder Pool.", undefined, types.string, false)

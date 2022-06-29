@@ -1,19 +1,13 @@
-import { ethers } from "hardhat"
-import { expect } from "chai"
-
-import { simpleToExactAmount } from "@utils/math"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
-
-import {
-    MockNexus__factory,
-    MockNexus,
-    MockMasset__factory,
-    MockMasset,
-    RevenueForwarder__factory,
-    RevenueForwarder,
-} from "types/generated"
-import { ZERO_ADDRESS } from "@utils/constants"
 import { Wallet } from "@ethersproject/wallet"
+import { ZERO_ADDRESS } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
+import { simpleToExactAmount } from "@utils/math"
+import { expect } from "chai"
+import { ethers } from "hardhat"
+import { MockMasset__factory, MockNexus__factory, RevenueForwarder__factory } from "types/generated"
+
+import type { StandardAccounts } from "@utils/machines"
+import type { MockMasset, MockNexus, RevenueForwarder } from "types/generated"
 
 describe("RevenueForwarder", () => {
     let sa: StandardAccounts

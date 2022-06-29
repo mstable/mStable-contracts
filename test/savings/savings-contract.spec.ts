@@ -1,39 +1,47 @@
 import { assertBNClose, assertBNClosePercent } from "@utils/assertions"
 import { DEAD_ADDRESS, fullScale, MAX_UINT256, ONE_DAY, ONE_HOUR, ZERO, ZERO_ADDRESS } from "@utils/constants"
-import { MassetDetails, MassetMachine, StandardAccounts, FeederMachine, FeederDetails } from "@utils/machines"
+import { FeederMachine, MassetMachine } from "@utils/machines"
 import { BN, simpleToExactAmount } from "@utils/math"
+import { getTimestamp } from "@utils/time"
 import { expect } from "chai"
 import { ethers } from "hardhat"
-import { Account } from "types"
 import {
-    FeederPool,
-    Masset,
     AssetProxy__factory,
-    ExposedMasset,
-    IERC4626Vault,
     MockConnector__factory,
-    MockERC20,
     MockERC20__factory,
     MockErroneousConnector1__factory,
     MockErroneousConnector2__factory,
-    MockLendingConnector,
     MockLendingConnector__factory,
-    MockMasset,
     MockMasset__factory,
-    MockNexus,
     MockNexus__factory,
-    MockSavingsManager,
     MockSavingsManager__factory,
-    MockVaultConnector,
     MockVaultConnector__factory,
-    SavingsContract,
     SavingsContract__factory,
-    Unwrapper,
     Unwrapper__factory,
 } from "types/generated"
-import { getTimestamp } from "@utils/time"
-import { IModuleBehaviourContext, shouldBehaveLikeModule } from "../shared/Module.behaviour"
-import { IERC4626BehaviourContext, shouldBehaveLikeERC4626 } from "../shared/ERC4626.behaviour"
+
+import { shouldBehaveLikeModule } from "../shared/Module.behaviour"
+
+import type { FeederDetails, MassetDetails, StandardAccounts } from "@utils/machines"
+import type { Account } from "types"
+import type {
+    ExposedMasset,
+    FeederPool,
+    IERC4626Vault,
+    Masset,
+    MockERC20,
+    MockLendingConnector,
+    MockMasset,
+    MockNexus,
+    MockSavingsManager,
+    MockVaultConnector,
+    SavingsContract,
+    Unwrapper,
+} from "types/generated"
+import { shouldBehaveLikeERC4626 } from "../shared/ERC4626.behaviour"
+
+import type { IERC4626BehaviourContext } from "../shared/ERC4626.behaviour"
+import type { IModuleBehaviourContext } from "../shared/Module.behaviour"
 
 interface Balances {
     totalCredits: BN

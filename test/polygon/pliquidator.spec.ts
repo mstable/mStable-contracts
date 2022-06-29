@@ -1,34 +1,40 @@
+import { ONE_HOUR, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
+import { BN, simpleToExactAmount } from "@utils/math"
+import { increaseTime } from "@utils/time"
 import { expect } from "chai"
 import { ethers } from "hardhat"
-
-import { BN, simpleToExactAmount } from "@utils/math"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
-import { ONE_HOUR, ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import {
     AssetProxy__factory,
-    MockERC20,
-    MockERC20__factory,
-    MockMasset,
-    MockMasset__factory,
-    MockNexus,
-    SavingsContract__factory,
-    SavingsManager,
-    MockUniswap__factory,
-    SavingsManager__factory,
-    MockUniswap,
-    MockNexus__factory,
-    ImmutableModule,
-    MockTrigger__factory,
-    MockAaveIncentivesController,
-    PAaveIntegration,
-    PAaveIntegration__factory,
     MockAaveIncentivesController__factory,
+    MockERC20__factory,
+    MockMasset__factory,
+    MockNexus__factory,
+    MockTrigger__factory,
+    MockUniswap__factory,
+    PAaveIntegration__factory,
     PLiquidator__factory,
-    PLiquidator,
+    SavingsContract__factory,
+    SavingsManager__factory,
     Unwrapper__factory,
 } from "types/generated"
-import { increaseTime } from "@utils/time"
-import { shouldBehaveLikeModule, IModuleBehaviourContext } from "../shared/Module.behaviour"
+
+
+import type { StandardAccounts } from "@utils/machines"
+import type {
+    ImmutableModule,
+    MockAaveIncentivesController,
+    MockERC20,
+    MockMasset,
+    MockNexus,
+    MockUniswap,
+    PAaveIntegration,
+    PLiquidator,
+    SavingsManager,
+} from "types/generated"
+import { shouldBehaveLikeModule } from "../shared/Module.behaviour"
+
+import type { IModuleBehaviourContext } from "../shared/Module.behaviour"
 
 describe("Liquidator", () => {
     let sa: StandardAccounts

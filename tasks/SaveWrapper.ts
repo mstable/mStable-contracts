@@ -1,12 +1,13 @@
 import "ts-node/register"
 import "tsconfig-paths/register"
+
 import { task, types } from "hardhat/config"
 
 import { SaveWrapper__factory } from "../types/generated"
-import { getSigner } from "./utils/signerFactory"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
-import { getChain, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
 import { verifyEtherscan } from "./utils/etherscan"
+import { getChain, resolveAddress, resolveToken } from "./utils/networkAddressFactory"
+import { getSigner } from "./utils/signerFactory"
 
 task("SaveWrapper.deploy", "Deploy a new SaveWrapper")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
