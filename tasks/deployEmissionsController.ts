@@ -7,6 +7,7 @@ import { MockRootChainManager__factory } from "types/generated"
 
 import { deployContract } from "./utils/deploy-utils"
 import {
+    deployBalRewardsForwarder,
     deployBasicForwarder,
     deployBridgeForwarder,
     deployEmissionsController,
@@ -14,7 +15,6 @@ import {
     deployL2EmissionsController,
     deployRevenueBuyBack,
     deploySplitRevenueBuyBack,
-    deployBalRewardsForwarder,
     deployVotiumBribeForwarder,
 } from "./utils/emissions-utils"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"

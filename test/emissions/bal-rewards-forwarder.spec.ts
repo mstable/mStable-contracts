@@ -1,21 +1,22 @@
-import { ethers } from "hardhat"
-import { expect } from "chai"
-
-import { simpleToExactAmount } from "@utils/math"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
-
-import {
-    MockNexus__factory,
-    MockNexus,
-    BalRewardsForwarder,
-    BalRewardsForwarder__factory,
-    MockChildChainStreamer,
-    MockChildChainStreamer__factory,
-    MockERC20,
-} from "types/generated"
-import { MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
 import { Wallet } from "@ethersproject/wallet"
-import { Account } from "types/common"
+import { MAX_UINT256, ZERO_ADDRESS } from "@utils/constants"
+import { MassetMachine } from "@utils/machines"
+import { simpleToExactAmount } from "@utils/math"
+import { expect } from "chai"
+import { ethers } from "hardhat"
+import {
+    BalRewardsForwarder__factory,
+    MockChildChainStreamer__factory,
+    MockNexus__factory,
+} from "types/generated"
+
+import type { StandardAccounts } from "@utils/machines";
+import type { Account } from "types/common"
+import type {
+    BalRewardsForwarder,
+    MockChildChainStreamer,
+    MockERC20,
+    MockNexus} from "types/generated";
 
 describe("BalRewardsForwarder", () => {
     let sa: StandardAccounts

@@ -4,6 +4,7 @@ import { expect } from "chai"
 import type { InitializableRewardsDistributionRecipient } from "types/generated"
 import { shouldBehaveLikeModule } from "./Module.behaviour"
 
+
 import type { IModuleBehaviourContext } from "./Module.behaviour"
 
 function behaveLikeAModule(ctx: IModuleBehaviourContext): void {
