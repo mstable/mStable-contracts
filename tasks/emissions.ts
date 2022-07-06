@@ -15,12 +15,13 @@ import {
 } from "types/generated"
 import { ONE_HOUR } from "@utils/constants"
 import { simpleToExactAmount } from "@utils/math"
-import { logTxDetails, logger, mUSD, mBTC } from "./utils"
+import { logTxDetails, logger, mUSD, mBTC, usdFormatter } from "./utils"
 import { getSigner } from "./utils/signerFactory"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
 import { getBalancerPolygonReport } from "./utils/emission-disperse-bal"
 import { sendPrivateTransaction } from "./utils/flashbots"
 import { splitBuyBackRewards } from "./utils/emissions-split-buy-back"
+
 const log = logger("emission")
 
 subtask("emission-calc", "Calculate the weekly emissions")
@@ -122,6 +123,10 @@ subtask("savings-dist-fees", "Distributes governance fees from the Savings Manag
 
         const tx = await savingsManager.distributeUnallocatedInterest(mAssetAddress)
         await logTxDetails(tx, `distribute ${taskArgs.masset} gov fees`)
+
+        const receipt = await tx.wait()
+        const event = receipt.events.find((e) => e.event === "RevenueRedistributed")
+        console.log(`Distributed ${usdFormatter(event.args.amount)} in fees`)
     })
 task("savings-dist-fees").setAction(async (_, __, runSuper) => {
     await runSuper()
