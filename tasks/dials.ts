@@ -114,7 +114,7 @@ const dialNames = [
 const dialsDetailsToString = (dialsDetails: Array<DialDetails>) =>
     dialsDetails
         .map(
-            (dd, i) =>
+            (dd) =>
                 `${dialNames[dd.dialId].padStart(21)}\t${usdFormatter(dd.voteWeight, 18, 5, 2)}\t${usdFormatter(
                     dd.distributed,
                 )}\t${usdFormatter(dd.donated)}\t ${usdFormatter(dd.rewards)}`,
