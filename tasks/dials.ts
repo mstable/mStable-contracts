@@ -21,6 +21,7 @@ interface DialDetails {
     distributed: BN
     donated: BN
     rewards: BN
+    disabled: boolean
 }
 interface DialsSnap {
     nextEpoch: number
@@ -113,6 +114,7 @@ const dialNames = [
 
 const dialsDetailsToString = (dialsDetails: Array<DialDetails>) =>
     dialsDetails
+        .filter((dd) => !dd.disabled)
         .map(
             (dd) =>
                 `${dialNames[dd.dialId].padStart(21)}\t${usdFormatter(dd.voteWeight, 18, 5, 2)}\t${usdFormatter(
@@ -221,9 +223,6 @@ task("dials-snap", "Snaps Emissions Controller's dials")
 
         latestDialVotes.forEach(async (vote, dialId) => {
             const dialData = dialsData[dialId]
-            // Skip disabled dials
-            if (dialData.disabled) return
-
             // 1.1- Get the weighted votes as a percentage of the total weighted votes across all dials
             const voteWeight = percentToWeight(totalDialVotes.eq(0) ? BN.from(0) : vote.mul(10000).div(totalDialVotes))
             // 1.2- Calculate distributed MTA rewards for the next run factoring in disabled dials and reward caps
@@ -235,7 +234,7 @@ task("dials-snap", "Snaps Emissions Controller's dials")
 
             totalDonated = totalDonated.add(donated)
             totalRewards = totalRewards.add(rewards)
-            dialsDetails.push({ dialId, voteWeight, distributed, donated, rewards })
+            dialsDetails.push({ dialId, voteWeight, distributed, donated, rewards, disabled: dialData.disabled })
         })
 
         outputDialsSnap({
