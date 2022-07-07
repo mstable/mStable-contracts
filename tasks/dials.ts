@@ -115,9 +115,9 @@ const dialsDetailsToString = (dialsDetails: Array<DialDetails>) =>
     dialsDetails
         .map(
             (dd, i) =>
-                `${dialNames[i].padStart(21)}\t${usdFormatter(dd.voteWeight, 18, 5, 2)}\t${usdFormatter(dd.distributed)}\t${usdFormatter(
-                    dd.donated,
-                )}\t ${usdFormatter(dd.rewards)}`,
+                `${dialNames[dd.dialId].padStart(21)}\t${usdFormatter(dd.voteWeight, 18, 5, 2)}\t${usdFormatter(
+                    dd.distributed,
+                )}\t${usdFormatter(dd.donated)}\t ${usdFormatter(dd.rewards)}`,
         )
         .join("\n")
 
@@ -221,10 +221,11 @@ task("dials-snap", "Snaps Emissions Controller's dials")
 
         latestDialVotes.forEach(async (vote, dialId) => {
             const dialData = dialsData[dialId]
-            // if the dial is disabled assign 0 to the vote
-            const adjustedVote = BN.from(dialData.disabled ? 0 : vote)
-            // 1.1- Get the weighted votes as a percentage of the total weighted votes across all dials (adjust if they are disabled)
-            const voteWeight = percentToWeight(totalDialVotes.eq(0) ? BN.from(0) : adjustedVote.mul(10000).div(totalDialVotes))
+            // Skip disabled dials
+            if (dialData.disabled) return
+
+            // 1.1- Get the weighted votes as a percentage of the total weighted votes across all dials
+            const voteWeight = percentToWeight(totalDialVotes.eq(0) ? BN.from(0) : vote.mul(10000).div(totalDialVotes))
             // 1.2- Calculate distributed MTA rewards for the next run factoring in disabled dials and reward caps
             const distributed = calculatedRewards.distributionAmounts[dialId]
             // 1.3- Get the current donated MTA rewards:  from DialData.balance
