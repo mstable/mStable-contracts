@@ -21,6 +21,7 @@ interface DialDetails {
     distributed: BN
     donated: BN
     rewards: BN
+    disabled: boolean
 }
 interface DialsSnap {
     nextEpoch: number
@@ -113,11 +114,12 @@ const dialNames = [
 
 const dialsDetailsToString = (dialsDetails: Array<DialDetails>) =>
     dialsDetails
+        .filter((dd) => !dd.disabled)
         .map(
-            (dd, i) =>
-                `${dialNames[i].padStart(21)}\t${usdFormatter(dd.voteWeight, 18, 5, 2)}\t${usdFormatter(dd.distributed)}\t${usdFormatter(
-                    dd.donated,
-                )}\t ${usdFormatter(dd.rewards)}`,
+            (dd) =>
+                `${dialNames[dd.dialId].padStart(21)}\t${usdFormatter(dd.voteWeight, 18, 5, 2)}\t${usdFormatter(
+                    dd.distributed,
+                )}\t${usdFormatter(dd.donated)}\t ${usdFormatter(dd.rewards)}`,
         )
         .join("\n")
 
@@ -234,7 +236,7 @@ task("dials-snap", "Snaps Emissions Controller's dials")
 
             totalDonated = totalDonated.add(donated)
             totalRewards = totalRewards.add(rewards)
-            dialsDetails.push({ dialId, voteWeight, distributed, donated, rewards })
+            dialsDetails.push({ dialId, voteWeight, distributed, donated, rewards, disabled: dialData.disabled })
         })
 
         outputDialsSnap({
