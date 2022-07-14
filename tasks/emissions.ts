@@ -179,22 +179,22 @@ subtask("revenue-split-buy-back", "Buy back MTA from mUSD and mBTC gov fees")
         const revenueSplitBuyBack = RevenueSplitBuyBack__factory.connect(revenueSplitBuyBackAddress, signer)
         const musd = {
             address: resolveAddress("mUSD", chain),
-            bAssetMinSlippage: 2, // 2%
+            bAssetMinSlippage: 1, // 1%
             rewardMinSlippage: 1, // 1%
             mAssetMinBalance: simpleToExactAmount(1000), // 1k USD
         }
 
         const mbtc = {
             address: resolveAddress("mBTC", chain),
-            bAssetMinSlippage: 5, // 5%
-            rewardMinSlippage: 3, // 3%
+            bAssetMinSlippage: 3, // 3%
+            rewardMinSlippage: 2, // 2%
             mAssetMinBalance: simpleToExactAmount(10, 14), // 10 wBTC
         }
         const mAssets = [musd, mbtc]
         const request = {
             mAssets,
             revenueSplitBuyBack,
-            swapFees: [3000, 3000],
+            swapFees: [3000, 3000], // 0.3%, 0.3%, pools fee
             blockNumber: "latest",
         }
         const tx = await splitBuyBackRewards(signer, request)

@@ -33,7 +33,7 @@ export const encodeUniswapPath = (tokenAddresses: string[], fees: number[]): Enc
         encodedReversed = encodedAddress + encodedReversed
 
         // 3 byte hex encoding of the fee
-        const encodedFee = fees[i].toString(16).padStart(2 * FEE_SIZE, "0")
+        const encodedFee = fee.toString(16).padStart(2 * FEE_SIZE, "0")
         encoded += encodedFee
         encodedReversed = encodedFee + encodedReversed
     })
@@ -72,7 +72,7 @@ export const quoteSwap = async (
     const encodedPath = encodeUniswapPath(uniswapPath, fees)
     const quoter = IUniswapV3Quoter__factory.connect(uniswapQuoterV3Address, signer)
     const outAmount = await quoteExactInput(quoter, encodedPath.encoded, inAmount, blockNumber)
-    const exchangeRate = outAmount.div(simpleToExactAmount(1, to.decimals)).mul(simpleToExactAmount(1, from.decimals)).div(inAmount)
+    const exchangeRate = inAmount.div(outAmount.div(simpleToExactAmount(1, to.decimals)))
     // Exchange rate is not precise enough, better to relay on the output amount.
     return { outAmount, exchangeRate }
 }
