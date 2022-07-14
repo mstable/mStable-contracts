@@ -2,7 +2,7 @@
 import { Signer } from "@ethersproject/abstract-signer"
 import { ContractTransaction } from "ethers"
 import { BN, simpleToExactAmount } from "@utils/math"
-import { RevenueSplitBuyBack, ERC20__factory, IERC20Metadata } from "types/generated"
+import { RevenueSplitBuyBack, IERC20Metadata__factory, Masset__factory } from "types/generated"
 import { EncodedPaths, encodeUniswapPath, getWETHPath, quoteSwap } from "@utils/peripheral/uniswap"
 
 export interface MAssetSwap {
@@ -66,15 +66,15 @@ export const calculateBuyBackRewardsQuote = async (signer: Signer, params: MainP
     const treasuryFee: BN = await revenueSplitBuyBack.treasuryFee()
     const rewardsToken = await revenueSplitBuyBack.REWARDS_TOKEN()
 
-    const rewardsTokenContract = (ERC20__factory.connect(rewardsToken, signer) as unknown as IERC20Metadata)
+    const rewardsTokenContract = IERC20Metadata__factory.connect(rewardsToken, signer)
     const rTokenDecimals = await rewardsTokenContract.decimals()
     const rTokenSymbol = await rewardsTokenContract.symbol()
 
-    for (let i = 0; i < mAssets.length; i = 1 + 1) {
+    for (let i = 0; i < mAssets.length; i += 1) {
         const mAsset = mAssets[i]
         const bAsset: string = await revenueSplitBuyBack.bassets(mAsset.address)
-        const mAssetContract = (ERC20__factory.connect(mAsset.address, signer)as unknown as IERC20Metadata)
-        const bAssetContract = (ERC20__factory.connect(bAsset, signer)as unknown as IERC20Metadata)
+        const mAssetContract = Masset__factory.connect(mAsset.address, signer)
+        const bAssetContract = IERC20Metadata__factory.connect(bAsset, signer)
 
         const mAssetBalance: BN = await mAssetContract.balanceOf(revenueSplitBuyBack.address)
         const mAssetSymbol: string = await mAssetContract.symbol()
@@ -99,6 +99,8 @@ export const calculateBuyBackRewardsQuote = async (signer: Signer, params: MainP
             minBassetsAmounts.push(minBassetsAmount)
             mAssetsToBuyBack.push(mAsset)
 
+            // Get the estimated redeem amount to price better the second swap, bAsset to reward.
+            const bAssetRedeemAmount = await mAssetContract.getRedeemOutput(bAsset, mAssetAmount)
             // console for debugging purposes, do not delete
 
             console.table({
@@ -110,6 +112,7 @@ export const calculateBuyBackRewardsQuote = async (signer: Signer, params: MainP
                 bAssetDecimals: bAssetDecimals.toString(),
                 mAssetAmount: mAssetAmount.toString(),
                 minBassetsAmount: minBassetsAmount.toString(),
+                bAssetRedeemAmount: bAssetRedeemAmount.toString(),
             })
 
             // 2 ============ minRewardsAmount ============//
@@ -122,7 +125,7 @@ export const calculateBuyBackRewardsQuote = async (signer: Signer, params: MainP
                 signer,
                 fromToken,
                 toToken,
-                minBassetsAmount,
+                bAssetRedeemAmount,
                 blockNumber,
                 undefined,
                 swapFees,
@@ -149,7 +152,7 @@ export const calculateBuyBackRewardsQuote = async (signer: Signer, params: MainP
             })
 
             // 3 ============ Uniswap path ============//
-            const uniswapPath = encodeUniswapPath(getWETHPath(bAsset, rewardsToken), [3000, 3000])
+            const uniswapPath = encodeUniswapPath(getWETHPath(bAsset, rewardsToken), swapFees)
             uniswapPaths.push(uniswapPath)
             console.log(`ts: swap ${bAssetSymbol} to ${rTokenSymbol}, encodeUniswapPath: ${uniswapPath.encoded.toString()}`)
         }
