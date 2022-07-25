@@ -182,6 +182,11 @@ subtask("revenue-split-buy-back", "Buy back MTA from mUSD and mBTC gov fees")
             bAssetMinSlippage: 1, // 1%
             rewardMinSlippage: 1, // 1%
             mAssetMinBalance: simpleToExactAmount(1000), // 1k USD
+            // Provide two fees options to the swap, function splitBuyBackRewards will get the best quote.
+            swapFees: [
+                [3000, 3000],
+                [500, 10000],
+            ], // [USDC/WETH 0.3%, MTA/WETH 0.3%] [USDC/WETH 0.05%, MTA/WETH 1%]
         }
 
         const mbtc = {
@@ -189,12 +194,12 @@ subtask("revenue-split-buy-back", "Buy back MTA from mUSD and mBTC gov fees")
             bAssetMinSlippage: 3, // 3%
             rewardMinSlippage: 2, // 2%
             mAssetMinBalance: simpleToExactAmount(10, 14), // 10 wBTC
+            swapFees: [[3000, 3000]], // 0.3%, 0.3%
         }
         const mAssets = [musd, mbtc]
         const request = {
             mAssets,
             revenueSplitBuyBack,
-            swapFees: [3000, 3000], // 0.3%, 0.3%, pools fee
             blockNumber: "latest",
         }
         const tx = await splitBuyBackRewards(signer, request)

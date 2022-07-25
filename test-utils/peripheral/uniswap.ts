@@ -12,6 +12,7 @@ export interface EncodedPaths {
 export interface SwapQuote {
     outAmount: BN
     exchangeRate: BN
+    fees: number[]
 }
 export interface Token {
     address: string
@@ -74,5 +75,44 @@ export const quoteSwap = async (
     const outAmount = await quoteExactInput(quoter, encodedPath.encoded, inAmount, blockNumber)
     const exchangeRate = inAmount.div(outAmount.div(simpleToExactAmount(1, to.decimals)))
     // Exchange rate is not precise enough, better to relay on the output amount.
-    return { outAmount, exchangeRate }
+    return { outAmount, exchangeRate, fees }
+}
+/**
+ * For the same pair of tokens, it gives the best quote based on the router fees.
+ * If only one fee pair is provided it returns only that fee route quote.
+ *
+ * @param {Signer} signer
+ * @param {Token} from
+ * @param {Token} to
+ * @param {BN} inAmount
+ * @param {(number | string)} blockNumber
+ * @param {number[][]} fees
+ * @param {string[]} [path]
+ * @return {*}  {Promise<SwapQuote>}
+ */
+export const bestQuoteSwap = async (
+    signer: Signer,
+    from: Token,
+    to: Token,
+    inAmount: BN,
+    blockNumber: number | string,
+    fees: number[][],
+    path?: string[],
+): Promise<SwapQuote> => {
+    // Get quote value from UniswapV3
+    const uniswapPath = path || getWETHPath(from.address, to.address)
+    const quoter = IUniswapV3Quoter__factory.connect(uniswapQuoterV3Address, signer)
+
+    // Use Uniswap V3
+    // Exchange rate is not precise enough, better to relay on the output amount.
+    const quotes = await Promise.all(
+        fees.map(async (feePair) => {
+            const encodedPath = encodeUniswapPath(uniswapPath, feePair)
+            const outAmount = await quoteExactInput(quoter, encodedPath.encoded, inAmount, blockNumber)
+            const exchangeRate = inAmount.div(outAmount.div(simpleToExactAmount(1, to.decimals)))
+            return { encodedPath, outAmount, exchangeRate, fees: feePair }
+        }),
+    )
+    // Get the quote that gives more output amount
+    return quotes.reduce((bestQuote, quote) => (bestQuote.outAmount > quote.outAmount ? bestQuote : quote))
 }

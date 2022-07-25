@@ -3,19 +3,19 @@ import { Signer } from "@ethersproject/abstract-signer"
 import { ContractTransaction } from "ethers"
 import { BN, simpleToExactAmount } from "@utils/math"
 import { RevenueSplitBuyBack, IERC20Metadata__factory, Masset__factory } from "types/generated"
-import { EncodedPaths, encodeUniswapPath, getWETHPath, quoteSwap } from "@utils/peripheral/uniswap"
+import { EncodedPaths, encodeUniswapPath, getWETHPath, bestQuoteSwap } from "@utils/peripheral/uniswap"
 
 export interface MAssetSwap {
     address: string
     bAssetMinSlippage: number
     rewardMinSlippage: number
     mAssetMinBalance: number | BN
+    swapFees: number[][] // Options of fees to quote
 }
 
 export interface MainParams {
     revenueSplitBuyBack: RevenueSplitBuyBack
     mAssets: MAssetSwap[]
-    swapFees: number[]
     blockNumber: number | string
 }
 export interface BuyBackRewardsParams extends MainParams {
@@ -56,7 +56,7 @@ export interface BuyBackRewardsParams extends MainParams {
  *  - uniswapPaths The Uniswap V3 bytes encoded paths.
  */
 export const calculateBuyBackRewardsQuote = async (signer: Signer, params: MainParams): Promise<BuyBackRewardsParams> => {
-    const { revenueSplitBuyBack, mAssets, swapFees, blockNumber } = params
+    const { revenueSplitBuyBack, mAssets, blockNumber } = params
     const mAssetsToBuyBack: MAssetSwap[] = []
     const minBassetsAmounts: BN[] = []
     const minRewardsAmounts: BN[] = []
@@ -81,8 +81,6 @@ export const calculateBuyBackRewardsQuote = async (signer: Signer, params: MainP
 
         const bAssetDecimals = await bAssetContract.decimals()
         const bAssetSymbol: string = await bAssetContract.symbol()
-        // console.log(`ts: ${mAssetSymbol} balance: ${mAssetBalance.toString()}`);
-
         // Validate if the mAsset balance is grater than the minimum balance to buy back, default is zero.
         if (mAssetBalance.gt(mAsset.mAssetMinBalance)) {
             // mAssetAmount =  10000e18 * (1e18 - 0.4e18  / 1e18) = 6000e18
@@ -113,6 +111,7 @@ export const calculateBuyBackRewardsQuote = async (signer: Signer, params: MainP
                 mAssetAmount: mAssetAmount.toString(),
                 minBassetsAmount: minBassetsAmount.toString(),
                 bAssetRedeemAmount: bAssetRedeemAmount.toString(),
+                swapFees: mAsset.swapFees.toString(),
             })
 
             // 2 ============ minRewardsAmount ============//
@@ -120,15 +119,15 @@ export const calculateBuyBackRewardsQuote = async (signer: Signer, params: MainP
             const fromToken = { address: bAsset, decimals: bAssetDecimals }
             const toToken = { address: rewardsToken, decimals: rTokenDecimals }
 
+            // Get the best quote possible
             // eslint-disable-next-line no-await-in-loop
-            const { outAmount, exchangeRate } = await quoteSwap(
+            const { outAmount, exchangeRate, fees } = await bestQuoteSwap(
                 signer,
                 fromToken,
                 toToken,
                 bAssetRedeemAmount,
                 blockNumber,
-                undefined,
-                swapFees,
+                mAsset.swapFees,
             )
             const rewardSlippage = 100 - mAsset.rewardMinSlippage
             // minRewardsAmount =  5880e6 * (98/100) /1e6 * 1e18 = 5880e6 (USDC)
@@ -149,10 +148,11 @@ export const calculateBuyBackRewardsQuote = async (signer: Signer, params: MainP
                 exchangeRate: exchangeRate.toString(),
                 bAssetDecimals: bAssetDecimals.toString(),
                 rTokenDecimals: rTokenDecimals.toString(),
+                bestFees: fees.toString(),
             })
 
             // 3 ============ Uniswap path ============//
-            const uniswapPath = encodeUniswapPath(getWETHPath(bAsset, rewardsToken), swapFees)
+            const uniswapPath = encodeUniswapPath(getWETHPath(bAsset, rewardsToken), fees)
             uniswapPaths.push(uniswapPath)
             console.log(`ts: swap ${bAssetSymbol} to ${rTokenSymbol}, encodeUniswapPath: ${uniswapPath.encoded.toString()}`)
         }
