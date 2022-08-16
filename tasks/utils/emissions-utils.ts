@@ -37,7 +37,7 @@ export interface TopLevelConfig {
     EPOCHS: number
 }
 
-export const DEFAULT_CONFIG: TopLevelConfig = {
+export const POLYNOMIAL_CONFIG: TopLevelConfig = {
     A: -166000000000000,
     B: 168479942061125,
     C: -168479942061125,
