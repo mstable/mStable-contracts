@@ -29,7 +29,36 @@ import { verifyEtherscan } from "./etherscan"
 import { getChain, resolveAddress } from "./networkAddressFactory"
 import { Chain } from "./tokens"
 
-export const deployEmissionsController = async (signer: Signer, hre: HardhatRuntimeEnvironment): Promise<EmissionsController> => {
+export interface TopLevelConfig {
+    A: number
+    B: number
+    C: number
+    D: number
+    EPOCHS: number
+}
+
+export const DEFAULT_CONFIG: TopLevelConfig = {
+    A: -166000000000000,
+    B: 168479942061125,
+    C: -168479942061125,
+    D: 166000000000000,
+    EPOCHS: 312,
+}
+
+export const MCCP24_CONFIG: TopLevelConfig = {
+    A: -14114206547564, // 141142065475643
+    B: 8807264885680150, // 88072648856801500, b is adjusted and scaled  so f(x) = ax+b is exactly 0 at epoch 624
+    C: 0,
+    D: 0,
+    EPOCHS: 624,
+}
+
+export const deployEmissionsController = async (
+    signer: Signer,
+    hre: HardhatRuntimeEnvironment,
+    deployProxy = true,
+    topLevelConfig?: TopLevelConfig,
+): Promise<EmissionsController> => {
     const chain = getChain(hre)
 
     const nexusAddress = resolveAddress("Nexus", chain)
@@ -72,35 +101,33 @@ export const deployEmissionsController = async (signer: Signer, hre: HardhatRunt
     } else {
         throw Error("Chain must be mainnet or Ropsten")
     }
-
-    const defaultConfig = {
-        A: -166000000000000,
-        B: 168479942061125,
-        C: -168479942061125,
-        D: 166000000000000,
-        EPOCHS: 312,
-    }
-
+    const topLevel = topLevelConfig || MCCP24_CONFIG
     // Deploy logic contract
-    const constructorArguments = [nexusAddress, mtaAddress, defaultConfig]
-    const emissionsControllerImpl = await deployContract(
+    const constructorArguments = [nexusAddress, mtaAddress, topLevel]
+    const emissionsControllerImpl = await deployContract<EmissionsController>(
         new EmissionsController__factory(signer),
         "EmissionsController Implementation",
         constructorArguments,
     )
-    // Deploy proxy and initialize
-    const initializeData = emissionsControllerImpl.interface.encodeFunctionData("initialize", [
-        dialRecipients,
-        caps,
-        notifies,
-        [mtaStakingAddress, mbptStakingAddress],
-    ])
-    const proxy = await deployContract(new AssetProxy__factory(signer), "AssetProxy", [
-        emissionsControllerImpl.address,
-        proxyAdminAddress,
-        initializeData,
-    ])
-    const emissionsController = new EmissionsController__factory(signer).attach(proxy.address)
+    let emissionsController = emissionsControllerImpl
+    if (deployProxy) {
+        // Deploy proxy and initialize
+        const initializeData = emissionsControllerImpl.interface.encodeFunctionData("initialize", [
+            dialRecipients,
+            caps,
+            notifies,
+            [mtaStakingAddress, mbptStakingAddress],
+        ])
+        const proxy = await deployContract(new AssetProxy__factory(signer), "AssetProxy", [
+            emissionsControllerImpl.address,
+            proxyAdminAddress,
+            initializeData,
+        ])
+        emissionsController = new EmissionsController__factory(signer).attach(proxy.address)
+    } else {
+        console.log(`EmissionsController implementation address ${emissionsControllerImpl.address}`)
+
+    }
 
     await verifyEtherscan(hre, {
         address: emissionsControllerImpl.address,

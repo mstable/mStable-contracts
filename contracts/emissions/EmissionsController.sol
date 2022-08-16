@@ -147,10 +147,10 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
     ) ImmutableModule(_nexus) {
         require(_rewardToken != address(0), "Reward token address is zero");
         REWARD_TOKEN = IERC20(_rewardToken);
-        A = _config.A * 1e3;
-        B = _config.B * 1e3;
-        C = _config.C * 1e3;
-        D = _config.D * 1e3;
+        A = _config.A * 1e7;
+        B = _config.B * 1e7;
+        C = _config.C * 1e7;
+        D = _config.D * 1e7;
         EPOCHS = _config.EPOCHS;
     }
 
@@ -213,22 +213,14 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      */
     function topLineEmission(uint32 epoch) public view returns (uint256 emissionForEpoch) {
         require(
-            epochs.startEpoch < epoch && epoch <= epochs.startEpoch + 312,
+            epochs.startEpoch < epoch && epoch <= epochs.startEpoch + EPOCHS,
             "Wrong epoch number"
         );
-        // e.g. week 1, A = -166000e12, B = 168479942061125e3, C = -168479942061125e3, D = 166000e12
+        // e.g. week 1, A = -14114206547564, B = 8807264885680150, C = 0, D = 0
         // e.g. epochDelta = 1
-        uint128 epochDelta = (epoch - epochs.startEpoch);
-        // e.g. x = 1e12 / 312 = 3205128205
-        int256 x = SafeCast.toInt256((epochDelta * 1e12) / EPOCHS);
-        emissionForEpoch =
-            SafeCast.toUint256(
-                ((A * (x**3)) / 1e36) + // e.g. -166000e12         * (3205128205 ^ 3) / 1e36 = -5465681315
-                    ((B * (x**2)) / 1e24) + // e.g.  168479942061125e3 * (3205128205 ^ 2) / 1e24 =  1730768635433
-                    ((C * (x)) / 1e12) + // e.g. -168479942061125e3 *  3205128205      / 1e12 = -539999814276877
-                    D // e.g.  166000e12
-            ) *
-            1e6; // e.g. SUM = 165461725488677241 * 1e6 = 165461e18
+        uint128 epochDelta = epoch - epochs.startEpoch;
+        // e.g. f(x) = Ax + B  (it is expected A to be negative)
+        emissionForEpoch = SafeCast.toUint256((A * SafeCast.toInt256(epochDelta)) + B);
     }
 
     /**
@@ -348,7 +340,11 @@ contract EmissionsController is IGovernanceHook, Initializable, ImmutableModule 
      * @param _disabled  If true, no rewards will be distributed to this dial.
      * @param _notify  If true, `notifyRewardAmount` is called on the dial recipient contract.
      */
-    function updateDial(uint256 _dialId, bool _disabled, bool _notify) external onlyGovernor {
+    function updateDial(
+        uint256 _dialId,
+        bool _disabled,
+        bool _notify
+    ) external onlyGovernor {
         require(_dialId < dials.length, "Invalid dial id");
 
         dials[_dialId].disabled = _disabled;

@@ -8,6 +8,7 @@ import { StandardAccounts } from "@utils/machines"
 import { expect } from "chai"
 import { ethers } from "hardhat"
 import { BN, increaseTime, simpleToExactAmount } from "index"
+import { MCCP24_CONFIG } from "tasks/utils/emissions-utils"
 import {
     AssetProxy__factory,
     L2EmissionsController,
@@ -29,14 +30,6 @@ import {
     BridgeForwarder__factory,
     L2BridgeRecipient__factory,
 } from "types/generated"
-
-const defaultConfig = {
-    A: -166000,
-    B: 180000,
-    C: -180000,
-    D: 166000,
-    EPOCHS: 312,
-}
 
 describe("EmissionsController Polygon Integration", async () => {
     let sa: StandardAccounts
@@ -62,7 +55,7 @@ describe("EmissionsController Polygon Integration", async () => {
         const emissionsControllerImpl = await new EmissionsController__factory(sa.default.signer).deploy(
             nexus.address,
             rewardToken.address,
-            defaultConfig,
+            MCCP24_CONFIG,
         )
 
         // Deploy proxy and initialize

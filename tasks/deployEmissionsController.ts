@@ -15,6 +15,7 @@ import {
     deployRevenueBuyBack,
     deploySplitRevenueBuyBack,
     deployBalRewardsForwarder,
+    MCCP24_CONFIG,
 } from "./utils/emissions-utils"
 import { getChain, resolveAddress } from "./utils/networkAddressFactory"
 import { deployContract } from "./utils/deploy-utils"
@@ -41,10 +42,13 @@ task("deploy-emissions-polly", "Deploys L2EmissionsController and L2 Bridge Reci
     })
 
 task("deploy-emissions")
+    .addOptionalParam("deployProxy", "Whether deploy proxy or implementation only.", true, types.boolean)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)
-        const emissionsController = await deployEmissionsController(signer, hre)
+        console.log("taskArgs.topLineConfig", taskArgs.topLineConfig)
+
+        const emissionsController = await deployEmissionsController(signer, hre, taskArgs.deployProxy, MCCP24_CONFIG)
 
         console.log(`Set EmissionsController in the networkAddressFactory to ${emissionsController.address}`)
     })
