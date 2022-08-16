@@ -46,7 +46,6 @@ task("deploy-emissions")
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)
-        console.log("taskArgs.topLineConfig", taskArgs.topLineConfig)
 
         const emissionsController = await deployEmissionsController(signer, hre, taskArgs.deployProxy, MCCP24_CONFIG)
 

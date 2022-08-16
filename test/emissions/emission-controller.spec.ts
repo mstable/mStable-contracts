@@ -21,9 +21,6 @@ import { currentWeekEpoch, increaseTime, getTimestamp, increaseTimeTo, startWeek
 import { Account } from "types/common"
 import { keccak256, toUtf8Bytes } from "ethers/lib/utils"
 import { MCCP24_CONFIG, TopLevelConfig } from "tasks/utils/emissions-utils"
-import { usdFormatter } from "tasks/utils"
-
-const debug = false
 
 const INITIAL_DIALS_NO = 3
 
@@ -156,13 +153,6 @@ const expectTopLineEmissionForEpoch =
     async (deltaEpoch: number): Promise<void> => {
         const emissionForEpoch = await emissionsController.topLineEmission(startEpoch + deltaEpoch)
         const expectedEmissionAmount = await nextRewardAmount(emissionsController, topLevelConfig, deltaEpoch)
-        if (debug)
-            console.log(
-                "🚀 expectTopLineEmissionForEpoch ~ emissionForEpoch",
-                deltaEpoch.toString(),
-                emissionForEpoch.toString(),
-                usdFormatter(expectedEmissionAmount),
-            )
         expect(emissionForEpoch).eq(expectedEmissionAmount)
     }
 export const snapDial = async (emissionsController: EmissionsController, dialId: number): Promise<DialData> => {
@@ -245,9 +235,6 @@ describe("EmissionsController", async () => {
         voter1 = sa.dummy1
         voter2 = sa.dummy2
         voter3 = sa.dummy3
-        // console.log(`Voter 1 ${voter1.address}`)
-        // console.log(`Voter 2 ${voter2.address}`)
-        // console.log(`Voter 3 ${voter3.address}`)
 
         // Set the time to Thursday, 01:00am UTC time which is just after the start of the distribution period
         const currentTime = await getTimestamp()
