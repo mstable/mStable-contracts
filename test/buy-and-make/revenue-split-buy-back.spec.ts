@@ -22,6 +22,7 @@ import {
 import { EncodedPaths, encodeUniswapPath } from "@utils/peripheral/uniswap"
 import { DEAD_ADDRESS, ZERO_ADDRESS } from "@utils/constants"
 import { BigNumber, Signer, Wallet } from "ethers"
+import { MCCP24_CONFIG } from "tasks/utils/emissions-utils"
 
 describe("RevenueSplitBuyBack", () => {
     let sa: StandardAccounts
@@ -88,17 +89,10 @@ describe("RevenueSplitBuyBack", () => {
         uniswapMbtcBasset2Paths = encodeUniswapPath([bAsset2.address, DEAD_ADDRESS, rewardsToken.address], [3000, 3000])
 
         // Deploy Emissions Controller
-        const defaultConfig = {
-            A: -166000,
-            B: 180000,
-            C: -180000,
-            D: 166000,
-            EPOCHS: 312,
-        }
         emissionController = await new EmissionsController__factory(sa.default.signer).deploy(
             nexus.address,
             rewardsToken.address,
-            defaultConfig,
+            MCCP24_CONFIG,
         )
         await emissionController.initialize(
             [staking1.address, staking2.address],

@@ -20,14 +20,11 @@ import {
 import { currentWeekEpoch, increaseTime, getTimestamp, increaseTimeTo, startWeek, weekEpoch } from "@utils/time"
 import { Account } from "types/common"
 import { keccak256, toUtf8Bytes } from "ethers/lib/utils"
+import { MCCP24_CONFIG, TopLevelConfig } from "tasks/utils/emissions-utils"
+import { usdFormatter } from "tasks/utils"
 
-const defaultConfig = {
-    A: -166000000000000,
-    B: 168479942061125,
-    C: -168479942061125,
-    D: 166000000000000,
-    EPOCHS: 312,
-}
+const debug = false
+
 const INITIAL_DIALS_NO = 3
 
 interface VoteHistoryExpectation {
@@ -93,10 +90,12 @@ const expectDialVotesHistoryWithoutChangeOnWeights = async (
  * Mocks EmissionsController.topLineEmission function.
  *
  * @param {number} epochDelta - The number of epochs to move forward.
+ * @param {TopLevelConfig} topLevelConfig - top level configuration used for the polynomial
  * @return {emissionForEpoch}  {BN} - The amount of emission for the given epoch, with 18 decimal numbers ex. 165461e18.
  */
-const calcWeeklyReward = (epochDelta: number): BN => {
-    const { A, B, C, D, EPOCHS } = defaultConfig
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const calcWeeklyRewardPolynomial = (epochDelta: number, topLevelConfig: TopLevelConfig): BN => {
+    const { A, B, C, D, EPOCHS } = topLevelConfig
     const inputScale = simpleToExactAmount(1, 3)
     const calculationScale = 12
 
@@ -114,30 +113,59 @@ const calcWeeklyReward = (epochDelta: number): BN => {
     return a.add(b).add(c).add(d).mul(simpleToExactAmount(1, 6))
 }
 /**
+ * Mocks EmissionsController.topLineEmission function.
+ *
+ * @param {number} epochDelta - The number of epochs to move forward.
+ * @param {TopLevelConfig} topLevelConfig - top level configuration used for the polynomial
+ * @return {emissionForEpoch}  {BN} - The amount of emission for the given epoch, with 18 decimal numbers ex. 165461e18.
+ */
+const calcWeeklyReward = (epochDelta: number, topLevelConfig: TopLevelConfig): BN => {
+    const { A, B } = topLevelConfig
+    const inputScale = simpleToExactAmount(1, 7)
+    const a = BN.from(A).mul(inputScale)
+    const b = BN.from(B).mul(inputScale)
+    return a.mul(epochDelta).add(b)
+}
+/**
  * Calculates the amount of emission for the given epoch,
  * it retrieves the lastEpoch from the instance of EmissionsController.
  *
  * @param {EmissionsController} emissionsController
+ * @param {TopLevelConfig} topLevelConfig - top level configuration used for the polynomial
  * @param {number} [epoch=1]
  * @return {emissionForEpoch}  {BN} - The amount of emission for the given epoch.
  */
-const nextRewardAmount = async (emissionsController: EmissionsController, epoch = 1): Promise<BN> => {
+export const nextRewardAmount = async (
+    emissionsController: EmissionsController,
+    topLevelConfig: TopLevelConfig = MCCP24_CONFIG,
+    epoch = 1,
+): Promise<BN> => {
     const [startEpoch, lastEpoch] = await emissionsController.epochs()
-    return calcWeeklyReward(lastEpoch - startEpoch + epoch)
+    return calcWeeklyReward(lastEpoch - startEpoch + epoch, topLevelConfig)
 }
 /**
  * Expectations for the EmissionsController.topLineEmission function.
  *
  * @param {EmissionsController} emissionsController
  * @param {number} startEpoch - The starting epoch.
+ * @param {TopLevelConfig} topLevelConfig - top level configuration used for the polynomial
  * @param {number} deltaEpoch- The delta epoch.
  */
-const expectTopLineEmissionForEpoch = (emissionsController: EmissionsController, startEpoch: number) => async (deltaEpoch: number) => {
-    const emissionForEpoch = await emissionsController.topLineEmission(startEpoch + deltaEpoch)
-    const expectedEmissionAmount = await nextRewardAmount(emissionsController, deltaEpoch)
-    expect(emissionForEpoch).eq(expectedEmissionAmount)
-}
-const snapDial = async (emissionsController: EmissionsController, dialId: number): Promise<DialData> => {
+const expectTopLineEmissionForEpoch =
+    (emissionsController: EmissionsController, topLevelConfig: TopLevelConfig, startEpoch: number) =>
+    async (deltaEpoch: number): Promise<void> => {
+        const emissionForEpoch = await emissionsController.topLineEmission(startEpoch + deltaEpoch)
+        const expectedEmissionAmount = await nextRewardAmount(emissionsController, topLevelConfig, deltaEpoch)
+        if (debug)
+            console.log(
+                "🚀 expectTopLineEmissionForEpoch ~ emissionForEpoch",
+                deltaEpoch.toString(),
+                emissionForEpoch.toString(),
+                usdFormatter(expectedEmissionAmount),
+            )
+        expect(emissionForEpoch).eq(expectedEmissionAmount)
+    }
+export const snapDial = async (emissionsController: EmissionsController, dialId: number): Promise<DialData> => {
     const dialData = await emissionsController.dials(dialId)
     const voteHistory = await emissionsController.getDialVoteHistory(dialId)
     return {
@@ -161,12 +189,13 @@ describe("EmissionsController", async () => {
     let voter3: Account
     const totalRewardsSupply = simpleToExactAmount(100000000)
     const totalRewards = simpleToExactAmount(29400963)
+    const configuration = MCCP24_CONFIG
     /**
      * Deploys the emission controller, staking contracts, dials and transfers MTA to the Emission Controller contract.
      *
      * @return {Promise}  {Promise<void>}
      */
-    const deployEmissionsController = async (): Promise<void> => {
+    const deployEmissionsController = async (topLevelConfig: TopLevelConfig = MCCP24_CONFIG): Promise<void> => {
         // staking contracts
         staking1 = await new MockStakingContract__factory(sa.default.signer).deploy()
         staking2 = await new MockStakingContract__factory(sa.default.signer).deploy()
@@ -184,7 +213,7 @@ describe("EmissionsController", async () => {
         const emissionsControllerImpl = await new EmissionsController__factory(sa.default.signer).deploy(
             nexus.address,
             rewardToken.address,
-            defaultConfig,
+            topLevelConfig,
         )
 
         // Deploy proxy and initialize
@@ -207,7 +236,6 @@ describe("EmissionsController", async () => {
         currentEpoch = weekEpoch(currentTime)
         nextEpoch = currentEpoch.add(1)
     }
-
     before(async () => {
         const accounts = await ethers.getSigners()
         sa = await new StandardAccounts().initAccounts(accounts)
@@ -217,9 +245,9 @@ describe("EmissionsController", async () => {
         voter1 = sa.dummy1
         voter2 = sa.dummy2
         voter3 = sa.dummy3
-        console.log(`Voter 1 ${voter1.address}`)
-        console.log(`Voter 2 ${voter2.address}`)
-        console.log(`Voter 3 ${voter3.address}`)
+        // console.log(`Voter 1 ${voter1.address}`)
+        // console.log(`Voter 2 ${voter2.address}`)
+        // console.log(`Voter 3 ${voter3.address}`)
 
         // Set the time to Thursday, 01:00am UTC time which is just after the start of the distribution period
         const currentTime = await getTimestamp()
@@ -265,11 +293,11 @@ describe("EmissionsController", async () => {
         })
         context("should fail when", () => {
             it("nexus is zero", async () => {
-                const tx = new EmissionsController__factory(sa.default.signer).deploy(ZERO_ADDRESS, rewardToken.address, defaultConfig)
+                const tx = new EmissionsController__factory(sa.default.signer).deploy(ZERO_ADDRESS, rewardToken.address, configuration)
                 await expect(tx).to.revertedWith("Nexus address is zero")
             })
             it("rewards token is zero", async () => {
-                const tx = new EmissionsController__factory(sa.default.signer).deploy(nexus.address, ZERO_ADDRESS, defaultConfig)
+                const tx = new EmissionsController__factory(sa.default.signer).deploy(nexus.address, ZERO_ADDRESS, configuration)
                 await expect(tx).to.revertedWith("Reward token address is zero")
             })
         })
@@ -278,7 +306,7 @@ describe("EmissionsController", async () => {
                 emissionsController = await new EmissionsController__factory(sa.default.signer).deploy(
                     nexus.address,
                     rewardToken.address,
-                    defaultConfig,
+                    configuration,
                 )
             })
             const stakingContract1 = Wallet.createRandom()
@@ -348,10 +376,10 @@ describe("EmissionsController", async () => {
             before(async () => {
                 await deployEmissionsController()
                 ;[startEpoch] = await emissionsController.epochs()
-                expectTopLineEmissions = expectTopLineEmissionForEpoch(emissionsController, startEpoch)
+                expectTopLineEmissions = expectTopLineEmissionForEpoch(emissionsController, configuration, startEpoch)
             })
             it("fails fetching an smaller epoch than deployed time", async () => {
-                const tx = emissionsController.topLineEmission(startEpoch)
+                const tx = emissionsController.topLineEmission(startEpoch - 10)
                 await expect(tx).to.revertedWith("Wrong epoch number")
             })
             it("fails fetching same epoch as deployed time", async () => {
@@ -359,22 +387,25 @@ describe("EmissionsController", async () => {
                 await expect(tx).to.revertedWith("Wrong epoch number")
             })
             it("fetches week 1", async () => {
-                await expectTopLineEmissions(1) // ~= 165,461,725,488,656,000
+                await expectTopLineEmissions(1) // 165461725488677241000000 , 87931506791325000
             })
             it("fetches week 8 - Two months", async () => {
-                await expectTopLineEmissions(8) // ~= 161,787,972,249,455,000
+                await expectTopLineEmissions(8) // 161787972249458966000000 , 86943512332986000
             })
             it("fetches week 100 - one year eleven months", async () => {
-                await expectTopLineEmissions(100) // ~= 123,842,023,609,600,000
+                await expectTopLineEmissions(100)
             })
-            it("fetches week 311 - six years, pre-last epoch", async () => {
-                await expectTopLineEmissions(311) // ~= 1,052,774,388,460,220
+            it(`fetches week ${configuration.EPOCHS / 2} - half total epochs`, async () => {
+                await expectTopLineEmissions(Math.ceil(configuration.EPOCHS / 2)) // 1052774388745663000000  , 44883176820840000
             })
-            it("fetches week 312 - six years, last epoch", async () => {
-                await expectTopLineEmissions(312) // = 0
+            it(`fetches week ${configuration.EPOCHS - 1}  - pre-last epoch`, async () => {
+                await expectTopLineEmissions(configuration.EPOCHS - 1) // 1052774388745663000000,  1834846850355000
             })
-            it("fails fetching week 313 - six years + one week", async () => {
-                const tx = emissionsController.topLineEmission(startEpoch + 313)
+            it(`fetches week ${configuration.EPOCHS} - last epoch`, async () => {
+                await expectTopLineEmissions(configuration.EPOCHS) //  0 , 1693704784878000
+            })
+            it(`fails week ${configuration.EPOCHS + 1} - last epoch plus one week`, async () => {
+                const tx = emissionsController.topLineEmission(startEpoch + configuration.EPOCHS + 1)
                 await expect(tx).to.revertedWith("Wrong epoch number")
             })
             it("fails fetching week 5200 - Ten years", async () => {
