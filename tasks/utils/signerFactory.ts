@@ -41,7 +41,7 @@ export const getSigner = async (hre: HardhatRuntime = {}, speed: Speed = "fast",
     }
 
     // If connecting to a forked chain
-    if (["tasks-fork.config.ts", "tasks-fork-polygon.config.ts"].includes(hre?.hardhatArguments.config)) {
+    if (hre.network.name === "local" || ["tasks-fork.config.ts", "tasks-fork-polygon.config.ts"].includes(hre?.hardhatArguments.config)) {
         const chain = getChain(hre)
         // If IMPERSONATE environment variable has been set
         if (process.env.IMPERSONATE) {
