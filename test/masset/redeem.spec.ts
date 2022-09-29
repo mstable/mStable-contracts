@@ -1081,22 +1081,22 @@ describe("Masset - Redeem", () => {
                 await assertFailedMassetRedemption("ERC20: burn amount exceeds balance", mAsset, 10, [2, 2, 2, 2], bAssets, sender.signer)
             })
             context("when a bAsset has broken its peg", () => {
-                it("should fail if broken below peg", async () => {
-                    const { bAssets, mAsset } = details
+                it("should redeem if broken below peg", async () => {
+                    const { bAssets, mAsset, managerLib: { address: recipient } } = details
                     await assertBasketIsHealthy(mAssetMachine, details)
                     const bAsset = bAssets[1]
                     await mAsset.connect(sa.governor.signer).handlePegLoss(bAsset.address, true)
                     const newBasset = await mAsset.getBasset(bAsset.address)
                     expect(newBasset.personal.status, "bAsset broken below peg").to.eq(BassetStatus.BrokenBelowPeg)
-                    await assertFailedMassetRedemption("In recol", mAsset, 10, [2, 2, 2, 2], bAssets)
+                    await assertMassetRedemption(details, 10, [2, 2, 2, 2], true, recipient, undefined, true)
                 })
-                it("should fail if broken above peg", async () => {
-                    const { bAssets, mAsset } = details
+                it("should redeem if broken above peg", async () => {
+                    const { bAssets, mAsset, managerLib: { address: recipient } } = details
                     const bAsset = bAssets[0]
                     await mAsset.connect(sa.governor.signer).handlePegLoss(bAsset.address, false)
                     const newBasset = await mAsset.getBasset(bAsset.address)
                     expect(newBasset.personal.status, "bAsset broken above peg").to.eq(BassetStatus.BrokenAbovePeg)
-                    await assertFailedMassetRedemption("In recol", mAsset, 10, [2, 2, 2, 2], bAssets)
+                    await assertMassetRedemption(details, 10, [2, 2, 2, 2], true, recipient, undefined, true)
                 })
             })
         })
