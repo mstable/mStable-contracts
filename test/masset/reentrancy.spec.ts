@@ -63,18 +63,4 @@ describe("Masset - Reentrancy", () => {
             await expect(tx).to.reverted
         })
     })
-
-    it("swapping should fail if re-entrancy attack", async () => {
-            const { bAssets, mAsset } = details
-
-            const factory = new MockERC677SwapExploitor__factory(sa.default.signer)
-
-            const swapExploitor = await factory.deploy(mAsset.address, bAssets[0].address)
-            
-            await bAssets[0].connect(sa.default.signer).transfer(swapExploitor.address, simpleToExactAmount(1))
-            
-            const tx = await swapExploitor.swapFunds()
-
-            await expect(tx).to.reverted
-    })
 })
