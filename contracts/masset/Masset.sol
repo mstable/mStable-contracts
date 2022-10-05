@@ -142,6 +142,19 @@ contract Masset is
     }
 
     /**
+     * @dev Verifies that the caller is the Savings Manager contract
+     */
+    modifier onlySavingsManager() {
+        _isSavingsManager();
+        _;
+    }
+
+    // Internal fn for modifier to reduce deployment size
+    function _isSavingsManager() internal view {
+        require(_savingsManager() == msg.sender, "Must be savings manager");
+    }
+    
+    /**
      * @dev Requires the overall basket composition to be healthy
      */
     modifier whenHealthy() {
@@ -684,7 +697,7 @@ contract Masset is
     function collectInterest()
         external
         override
-        onlyGovernor
+        onlySavingsManager
         returns (uint256 mintAmount, uint256 newSupply)
     {
         // Set the surplus variable to 1 to optimise for SSTORE costs.
@@ -710,14 +723,14 @@ contract Masset is
 
     /**
      * @dev Collects the interest generated from the Basket, minting a relative
-     *      amount of mAsset and sends it over to the Governor address.
+     *      amount of mAsset and sends it over to the SavingsMassetManager.
      * @return mintAmount   mAsset units generated from interest collected from lending markets
      * @return newSupply    mAsset total supply after mint
      */
     function collectPlatformInterest()
         external
         override
-        onlyGovernor
+        onlySavingsManager
         whenHealthy
         nonReentrant
         returns (uint256 mintAmount, uint256 newSupply)

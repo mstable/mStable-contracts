@@ -22,6 +22,7 @@ import {
     MassetLogic__factory,
     MassetManager__factory,
     MockERC20__factory,
+    MockERC677__factory,
 } from "types/generated"
 import { BN, minimum, simpleToExactAmount } from "@utils/math"
 import { fullScale, ratioScale, ZERO_ADDRESS, DEAD_ADDRESS } from "@utils/constants"
@@ -102,9 +103,10 @@ export class MassetMachine {
         }
     }
 
-    public async deployMasset(useLendingMarkets = false, useTransferFees = false, a = 100): Promise<MassetDetails> {
+    public async deployMasset(useLendingMarkets = false, useTransferFees = false, a = 100, useERC677Token = false): Promise<MassetDetails> {
         // 1. Bassets
-        const bAssets = await this.loadBassetsLocal(useLendingMarkets, useTransferFees)
+        const bAssets = await this.loadBassetsLocal(useLendingMarkets, useTransferFees, undefined, useERC677Token)
+        //
 
         // 2. Invariant Validator
         const logicLib = await new MassetLogic__factory(this.sa.default.signer).deploy()
@@ -425,11 +427,14 @@ export class MassetMachine {
         recipient: string = this.sa.default.address,
         init = 10000000000,
         enableUSDTFee = false,
+        useERC677Token = false
     ): Promise<MockERC20> {
         // Factories
+        // eslint-disable-next-line no-nested-ternary
         const tokenFactory = enableUSDTFee
             ? await new MockInitializableTokenWithFee__factory(this.sa.default.signer)
-            : await new MockInitializableToken__factory(this.sa.default.signer)
+                : useERC677Token 
+                    ? await new MockERC677__factory(this.sa.default.signer) : await new MockInitializableToken__factory(this.sa.default.signer)
         const AssetProxyFactory = new AssetProxy__factory(this.sa.default.signer)
 
         // Impl
@@ -446,9 +451,10 @@ export class MassetMachine {
         useLendingMarkets = false,
         useTransferFees = false,
         recipient = this.sa.default.address,
+        useERC677Token = false,
     ): Promise<BassetIntegrationDetails> {
         //  - Mock bAssets
-        const mockBasset1 = await this.loadBassetProxy("Ren BTC", "renBTC", 18, recipient)
+        const mockBasset1 = await this.loadBassetProxy("Ren BTC", "renBTC", 18, recipient, undefined, undefined, useERC677Token)
         const mockBasset2 = await this.loadBassetProxy("Synthetix BTC", "sBTC", 6, recipient)
         const mockBasset3 = await this.loadBassetProxy("Wrapped BTC", "wBTC", 12, recipient, 10000000000, useTransferFees)
         const mockBasset4 = await this.loadBassetProxy("Binance Wrapped BTC", "bBTC", 18, recipient, 10000000000, useTransferFees)

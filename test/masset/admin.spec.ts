@@ -258,12 +258,12 @@ describe("Masset Admin", () => {
             const totalSupplyBefore = await mAsset.totalSupply()
 
             // 2.0 Static call collectInterest to validate the return values
-            const { mintAmount, newSupply } = await mAsset.connect(sa.governor.signer).callStatic.collectInterest()
+            const { mintAmount, newSupply } = await mAsset.connect(sa.mockSavingsManager.signer).callStatic.collectInterest()
             expect(mintAmount, "mintAmount").to.eq(0)
             expect(newSupply, "totalSupply").to.eq(totalSupplyBefore)
 
             // 3.0 Collect the interest
-            const tx = mAsset.connect(sa.governor.signer).collectInterest()
+            const tx = mAsset.connect(sa.mockSavingsManager.signer).collectInterest()
             await expect(tx).to.not.emit(mAsset, "MintedMulti")
 
             // 4.0 Check outputs
@@ -280,26 +280,31 @@ describe("Masset Admin", () => {
 
             // 2.0 Get all balances and data before
             const { surplus } = await mAsset.data()
-            const mAssetBalBefore = await mAsset.balanceOf(sa.governor.address)
+            const mAssetBalBefore = await mAsset.balanceOf(sa.mockSavingsManager.address)
             const totalSupplyBefore = await mAsset.totalSupply()
 
-            //  3.0 Static call collectInterest to validate the return values
-            const { mintAmount, newSupply } = await mAsset.connect(sa.governor.signer).callStatic.collectInterest()
+            // 3.0 Check the SavingsManager in the mock Nexus contract
+            const nexus = MockNexus__factory.connect(await mAsset.nexus(), sa.default.signer)
+            const savingsManagerInNexus = await nexus.getModule(keccak256(toUtf8Bytes("SavingsManager")))
+            expect(savingsManagerInNexus, "savingsManagerInNexus").to.eq(sa.mockSavingsManager.address)
+
+            //  4.0 Static call collectInterest to validate the return values
+            const { mintAmount, newSupply } = await mAsset.connect(sa.mockSavingsManager.signer).callStatic.collectInterest()
             expect(mintAmount, "mintAmount").to.eq(surplus.sub(1))
             expect(newSupply, "totalSupply").to.eq(totalSupplyBefore.add(surplus).sub(1))
 
-            // 4.0 Collect the interest
-            const tx = mAsset.connect(sa.governor.signer).collectInterest()
+            // 5.0 Collect the interest
+            const tx = mAsset.connect(sa.mockSavingsManager.signer).collectInterest()
 
-            // 5.0 Event emits correct unit
+            // 6.0 Event emits correct unit
             await expect(tx, "MintedMulti event").to.emit(mAsset, "MintedMulti")
             // .withArgs(mAsset.address, sa.mockSavingsManager.address, surplus.sub(1), [], [])
             await tx
 
-            // 6.0 Check outputs
+            // 7.0 Check outputs
             const { surplus: surplusEnd } = await mAsset.data()
             expect(surplusEnd, "after surplus").to.eq(1)
-            expect(await mAsset.balanceOf(sa.governor.address), "after Governor balance").eq(
+            expect(await mAsset.balanceOf(sa.mockSavingsManager.address), "after Saving Manager balance").eq(
                 mAssetBalBefore.add(surplus).sub(1),
             )
             expect(await mAsset.totalSupply(), "after totalSupply").to.eq(totalSupplyBefore.add(surplus).sub(1))
@@ -309,34 +314,39 @@ describe("Masset Admin", () => {
             await mAssetMachine.seedWithWeightings(details, unbalancedWeights)
 
             // 2.0 Get all balances and data before
-            const mAssetBalBefore = await details.mAsset.balanceOf(sa.governor.address)
+            const mAssetBalBefore = await details.mAsset.balanceOf(sa.mockSavingsManager.address)
             const bassetsBefore = await mAssetMachine.getBassetsInMasset(details)
             // const sumOfVaultsBefore = bassetsBefore.reduce((p, c) => p.add(applyRatio(c.vaultBalance, c.ratio)), BN.from(0))
             const totalSupplyBefore = await details.mAsset.totalSupply()
 
-            // 3.0 Static call of collectPlatformInterest
-            const mAsset = details.mAsset.connect(sa.governor.signer)
+            // 3.0 Check the SavingsManager in the mock Nexus contract
+            const nexus = MockNexus__factory.connect(await details.mAsset.nexus(), sa.default.signer)
+            const savingsManagerInNexus = await nexus.getModule(keccak256(toUtf8Bytes("SavingsManager")))
+            expect(savingsManagerInNexus, "savingsManagerInNexus").eq(sa.mockSavingsManager.address)
+
+            // 4.0 Static call of collectPlatformInterest
+            const mAsset = details.mAsset.connect(sa.mockSavingsManager.signer)
             const { mintAmount, newSupply } = await mAsset.callStatic.collectPlatformInterest()
 
-            // 4.0 Collect platform interest
+            // 5.0 Collect platform interest
             const collectPlatformInterestTx = mAsset.collectPlatformInterest()
 
-            // 5.0 Event emits correct unit
+            // 6.0 Event emits correct unit
             await expect(collectPlatformInterestTx, "MintedMulti event on mAsset")
                 .to.emit(mAsset, "MintedMulti")
                 .withArgs(
                     mAsset.address,
-                    sa.governor.address,
+                    sa.mockSavingsManager.address,
                     mintAmount,
                     [],
                     [0, 0, simpleToExactAmount(4, 9), simpleToExactAmount(6, 15)],
                 )
             await expect(collectPlatformInterestTx, "Transfer event on mAsset")
                 .to.emit(mAsset, "Transfer")
-                .withArgs(ZERO_ADDRESS, sa.governor.address, mintAmount)
+                .withArgs(ZERO_ADDRESS, sa.mockSavingsManager.address, mintAmount)
 
-            // 6.0 Check outputs
-            const mAssetBalAfter = await details.mAsset.balanceOf(sa.governor.address)
+            // 7.0 Check outputs
+            const mAssetBalAfter = await details.mAsset.balanceOf(sa.mockSavingsManager.address)
             const bassetsAfter = await mAssetMachine.getBassetsInMasset(details)
             bassetsAfter.forEach((b, i) => {
                 if (i > 1) {
@@ -356,14 +366,19 @@ describe("Masset Admin", () => {
             expect(mAssetBalAfter, "mAssetBalAfter").eq(mAssetBalBefore.add(increasedTotalSupply))
         })
         it("should fail to collect platform interest after no activity", async () => {
-            const mAsset = details.mAsset.connect(sa.governor.signer)
+            const mAsset = details.mAsset.connect(sa.mockSavingsManager.signer)
             await expect(mAsset.callStatic.collectPlatformInterest()).to.revertedWith("Must collect something")
         })
-        context("only allow the governor to collect interest", () => {
+        context("only allow the SavingsManager to collect interest", () => {
+            it("should fail governor", async () => {
+                const { signer } = sa.governor
+                await expect(details.mAsset.connect(signer).collectInterest()).to.be.revertedWith("Must be savings manager")
+                await expect(details.mAsset.connect(signer).collectPlatformInterest()).to.be.revertedWith("Must be savings manager")
+            })
             it("should fail the default signer that deployed the contracts", async () => {
                 const { signer } = sa.default
-                await expect(details.mAsset.connect(signer).collectInterest()).to.be.revertedWith("Only governor can execute")
-                await expect(details.mAsset.connect(signer).collectPlatformInterest()).to.be.revertedWith("Only governor can execute")
+                await expect(details.mAsset.connect(signer).collectInterest()).to.be.revertedWith("Must be savings manager")
+                await expect(details.mAsset.connect(signer).collectPlatformInterest()).to.be.revertedWith("Must be savings manager")
             })
         })
     })
