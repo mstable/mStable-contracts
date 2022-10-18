@@ -88,33 +88,6 @@ contract StakedTokenBPT is StakedToken {
         balancerGauge = IBalancerGauge(_balancerGauge);
     }
 
-    /**
-     * @param _nameArg Token name
-     * @param _symbolArg Token symbol
-     * @param _rewardsDistributorArg mStable Rewards Distributor
-     * @param _priceCoefficient Initial pricing coefficient
-     */
-    function initialize(
-        bytes32 _nameArg,
-        bytes32 _symbolArg,
-        address _rewardsDistributorArg,
-        uint256 _priceCoefficient
-    ) external {
-        if (rewardsDistributor == address(0)) {
-            __StakedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg);
-            priceCoefficient = _priceCoefficient;
-        }
-
-        // Staking Token contract approves the Balancer Pool Gauge to transfer the staking token. eg mBPT
-        STAKED_TOKEN.safeApprove(address(balancerGauge), type(uint256).max);
-
-        uint256 stakingBal = STAKED_TOKEN.balanceOf(address(this));
-
-        if (stakingBal > 0) {
-            balancerGauge.deposit(stakingBal);
-        }
-    }
-
     /***************************************
                 BAL incentives
     ****************************************/

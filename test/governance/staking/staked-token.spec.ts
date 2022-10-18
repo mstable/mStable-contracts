@@ -91,11 +91,7 @@ describe("Staked Token", () => {
         let data = questManagerImpl.interface.encodeFunctionData("initialize", [sa.questMaster.address, sa.questSigner.address])
         const questManagerProxy = await new AssetProxy__factory(sa.default.signer).deploy(questManagerImpl.address, DEAD_ADDRESS, data)
 
-        const platformTokenVendorFactory = await new PlatformTokenVendorFactory__factory(sa.default.signer).deploy()
-        const stakedTokenLibraryAddresses = {
-            "contracts/rewards/staking/PlatformTokenVendorFactory.sol:PlatformTokenVendorFactory": platformTokenVendorFactory.address,
-        }
-        const stakedTokenFactory = new StakedToken__factory(stakedTokenLibraryAddresses, sa.default.signer)
+        const stakedTokenFactory = new StakedToken__factory(sa.default.signer)
         const stakedTokenImpl = await stakedTokenFactory.deploy(
             nexus.address,
             rewardToken.address,
@@ -104,11 +100,11 @@ describe("Staked Token", () => {
             ONE_WEEK,
             false,
         )
-        data = stakedTokenImpl.interface.encodeFunctionData("__StakedToken_init", [
-            formatBytes32String("Staked Rewards"),
-            formatBytes32String("stkRWD"),
-            sa.mockRewardsDistributor.address,
-        ])
+        // data = stakedTokenImpl.interface.encodeFunctionData("__StakedToken_init", [
+        //     formatBytes32String("Staked Rewards"),
+        //     formatBytes32String("stkRWD"),
+        //     sa.mockRewardsDistributor.address,
+        // ])
         const stakedTokenProxy = await new AssetProxy__factory(sa.default.signer).deploy(stakedTokenImpl.address, DEAD_ADDRESS, data)
         const sToken = stakedTokenFactory.attach(stakedTokenProxy.address) as StakedToken
 

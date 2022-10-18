@@ -4,7 +4,13 @@ import { task, types } from "hardhat/config"
 import { ONE_WEEK } from "@utils/constants"
 
 import { simpleToExactAmount } from "@utils/math"
-import { BoostedDualVault__factory, BoostDirectorV2__factory, BoostDirectorV2, StakedTokenBatcher__factory } from "../types/generated"
+import {
+    BoostedDualVault__factory,
+    BoostDirectorV2__factory,
+    BoostDirectorV2,
+    StakedTokenBatcher__factory,
+    StakedTokenBPT__factory,
+} from "../types/generated"
 import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
 import { getSignerAccount, getSigner } from "./utils/signerFactory"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
@@ -97,6 +103,46 @@ task("StakedToken.deploy", "Deploys a Staked Token behind a proxy")
             symbol: taskArgs.symbol,
         }
         await deployStakingToken(stakingTokenData, deployer, hre, taskArgs.proxy)
+    })
+
+task("StakedTokenBPT.deploy", "Deploys a Staked Token mBPT behind a proxy")
+    .addOptionalParam("cooldown", "Number of seconds for the cooldown period", ONE_WEEK.mul(3).toNumber(), types.int)
+    .addOptionalParam("proxy", "Deploys a proxy contract", false, types.boolean)
+    .setAction(async (taskArgs, hre) => {
+        const deployer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const nexusAddress = resolveAddress("Nexus", chain)
+        const rewardsTokenAddress = resolveAddress("MTA", chain)
+        const stakedTokenAddress = resolveAddress("mBPT", chain)
+        const questManagerAddress = await resolveAddress("QuestManager", chain)
+        const balAddress = resolveAddress("BAL", chain)
+        const balPoolId = resolveAddress("BalancerStakingPoolId", chain)
+        const balancerVaultAddress = resolveAddress("BalancerVault", chain)
+        const balancerGaugeAddress = resolveAddress("mBPT", chain, "gauge")
+
+        const cooldown = taskArgs.cooldown
+
+        const constructorArguments = [
+            nexusAddress,
+            rewardsTokenAddress,
+            questManagerAddress,
+            stakedTokenAddress,
+            cooldown,
+            [balAddress, balancerVaultAddress],
+            balPoolId,
+            balancerGaugeAddress,
+        ]
+
+        console.log(`Staked Token BPT contract size ${StakedTokenBPT__factory.bytecode.length / 2} bytes`)
+
+        // const stakedTokenImpl = await deployContract(new StakedTokenBPT__factory(deployer), "StakedTokenBPT", constructorArguments)
+        const stakedTokenImpl = StakedTokenBPT__factory.connect("0x83b59FBC79b8e40b68927daa02AC24F8879D8417", deployer)
+
+        await verifyEtherscan(hre, {
+            address: stakedTokenImpl.address,
+            constructorArguments,
+        })
     })
 
 task("StakedTokenBatcher.deploy", "Deploys a Staked Token Batcher")

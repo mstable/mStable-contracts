@@ -94,7 +94,7 @@ contract StakedToken is GamifiedVotingToken, InitializableReentrancyGuard {
         bytes32 _nameArg,
         bytes32 _symbolArg,
         address _rewardsDistributorArg
-    ) public {
+    ) internal {
         __GamifiedToken_init(_nameArg, _symbolArg, _rewardsDistributorArg);
         _initializeReentrancyGuard();
         safetyData = SafetyData({ collateralisationRatio: 1e18, slashingPercentage: 0 });

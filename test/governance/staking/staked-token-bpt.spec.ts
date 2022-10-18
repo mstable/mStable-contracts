@@ -118,7 +118,7 @@ describe("Staked Token BPT", () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             sToken = stakedTokenFactory.attach(stakedTokenProxy.address) as any as StakedTokenBPT
         } else {
-            const stakedTokenFactory = new StakedTokenBPT__factory(stakedTokenLibraryAddresses, sa.default.signer)
+            const stakedTokenFactory = new StakedTokenBPT__factory(sa.default.signer)
             const stakedTokenImpl = await stakedTokenFactory.deploy(
                 nexus.address,
                 rewardToken.address,
@@ -129,12 +129,12 @@ describe("Staked Token BPT", () => {
                 await bptLocal.vault.poolIds(bptLocal.bpt.address),
                 bptLocal.gauge.address,
             )
-            data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
-                formatBytes32String("Staked Rewards"),
-                formatBytes32String("stkRWD"),
-                sa.mockRewardsDistributor.address,
-                44000,
-            ])
+            // data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
+            //     formatBytes32String("Staked Rewards"),
+            //     formatBytes32String("stkRWD"),
+            //     sa.mockRewardsDistributor.address,
+            //     44000,
+            // ])
 
             const stakedTokenProxy = await new AssetProxy__factory(sa.default.signer).deploy(stakedTokenImpl.address, DEAD_ADDRESS, data)
             sToken = stakedTokenFactory.attach(stakedTokenProxy.address) as StakedTokenBPT

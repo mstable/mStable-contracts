@@ -155,11 +155,7 @@ export const deployStakingToken = async (
 
         console.log(`Staked Token BPT contract size ${StakedTokenBPT__factory.bytecode.length / 2} bytes`)
 
-        stakedTokenImpl = await deployContract(
-            new StakedTokenBPT__factory(stakedTokenLibraryAddresses, deployer.signer),
-            "StakedTokenBPT",
-            constructorArguments,
-        )
+        stakedTokenImpl = await deployContract(new StakedTokenBPT__factory(deployer.signer), "StakedTokenBPT", constructorArguments)
 
         const priceCoeff = 49631
         data = stakedTokenImpl.interface.encodeFunctionData("initialize", [
