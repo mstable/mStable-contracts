@@ -13,7 +13,7 @@ interface VerifyEtherscan {
 }
 
 export const verifyEtherscan = async (hre: HardhatRuntimeEnvironment, contract: VerifyEtherscan): Promise<void> => {
-    if (hre.network.name !== "hardhat") {
+    if (hre.network.name !== "hardhat" && hre.network.name !== "local") {
         // wait for the Etherscan backend to pick up the deployed contract
         await sleep(10000)
 
