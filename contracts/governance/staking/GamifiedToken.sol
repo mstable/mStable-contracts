@@ -454,7 +454,7 @@ abstract contract GamifiedToken is
         // Take the opportunity to check for season finish
         _balances[_account].questMultiplier = questManager.checkForSeasonFinish(_account);
         if (hasPriceCoeff) {
-            _userPriceCoeff[_account] = SafeCastExtended.toUint16(_getPriceCoeff());
+            _userPriceCoeff[_account] = _getPriceCoeff();
         }
     }
 
@@ -518,7 +518,7 @@ abstract contract GamifiedToken is
             uint256 oldScaledBalance = _getBalance(_account, _balances[_account]);
             _balances[_account].questMultiplier = newMultiplier;
             if (priceCoeffChanged) {
-                _userPriceCoeff[_account] = SafeCastExtended.toUint16(_getPriceCoeff());
+                _userPriceCoeff[_account] = _getPriceCoeff();
             }
             // 3. Update scaled balance
             _settleScaledBalance(_account, oldScaledBalance);
