@@ -136,8 +136,8 @@ task("StakedTokenBPT.deploy", "Deploys a Staked Token mBPT behind a proxy")
 
         console.log(`Staked Token BPT contract size ${StakedTokenBPT__factory.bytecode.length / 2} bytes`)
 
-        // const stakedTokenImpl = await deployContract(new StakedTokenBPT__factory(deployer), "StakedTokenBPT", constructorArguments)
-        const stakedTokenImpl = StakedTokenBPT__factory.connect("0x83b59FBC79b8e40b68927daa02AC24F8879D8417", deployer)
+        const stakedTokenImpl = await deployContract(new StakedTokenBPT__factory(deployer), "StakedTokenBPT", constructorArguments)
+        // const stakedTokenImpl = StakedTokenBPT__factory.connect("0x83b59FBC79b8e40b68927daa02AC24F8879D8417", deployer)
 
         await verifyEtherscan(hre, {
             address: stakedTokenImpl.address,
