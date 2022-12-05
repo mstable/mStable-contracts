@@ -180,11 +180,13 @@ subtask("revenue-split-buy-back", "Buy back MTA from mUSD and mBTC gov fees")
         const musd = {
             address: resolveAddress("mUSD", chain),
             bAssetMinSlippage: 1, // 1%
-            rewardMinSlippage: 1, // 1%
-            mAssetMinBalance: simpleToExactAmount(1000), // 1k USD
+            rewardMinSlippage: 2, // 1%
+            mAssetMinBalance: simpleToExactAmount(50), // 50 USD
             // Provide two fees options to the swap, function splitBuyBackRewards will get the best quote.
             swapFees: [
                 [3000, 3000],
+                [3000, 10000],
+                [500, 3000],
                 [500, 10000],
             ], // [USDC/WETH 0.3%, MTA/WETH 0.3%] [USDC/WETH 0.05%, MTA/WETH 1%]
         }
@@ -203,7 +205,11 @@ subtask("revenue-split-buy-back", "Buy back MTA from mUSD and mBTC gov fees")
             blockNumber: "latest",
         }
         const tx = await splitBuyBackRewards(signer, request)
-        await logTxDetails(tx, `buy back MTA from gov fees`)
+        if (tx) {
+            await logTxDetails(tx, `buy back MTA from gov fees`)
+        } else {
+            console.log("No buyback tx")
+        }
     })
 task("revenue-split-buy-back").setAction(async (_, __, runSuper) => {
     await runSuper()
