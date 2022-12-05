@@ -69,7 +69,6 @@ export const calculateBuyBackRewardsQuote = async (signer: Signer, params: MainP
     const rewardsTokenContract = IERC20Metadata__factory.connect(rewardsToken, signer)
     const rTokenDecimals = await rewardsTokenContract.decimals()
     const rTokenSymbol = await rewardsTokenContract.symbol()
-
     for (let i = 0; i < mAssets.length; i += 1) {
         const mAsset = mAssets[i]
         const bAsset: string = await revenueSplitBuyBack.bassets(mAsset.address)
@@ -84,7 +83,9 @@ export const calculateBuyBackRewardsQuote = async (signer: Signer, params: MainP
         // Validate if the mAsset balance is grater than the minimum balance to buy back, default is zero.
         if (mAssetBalance.gt(mAsset.mAssetMinBalance)) {
             // mAssetAmount =  10000e18 * (1e18 - 0.4e18  / 1e18) = 6000e18
-            const mAssetAmount = mAssetBalance.mul(configScale.sub(treasuryFee)).div(configScale)
+            const mAssetAmount = configScale.eq(treasuryFee)
+                ? mAssetBalance
+                : mAssetBalance.mul(configScale.sub(treasuryFee)).div(configScale)
 
             // calculate minBassetsAmounts
             const bAssetSlippage = 100 - mAsset.bAssetMinSlippage
@@ -98,6 +99,7 @@ export const calculateBuyBackRewardsQuote = async (signer: Signer, params: MainP
             mAssetsToBuyBack.push(mAsset)
 
             // Get the estimated redeem amount to price better the second swap, bAsset to reward.
+            console.log(`${mAssetContract.address}.getRedeemOutput(${bAsset}, ${mAssetAmount})`)
             const bAssetRedeemAmount = await mAssetContract.getRedeemOutput(bAsset, mAssetAmount)
             // console for debugging purposes, do not delete
 
@@ -135,7 +137,6 @@ export const calculateBuyBackRewardsQuote = async (signer: Signer, params: MainP
             const minRewardsAmount = outAmount.mul(rewardSlippage).div(100)
 
             minRewardsAmounts.push(minRewardsAmount)
-
             // console for debugging purposes, do not delete
             console.table({
                 bAssetSymbol,
@@ -154,7 +155,6 @@ export const calculateBuyBackRewardsQuote = async (signer: Signer, params: MainP
             // 3 ============ Uniswap path ============//
             const uniswapPath = encodeUniswapPath(getWETHPath(bAsset, rewardsToken), fees)
             uniswapPaths.push(uniswapPath)
-            console.log(`ts: swap ${bAssetSymbol} to ${rTokenSymbol}, encodeUniswapPath: ${uniswapPath.encoded.toString()}`)
         }
     }
     return { ...params, mAssets: mAssetsToBuyBack, minBassetsAmounts, minRewardsAmounts, uniswapPaths }
@@ -171,11 +171,8 @@ export const splitBuyBackRewards = async (signer: Signer, params: MainParams): P
     const { mAssets, minBassetsAmounts, minRewardsAmounts, uniswapPaths, revenueSplitBuyBack } = buyBackRewardsParams
     const mAssetAddress = mAssets.map((m) => m.address)
     const uniswapPathsEncoded = uniswapPaths.map((u) => u.encoded)
-    console.log(`ts: buyBackRewards 
-        mAssetAddress       ${mAssetAddress}
-        minBassetsAmounts   ${minBassetsAmounts.toString()}
-        minRewardsAmounts   ${minRewardsAmounts.toString()}
-        uniswapPathsEncoded ${uniswapPathsEncoded}
-    `)
-    return revenueSplitBuyBack.buyBackRewards(mAssetAddress, minBassetsAmounts, minRewardsAmounts, uniswapPathsEncoded)
+    if (uniswapPaths.length > 0) {
+        return revenueSplitBuyBack.buyBackRewards(mAssetAddress, minBassetsAmounts, minRewardsAmounts, uniswapPathsEncoded)
+    }
+    return undefined
 }
