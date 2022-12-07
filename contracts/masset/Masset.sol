@@ -153,7 +153,7 @@ contract Masset is
     function _isSavingsManager() internal view {
         require(_savingsManager() == msg.sender, "Must be savings manager");
     }
-
+    
     /**
      * @dev Requires the overall basket composition to be healthy
      */
@@ -431,7 +431,7 @@ contract Masset is
         uint256 _mAssetQuantity,
         uint256[] calldata _minOutputQuantities,
         address _recipient
-    ) external override nonReentrant whenNoRecol returns (uint256[] memory outputQuantities) {
+    ) external override nonReentrant returns (uint256[] memory outputQuantities) {
         require(_recipient != address(0), "Invalid recipient");
         require(_mAssetQuantity > 0, "Qty==0");
 
