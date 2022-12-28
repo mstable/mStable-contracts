@@ -6,7 +6,7 @@ import { StableMath } from "../../shared/StableMath.sol";
 
 /**
  * @title   MockSavingsContract
- * @author  mStable
+ * @author voltfinance
  * @notice  Mock of contracts/savings/SavingsContract.sol  // ISavingsContractV3
  *          DATE:    2022-01-12
  */

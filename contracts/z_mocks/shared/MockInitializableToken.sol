@@ -6,7 +6,7 @@ import { InitializableERC20Detailed } from "../../shared/InitializableERC20Detai
 
 /**
  * @title  InitializableToken
- * @author mStable
+ * @author voltfinance
  * @dev    Basic ERC20Detailed Token functionality for Masset
  */
 contract MockInitializableToken is ERC205, InitializableERC20Detailed {

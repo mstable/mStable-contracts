@@ -12,7 +12,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 
 /**
  * @title   AlchemixIntegration
- * @author  mStable
+ * @author voltfinance
  * @notice  A simple connection to farm ALCX rewards with the Alchemix alUSD pool
  * @dev     VERSION: 1.0
  *          DATE:    2021-07-02

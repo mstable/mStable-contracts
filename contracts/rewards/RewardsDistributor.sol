@@ -7,7 +7,7 @@ import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/Saf
 
 /**
  * @title  RewardsDistributor
- * @author mStable
+ * @author voltfinance
  * @notice RewardsDistributor allows Fund Managers to send rewards (usually in MTA)
  * to specified Reward Recipients.
  */

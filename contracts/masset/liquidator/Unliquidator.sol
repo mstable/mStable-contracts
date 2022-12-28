@@ -9,7 +9,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title   Unliquidator
- * @author  mStable
+ * @author voltfinance
  * @notice  Replacement Contract for the Liquidator.
  *          Does not liquidate the tokens but sends them to the treasury or a set address
  * @dev     VERSION: 1

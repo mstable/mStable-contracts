@@ -9,7 +9,7 @@ import { ICERC20 } from "../../peripheral/Compound/ICERC20.sol";
 
 /**
  * @title   CompoundIntegration
- * @author  mStable
+ * @author voltfinance
  * @notice  A simple connection to deposit and withdraw bAssets from Compound and Cream
  * @dev     VERSION: 1.0
  *          DATE:    2021-05-04

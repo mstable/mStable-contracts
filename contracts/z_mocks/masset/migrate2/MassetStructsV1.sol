@@ -3,7 +3,7 @@ pragma solidity 0.8.6;
 
 /**
  * @notice  Is the Masset V2.0 structs used in the upgrade of mUSD from V2.0 to V3.0.
- * @author  mStable
+ * @author voltfinance
  * @dev     VERSION: 2.0
  *          DATE:    2021-02-23
  */

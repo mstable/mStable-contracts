@@ -16,7 +16,7 @@ import { StableMath } from "../shared/StableMath.sol";
 
 /**
  * @title   FeederManager
- * @author  mStable
+ * @author voltfinance
  * @notice  Manager contract for fPools. Forked from `masset/Manager.sol`, and performs a subset of functionality
  *          related to basket management.
  * @dev     VERSION: 1.0

@@ -13,7 +13,7 @@ import { SlotFiller51 } from "../../shared/SlotFiller51.sol";
  * @notice GamifiedToken is a non-transferrable ERC20 token that has both a raw balance and a scaled balance.
  * Scaled balance is determined by quests a user completes, and the length of time they keep the raw balance wrapped.
  * QuestMasters can add new quests for stakers to complete, for which they are rewarded with permanent or seasonal multipliers.
- * @author mStable
+ * @author voltfinance
  * @dev Originally forked from openzeppelin-contracts-upgradeable/contracts/token/ERC20/ERC20Upgradeable.sol
  * Changes:
  *   - Removed the transfer, transferFrom, approve fns to make non-transferrable

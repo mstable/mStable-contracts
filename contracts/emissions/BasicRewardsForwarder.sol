@@ -9,7 +9,7 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title  BasicRewardsForwarder
- * @author mStable
+ * @author voltfinance
  * @notice Transfers any received reward tokens to another contract or account.
  * @dev    VERSION: 1.0
  *         DATE:    2021-10-28

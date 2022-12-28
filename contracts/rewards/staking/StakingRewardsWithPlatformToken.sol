@@ -18,7 +18,7 @@ import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable
 
 /**
  * @title  StakingRewardsWithPlatformToken
- * @author mStable
+ * @author voltfinance
  * @notice Rewards stakers of a given LP token (a.k.a StakingToken) with RewardsToken, on a pro-rata basis
  * additionally, distributes the Platform token airdropped by the platform
  * @dev    Derives from ./StakingRewards.sol and implements a secondary token into the core logic

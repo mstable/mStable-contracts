@@ -8,7 +8,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 
 /**
  * @title   RevenueForwarder
- * @author  mStable
+ * @author voltfinance
  * @notice  Sends to trusted forwarded
  * @dev     VERSION: 1.0
  *          DATE:    2021-10-26

@@ -6,6 +6,7 @@ import "hardhat-gas-reporter"
 import "solidity-coverage"
 import "hardhat-abi-exporter"
 import "@nomiclabs/hardhat-etherscan"
+import "hardhat-deploy"
 
 import "ts-node/register"
 import "tsconfig-paths/register"
@@ -30,8 +31,12 @@ export const compilerConfig = (version: string) => ({
         },
         outputSelection: {
             "*": {
-                SavingsContract: ["storageLayout"],
-            },
+                "*": [
+                    "metadata", 
+                    "evm.bytecode",
+                    "evm.bytecode.sourceMap"
+                ]
+            }
         },
     },
 })
@@ -57,6 +62,9 @@ export const hardhatConfig = {
         mainnet: {
             url: process.env.NODE_URL || "https://main-light.eth.linkpool.io",
         },
+        fuse: {
+            url: process.env.NODE_URL || "https://rpc.fuse.io"
+        }
     },
     solidity: {
         compilers: [{ ...compilerConfig("0.8.6") }, { ...compilerConfig("0.8.2") }, { ...compilerConfig("0.5.16") }],

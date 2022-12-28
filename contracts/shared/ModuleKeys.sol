@@ -3,7 +3,7 @@ pragma solidity 0.8.6;
 
 /**
  * @title  ModuleKeys
- * @author mStable
+ * @author voltfinance
  * @notice Provides system wide access to the byte32 represntations of system modules
  *         This allows each system module to be able to reference and update one another in a
  *         friendly way

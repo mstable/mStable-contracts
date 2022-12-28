@@ -9,7 +9,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 
 /**
  * @title   RevenueRecipient
- * @author  mStable
+ * @author voltfinance
  * @notice  Simply receives mAssets and then deposits to a pre-defined Balancer
  *          Bpool.
  * @dev     VERSION: 2.0

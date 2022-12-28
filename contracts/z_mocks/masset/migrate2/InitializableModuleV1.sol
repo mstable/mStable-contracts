@@ -5,7 +5,7 @@ pragma solidity 0.8.6;
  * @notice  Is only used in the upgrade of mUSD from V2.0 to V3.0.
             This contract preserves the V2.0 storage positions in
             the new V3.0 Masset contract.
- * @author  mStable
+ * @author voltfinance
  * @dev     VERSION: 3.0
  *          DATE:    2021-02-23
  */

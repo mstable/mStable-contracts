@@ -3,7 +3,7 @@ pragma solidity 0.8.6;
 
 /**
  * @title   Governable
- * @author  mStable
+ * @author voltfinance
  * @notice  Simple contract implementing an Ownable pattern.
  * @dev     Derives from V2.3.0 @openzeppelin/contracts/ownership/Ownable.sol
  *          Modified to have custom name and features

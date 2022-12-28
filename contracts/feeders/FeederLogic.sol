@@ -18,7 +18,7 @@ import { StableMath } from "../shared/StableMath.sol";
 
 /**
  * @title   FeederLogic
- * @author  mStable
+ * @author voltfinance
  * @notice  Logic contract for feeder pools that calculates trade output and updates core state.
  *          Includes modular invariant application code applying the StableSwap invariant first designed
  *          by Curve Finance and derived for mStable application in MIP-8 (https://mips.mstable.org/MIPS/mip-8)

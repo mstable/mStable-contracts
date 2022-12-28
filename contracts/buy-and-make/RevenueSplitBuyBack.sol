@@ -13,7 +13,7 @@ import { IUniswapV3SwapRouter } from "../peripheral/Uniswap/IUniswapV3SwapRouter
 
 /**
  * @title   RevenueSplitBuyBack
- * @author  mStable
+ * @author voltfinance
  * @notice  Uses governance fees to buy MTA rewards for stakers. Updated Version sends some governance fees to treasury.
  * @dev     VERSION: 2.0
  *          DATE:    2022-04-17

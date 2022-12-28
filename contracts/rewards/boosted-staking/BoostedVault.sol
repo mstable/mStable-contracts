@@ -15,7 +15,7 @@ import { StableMath } from "../../shared/StableMath.sol";
 
 /**
  * @title  BoostedVault
- * @author mStable
+ * @author voltfinance
  * @notice Accrues rewards second by second, based on a users boosted balance
  * @dev    Forked from rewards/staking/StakingRewards.sol
  *         Changes:

@@ -23,7 +23,7 @@ import "./deps/GamifiedTokenStructs.sol";
  * Voting power can be used for a number of things: voting in the mStable DAO/emission dials, boosting rewards, earning
  * rewards here. While a users "balance" is unique to themselves, they can choose to delegate their voting power (which will apply
  * to voting in the mStable DAO and emission dials).
- * @author mStable
+ * @author voltfinance
  * @dev Only whitelisted contracts can communicate with this contract, in order to avoid having tokenised wrappers that
  * could potentially circumvent our unstaking procedure.
  **/

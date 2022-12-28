@@ -9,7 +9,7 @@ import { ImmutableModule } from "../shared/ImmutableModule.sol";
 
 /**
  * @title  BoostDirector
- * @author mStable
+ * @author voltfinance
  * @notice Supports the directing of vMTA balance from Staking up to X accounts
  * @dev    Uses a bitmap to store the id's of a given users chosen vaults in a gas efficient manner.
  */

@@ -24,7 +24,7 @@ struct RevenueBuyBackConfig {
 
 /**
  * @title   RevenueBuyBack
- * @author  mStable
+ * @author voltfinance
  * @notice  Uses protocol revenue to buy MTA rewards for stakers.
  * @dev     VERSION: 1.0
  *          DATE:    2021-11-09

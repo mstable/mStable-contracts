@@ -12,7 +12,7 @@ import { Root } from "../../shared/Root.sol";
 
 /**
  * @title  BoostedTokenWrapper
- * @author mStable
+ * @author voltfinance
  * @notice Wrapper to facilitate tracking of staked balances, applying a boost
  * @dev    Forked from rewards/staking/StakingTokenWrapper.sol
  *         Changes:

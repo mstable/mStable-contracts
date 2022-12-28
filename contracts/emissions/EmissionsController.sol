@@ -68,7 +68,7 @@ struct EpochHistory {
 
 /**
  * @title  EmissionsController
- * @author mStable
+ * @author voltfinance
  * @notice Allows governors to vote on the weekly distribution of $MTA. Rewards are distributed between
  *         `n` "Dials" proportionately to the % of votes the dial receives. Vote weight derives from multiple
  *         whitelisted "Staking contracts". Voters can distribute their vote across (0 <= n <= 16 dials), at 0.5%

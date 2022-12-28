@@ -8,7 +8,7 @@ import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable
 
 /**
  * @title   AbstractIntegration
- * @author  mStable
+ * @author voltfinance
  * @notice  A generalised platform integration contract from which to inherit
  * @dev     Contains functionality for managing access to a specific lending
  *          platform. pTokens are the generic name given to platform tokens e.g. cDai

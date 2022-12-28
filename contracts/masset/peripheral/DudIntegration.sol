@@ -12,7 +12,7 @@ import { IDudPlatform } from "./IDudPlatform.sol";
 
 /**
  * @title   DudIntegration
- * @author  mStable
+ * @author voltfinance
  * @notice  A simple connection to deposit and withdraw bAssets with no lending market
  * @dev     VERSION: 1.0
  *          DATE:    2021-10-27

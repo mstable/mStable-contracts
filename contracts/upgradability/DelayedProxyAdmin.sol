@@ -6,7 +6,7 @@ import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/trans
 
 /**
  * @title   DelayedProxyAdmin
- * @author  mStable
+ * @author  voltfinance
  * @notice  Proxy admin contract to upgrade the upgradable contracts. The upgradable contracts
  *          are transparent proxy contracts from OpenZeppelin-SDK.
  * @dev     The contract has a delyed upgradability. The Governor can propose a new implementation

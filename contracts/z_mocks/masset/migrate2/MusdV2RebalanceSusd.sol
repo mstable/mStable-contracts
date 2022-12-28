@@ -8,7 +8,7 @@ import { IMassetV1 } from "./IMassetV1.sol";
 
 /**
  * @title   Contract to balance mUSD bAssets using sUSD in preparation for the mUSD V3 upgrade.
- * @author  mStable
+ * @author voltfinance
  * @notice  Should only be used if sUSD is under the target mUSD basket weight. eg 25%.
  *          The bAssets to be swapped with should be over the target mUSD basket weight. eg TUSD and USDT.
  * @dev     VERSION: 1.0

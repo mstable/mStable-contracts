@@ -10,7 +10,7 @@ import { IGovernanceHook } from "./interfaces/IGovernanceHook.sol";
 /**
  * @title GamifiedVotingToken
  * @notice GamifiedToken is a checkpointed Voting Token derived from OpenZeppelin "ERC20VotesUpgradable"
- * @author mStable
+ * @author voltfinance
  * @dev Forked from https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/f9cdbd7d82d45a614ee98a5dc8c08fb4347d0fea/contracts/token/ERC20/extensions/ERC20VotesUpgradeable.sol
  * Changes:
  *   - Inherits custom GamifiedToken rather than basic ERC20

@@ -5,7 +5,7 @@ import { Governable } from "./Governable.sol";
 
 /**
  * @title   ClaimableGovernor
- * @author  mStable
+ * @author voltfinance
  * @notice  2 way handshake for Governance transfer
  * @dev     Overrides the public functions in Governable to provide
  * a second step of validation.

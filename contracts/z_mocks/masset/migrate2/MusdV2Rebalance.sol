@@ -14,7 +14,7 @@ import { ICurve } from "../../../peripheral/Curve/ICurve.sol";
 
 /**
  * @title   Contract to rebalance mUSD bAssets to new weights for the mUSD V3 upgrade.
- * @author  mStable
+ * @author voltfinance
  * @notice  Either DAI or USDC is flash loaned from DyDx to swap for TUSD or USDT in mUSD.
  *          Curve's TUSD pool (DAI, USDC, USDT and TUSD) or 3pool (DAI, USDC, USDT) is used to
  *          convert TUSD and USDT back to the flash loan currency.

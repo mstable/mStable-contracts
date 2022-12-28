@@ -3,7 +3,7 @@ pragma solidity 0.8.6;
 
 /**
  * @title   StableMath
- * @author  mStable
+ * @author voltfinance
  * @notice  A library providing safe mathematical operations to multiply and
  *          divide with standardised precision.
  * @dev     Derives from OpenZeppelin's SafeMath lib and uses generic system

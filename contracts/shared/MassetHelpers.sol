@@ -6,7 +6,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title   MassetHelpers
- * @author  mStable
+ * @author voltfinance
  * @notice  Helper functions to facilitate minting and redemption from off chain
  * @dev     VERSION: 1.0
  *          DATE:    2020-03-28

@@ -18,7 +18,7 @@ import { MassetManager } from "../MassetManager.sol";
 
 /**
  * @title   Masset
- * @author  mStable
+ * @author voltfinance
  * @notice  An incentivised constant sum market maker with hard limits at max region. This supports
  *          low slippage swaps and applies penalties towards min and max regions. AMM produces a
  *          stablecoin (mAsset) and redirects lending market interest and swap fees to the savings

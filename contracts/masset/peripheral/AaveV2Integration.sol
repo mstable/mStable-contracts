@@ -12,7 +12,7 @@ import { AbstractIntegration } from "./AbstractIntegration.sol";
 
 /**
  * @title   AaveV2Integration
- * @author  mStable
+ * @author voltfinance
  * @notice  A simple connection to deposit and withdraw bAssets from Aave
  * @dev     VERSION: 1.0
  *          DATE:    2020-16-11

@@ -15,7 +15,7 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
 
 /**
  * @title  HeadlessStakingRewards
- * @author mStable
+ * @author voltfinance
  * @notice Rewards stakers of a given LP token with REWARDS_TOKEN, on a pro-rata basis
  * @dev Forked from `StakingRewards.sol`
  *      Changes:

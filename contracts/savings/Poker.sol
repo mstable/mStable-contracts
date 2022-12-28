@@ -12,7 +12,7 @@ struct PokeVaultAccounts {
 
 /**
  * @title   Poker
- * @author  mStable
+ * @author voltfinance
  * @notice  Pokes accounts on boosted vaults so their vault balances can be recalculated.
  * @dev     VERSION: 1.0
  *          DATE:    2021-04-17

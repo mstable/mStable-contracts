@@ -12,7 +12,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title   PLiquidator
- * @author  mStable
+ * @author voltfinance
  * @notice  The Liquidator allows rewards to be swapped for another token and sent
  *          to SavingsManager for distribution
  * @dev     VERSION: 1.0

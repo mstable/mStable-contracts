@@ -7,7 +7,7 @@ import { ImmutableModule } from "../shared/ImmutableModule.sol";
 
 /**
  * @title  DisperseForwarder
- * @author mStable
+ * @author voltfinance
  * @notice Transfers reward tokens to a list of off-chain calculated recipients and amounts.
  * @dev    Disperse contract on Mainnet and Polygon: 0xD152f549545093347A162Dce210e7293f1452150
  * @dev    VERSION: 1.0

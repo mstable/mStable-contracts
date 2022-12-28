@@ -10,7 +10,7 @@ import { ImmutableModule } from "../../shared/ImmutableModule.sol";
 
 /**
  * @title   DudPlatform
- * @author  mStable
+ * @author voltfinance
  * @notice  A simple dud Platform that hold the amount of tokens in the platform. Needed because otherwise the migration of bAssets will fail due to the cached amount
  * @dev     VERSION: 1.0
  *          DATE:    2021-10-27

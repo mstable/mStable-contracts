@@ -4,7 +4,7 @@ pragma solidity 0.8.6;
 /**
  * @title   Fills 51 storage slots.
  * @notice  To be used in inheritance when upgrading contracts to preserve previous storage slots.
- * @author  mStable
+ * @author voltfinance
  * @dev     VERSION: 1.0
  *          DATE:    2022-04-13
  */

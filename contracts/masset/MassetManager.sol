@@ -19,7 +19,7 @@ import { MassetHelpers } from "../shared/MassetHelpers.sol";
 
 /**
  * @title   Manager
- * @author  mStable
+ * @author  voltfinance
  * @notice  Simply contains logic to perform Basket Manager duties for an mAsset.
  *          Allowing logic can be abstracted here to avoid bytecode inflation.
  * @dev     VERSION: 1.0

@@ -5,7 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title   Tokenized Vault Standard (ERC-4626) Interface
- * @author  mStable
+ * @author voltfinance
  * @notice  See the following for the full ERC-4626 specification https://eips.ethereum.org/EIPS/eip-4626.
  * @dev     VERSION: 1.0
  *          DATE:    2022-02-10

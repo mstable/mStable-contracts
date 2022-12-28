@@ -8,7 +8,7 @@ import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/Saf
 
 /**
  * @title  L2EmissionsController
- * @author mStable
+ * @author voltfinance
  * @notice Deployed on Polygon (or other L2's), this contract distributes the bridged rewards from the
  *         child recipients to the end recipients (vaults).
  * @dev    VERSION: 1.0

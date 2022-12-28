@@ -9,7 +9,7 @@ import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/Saf
 
 /**
  * @title  BridgeForwarder
- * @author mStable
+ * @author voltfinance
  * @notice Deployed on Ethereum L1, this Bridge Forwarder sends reward tokens across the Polygon PoS Bridge to a
  *         specified recipient contract on the Polygon chain.
  * @dev    VERSION: 1.0

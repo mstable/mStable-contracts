@@ -12,7 +12,7 @@ import "./deps/GamifiedTokenStructs.sol";
 
 /**
  * @title   QuestManager
- * @author  mStable
+ * @author voltfinance
  * @notice  Centralised place to track quest management and completion status
  * @dev     VERSION: 1.0
  *          DATE:    2021-08-25

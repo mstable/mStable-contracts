@@ -1080,7 +1080,7 @@ library StableMath {
 
 /**
  * @title   SavingsContract
- * @author  mStable
+ * @author voltfinance
  * @notice  Savings contract uses the ever increasing "exchangeRate" to increase
  *          the value of the Savers "credits" (ERC20) relative to the amount of additional
  *          underlying collateral that has been deposited into this contract ("interest")

@@ -24,7 +24,7 @@ import { FeederLogic } from "./FeederLogic.sol";
 
 /**
  * @title   NonPeggedFeederPool
- * @author  mStable, @stobiewan
+ * @author voltfinance, @stobiewan
 * @notice  Base contract for Feeder Pools (fPools) handling non-pegged stable assets with a redemption price. Feeder
 *          Pools are combined of 50/50 fAsset and mAsset. This supports efficient swaps into and out of mAssets and the
 *          bAssets in the mAsset basket (a.k.a mpAssets). There is 0 fee to trade from fAsset into mAsset, providing

@@ -5,7 +5,7 @@ import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/Saf
 
 /**
  * @title  L2BridgeRecipient
- * @author mStable
+ * @author voltfinance
  * @notice Deployed on Polygon (or other L2's), this contract receives bridged tokens and gives the root emissions
  *         controller permission to forward them.
  * @dev    VERSION: 1.0

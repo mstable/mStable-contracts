@@ -31,5 +31,7 @@ import "./tasks/token"
 import "./tasks/vault"
 import "./tasks/ens"
 import "./tasks/ironBankMigration"
+import "./tasks/deployFuse"
+import "./tasks/flat"
 
 export default config

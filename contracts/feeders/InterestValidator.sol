@@ -9,7 +9,7 @@ import { YieldValidator } from "../shared/YieldValidator.sol";
 
 /**
  * @title   InterestValidator
- * @author  mStable
+ * @author voltfinance
  * @notice  Simply validates the platform interest collection from the Feeder Pools. Normally this function
  *          is supported by the SavingsManager, which then distributes the inflated tokens to SAVE contracts.
  *          However, given that fPools collect value internally, we simply want to provide protections here

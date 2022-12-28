@@ -6,7 +6,7 @@ import { INexus } from "../interfaces/INexus.sol";
 
 /**
  * @title   ImmutableModule
- * @author  mStable
+ * @author voltfinance
  * @dev     Subscribes to module updates from a given publisher and reads from its registry.
  *          Contract is used for upgradable proxy contracts.
  */

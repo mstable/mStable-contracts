@@ -7,7 +7,7 @@ import { ERC20Burnable } from "@openzeppelin/contracts/token/ERC20/extensions/ER
 
 /**
  * @title  MintableToken
- * @author mStable
+ * @author voltfinance
  */
 contract MintableToken is ERC20, GovernedMinterRole, ERC20Burnable {
     constructor(address _nexus, address _initialRecipient)

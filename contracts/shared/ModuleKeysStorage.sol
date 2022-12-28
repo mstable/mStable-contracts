@@ -3,7 +3,7 @@ pragma solidity 0.8.6;
 
 /**
  * @title   InitializableModuleKeysStorage
- * @author  mStable
+ * @author voltfinance
  * @notice  Used to preserve storage slots for proxy contracts that
  *          used InitializableModuleKeys but are now using ImmutableModule
  *          which uses immutable variables rather than contract storage.

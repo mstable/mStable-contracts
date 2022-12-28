@@ -7,7 +7,7 @@ import { IAaveIncentivesController } from "../peripheral/Aave/IAaveIncentivesCon
 
 /**
  * @title   PAaveIntegration
- * @author  mStable
+ * @author voltfinance
  * @notice  A simple connection to deposit and withdraw bAssets from Aave on Polygon
  * @dev     VERSION: 1.0
  *          DATE:    2020-16-11
