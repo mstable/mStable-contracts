@@ -433,7 +433,9 @@ task("feeder-collect-fees", "Collects governance fees from feeder pools")
         const validator = InterestValidator__factory.connect(interestValidatorAddress, signer)
 
         const tx = await validator.collectGovFees([fpAddress])
-        await logTxDetails(tx, `collect gov fees from ${taskArgs.fasset} FP`)
+        const receipt = await logTxDetails(tx, `collect gov fees from ${taskArgs.fasset} FP`)
+        const events = receipt.events?.filter((e) => e.event === "GovFeeCollected")
+        console.log(`Collected ${formatUnits(events?.[0]?.args?.amount)} mAssets from the ${taskArgs.fasset} Feeder Pool`)
     })
 
 task("feeder-migrate-bassets", "Migrates bAssets in a Feeder Pool to its integration contract")
