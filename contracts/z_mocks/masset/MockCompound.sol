@@ -98,4 +98,8 @@ contract MockCToken is ERC20, ICERC20 {
     {
         amount = (_underlying * 1e18) / exchangeRate;
     }
+
+    function accrueInterest() external override returns (uint) {
+        return 0;
+    }
 }

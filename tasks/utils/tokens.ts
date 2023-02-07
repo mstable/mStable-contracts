@@ -163,10 +163,11 @@ export const DAI: Token = {
 // USD Main Pool Assets on Polygon
 export const PUSDC: Token = {
     symbol: "USDC",
-    address: "0x2791bca1f2de4661ed88a30c99a7a9449aa84174",
+    address: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
     chain: Chain.polygon,
     platform: Platform.Aave,
     integrator: "0xeab7831c96876433dB9B8953B4e7e8f66c3125c3",
+    liquidityProvider: "0x1a13F4Ca1d028320A707D99520AbFefca3998b7F", // amUSDC
     decimals: 6,
     quantityFormatter: "USD",
     parent: "mUSD",
@@ -178,6 +179,7 @@ export const PUSDT: Token = {
     chain: Chain.polygon,
     platform: Platform.Aave,
     integrator: "0xeab7831c96876433dB9B8953B4e7e8f66c3125c3",
+    liquidityProvider: "0x60D55F02A771d515e077c9C2403a1ef324885CeC", // amUSDT
     decimals: 6,
     quantityFormatter: "USD",
     parent: "mUSD",
@@ -188,6 +190,7 @@ export const PDAI: Token = {
     chain: Chain.polygon,
     platform: Platform.Aave,
     integrator: "0xeab7831c96876433dB9B8953B4e7e8f66c3125c3",
+    liquidityProvider: "0x27F8D03b3a2196956ED754baDc28D73be8830A6e", // amDAI
     decimals: 18,
     quantityFormatter: "USD",
     parent: "mUSD",

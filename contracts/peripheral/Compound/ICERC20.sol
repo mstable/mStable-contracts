@@ -46,4 +46,6 @@ interface ICERC20 {
      * @return The number of tokens owned by `owner`
      */
     function balanceOf(address owner) external view returns (uint256);
+
+    function accrueInterest() external returns (uint);
 }
