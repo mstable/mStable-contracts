@@ -21,8 +21,7 @@ import { expect } from "chai"
 import { increaseTime } from "@utils/time"
 import { ONE_WEEK, ZERO_ADDRESS } from "@utils/constants"
 import { formatUnits } from "ethers/lib/utils"
-import { BN, simpleToExactAmount } from "@utils/math"
-import { assertBNClose } from "@utils/assertions"
+import { simpleToExactAmount } from "@utils/math"
 
 const musdWhaleAddress = "0xb30a907084ac8a0d25dddab4e364827406fd09f0" // FRAX Feeder Pool
 const usdcWhaleAddress = "0xe7804c37c13166ff0b37f5ae0bb07a3aebb6e245" // Binance Hot Wallet 2
@@ -37,6 +36,8 @@ context("Polygon mUSD shutdown", async () => {
     let delayedProxyAdmin: DelayedProxyAdmin
     let musd: MassetPolygon
     let savingManager: SavingsManager
+    let totalSupplyBefore
+    let bAssetsBefore
 
     const assertBalances = async (bAssetIndex: number, token: Token, bAssetsAfter) => {
         expect(bAssetsAfter.bData[bAssetIndex].vaultBalance, `${bAssetIndex} vault balance`).to.eq(
@@ -50,13 +51,7 @@ context("Polygon mUSD shutdown", async () => {
 
         // No more a tokens in the integrator contract
         const liquidityAsset = IERC20__factory.connect(token.liquidityProvider, ops.signer)
-        if (token.symbol !== "PUSDC") {
-            expect(await liquidityAsset.balanceOf(token.integrator), `${token.symbol} integrator liquidity`).to.eq(0)
-        } else {
-            const liquidityAssetBal = await liquidityAsset.balanceOf(token.integrator)
-            // Less than 0.5 cUSDC left
-            assertBNClose(liquidityAssetBal, BN.from(0), 5e7)
-        }
+        expect(await liquidityAsset.balanceOf(token.integrator), `${token.symbol} integrator liquidity`).to.eq(0)
 
         // bAssets are now in the mAsset
         const bAsset = IERC20Metadata__factory.connect(token.address, ops.signer)
@@ -118,8 +113,6 @@ context("Polygon mUSD shutdown", async () => {
         savingManager = SavingsManager__factory.connect(resolveAddress("SavingsManager", Chain.polygon), ops.signer)
     }
 
-    let totalSupplyBefore
-    let bAssetsBefore
     before("reset block number", async () => {
         await runSetup(38960000)
 
@@ -159,7 +152,7 @@ context("Polygon mUSD shutdown", async () => {
         const integrator = PAaveIntegration__factory.connect(PUSDC.integrator, ops.signer)
         console.log(`Aave integrator balance ${formatUnits(await integrator.checkBalance(PUSDC.address), PUSDC.decimals)} PUSDC before`)
 
-        // migrate all 4 base assets from Compound and Aave
+        // migrate all 3 base assets from Aave
         await musd.connect(governor.signer).migrateBassets([PUSDC.address, PDAI.address, PUSDT.address], ZERO_ADDRESS)
 
         console.log(`${formatUnits(await cUSDC.balanceOf(PUSDC.integrator), 8)} cUSDC in integrator after`)
@@ -177,6 +170,14 @@ context("Polygon mUSD shutdown", async () => {
         const data = await musd.data()
         expect(data.swapFee, "swap fee").to.eq(0)
         expect(data.redemptionFee, "redemption fee").to.eq(0)
+    })
+    it("set weight limits", async () => {
+        const min = simpleToExactAmount(5, 16) // 5%
+        const max = simpleToExactAmount(95, 17) // 95%
+        await musd.connect(governor.signer).setWeightLimits(min, max)
+        const data = await musd.data()
+        expect(await data.weightLimits.min, "min weight").to.eq(min)
+        expect(await data.weightLimits.max, "max weight").to.eq(max)
     })
 
     // can still mint, swap and redeem

@@ -227,7 +227,7 @@ export const BUSD: Token = {
 // NonPeggedFeederPool contains priceGetter
 export const RAI: Token = {
     symbol: "RAI",
-    address: "0x03ab458634910aad20ef5f1c8ee96f1d6ac54919",
+    address: "0x03ab458634910AaD20eF5f1C8ee96F1D6ac54919",
     chain: Chain.mainnet,
     platform: Platform.Aave,
     integrator: "0x8CC6A1aE38743d453F2522C5228B775D145f43B7",
@@ -309,6 +309,7 @@ export const alUSD: Token = {
     address: "0xBC6DA0FE9aD5f3b0d58160288917AA56653660E9",
     feederPool: "0x4eaa01974B6594C0Ee62fFd7FEE56CF11E6af936",
     integrator: "0xd658d5fDe0917CdC9b10cAadf10E20d942572a7B",
+    liquidityProvider: "0xBC6DA0FE9aD5f3b0d58160288917AA56653660E9", // alUSD
     vault: "0x0997dDdc038c8A958a3A3d00425C16f8ECa87deb",
     chain: Chain.mainnet,
     decimals: 18,

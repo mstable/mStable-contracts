@@ -39,6 +39,8 @@ context("mUSD shutdown", async () => {
     let delayedProxyAdmin: DelayedProxyAdmin
     let musd: MusdV4
     let savingManager: SavingsManager
+    let totalSupplyBefore
+    let bAssetsBefore
 
     const assertBalances = async (bAssetIndex: number, token: Token, bAssetsAfter) => {
         expect(bAssetsAfter.data[bAssetIndex].vaultBalance, `${bAssetIndex} vault balance`).to.eq(
@@ -140,8 +142,6 @@ context("mUSD shutdown", async () => {
         savingManager = SavingsManager__factory.connect(resolveAddress("SavingsManager"), ops.signer)
     }
 
-    let totalSupplyBefore
-    let bAssetsBefore
     before("reset block number", async () => {
         await runSetup(16537000)
 
@@ -201,6 +201,14 @@ context("mUSD shutdown", async () => {
         await musd.connect(governor.signer).setFees(0, 0)
         expect(await musd.swapFee(), "swap fee").to.eq(0)
         expect(await musd.redemptionFee(), "redemption fee").to.eq(0)
+    })
+    it("set weight limits", async () => {
+        const min = simpleToExactAmount(5, 16) // 5%
+        const max = simpleToExactAmount(95, 17) // 95%
+        await musd.connect(governor.signer).setWeightLimits(min, max)
+        const data = await musd.weightLimits()
+        expect(await data.min, "min weight").to.eq(min)
+        expect(await data.max, "max weight").to.eq(max)
     })
     describe("swap", () => {
         const amount = 100000
