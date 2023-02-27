@@ -57,6 +57,8 @@
         "@typescript-eslint/eslint-plugin": "^4.14.0",
         "@typescript-eslint/eslint-plugin-tslint": "^4.14.0",
         "@typescript-eslint/parser": "^4.14.0",
+        "@uniswap/sdk-core": "^3.1.1",
+        "@uniswap/v3-sdk": "^3.9.0",
         "axios": "^0.21.1",
         "chalk": "^4.1.0",
         "commitlint": "^12.1.1",
