@@ -57,11 +57,9 @@ describe("MetaTokenRedeemer", () => {
     })
     it("funds WETH into redeemer", async () => {
         const wethAmount = await weth.balanceOf(await deployer.getAddress())
-        console.log("🚀 ~ file: meta-token-redeemer.spec.ts:60 ~ it ~ wethAmount:", wethAmount.toString())
         const redeemerWethBalance = await weth.balanceOf(redeemer.address)
         await weth.approve(redeemer.address, wethAmount)
         const now = await getTimestamp()
-        console.log("🚀 ~ file: meta-token-redeemer.spec.ts:64 ~ it ~ now:", now)
         const tx = await redeemer.fund(wethAmount.div(2))
         expect(tx)
             .to.emit(redeemer, "Funded")
