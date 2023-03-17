@@ -1,24 +1,25 @@
-import { BN, simpleToExactAmount } from "@utils/math"
+import { simpleToExactAmount } from "@utils/math"
 import { ethers } from "hardhat"
 import { ERC20, MetaTokenRedeemer, MetaTokenRedeemer__factory, MockERC20__factory } from "types/generated"
 import { expect } from "chai"
 import { Signer } from "ethers"
-import { ZERO } from "@utils/constants"
+import { ONE_DAY, ZERO } from "@utils/constants"
+import { getTimestamp, increaseTime } from "@utils/time"
 
 describe("MetaTokenRedeemer", () => {
     let redeemer: MetaTokenRedeemer
     let deployer: Signer
     let alice: Signer
+    let bob: Signer
     let aliceAddress: string
     let mta: ERC20
     let weth: ERC20
-    const rate = BN.from("20000000000000") // 1 MTA  = 0.00002 ETH  (Rate to simplify tests)
-    const wethAmount = simpleToExactAmount(20)
 
     before(async () => {
         const accounts = await ethers.getSigners()
         deployer = accounts[0]
         alice = accounts[1]
+        bob = accounts[2]
         aliceAddress = await alice.getAddress()
         mta = await new MockERC20__factory(deployer).deploy(
             "Meta Token",
@@ -34,48 +35,141 @@ describe("MetaTokenRedeemer", () => {
             await deployer.getAddress(),
             simpleToExactAmount(1_000_000),
         )
-        redeemer = await new MetaTokenRedeemer__factory(deployer).deploy(mta.address, weth.address, rate)
+        redeemer = await new MetaTokenRedeemer__factory(deployer).deploy(mta.address, weth.address, ONE_DAY.mul(90))
         // send mta to alice
         mta.transfer(aliceAddress, simpleToExactAmount(10_000))
+        mta.transfer(await bob.getAddress(), simpleToExactAmount(10_000))
     })
-    it("deposits WETH into redeemer", async () => {
+    it("constructor parameters are correct", async () => {
+        expect(await redeemer.MTA(), "MTA").to.be.eq(mta.address)
+        expect(await redeemer.WETH(), "WETH").to.be.eq(weth.address)
+        expect(await redeemer.PERIOD_DURATION(), "PERIOD_DURATION").to.be.eq(ONE_DAY.mul(90))
+        expect(await redeemer.periodStart(), "periodStart").to.be.eq(ZERO)
+        expect(await redeemer.periodEnd(), "periodEnd").to.be.eq(ZERO)
+        expect(await redeemer.totalFunded(), "totalFunded").to.be.eq(ZERO)
+        expect(await redeemer.totalRegistered(), "totalRegistered").to.be.eq(ZERO)
+        expect(await redeemer.balances(aliceAddress), "balances").to.be.eq(ZERO)
+    })
+    it("fails to register if period has not started", async () => {
+        expect(await redeemer.periodStart(), "periodStart").to.be.eq(ZERO)
+
+        await expect(redeemer.register(ZERO), "register").to.be.revertedWith("Registration period not started")
+    })
+    it("funds WETH into redeemer", async () => {
+        const wethAmount = await weth.balanceOf(await deployer.getAddress())
+        console.log("🚀 ~ file: meta-token-redeemer.spec.ts:60 ~ it ~ wethAmount:", wethAmount.toString())
+        const redeemerWethBalance = await weth.balanceOf(redeemer.address)
+        await weth.approve(redeemer.address, wethAmount)
+        const now = await getTimestamp()
+        console.log("🚀 ~ file: meta-token-redeemer.spec.ts:64 ~ it ~ now:", now)
+        const tx = await redeemer.fund(wethAmount.div(2))
+        expect(tx)
+            .to.emit(redeemer, "Funded")
+            .withArgs(await deployer.getAddress(), wethAmount.div(2))
+        // Check total funded increases
+        expect(await redeemer.totalFunded(), "total funded").to.be.eq(wethAmount.div(2))
+        expect(await weth.balanceOf(redeemer.address), "weth balance").to.be.eq(redeemerWethBalance.add(wethAmount.div(2)))
+        // Fist time it is invoked , period details are set
+        expect(await redeemer.periodStart(), "period start").to.be.eq(now.add(1))
+        expect(await redeemer.periodEnd(), "period end").to.be.eq(now.add(1).add(await redeemer.PERIOD_DURATION()))
+    })
+    it("funds again WETH into redeemer", async () => {
+        const wethAmount = await weth.balanceOf(await deployer.getAddress())
+
+        const periodStart = await redeemer.periodStart()
+        const periodEnd = await redeemer.periodEnd()
+        const totalFunded = await redeemer.totalFunded()
+        const redeemerWethBalance = await weth.balanceOf(redeemer.address)
+
         await weth.approve(redeemer.address, wethAmount)
         const tx = await redeemer.fund(wethAmount)
         expect(tx)
             .to.emit(redeemer, "Funded")
             .withArgs(await deployer.getAddress(), wethAmount)
+        // Check total funded increases
+        expect(await redeemer.totalFunded(), "total funded").to.be.eq(totalFunded.add(wethAmount))
+        expect(await weth.balanceOf(redeemer.address), "weth balance").to.be.eq(redeemerWethBalance.add(wethAmount))
+        // After first time, period details do not change
+        expect(await redeemer.periodStart(), "period start").to.be.eq(periodStart)
+        expect(await redeemer.periodEnd(), "period end").to.be.eq(periodEnd)
     })
-    it("anyone can redeem MTA multiple times", async () => {
-        const aliceBalanceBefore = await mta.balanceOf(aliceAddress)
+    const registerTests = [{ user: "alice" }, { user: "bob" }]
+    registerTests.forEach((test, i) =>
+        it(`${test.user} can register MTA multiple times`, async () => {
+            const accounts = await ethers.getSigners()
+            const signer = accounts[i + 1]
+            const signerAddress = await signer.getAddress()
+            const signerBalanceBefore = await mta.balanceOf(signerAddress)
+            const redeemerMTABalance = await mta.balanceOf(redeemer.address)
+
+            const amount = signerBalanceBefore.div(2)
+            expect(signerBalanceBefore, "balance").to.be.gt(ZERO)
+            await mta.connect(signer).approve(redeemer.address, ethers.constants.MaxUint256)
+
+            const tx1 = await redeemer.connect(signer).register(amount)
+            expect(tx1).to.emit(redeemer, "Register").withArgs(signerAddress, amount)
+
+            const tx2 = await redeemer.connect(signer).register(amount)
+            expect(tx2).to.emit(redeemer, "Register").withArgs(signerAddress, amount)
+
+            const signerBalanceAfter = await mta.balanceOf(signerAddress)
+            const redeemerMTABalanceAfter = await mta.balanceOf(redeemer.address)
+
+            expect(signerBalanceAfter, "user mta balance").to.be.eq(ZERO)
+            expect(redeemerMTABalanceAfter, "redeemer mta balance").to.be.eq(redeemerMTABalance.add(signerBalanceBefore))
+        }),
+    )
+    it("fails to redeem if Redeem period not started", async () => {
+        const now = await getTimestamp()
+        const periodEnd = await redeemer.periodEnd()
+
+        expect(now, "now < periodEnd").to.be.lt(periodEnd)
+
+        await expect(redeemer.redeem(), "redeem").to.be.revertedWith("Redeem period not started")
+    })
+    it("fails to fund or register if register period ended", async () => {
+        await increaseTime(ONE_DAY.mul(91))
+        const periodEnd = await redeemer.periodEnd()
+        const now = await getTimestamp()
+
+        expect(now, "now > periodEnd").to.be.gt(periodEnd)
+
+        await expect(redeemer.fund(ZERO), "fund").to.be.revertedWith("Funding period ended")
+        await expect(redeemer.register(ZERO), "register").to.be.revertedWith("Registration period ended")
+    })
+
+    it("anyone can redeem WETH", async () => {
         const aliceWethBalanceBefore = await weth.balanceOf(aliceAddress)
         const redeemerWethBalanceBefore = await weth.balanceOf(redeemer.address)
+        const redeemerMTABalanceBefore = await mta.balanceOf(redeemer.address)
+        const registeredAmount = await redeemer.balances(aliceAddress)
 
-        const amount = aliceBalanceBefore.div(2)
-        const expectedWeth = amount.mul(rate).div(simpleToExactAmount(1))
+        const totalRegistered = await redeemer.totalRegistered()
+        const totalFunded = await redeemer.totalFunded()
 
-        expect(aliceBalanceBefore, "balance").to.be.gt(ZERO)
-        await mta.connect(alice).approve(redeemer.address, ethers.constants.MaxUint256)
+        const expectedWeth = registeredAmount.mul(totalRegistered).div(totalFunded)
 
-        const tx1 = await redeemer.connect(alice).redeem(amount)
-        expect(tx1).to.emit(redeemer, "Redeemed").withArgs(aliceAddress, amount, expectedWeth)
+        expect(registeredAmount, "registeredAmount").to.be.gt(ZERO)
 
-        const tx2 = await redeemer.connect(alice).redeem(amount)
-        expect(tx2).to.emit(redeemer, "Redeemed").withArgs(aliceAddress, amount, expectedWeth)
+        const tx = await redeemer.connect(alice).redeem()
+        expect(tx).to.emit(redeemer, "Redeemed").withArgs(aliceAddress, registeredAmount, expectedWeth)
 
-        const aliceBalanceAfter = await mta.balanceOf(aliceAddress)
+        const redeemerMTABalanceAfter = await mta.balanceOf(redeemer.address)
         const aliceWethBalanceAfter = await weth.balanceOf(aliceAddress)
         const redeemerWethBalanceAfter = await weth.balanceOf(redeemer.address)
+        const registeredAmountAfter = await redeemer.balances(aliceAddress)
 
-        expect(aliceBalanceAfter, "alice mta balance").to.be.eq(ZERO)
-        expect(aliceWethBalanceAfter, "alice weth balance").to.be.eq(aliceWethBalanceBefore.add(expectedWeth.mul(2)))
-        expect(redeemerWethBalanceAfter, "redeemer weth balance").to.be.eq(redeemerWethBalanceBefore.sub(expectedWeth.mul(2)))
+        expect(registeredAmountAfter, "alice register balance").to.be.eq(ZERO)
+        expect(aliceWethBalanceAfter, "alice weth balance").to.be.eq(aliceWethBalanceBefore.add(expectedWeth))
+        expect(redeemerWethBalanceAfter, "redeemer weth balance").to.be.eq(redeemerWethBalanceBefore.sub(expectedWeth))
+        // invariants
+        expect(redeemerMTABalanceAfter, "no mta is transferred").to.be.eq(redeemerMTABalanceBefore)
+        expect(totalRegistered, "register amount").to.be.eq(await redeemer.totalRegistered())
+        expect(totalFunded, "funded amount ").to.be.eq(await redeemer.totalFunded())
     })
-    it("fails if there is not enough WETH (non realistic example) ", async () => {
-        const mtaAmount = await mta.balanceOf(await deployer.getAddress())
-        const expectedWeth = mtaAmount.mul(rate).div(simpleToExactAmount(1))
-        expect(expectedWeth).to.be.gt(simpleToExactAmount(20))
-        await mta.approve(redeemer.address, mtaAmount)
-
-        await expect(redeemer.redeem(mtaAmount)).to.be.revertedWith("not enough WETH")
+    it("fails if sender did not register", async () => {
+        const registeredAmount = await redeemer.balances(await deployer.getAddress())
+        expect(registeredAmount).to.be.eq(ZERO)
+        await expect(redeemer.connect(deployer).redeem()).to.be.revertedWith("No balance")
     })
 })

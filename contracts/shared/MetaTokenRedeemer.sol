@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.6;
 
-// External
-import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -15,58 +13,91 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 contract MetaTokenRedeemer {
     using SafeERC20 for IERC20;
 
-    uint256 public constant RATE_SCALE = 1e18;
     address public immutable MTA;
     address public immutable WETH;
-    uint256 public immutable RATE;
+    uint256 public immutable PERIOD_DURATION;
+    uint256 public periodStart;
+    uint256 public periodEnd;
+    uint256 public totalFunded;
+    uint256 public totalRegistered;
+    mapping(address => uint256) public balances;
 
     /**
-     * @notice Emits event whenever a user funds and amount.
+     * @notice Emitted when the redeemer is funded.
      */
-    event Funded(address indexed from, uint256 amount);
+    event Funded(address indexed sender, uint256 amount);
+    /**
+     * @notice Emitted when a user register MTA.
+     */
+    event Register(address indexed sender, uint256 amount);
 
     /**
-     * @notice Emits event whenever a user redeems an amount.
+     * @notice Emitted when a user claims WETH for the registered amount.
      */
-    event Redeemed(address indexed sender, uint256 fromAssetAmount, uint256 toAssetAmount);
+    event Redeemed(address indexed sender, uint256 registeredAmount, uint256 redeemedAmount);
 
     /**
      * @notice Crates a new instance of the contract
      * @param _mta MTA Token Address
      * @param _weth WETH Token Address
-     * @param _rate The exchange rate with 18 decimal numbers, for example 1 MTA  = 0.00002 ETH  rate is 20000000000000;
+     * @param _periodDuration The lenght of the registration period.
      */
     constructor(
         address _mta,
         address _weth,
-        uint256 _rate
+        uint256 _periodDuration
     ) {
         MTA = _mta;
         WETH = _weth;
-        RATE = _rate;
+        PERIOD_DURATION = _periodDuration;
     }
 
-    /// @notice Funds the contract with WETH.
-    /// @param amount Amount of WETH to be transfer to the contract
+    /**
+     * @notice Funds the contract with WETH, and initialize the funding period.
+     * It only allows to fund during the funding period.
+     * @param amount The Amount of WETH to be transfer to the contract
+     */
     function fund(uint256 amount) external {
+        require(periodStart == 0 || block.timestamp <= periodEnd, "Funding period ended");
+
         IERC20(WETH).safeTransferFrom(msg.sender, address(this), amount);
+        if (periodStart == 0) {
+            periodStart = block.timestamp;
+            periodEnd = periodStart + PERIOD_DURATION;
+        }
+        totalFunded += amount;
+
         emit Funded(msg.sender, amount);
     }
 
-    /// @notice Redeems MTA for WETH at a fixed rate.
-    /// @param fromAssetAmount a parameter just like in doxygen (must be followed by parameter name)
-    /// @return toAssetAmount The amount of WETH received.
-    function redeem(uint256 fromAssetAmount) external returns (uint256 toAssetAmount) {
-        IERC20(MTA).safeTransferFrom(msg.sender, address(this), fromAssetAmount);
+    /**
+     * @notice Allos user to register and transfer a given amount of MTA
+     * It only allows to register during the registration period.
+     * @param amount The Amount of MTA to register.
+     */
+    function register(uint256 amount) external {
+        require(periodStart > 0, "Registration period not started");
+        require(block.timestamp <= periodEnd, "Registration period ended");
 
-        // calculate to asset amount
-        toAssetAmount = (fromAssetAmount * RATE) / RATE_SCALE;
+        IERC20(MTA).safeTransferFrom(msg.sender, address(this), amount);
+        balances[msg.sender] += amount;
+        totalRegistered += amount;
+        emit Register(msg.sender, amount);
+    }
 
-        // transfer out the to asset
-        require(IERC20(WETH).balanceOf(address(this)) >= toAssetAmount, "not enough WETH");
+    /// @notice Redeems all user MTA balance for WETH at a fixed rate.
+    /// @return redeemedAmount The amount of WETH to receive.
+    function redeem() external returns (uint256 redeemedAmount) {
+        require(periodEnd <= block.timestamp, "Redeem period not started");
+        uint256 registeredAmount = balances[msg.sender];
+        require(registeredAmount > 0, "No balance");
 
-        IERC20(WETH).safeTransfer(msg.sender, toAssetAmount);
+        // MTA and WETH both have 18 decimal points, no need for scaling.
+        redeemedAmount = (registeredAmount * totalRegistered) / totalFunded;
+        balances[msg.sender] = 0;
 
-        emit Redeemed(msg.sender, fromAssetAmount, toAssetAmount);
+        IERC20(WETH).safeTransfer(msg.sender, redeemedAmount);
+
+        emit Redeemed(msg.sender, registeredAmount, redeemedAmount);
     }
 }
