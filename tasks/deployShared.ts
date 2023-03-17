@@ -10,7 +10,7 @@ import { MTA } from "./utils"
 import { getChain, getChainAddress } from "./utils/networkAddressFactory"
 
 task("deploy-MetaTokenRedeemer")
-    .addParam("rate", "Redemption rate  with 18 decimal points", types.string)
+    .addParam("duration", "Registration period duration, default value 90 days (7776000)", 7776000, types.int)
     .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
     .setAction(async (taskArgs, hre) => {
         const signer = await getSigner(hre, taskArgs.speed)
@@ -21,7 +21,7 @@ task("deploy-MetaTokenRedeemer")
         const metaTokenRedeemer = await deployContract(new MetaTokenRedeemer__factory(signer), "MetaTokenRedeemer", [
             mtaAddr,
             wethAddr,
-            BigNumber.from(taskArgs.rate),
+            BigNumber.from(taskArgs.duration),
         ])
 
         await verifyEtherscan(hre, {
