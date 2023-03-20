@@ -21,37 +21,26 @@ describe("MetaTokenRedeemer", () => {
         alice = accounts[1]
         bob = accounts[2]
         aliceAddress = await alice.getAddress()
-        mta = await new MockERC20__factory(deployer).deploy(
-            "Meta Token",
-            "mta",
-            18,
-            await deployer.getAddress(),
-            simpleToExactAmount(10_000_000),
-        )
-        weth = await new MockERC20__factory(deployer).deploy(
-            "WETH Token",
-            "weth",
-            18,
-            await deployer.getAddress(),
-            simpleToExactAmount(1_000_000),
-        )
+        mta = await new MockERC20__factory(deployer).deploy("Meta Token", "mta", 18, await deployer.getAddress(), 100_000_000)
+        weth = await new MockERC20__factory(deployer).deploy("WETH Token", "weth", 18, await deployer.getAddress(), 3_000)
         redeemer = await new MetaTokenRedeemer__factory(deployer).deploy(mta.address, weth.address, ONE_DAY.mul(90))
         // send mta to alice
-        mta.transfer(aliceAddress, simpleToExactAmount(10_000))
-        mta.transfer(await bob.getAddress(), simpleToExactAmount(10_000))
+        mta.transfer(aliceAddress, simpleToExactAmount(20_000_000))
+        mta.transfer(await bob.getAddress(), simpleToExactAmount(20_000_000))
     })
     it("constructor parameters are correct", async () => {
+        const registerPeriod = await redeemer.registerPeriod()
         expect(await redeemer.MTA(), "MTA").to.be.eq(mta.address)
         expect(await redeemer.WETH(), "WETH").to.be.eq(weth.address)
         expect(await redeemer.PERIOD_DURATION(), "PERIOD_DURATION").to.be.eq(ONE_DAY.mul(90))
-        expect(await redeemer.periodStart(), "periodStart").to.be.eq(ZERO)
-        expect(await redeemer.periodEnd(), "periodEnd").to.be.eq(ZERO)
+        expect(registerPeriod.start, "periodStart").to.be.eq(ZERO)
+        expect(registerPeriod.end, "periodEnd").to.be.eq(ZERO)
         expect(await redeemer.totalFunded(), "totalFunded").to.be.eq(ZERO)
         expect(await redeemer.totalRegistered(), "totalRegistered").to.be.eq(ZERO)
         expect(await redeemer.balances(aliceAddress), "balances").to.be.eq(ZERO)
     })
     it("fails to register if period has not started", async () => {
-        expect(await redeemer.periodStart(), "periodStart").to.be.eq(ZERO)
+        expect((await redeemer.registerPeriod()).start, "periodStart").to.be.eq(ZERO)
 
         await expect(redeemer.register(ZERO), "register").to.be.revertedWith("Registration period not started")
     })
@@ -68,14 +57,16 @@ describe("MetaTokenRedeemer", () => {
         expect(await redeemer.totalFunded(), "total funded").to.be.eq(wethAmount.div(2))
         expect(await weth.balanceOf(redeemer.address), "weth balance").to.be.eq(redeemerWethBalance.add(wethAmount.div(2)))
         // Fist time it is invoked , period details are set
-        expect(await redeemer.periodStart(), "period start").to.be.eq(now.add(1))
-        expect(await redeemer.periodEnd(), "period end").to.be.eq(now.add(1).add(await redeemer.PERIOD_DURATION()))
+        const registerPeriod = await redeemer.registerPeriod()
+        expect(registerPeriod.start, "period start").to.be.eq(now.add(1))
+        expect(registerPeriod.end, "period end").to.be.eq(now.add(1).add(await redeemer.PERIOD_DURATION()))
     })
     it("funds again WETH into redeemer", async () => {
         const wethAmount = await weth.balanceOf(await deployer.getAddress())
+        let registerPeriod = await redeemer.registerPeriod()
 
-        const periodStart = await redeemer.periodStart()
-        const periodEnd = await redeemer.periodEnd()
+        const periodStart = registerPeriod.start
+        const periodEnd = registerPeriod.end
         const totalFunded = await redeemer.totalFunded()
         const redeemerWethBalance = await weth.balanceOf(redeemer.address)
 
@@ -88,8 +79,9 @@ describe("MetaTokenRedeemer", () => {
         expect(await redeemer.totalFunded(), "total funded").to.be.eq(totalFunded.add(wethAmount))
         expect(await weth.balanceOf(redeemer.address), "weth balance").to.be.eq(redeemerWethBalance.add(wethAmount))
         // After first time, period details do not change
-        expect(await redeemer.periodStart(), "period start").to.be.eq(periodStart)
-        expect(await redeemer.periodEnd(), "period end").to.be.eq(periodEnd)
+        registerPeriod = await redeemer.registerPeriod()
+        expect(registerPeriod.start, "period start").to.be.eq(periodStart)
+        expect(registerPeriod.end, "period end").to.be.eq(periodEnd)
     })
     const registerTests = [{ user: "alice" }, { user: "bob" }]
     registerTests.forEach((test, i) =>
@@ -119,18 +111,17 @@ describe("MetaTokenRedeemer", () => {
     )
     it("fails to redeem if Redeem period not started", async () => {
         const now = await getTimestamp()
-        const periodEnd = await redeemer.periodEnd()
-
-        expect(now, "now < periodEnd").to.be.lt(periodEnd)
+        const registerPeriod = await redeemer.registerPeriod()
+        expect(now, "now < periodEnd").to.be.lt(registerPeriod.end)
 
         await expect(redeemer.redeem(), "redeem").to.be.revertedWith("Redeem period not started")
     })
     it("fails to fund or register if register period ended", async () => {
         await increaseTime(ONE_DAY.mul(91))
-        const periodEnd = await redeemer.periodEnd()
+        const registerPeriod = await redeemer.registerPeriod()
         const now = await getTimestamp()
 
-        expect(now, "now > periodEnd").to.be.gt(periodEnd)
+        expect(now, "now > periodEnd").to.be.gt(registerPeriod.end)
 
         await expect(redeemer.fund(ZERO), "fund").to.be.revertedWith("Funding period ended")
         await expect(redeemer.register(ZERO), "register").to.be.revertedWith("Registration period ended")
@@ -145,7 +136,7 @@ describe("MetaTokenRedeemer", () => {
         const totalRegistered = await redeemer.totalRegistered()
         const totalFunded = await redeemer.totalFunded()
 
-        const expectedWeth = registeredAmount.mul(totalRegistered).div(totalFunded)
+        const expectedWeth = registeredAmount.mul(totalFunded).div(totalRegistered)
 
         expect(registeredAmount, "registeredAmount").to.be.gt(ZERO)
 
