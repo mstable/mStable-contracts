@@ -23,8 +23,14 @@ import {
     BoostDirector__factory,
     IERC20Metadata,
     Unwrapper__factory,
+    MassetManagerBtcV2__factory,
+    MassetBtcV2__factory,
 } from "types/generated"
 import { simpleToExactAmount, BN } from "@utils/math"
+import { getSigner } from "./utils/signerFactory"
+import { getChain, getChainAddress, resolveAddress } from "./utils/networkAddressFactory"
+import { deployContract } from "./utils/deploy-utils"
+import { verifyEtherscan } from "./utils/etherscan"
 
 interface CommonAddresses {
     mta: string
@@ -538,6 +544,34 @@ task("initMBTC", "Initializes the mBTC and imBTC implementations").setAction(asy
     console.log(`imBTC impl initialize tx ${tx2.hash}`)
     const receipt2 = await tx2.wait()
     console.log(`imBTC tx mined status ${receipt2.status} used ${receipt2.gasUsed} gas`)
+})
+
+task("deployMBTC-shutdown", "Deploys the mBTC contracts to Mainnet").setAction(async (taskArgs, hre) => {
+    const signer = await getSigner(hre, taskArgs.speed)
+    const chain = getChain(hre)
+
+    // Deploy new mBTC Manager library
+    const managerLib = MassetManagerBtcV2__factory.connect(resolveAddress("MassetManagerBtcV2", chain), signer)
+    const libraryAddress = {
+        "contracts/masset/legacy/mbtc.sol:MassetManagerBtcV2": managerLib.address,
+    }
+    await verifyEtherscan(hre, {
+        address: managerLib.address,
+        contract: "contracts/masset/legacy/mbtc.sol:MassetManagerBtcV2",
+    })
+
+    // Deploy new mBTC implementation
+    const constructorArguments = [getChainAddress("Nexus", chain)]
+    const impl = await deployContract(new MassetBtcV2__factory(libraryAddress, signer), "MassetBtcV2", constructorArguments)
+
+    await verifyEtherscan(hre, {
+        address: impl.address,
+        constructorArguments,
+        libraries: {
+            MassetManagerBtcV2: managerLib.address,
+        },
+        contract: "contracts/masset/legacy/mbtc.sol:MassetBtcV2",
+    })
 })
 
 module.exports = {}

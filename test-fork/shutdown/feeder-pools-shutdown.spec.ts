@@ -35,7 +35,7 @@ const alusdFpWhaleAddress = "0x9E90d6Fe95ee0bb754261eE3FC3d8a9c11e97a8E" // only
 const raiWhaleAddress = "0x86f6ff8479c69E0cdEa641796b0D3bB1D40761Db"
 const raiFpWhaleAddress = "0xA3C1F84fcBedc93aEc401120206b48BEa951D8d0" // 1,400
 const feiWhaleAddress = "0x3A24fea1509e1BaeB2D2A7C819A191AA441825ea"
-const feiFpWhaleAddress = "0xdbBb8F8EFF9e4d52D1F18070f098b5AB4c2eAD04" // only 24
+const feiFpWhaleAddress = "0xB81473F20818225302b8FfFB905B53D58a793D84" // only 990
 
 const gusdIronBankIntegrationAddress = "0xaF007D4ec9a13116035a2131EA1C9bc0B751E3cf"
 
@@ -47,13 +47,15 @@ context("Feeder Pools shutdown", async () => {
     let feederPoolValidator: InterestValidator
     let libraryAddress
 
-    const deployFeederPool = async (asset: Token, feederPool: FeederPoolV2) => {
+    const deployFeederPool = async (asset: Token, feederPool: FeederPoolV2, feederPoolImplAddress?: string) => {
         const totalSupplyBefore = await feederPool.totalSupply()
         // Deploy new Feeder Pool implementation
-        const feederPoolImpl = await deployContract(new FeederPoolV2__factory(libraryAddress, ops.signer), `${asset.symbol} FeederPool`, [
-            nexus.address,
-            mUSD.address,
-        ])
+        const feederPoolImpl = feederPoolImplAddress
+            ? FeederPoolV2__factory.connect(feederPoolImplAddress, ops.signer)
+            : await deployContract(new FeederPoolV2__factory(libraryAddress, ops.signer), `${asset.symbol} FeederPool`, [
+                  nexus.address,
+                  mUSD.address,
+              ])
         // Propose upgrade of Feeder Pool
         await delayedProxyAdmin.proposeUpgrade(asset.feederPool, feederPoolImpl.address, "0x")
         // Accept upgrade after 1 week
@@ -217,21 +219,21 @@ context("Feeder Pools shutdown", async () => {
     }
 
     before("reset block number", async () => {
-        await runSetup(16610000)
+        await runSetup(16938246)
     })
     it("deploy new Feeder Pool Manager library", async () => {
-        const managerLib = await deployContract(new FeederManagerV2__factory(ops.signer), "FeederManagerV2")
+        // const managerLib = await deployContract(new FeederManagerV2__factory(ops.signer), "FeederManagerV2")
         libraryAddress = {
-            "contracts/feeders/legacy/gusd.sol:FeederManagerV2": managerLib.address,
+            "contracts/feeders/legacy/gusd.sol:FeederManagerV2": resolveAddress("FeederManagerV2"),
             "contracts/feeders/legacy/gusd.sol:FeederLogic": resolveAddress("FeederLogic"),
         }
     })
     const testFeederPools = [
-        { asset: GUSD, migrateMusd: false },
-        { asset: BUSD, migrateMusd: true },
+        { asset: GUSD, migrateMusd: false, impl: "0xb6704A3B7bB69Fb1B0048ae9507b028A60c16f19" },
+        { asset: BUSD, migrateMusd: true, impl: "0xb6704A3B7bB69Fb1B0048ae9507b028A60c16f19" },
         { asset: alUSD, migrateMusd: false },
-        { asset: RAI, migrateMusd: false },
-        { asset: FEI, migrateMusd: false },
+        { asset: RAI, migrateMusd: false, impl: "0x0282f18c93e316E35C588A036778534B5F56C50d" },
+        { asset: FEI, migrateMusd: false, impl: "0xeFAEbd2bBDE537dc14fA2Ab217248e6c066d1a3c" },
     ]
     describe("deploy and upgrade", () => {
         testFeederPools.forEach((test) => {
@@ -246,7 +248,7 @@ context("Feeder Pools shutdown", async () => {
                 } else {
                     factory = FeederPoolV2__factory.connect(test.asset.feederPool, ops.signer)
                 }
-                await deployFeederPool(test.asset, factory)
+                await deployFeederPool(test.asset, factory, test.impl)
             })
         })
     })
@@ -377,7 +379,7 @@ context("Feeder Pools shutdown", async () => {
             ...redeemTestData(500, BUSD, busdFpWhaleAddress),
             ...redeemTestData(10, alUSD, alusdFpWhaleAddress),
             ...redeemTestData(80, RAI, raiFpWhaleAddress),
-            ...redeemTestData(50, FEI, feiFpWhaleAddress),
+            ...redeemTestData(450, FEI, feiFpWhaleAddress),
         ]
         testData.forEach((test) => {
             it(`${test.amount} ${test.asset.symbol}`, async () => {

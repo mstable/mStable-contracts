@@ -11,13 +11,18 @@ import {
     AlchemixIntegration,
     AlchemixIntegration__factory,
     FeederWrapper__factory,
+    FeederManagerV2__factory,
+    FeederPoolV2__factory,
+    FeiFeederPool__factory,
+    NonPeggedFeederPoolV2__factory,
 } from "types/generated"
 import { simpleToExactAmount } from "@utils/math"
-import { ALCX, alUSD, BUSD, CREAM, cyMUSD, GUSD, mUSD, tokens } from "./utils/tokens"
+import { ALCX, alUSD, BUSD, CREAM, cyMUSD, GUSD, mUSD, RAI, tokens } from "./utils/tokens"
 import { deployContract, logTxDetails } from "./utils/deploy-utils"
 import { getSigner } from "./utils/signerFactory"
 import { deployFeederPool, deployVault, FeederData, VaultData } from "./utils/feederUtils"
 import { getChain, getChainAddress, resolveToken } from "./utils/networkAddressFactory"
+import { verifyEtherscan } from "./utils/etherscan"
 
 task("deployFeederPool", "Deploy Feeder Pool")
     .addParam("masset", "Token symbol of mAsset. eg mUSD", "mUSD", types.string)
@@ -218,6 +223,109 @@ task("deployIronBank", "Deploys mUSD Iron Bank (CREAM) integration contracts for
             busdIntegration.address,
         ])
         console.log(`BUSD Feeder Pool migrateBassets tx data: ${busdMigrateBassetsData}`)
+    })
+
+task("deployFeederPoolShutdown", "Deploy Feeder Pool library and implementation contracts used for shutdown")
+    .addOptionalParam("lib", "Also deploy the FeederManagerV2 library", "false", types.boolean)
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const feederLogicAddress = getChainAddress("FeederLogic", chain)
+        const feederManagerAddress = taskArgs.lib
+            ? await (
+                  await deployContract(new FeederManagerV2__factory(signer), "FeederManagerV2")
+              ).address
+            : getChainAddress("FeederManagerV2", chain)
+
+        if (taskArgs.lib) {
+            await verifyEtherscan(hre, {
+                address: feederManagerAddress,
+                contract: `contracts/feeders/legacy/FeiFeederPool.sol:FeederManagerV2`,
+            })
+        }
+
+        // Invariant Validator
+        const linkedAddress = {
+            "contracts/feeders/legacy/gusd.sol:FeederLogic": feederLogicAddress,
+            "contracts/feeders/legacy/gusd.sol:FeederManagerV2": feederManagerAddress,
+        }
+
+        const constructorArguments = [getChainAddress("Nexus", chain), mUSD.address]
+        const impl = await deployContract(new FeederPoolV2__factory(linkedAddress, signer), "FeederPoolV2", constructorArguments)
+
+        await verifyEtherscan(hre, {
+            address: impl.address,
+            constructorArguments,
+            libraries: {
+                FeederManagerV2: feederManagerAddress,
+                FeederLogic: feederLogicAddress,
+            },
+            contract: "contracts/feeders/legacy/gusd.sol:FeederPoolV2",
+        })
+    })
+
+task("deployFeiFeederPoolShutdown", "Deploy Fei Feeder Pool implementation contract used for shutdown")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const feederLogicAddress = getChainAddress("FeederLogic", chain)
+        const feederManagerAddress = getChainAddress("FeederManagerV2", chain)
+
+        // Invariant Validator
+        const linkedAddress = {
+            "contracts/feeders/legacy/FeiFeederPool.sol:FeederLogic": feederLogicAddress,
+            "contracts/feeders/legacy/FeiFeederPool.sol:FeederManagerV2": feederManagerAddress,
+        }
+
+        const constructorArguments = [getChainAddress("Nexus", chain), mUSD.address]
+        const impl = await deployContract(new FeiFeederPool__factory(linkedAddress, signer), "FeiFeederPool", constructorArguments)
+
+        await verifyEtherscan(hre, {
+            address: impl.address,
+            constructorArguments,
+            libraries: {
+                FeederManagerV2: feederManagerAddress,
+                FeederLogic: feederLogicAddress,
+            },
+            contract: "contracts/feeders/legacy/FeiFeederPool.sol:FeiFeederPool",
+        })
+    })
+
+task("deployRaiFeederPoolShutdown", "Deploy RAI Feeder Pool implementation contract used for shutdown")
+    .addOptionalParam("speed", "Defender Relayer speed param: 'safeLow' | 'average' | 'fast' | 'fastest'", "fast", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const signer = await getSigner(hre, taskArgs.speed)
+        const chain = getChain(hre)
+
+        const feederLogicAddress = getChainAddress("FeederLogic", chain)
+        const feederManagerAddress = getChainAddress("FeederManagerV2", chain)
+
+        // Invariant Validator
+        const linkedAddress = {
+            "contracts/feeders/legacy/NonPeggedFeederPool.sol:FeederLogic": feederLogicAddress,
+            "contracts/feeders/legacy/NonPeggedFeederPool.sol:FeederManagerV2": feederManagerAddress,
+        }
+
+        const constructorArguments = [getChainAddress("Nexus", chain), mUSD.address, RAI.priceGetter]
+        const impl = await deployContract(
+            new NonPeggedFeederPoolV2__factory(linkedAddress, signer),
+            "NonPeggedFeederPoolV2",
+            constructorArguments,
+        )
+
+        await verifyEtherscan(hre, {
+            address: impl.address,
+            constructorArguments,
+            libraries: {
+                FeederManagerV2: feederManagerAddress,
+                FeederLogic: feederLogicAddress,
+            },
+            contract: "contracts/feeders/legacy/NonPeggedFeederPool.sol:NonPeggedFeederPoolV2",
+        })
     })
 
 module.exports = {}
