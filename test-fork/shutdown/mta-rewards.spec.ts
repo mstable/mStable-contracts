@@ -60,11 +60,6 @@ describe("MTA Rewards", () => {
         const sa = await ethers.getSigners()
         dataEmitter = await new DataEmitter__factory(sa[0]).deploy()
     }
-    before(async () => {
-        await runSetup(16980500)
-        // Move to after streaming of the last immediate rewards has finished
-        await increaseTime(ONE_WEEK)
-    })
 
     const assetClaim = async (staker: string, token: Token): Promise<BigNumberish> => {
         const signer = await impersonate(staker)
@@ -103,18 +98,106 @@ describe("MTA Rewards", () => {
         return unclaimedRewards
     }
     describe("imUSD vault", () => {
-        describe("User staked once less than 26 weeks ago, has never withdrawn or claimed", () => {
-            // Claim rewards now checking unclaimedRewards equals claimRewards
-            // Claim rewards in 27 weeks checking unclaimedRewards equals claimRewards
+        describe("testing", async () => {
+            before(async () => {
+                await runSetup(16980500)
+                // Move to after streaming of the last immediate rewards has finished
+                await increaseTime(ONE_WEEK)
+            })
+            const staker = "0xf91a9bd6e9e00de7dbc54bf86ee9c011bc74c2dd"
+            it("should claim now", async () => {
+                const unclaimedRewards = await assetClaim(staker, mUSD)
+                console.log(`unclaimedRewards: ${unclaimedRewards}`)
+                expect(unclaimedRewards, "claimed rewards").to.gt(0)
+            })
         })
-        describe("User staked once over 26 weeks ago, has never withdrawn or claimed", () => {
-            // Claim rewards now checking unclaimedRewards equals claimRewards
-            // Claim rewards in 27 weeks checking unclaimedRewards equals claimRewards
+        describe("User does not have any more locked rewards", async () => {
+            before(async () => {
+                await runSetup(16980500)
+                // Move to after streaming of the last immediate rewards has finished
+                await increaseTime(ONE_WEEK)
+            })
+            const staker = "0xc6bbfe0ce06f85ed6edbfd015cd5920e17b128da"
+            it("should not be able to claim now", async () => {
+                const unclaimedRewards = await assetClaim(staker, mUSD)
+                console.log(`unclaimedRewards: ${unclaimedRewards}`)
+                expect(unclaimedRewards, "claimed rewards").to.eq(0)
+            })
+        })
+        describe("User staked in last 26 weeks and not withdrawn or claimed", () => {
+            before(async () => {
+                await runSetup(16980500)
+                // Move to after streaming of the last immediate rewards has finished
+                await increaseTime(ONE_WEEK)
+            })
+            const staker = "0xf91a9bd6e9e00de7dbc54bf86ee9c011bc74c2dd"
+            it("should claim now", async () => {
+                const unclaimedRewards = await assetClaim(staker, mUSD)
+                expect(unclaimedRewards, "claimed rewards").to.gt(0)
+            })
+            it("nothing to claim in one week", async () => {
+                await increaseTime(ONE_WEEK)
+                const unclaimedRewards = await assetClaim(staker, mUSD)
+                expect(unclaimedRewards, "claimed rewards").to.eq(0)
+            })
+            it("should claim after 27 weeks", async () => {
+                const vault = BoostedVault__factory.connect(mUSD.vault, await impersonate(staker))
+                const lockedRewards = await calcLockedRewards(vault, staker)
+
+                await increaseTime(ONE_WEEK.mul(27))
+                const finalClaimedRewards = await assetClaim(staker, mUSD)
+
+                expect(lockedRewards, "locked rewards").to.eq(finalClaimedRewards)
+            })
+            it("should not be able to do a second claim after 27 weeks", async () => {
+                await increaseTime(ONE_WEEK)
+                const secondClaim = await assetClaim(staker, mUSD)
+                expect(secondClaim, "second rewards claim").to.equal(0)
+            })
+        })
+        describe("User staked over 26 weeks and not withdrawn or claimed", () => {
+            before(async () => {
+                await runSetup(16980500)
+                // Move to after streaming of the last immediate rewards has finished
+                await increaseTime(ONE_WEEK)
+            })
+            const staker = "0x0c2ef8a1b3bc00bf676053732f31a67ebba5bd81"
+            it("should claim now", async () => {
+                // await assetClaim("0xf91a9bd6e9e00de7dbc54bf86ee9c011bc74c2dd", mUSD)
+                const unclaimedRewards = await assetClaim(staker, mUSD)
+                expect(unclaimedRewards, "claimed rewards").to.gt(0)
+                // Actual   30.460605355391996289
+                // Actual 2 30.460605414489873001
+                // Expected 23.252102475199431989
+            })
+            it("should claim in one week", async () => {
+                await increaseTime(ONE_WEEK)
+                const unclaimedRewards = await assetClaim(staker, mUSD)
+                expect(unclaimedRewards, "claimed rewards").to.gt(0)
+            })
+            it("should claim after 27 weeks", async () => {
+                const vault = BoostedVault__factory.connect(mUSD.vault, await impersonate(staker))
+                const lockedRewards = await calcLockedRewards(vault, staker)
+
+                await increaseTime(ONE_WEEK.mul(27))
+                const finalClaimedRewards = await assetClaim(staker, mUSD)
+
+                expect(lockedRewards, "locked rewards").to.eq(finalClaimedRewards)
+            })
+            it("should not be able to do a second claim after 27 weeks", async () => {
+                await increaseTime(ONE_WEEK)
+                const secondClaim = await assetClaim(staker, mUSD)
+                expect(secondClaim, "second rewards claim").to.equal(0)
+            })
         })
 
         describe("User staked over 26 weeks ago, has since withdrawn all and claimed", () => {
+            before(async () => {
+                await runSetup(16980500)
+                // Move to after streaming of the last immediate rewards has finished
+                await increaseTime(ONE_WEEK)
+            })
             const staker = "0xb86b721a167630d94a54a0899a1ed75d4135d2ca"
-
             it("should claim now", async () => {
                 const unclaimedRewards = await assetClaim(staker, mUSD)
                 expect(unclaimedRewards, "claimed rewards").to.gt(0)
