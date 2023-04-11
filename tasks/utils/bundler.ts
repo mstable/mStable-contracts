@@ -27,6 +27,9 @@ export const bundleInBlock = async (
     const callReceipt = await callTx.wait()
     const txReceipt = await tx.wait()
 
+    // Step 6 : Restart auto mining
+    await ethers.provider.send("evm_setAutomine", [true])
+
     return {
         callReceipt,
         txReceipt,

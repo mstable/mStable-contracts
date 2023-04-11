@@ -13,6 +13,7 @@ export const increaseTime = async (length: BN | number): Promise<void> => {
 export const latestBlock = async (): Promise<Block> => ethers.provider.getBlock(await ethers.provider.getBlockNumber())
 
 export const getTimestamp = async (): Promise<BN> => BN.from((await latestBlock()).timestamp)
+export const getBlockDate = async (): Promise<Date> => new Date((await latestBlock()).timestamp * 1000)
 
 export const increaseTimeTo = async (target: BN | number): Promise<void> => {
     const now = await getTimestamp()
